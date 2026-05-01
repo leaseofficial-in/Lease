@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { RentPayment, Rental } from '../../types';
@@ -9,6 +9,7 @@ import { formatCurrency, formatMonth, formatDate } from '../../lib/formatters';
 import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { PaymentRowSkeleton } from '../../components/ui/SkeletonLoader';
+import { markLandlordActionsViewed } from '../../lib/landlordActionViews';
 
 interface PaymentWithRental extends RentPayment {
   rental: Rental & { property: { name: string; city: string } };
@@ -16,6 +17,7 @@ interface PaymentWithRental extends RentPayment {
 
 export default function LandlordPaymentsScreen() {
   const { profile } = useAuthStore();
+  const queryClient = useQueryClient();
 
   const { data: payments, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['landlord-payments', profile?.id],
@@ -45,6 +47,15 @@ export default function LandlordPaymentsScreen() {
   const totalPending = payments
     ?.filter((p) => p.status === 'pending' || p.status === 'overdue')
     .reduce((sum, p) => sum + p.amount, 0) ?? 0;
+
+  useEffect(() => {
+    const paidIds = payments?.filter((payment) => payment.status === 'paid').map((payment) => payment.id) ?? [];
+    if (!profile?.id || !paidIds.length) return;
+
+    markLandlordActionsViewed(profile.id, 'payments', paidIds).then(() => {
+      void queryClient.invalidateQueries({ queryKey: ['landlord-viewed-actions', profile.id, 'payments'] });
+    });
+  }, [payments, profile?.id, queryClient]);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>

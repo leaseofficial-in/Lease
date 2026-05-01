@@ -7,11 +7,11 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
-import { Rental } from '../../types';
+import { Rental, RentPayment, RepairRequest } from '../../types';
 import { formatCurrency } from '../../lib/formatters';
 import { RentalCard } from '../../components/rental/RentalCard';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -22,6 +22,15 @@ import { Cap, Chip, CollectionRing, DisplayText, InkCard, Sparkline } from '../.
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { listLocalRentals } from '../../lib/localRentals';
+import { getViewedLandlordActionIds } from '../../lib/landlordActionViews';
+
+interface LandlordRepairAction extends Pick<RepairRequest, 'id' | 'rental_id' | 'title' | 'priority' | 'status' | 'created_at'> {
+  rental?: { id: string; property_id: string; property?: { name: string } | null };
+}
+
+interface LandlordPaymentAction extends Pick<RentPayment, 'id' | 'rental_id' | 'amount' | 'status' | 'month' | 'paid_at' | 'created_at'> {
+  rental?: { id: string; property_id: string; property?: { name: string } | null };
+}
 
 export default function LandlordDashboard() {
   const router = useRouter();
@@ -50,20 +59,126 @@ export default function LandlordDashboard() {
     enabled: !!profile?.id,
   });
 
+  const { data: repairActions, refetch: refetchRepairActions } = useQuery({
+    queryKey: ['landlord-repair-actions', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('repair_requests')
+        .select(`
+          id,
+          rental_id,
+          title,
+          priority,
+          status,
+          created_at,
+          rental:rentals!inner(
+            id,
+            property_id,
+            property:properties(name)
+          )
+        `)
+        .eq('rental.landlord_id', profile!.id)
+        .in('status', ['open', 'in_progress'])
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data as unknown as LandlordRepairAction[];
+    },
+    enabled: !!profile?.id && !isLocalDevUser,
+  });
+
+  const { data: paymentActions, refetch: refetchPaymentActions } = useQuery({
+    queryKey: ['landlord-payment-actions', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rent_payments')
+        .select(`
+          id,
+          rental_id,
+          amount,
+          status,
+          month,
+          paid_at,
+          created_at,
+          rental:rentals!inner(
+            id,
+            property_id,
+            property:properties(name)
+          )
+        `)
+        .eq('rental.landlord_id', profile!.id)
+        .eq('status', 'paid')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data as unknown as LandlordPaymentAction[];
+    },
+    enabled: !!profile?.id && !isLocalDevUser,
+  });
+
+  const { data: viewedRepairIds = [], refetch: refetchViewedRepairIds } = useQuery({
+    queryKey: ['landlord-viewed-actions', profile?.id, 'repairs'],
+    queryFn: () => getViewedLandlordActionIds(profile!.id, 'repairs'),
+    enabled: !!profile?.id,
+  });
+
+  const { data: viewedPaymentIds = [], refetch: refetchViewedPaymentIds } = useQuery({
+    queryKey: ['landlord-viewed-actions', profile?.id, 'payments'],
+    queryFn: () => getViewedLandlordActionIds(profile!.id, 'payments'),
+    enabled: !!profile?.id,
+  });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void refetchViewedRepairIds();
+      void refetchViewedPaymentIds();
+      if (!isLocalDevUser) {
+        void refetchRepairActions();
+        void refetchPaymentActions();
+      }
+    }, [isLocalDevUser, refetchPaymentActions, refetchRepairActions, refetchViewedPaymentIds, refetchViewedRepairIds]),
+  );
+
+  const refreshDashboard = async () => {
+    await Promise.all([
+      refetch(),
+      !isLocalDevUser ? refetchRepairActions() : Promise.resolve(),
+      !isLocalDevUser ? refetchPaymentActions() : Promise.resolve(),
+      refetchViewedRepairIds(),
+      refetchViewedPaymentIds(),
+    ]);
+  };
+
   const activeRentals = rentals?.filter((r) => r.status === 'active') ?? [];
   const actionableRentals = rentals?.filter((r) => r.status !== 'active' || !r.agreement_signed_at) ?? [];
+  const unviewedRepairs = (repairActions ?? []).filter((repair) => !viewedRepairIds.includes(repair.id));
+  const unviewedPayments = (paymentActions ?? []).filter((payment) => !viewedPaymentIds.includes(payment.id));
   const totalExpected = rentals?.reduce((sum, r) => sum + Number(r.monthly_rent), 0) ?? 0;
   const collected = activeRentals.reduce((sum, r) => sum + Number(r.monthly_rent), 0);
   const collectionRate = totalExpected > 0 ? Math.round((collected / totalExpected) * 100) : 0;
   const firstName = profile?.full_name?.split(' ')[0] || 'Landlord';
-  const queueCount = actionableRentals.length;
-  const firstAction = actionableRentals[0];
+  const queueCount = actionableRentals.length + unviewedRepairs.length + unviewedPayments.length;
+  const firstRentalAction = actionableRentals[0];
+  const firstRepairAction = unviewedRepairs[0];
+  const firstPaymentAction = unviewedPayments[0];
+  const actionSummary = [
+    unviewedRepairs.length ? `${unviewedRepairs.length} repair${unviewedRepairs.length === 1 ? '' : 's'}` : null,
+    unviewedPayments.length ? `${unviewedPayments.length} payment${unviewedPayments.length === 1 ? '' : 's'}` : null,
+    actionableRentals.length ? `${actionableRentals.length} setup` : null,
+  ].filter(Boolean).join(' - ');
+  const primaryActionText = firstRepairAction
+    ? `Repair: ${firstRepairAction.title}`
+    : firstPaymentAction
+    ? `Payment received: ${formatCurrency(firstPaymentAction.amount, true)}`
+    : firstRentalAction
+    ? 'Rental setup needs review'
+    : 'No landlord tasks need attention.';
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']} style={{ flex: 1, backgroundColor: Colors.surface }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refreshDashboard} />}
         contentContainerStyle={{ paddingBottom: 96 }}
       >
         <View className="px-5 pt-4 pb-2 flex-row items-center justify-between">
@@ -110,8 +225,15 @@ export default function LandlordDashboard() {
           <TouchableOpacity
             activeOpacity={queueCount ? 0.78 : 1}
             onPress={() => {
-              if (firstAction?.property_id) {
-                router.push(`/(landlord)/property/${firstAction.property_id}`);
+              if (firstRepairAction?.rental_id) {
+                router.push({
+                  pathname: '/(landlord)/repairs/[rentalId]',
+                  params: { rentalId: firstRepairAction.rental_id },
+                });
+              } else if (firstPaymentAction) {
+                router.push('/(landlord)/payments');
+              } else if (firstRentalAction?.property_id) {
+                router.push(`/(landlord)/property/${firstRentalAction.property_id}`);
               }
             }}
           >
@@ -126,7 +248,9 @@ export default function LandlordDashboard() {
                       {queueCount ? `${queueCount} actions for you` : 'Everything is current'}
                     </Text>
                     <Text className="text-xs text-muted mt-0.5">
-                      {queueCount ? 'Review invites, proof, and pending rentals.' : 'No landlord tasks need attention.'}
+                      {queueCount
+                        ? `${primaryActionText}${actionSummary ? ` (${actionSummary})` : ''}`
+                        : primaryActionText}
                     </Text>
                   </View>
                 </View>
