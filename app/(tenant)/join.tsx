@@ -53,7 +53,7 @@ export default function JoinRentalScreen() {
         .eq('invite_token', extracted)
         .gt('invite_expires_at', new Date().toISOString())
         .is('tenant_id', null)
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
         showToast('Invite not found or expired. Ask your landlord for a new link.', 'error');
@@ -69,7 +69,7 @@ export default function JoinRentalScreen() {
     if (!preview || !profile) return;
     setJoining(true);
     try {
-      const { error } = await supabase
+      const { data: joinedRental, error } = await supabase
         .from('rentals')
         .update({
           tenant_id: profile.id,
@@ -77,10 +77,14 @@ export default function JoinRentalScreen() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', preview.id)
-        .is('tenant_id', null);
+        .is('tenant_id', null)
+        .select('id')
+        .maybeSingle();
 
       if (error) throw error;
+      if (!joinedRental) throw new Error('Invite could not be accepted.');
       await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
+      await queryClient.refetchQueries({ queryKey: ['tenant-rental', profile.id] });
       showToast('You\'ve joined the rental! Upload move-in photos next.', 'success');
       router.replace('/(tenant)');
     } catch {

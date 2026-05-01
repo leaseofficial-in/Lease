@@ -37,7 +37,7 @@ export default function JoinDeepLinkScreen() {
         .eq('invite_token', token)
         .gt('invite_expires_at', new Date().toISOString())
         .is('tenant_id', null)
-        .single();
+        .maybeSingle();
 
       if (fetchError || !data) {
         setError('This invite link has expired or already been used.');
@@ -85,14 +85,14 @@ export default function JoinDeepLinkScreen() {
         <ActivityIndicator size="large" color={Colors.action} />
       ) : error ? (
         <View className="items-center">
-          <Text style={{ fontSize: 48 }} className="mb-4">❌</Text>
+          <Text style={{ color: Colors.primary, fontSize: 32, fontWeight: '700' }} className="mb-4">!</Text>
           <Text className="text-xl font-bold text-primary text-center mb-2">Invalid Link</Text>
           <Text className="text-sm text-muted text-center mb-6">{error}</Text>
           <Button title="Go Home" onPress={() => router.replace('/(auth)')} />
         </View>
       ) : (
         <View className="items-center w-full">
-          <Text style={{ fontSize: 56 }} className="mb-4">🔗</Text>
+          <Text style={{ color: Colors.primary, fontSize: 32, fontWeight: '700' }} className="mb-4">F</Text>
           <Text className="text-2xl font-bold text-primary text-center mb-2">
             You're invited!
           </Text>
