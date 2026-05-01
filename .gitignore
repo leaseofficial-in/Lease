@@ -43,3 +43,5 @@ yarn-error.*
 
 # Supabase local CLI state
 supabase/.temp/
+
+.vercel
