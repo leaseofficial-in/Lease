@@ -20,7 +20,7 @@ export type RepairPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface Profile {
   id: string;
-  phone: string;
+  phone: string | null;
   full_name: string;
   avatar_url: string | null;
   role: UserRole | null;

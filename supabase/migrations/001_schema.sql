@@ -24,7 +24,7 @@ create type property_type      as enum ('apartment', 'house', 'pg', 'commercial'
 
 create table profiles (
   id              uuid primary key references auth.users on delete cascade,
-  phone           text not null unique,
+  phone           text unique,
   full_name       text not null default '',
   avatar_url      text,
   role            user_role,
@@ -360,11 +360,12 @@ create policy "Authenticated upload repair photos"
 create or replace function handle_new_user()
 returns trigger language plpgsql security definer as $$
 begin
-  insert into profiles (id, phone, full_name)
+  insert into profiles (id, phone, full_name, email)
   values (
     new.id,
-    coalesce(new.phone, new.raw_user_meta_data->>'phone', ''),
-    coalesce(new.raw_user_meta_data->>'full_name', '')
+    nullif(coalesce(new.phone, new.raw_user_meta_data->>'phone', ''), ''),
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''),
+    new.email
   )
   on conflict (id) do nothing;
   return new;

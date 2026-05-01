@@ -60,7 +60,8 @@ export const monthKey = (date: Date = new Date()): string => {
 
 // ─── Phone ────────────────────────────────────────────────────────────────────
 
-export const formatPhone = (phone: string): string => {
+export const formatPhone = (phone: string | null | undefined): string => {
+  if (!phone) return 'Phone not set';
   const digits = phone.replace(/\D/g, '');
   if (digits.length === 10) {
     return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;

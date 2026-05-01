@@ -29,9 +29,10 @@ function AuthGate() {
 
     const inAuth = segments[0] === '(auth)';
     const inJoin = segments[0] === 'join';
+    const inAuthCallback = segments[0] === 'auth';
 
     if (!session) {
-      if (!inAuth && !inJoin) router.replace('/(auth)');
+      if (!inAuth && !inJoin && !inAuthCallback) router.replace('/(auth)');
       return;
     }
 
@@ -79,6 +80,7 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(landlord)" />
           <Stack.Screen name="(tenant)" />
+          <Stack.Screen name="auth/callback" />
           <Stack.Screen name="join/[token]" />
         </Stack>
         <ToastHost />

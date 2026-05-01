@@ -5,12 +5,14 @@ import { Profile, UserRole } from '../types';
 import { supabase } from '../lib/supabase';
 import {
   DEV_AUTH_OTP,
+  DEV_AUTH_INPUT_PHONE,
   DEV_AUTH_STORAGE_KEY,
   createDevProfile,
   createDevSession,
   isDevAuthEnabled,
   isDevAuthUserId,
 } from '../lib/devAuth';
+import { signInWithGoogle } from '../lib/oauth';
 
 interface AuthState {
   session: Session | null;
@@ -24,6 +26,7 @@ interface AuthState {
   fetchProfile: (userId: string) => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   setRole: (role: UserRole) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signInWithDevOtp: (phone: string, otp: string) => Promise<void>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
@@ -105,13 +108,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ profile: data as Profile });
   },
 
+  signInWithGoogle: async () => {
+    await signInWithGoogle();
+  },
+
   signInWithDevOtp: async (phone, otp) => {
     if (!isDevAuthEnabled()) {
       throw new Error('Local dev login is disabled for this build.');
     }
 
     const digits = phone.replace(/\D/g, '');
-    if (digits !== '9876543210' || otp !== DEV_AUTH_OTP) {
+    if (digits !== DEV_AUTH_INPUT_PHONE || otp !== DEV_AUTH_OTP) {
       throw new Error('Use local test phone 9876543210 and OTP 123456.');
     }
 
