@@ -8,10 +8,11 @@ interface RentStatusBadgeProps {
 }
 
 const statusConfig = {
-  paid:    { bg: 'bg-emerald-50', text: 'text-success', dot: 'bg-success' },
-  pending: { bg: 'bg-amber-50',   text: 'text-warning', dot: 'bg-warning' },
-  overdue: { bg: 'bg-red-50',     text: 'text-danger',  dot: 'bg-danger'  },
-  partial: { bg: 'bg-blue-50',    text: 'text-action',  dot: 'bg-action'  },
+  paid:                 { bg: 'bg-emerald-50', text: 'text-success', dot: 'bg-success' },
+  pending:              { bg: 'bg-amber-50',   text: 'text-warning', dot: 'bg-warning' },
+  overdue:              { bg: 'bg-red-50',     text: 'text-danger',  dot: 'bg-danger'  },
+  partial:              { bg: 'bg-blue-50',    text: 'text-action',  dot: 'bg-action'  },
+  pending_verification: { bg: 'bg-blue-50',    text: 'text-action',  dot: 'bg-action'  },
 };
 
 export const RentStatusBadge: React.FC<RentStatusBadgeProps> = ({ payment }) => {
