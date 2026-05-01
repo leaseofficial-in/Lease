@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Linking, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Linking, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -20,7 +20,7 @@ export default function AgreementScreen() {
   const queryClient = useQueryClient();
   const [signing, setSigning] = useState(false);
 
-  const { data: rental, isLoading } = useQuery({
+  const { data: rental, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -81,7 +81,11 @@ export default function AgreementScreen() {
         <Text className="text-lg font-bold text-primary">Rental Agreement</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        className="flex-1"
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+      >
         <View className="px-5 pt-4 pb-8 gap-4">
           {/* Status banner */}
           {isSigned ? (

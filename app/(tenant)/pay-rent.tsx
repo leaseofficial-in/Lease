@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import { Button } from '../../components/ui/Button';
 import { PaymentMethodSelector } from '../../components/payment/PaymentMethodSelector';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { createPaymentOrder, verifyAndRecordPayment } from '../../lib/razorpay';
+import { confirmAction } from '../../lib/confirm';
 
 type PaymentMethod = 'upi' | 'card' | 'netbanking';
 
@@ -24,13 +25,20 @@ export default function PayRentScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
   const [processing, setProcessing] = useState(false);
 
-  const { data: rental, isLoading: loadingRental } = useQuery({
+  const {
+    data: rental,
+    isLoading: loadingRental,
+    refetch: refetchRental,
+    isRefetching: isRentalRefetching,
+  } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rentals')
         .select(`*, property:properties(name)`)
         .eq('tenant_id', profile!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data as Rental | null;
@@ -38,7 +46,12 @@ export default function PayRentScreen() {
     enabled: !!profile?.id,
   });
 
-  const { data: currentPayment, isLoading: loadingPayment } = useQuery({
+  const {
+    data: currentPayment,
+    isLoading: loadingPayment,
+    refetch: refetchPayment,
+    isRefetching: isPaymentRefetching,
+  } = useQuery({
     queryKey: ['current-payment', rental?.id],
     queryFn: async () => {
       const month = monthKey();
@@ -57,12 +70,16 @@ export default function PayRentScreen() {
   const totalAmount = (currentPayment?.amount ?? rental?.monthly_rent ?? 0)
     + (currentPayment?.late_fee ?? 0);
 
+  const refreshAll = async () => {
+    await refetchRental();
+    if (rental?.id) await refetchPayment();
+  };
+
   const handlePay = async () => {
     if (!rental || !profile) return;
 
     setProcessing(true);
     try {
-      // Ensure a payment record exists for this month
       let paymentId = currentPayment?.id;
       if (!paymentId) {
         const { data, error } = await supabase
@@ -79,38 +96,34 @@ export default function PayRentScreen() {
         if (error) throw error;
         paymentId = data.id;
       }
+      if (!paymentId) throw new Error('Could not create payment record');
 
-      // Create Razorpay order
-      const order = await createPaymentOrder(rental.id, paymentId!, totalAmount);
+      const order = await createPaymentOrder(rental.id, paymentId, totalAmount);
+      const confirmedPaymentId = paymentId;
+      setProcessing(false);
 
-      // In a real app: open Razorpay SDK or WebView here
-      // For now, simulate successful payment after 1.5s
-      Alert.alert(
+      confirmAction(
         'Razorpay Checkout',
-        `Order ${order.orderId} created for ${formatCurrency(totalAmount)}.\n\n(Razorpay SDK would open here. Payment simulated.)`,
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => setProcessing(false) },
-          {
-            text: 'Simulate Payment',
-            onPress: async () => {
-              try {
-                await verifyAndRecordPayment(paymentId!, {
-                  razorpay_order_id: order.orderId,
-                  razorpay_payment_id: `pay_sim_${Date.now()}`,
-                  razorpay_signature: 'simulated',
-                });
-                await queryClient.invalidateQueries({ queryKey: ['current-payment'] });
-                await queryClient.invalidateQueries({ queryKey: ['tenant-payments'] });
-                showToast('Payment successful! 🎉', 'success');
-                router.back();
-              } catch {
-                showToast('Payment verification failed', 'error');
-              } finally {
-                setProcessing(false);
-              }
-            },
-          },
-        ],
+        `Order ${order.orderId} was created for ${formatCurrency(totalAmount)}. This test build will simulate the payment response.`,
+        async () => {
+          setProcessing(true);
+          try {
+            await verifyAndRecordPayment(confirmedPaymentId, {
+              razorpay_order_id: order.orderId,
+              razorpay_payment_id: `pay_sim_${Date.now()}`,
+              razorpay_signature: 'simulated',
+            });
+            await queryClient.invalidateQueries({ queryKey: ['current-payment'] });
+            await queryClient.invalidateQueries({ queryKey: ['tenant-payments'] });
+            showToast('Payment successful!', 'success');
+            router.back();
+          } catch {
+            showToast('Payment verification failed', 'error');
+          } finally {
+            setProcessing(false);
+          }
+        },
+        'Simulate Payment',
       );
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Payment failed', 'error');
@@ -129,14 +142,21 @@ export default function PayRentScreen() {
           onPress={() => router.back()}
           className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center mr-3"
         >
-          <Text className="text-primary">←</Text>
+          <Text className="text-primary">&lt;</Text>
         </TouchableOpacity>
         <Text className="text-lg font-bold text-primary">Pay Rent</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRentalRefetching || isPaymentRefetching}
+            onRefresh={refreshAll}
+          />
+        }
+      >
         <View className="px-5 pt-4 pb-8 gap-4">
-          {/* Amount card */}
           <Card className="bg-action items-center py-6">
             <Text className="text-white/70 text-sm mb-1">
               {currentPayment ? formatMonth(currentPayment.month) : 'Current Month'}
@@ -154,7 +174,7 @@ export default function PayRentScreen() {
 
           {isPaid ? (
             <Card className="items-center py-6">
-              <Text style={{ fontSize: 48 }}>✅</Text>
+              <Text style={{ fontSize: 48 }}>OK</Text>
               <Text className="text-lg font-bold text-success mt-2">Already Paid</Text>
               <Text className="text-sm text-muted">
                 This month's rent has been recorded.
@@ -181,7 +201,7 @@ export default function PayRentScreen() {
               />
 
               <Text className="text-xs text-muted text-center">
-                Secured by Razorpay · 256-bit SSL encryption
+                Secured by Razorpay - 256-bit SSL encryption
               </Text>
             </>
           )}

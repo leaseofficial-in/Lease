@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { Config } from '../constants/config';
 
@@ -24,7 +25,37 @@ const uriToBlob = async (uri: string): Promise<Blob> => {
   return response.blob();
 };
 
+const pickWebFile = async (capture = false): Promise<string | null> => {
+  if (typeof document === 'undefined') return null;
+
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    if (capture) input.setAttribute('capture', 'environment');
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.onchange = () => {
+      const file = input.files?.[0];
+      document.body.removeChild(input);
+      resolve(file ? URL.createObjectURL(file) : null);
+    };
+
+    input.oncancel = () => {
+      document.body.removeChild(input);
+      resolve(null);
+    };
+
+    input.click();
+  });
+};
+
 export const pickPhoto = async (): Promise<string | null> => {
+  if (Platform.OS === 'web') {
+    return pickWebFile(false);
+  }
+
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) return null;
 
@@ -39,6 +70,10 @@ export const pickPhoto = async (): Promise<string | null> => {
 };
 
 export const takePhoto = async (): Promise<string | null> => {
+  if (Platform.OS === 'web') {
+    return pickWebFile(true);
+  }
+
   const permission = await ImagePicker.requestCameraPermissionsAsync();
   if (!permission.granted) return null;
 
@@ -57,7 +92,7 @@ export const uploadProofPhoto = async (
   proofId: string,
   userId: string,
 ): Promise<UploadResult> => {
-  const compressed = await compressPhoto(uri);
+  const compressed = Platform.OS === 'web' ? uri : await compressPhoto(uri);
   const blob = await uriToBlob(compressed);
   const filename = `${rentalId}/${proofId}/${userId}_${Date.now()}.jpg`;
 
@@ -72,7 +107,7 @@ export const uploadProofPhoto = async (
 };
 
 export const uploadAvatar = async (uri: string, userId: string): Promise<UploadResult> => {
-  const compressed = await compressPhoto(uri);
+  const compressed = Platform.OS === 'web' ? uri : await compressPhoto(uri);
   const blob = await uriToBlob(compressed);
   const filename = `avatars/${userId}.jpg`;
 
@@ -91,7 +126,7 @@ export const uploadRepairPhoto = async (
   rentalId: string,
   repairId: string,
 ): Promise<UploadResult> => {
-  const compressed = await compressPhoto(uri);
+  const compressed = Platform.OS === 'web' ? uri : await compressPhoto(uri);
   const blob = await uriToBlob(compressed);
   const filename = `repairs/${rentalId}/${repairId}_${Date.now()}.jpg`;
 

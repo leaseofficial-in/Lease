@@ -13,6 +13,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { Colors, Radius, Shadow } from '../../constants/theme';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -26,6 +27,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   visible,
   onClose,
   children,
+  maxHeight = '86%',
   scrollable = false,
 }) => {
   const translateY = useSharedValue(400);
@@ -48,8 +50,6 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
 
   if (!visible) return null;
 
-  const Content = scrollable ? ScrollView : View;
-
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -63,7 +63,21 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         </TouchableWithoutFeedback>
 
         <Animated.View
-          style={[sheetStyle, { position: 'absolute', bottom: 0, left: 0, right: 0 }]}
+          style={[
+            sheetStyle,
+            Shadow.modal,
+            {
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              maxHeight: maxHeight as `${number}%`,
+              backgroundColor: Colors.surface,
+              borderTopLeftRadius: Radius.xxl,
+              borderTopRightRadius: Radius.xxl,
+              overflow: 'hidden',
+            },
+          ]}
           className="bg-white rounded-t-3xl"
         >
           {/* Handle bar */}
@@ -71,9 +85,18 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             <View className="w-10 h-1 rounded-full bg-border" />
           </View>
 
-          <Content className="px-5 pb-8" showsVerticalScrollIndicator={false}>
-            {children}
-          </Content>
+          {scrollable ? (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+            >
+              {children}
+            </ScrollView>
+          ) : (
+            <View style={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+              {children}
+            </View>
+          )}
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>

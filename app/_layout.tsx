@@ -22,6 +22,7 @@ import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { isDevAuthUserId } from '../lib/devAuth';
 import { ToastHost } from '../components/ui/ToastHost';
 import { WebContainer } from '../components/ui/WebContainer';
+import { ConfirmHost } from '../components/ui/ConfirmHost';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +108,7 @@ export default function RootLayout() {
             <Stack.Screen name="auth/callback" />
             <Stack.Screen name="join/[token]" />
           </Stack>
+          <ConfirmHost />
           <ToastHost />
         </QueryClientProvider>
       </WebContainer>

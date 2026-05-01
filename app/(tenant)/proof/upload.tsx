@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -72,6 +72,12 @@ export default function UploadProofScreen() {
   }, {}) ?? {};
 
   const activeRoomPhotos = proof?.photos?.filter((p) => p.room_label === activeRoom) ?? [];
+  const isRefreshing = rental?.id ? isLoading : isRentalLoading;
+
+  const refreshAll = async () => {
+    await refetchRental();
+    if (rental?.id) await refetchProof();
+  };
 
   const ensureProof = useCallback(async (): Promise<string> => {
     if (proof?.id) return proof.id;
@@ -236,7 +242,10 @@ export default function UploadProofScreen() {
         />
       ) : (
         <>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          >
             {/* Instructions */}
             {!proof && (
               <Card className="mx-5 mt-4">
@@ -297,18 +306,18 @@ export default function UploadProofScreen() {
       <BottomSheet visible={showPhotoSource} onClose={() => setShowPhotoSource(false)}>
         <Text className="text-lg font-semibold text-primary mb-4 pt-2">Add Photo</Text>
         <View className="gap-3 pb-2">
-          {Platform.OS !== 'web' && (
-            <TouchableOpacity
-              onPress={() => handlePickPhoto('camera')}
-              className="flex-row items-center p-4 rounded-xl border border-border bg-white"
-            >
-              <Text style={{ fontSize: 24 }} className="mr-3">📷</Text>
-              <Text className="text-base font-medium text-primary">Take Photo</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={() => handlePickPhoto('camera')}
+            className="flex-row items-center p-4 rounded-xl border border-border bg-white"
+            style={{ backgroundColor: '#FFFFFF' }}
+          >
+            <Text style={{ fontSize: 24 }} className="mr-3">📷</Text>
+            <Text className="text-base font-medium text-primary">Take Photo</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handlePickPhoto('gallery')}
             className="flex-row items-center p-4 rounded-xl border border-border bg-white"
+            style={{ backgroundColor: '#FFFFFF' }}
           >
             <Text style={{ fontSize: 24 }} className="mr-3">🖼️</Text>
             <Text className="text-base font-medium text-primary">Choose from Gallery</Text>

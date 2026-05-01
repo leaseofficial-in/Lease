@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,7 +29,7 @@ export default function ReviewProofScreen() {
   const [showDisputeInput, setShowDisputeInput] = useState(false);
   const [actioning, setActioning] = useState(false);
 
-  const { data: proof, isLoading } = useQuery({
+  const { data: proof, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['proof', rentalId, 'move_in'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -124,7 +124,10 @@ export default function ReviewProofScreen() {
           icon={<Text style={{ fontSize: 48 }}>📷</Text>}
         />
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        >
           {/* Meta */}
           <Card className="mx-5 mt-4">
             <View className="flex-row justify-between">

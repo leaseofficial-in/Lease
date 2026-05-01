@@ -6,15 +6,27 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
+interface ConfirmOptions {
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  destructive?: boolean;
+  onConfirm: () => void | Promise<void>;
+}
+
 interface UIState {
   toasts: Toast[];
   isBottomSheetOpen: boolean;
   bottomSheetContent: React.ReactNode | null;
+  confirmOptions: ConfirmOptions | null;
 
   showToast: (message: string, type?: Toast['type']) => void;
   dismissToast: (id: string) => void;
   openBottomSheet: (content: React.ReactNode) => void;
   closeBottomSheet: () => void;
+  openConfirm: (options: ConfirmOptions) => void;
+  closeConfirm: () => void;
 }
 
 // React import for typing only — store itself is UI-agnostic
@@ -24,6 +36,7 @@ export const useUIStore = create<UIState>((set) => ({
   toasts: [],
   isBottomSheetOpen: false,
   bottomSheetContent: null,
+  confirmOptions: null,
 
   showToast: (message, type = 'info') => {
     const id = `${Date.now()}-${Math.random()}`;
@@ -41,4 +54,10 @@ export const useUIStore = create<UIState>((set) => ({
 
   closeBottomSheet: () =>
     set({ isBottomSheetOpen: false, bottomSheetContent: null }),
+
+  openConfirm: (options) =>
+    set({ confirmOptions: options }),
+
+  closeConfirm: () =>
+    set({ confirmOptions: null }),
 }));

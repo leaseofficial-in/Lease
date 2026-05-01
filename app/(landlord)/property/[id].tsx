@@ -7,6 +7,7 @@ import {
   Share,
   Platform,
   TextInput,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -59,7 +60,7 @@ export default function PropertyDetailScreen() {
   });
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
-  const { data: rental, isLoading } = useQuery({
+  const { data: rental, isLoading, refetch: refetchRental, isRefetching: isRentalRefetching } = useQuery({
     queryKey: ['rental-by-property', propertyId],
     queryFn: async () => {
       if (isLocalDevUser) {
@@ -112,6 +113,13 @@ export default function PropertyDetailScreen() {
   });
 
   const visibleDepositTransactions = isLocalDevUser ? localDepositTransactions : depositTransactions ?? [];
+
+  const refreshAll = async () => {
+    await Promise.all([
+      refetchRental(),
+      !isLocalDevUser && rental?.id ? refetchDeposit() : Promise.resolve(),
+    ]);
+  };
 
   const resetTransactionForm = () => {
     setTxnAmount('');
@@ -314,7 +322,11 @@ export default function PropertyDetailScreen() {
 
   return (
     <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 28 }}
+        refreshControl={<RefreshControl refreshing={isRentalRefetching} onRefresh={refreshAll} />}
+      >
         <View className="px-5 py-4 flex-row items-center bg-white border-b border-border">
           <TouchableOpacity
             onPress={() => router.back()}
