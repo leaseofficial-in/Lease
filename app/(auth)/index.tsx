@@ -3,76 +3,68 @@ import { View, Text, ScrollView, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/ui/Button';
+import { Logo } from '../../components/brand/Logo';
+import { HeroLoop } from '../../components/brand/HeroLoop';
+import { Cap, DisplayText, SerifItalic } from '../../components/ui/V2';
+import { Colors, Fonts } from '../../constants/theme';
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { height, width } = useWindowDimensions();
-  const heroHeight = Math.max(320, Math.min(height * 0.4, 420));
+  const { width } = useWindowDimensions();
   const contentWidth = Math.max(280, Math.min(448, width - 48));
 
   return (
-    <View className="flex-1 bg-primary">
+    <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.canvas }}>
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
-        <View className="bg-primary overflow-hidden" style={{ minHeight: heroHeight }}>
-          <View
-            className="absolute bg-action/20 rounded-full"
-            style={{ width: 300, height: 300, top: -80, right: -60 }}
-          />
-          <View
-            className="absolute bg-success/10 rounded-full"
-            style={{ width: 200, height: 200, top: 80, left: -40 }}
-          />
-
-          <SafeAreaView edges={['top']}>
-            <View className="px-8 pt-4">
-              <View className="flex-row items-center">
-                <View className="w-10 h-10 rounded-xl bg-action items-center justify-center mr-2">
-                  <Text className="text-white text-lg font-bold">F</Text>
-                </View>
-                <Text className="text-white text-xl font-bold">Flatvio</Text>
-              </View>
-            </View>
-          </SafeAreaView>
-
-          <View className="flex-1 items-center justify-center px-8 py-8">
-            <Text className="text-5xl font-bold text-white text-center leading-tight">
-              Renting{'\n'}made{'\n'}
-              <Text className="text-action">trustworthy.</Text>
-            </Text>
-          </View>
+        <View className="px-6 pt-4 pb-5">
+          <Logo variant="full" size={42} />
         </View>
 
-        <View className="bg-white rounded-t-3xl px-6 pt-6">
-          <SafeAreaView edges={['bottom']}>
-            <View className="self-center" style={{ width: contentWidth }}>
-            <Text className="text-2xl font-bold text-primary mb-2">
-              Welcome to Flatvio
-            </Text>
-            <Text
-              className="text-base text-muted mb-6 leading-6"
-              style={{ flexShrink: 1, width: contentWidth }}
-            >
-              The all-in-one app for landlords and tenants.{'\n'}
-              Manage rent, deposits, move-in proof,{'\n'}
-              and repair requests - all in one place.
-            </Text>
+        <View className="px-6">
+          <Cap style={{ marginBottom: 12 }}>Flatvio / Est 2026</Cap>
+          <DisplayText style={{ fontSize: 54, lineHeight: 55 }}>
+            Renting,{'\n'}finally <SerifItalic>trustworthy.</SerifItalic>
+          </DisplayText>
+          <Text
+            style={{
+              color: Colors.ink3,
+              fontFamily: Fonts.sans,
+              fontSize: 15,
+              lineHeight: 23,
+              marginTop: 14,
+              maxWidth: 560,
+            }}
+          >
+            Move in with proof, rent with clarity, and keep every agreement traceable from
+            the first key handoff.
+          </Text>
+        </View>
 
+        <View className="px-6 pt-7">
+          <HeroLoop />
+        </View>
+
+        <View className="px-6 pt-6">
+          <View className="self-center" style={{ width: contentWidth }}>
             <View className="gap-3 mb-6">
               {[
-                ['Photo', 'Move-in & move-out photo proof'],
-                ['Rent', 'Online rent collection via UPI'],
-                ['Fix', 'Repair request tracking'],
-                ['Docs', 'Digital rental agreements'],
+                ['Proof', 'Move-in and move-out records'],
+                ['Rent', 'Monthly tracking for both sides'],
+                ['Repairs', 'Maintenance requests with status'],
               ].map(([label, text]) => (
                 <View key={text} className="flex-row items-center">
-                  <View className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3">
-                    <Text className="text-xs font-semibold text-action">{label}</Text>
+                  <View className="w-10 h-10 rounded-full bg-white border border-border items-center justify-center mr-3">
+                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 11 }}>
+                      {label.slice(0, 2)}
+                    </Text>
                   </View>
-                  <Text className="text-sm text-primary flex-1">{text}</Text>
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 14, flex: 1 }}>
+                    {text}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -85,15 +77,22 @@ export default function WelcomeScreen() {
               style={{ width: contentWidth }}
             />
             <Text
-              className="text-xs text-muted text-center mt-4"
-              style={{ flexShrink: 1, width: contentWidth }}
+              style={{
+                color: Colors.muted,
+                fontFamily: Fonts.mono,
+                fontSize: 10,
+                letterSpacing: 1,
+                lineHeight: 16,
+                marginTop: 14,
+                textAlign: 'center',
+                textTransform: 'uppercase',
+              }}
             >
-              By continuing you agree to our Terms of Service and Privacy Policy
+              By continuing / Terms / Privacy
             </Text>
-            </View>
-          </SafeAreaView>
+          </View>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
