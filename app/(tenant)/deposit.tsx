@@ -8,9 +8,12 @@ import { DepositTransaction, Rental } from '../../types';
 import { DepositCard } from '../../components/rental/DepositCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
+import { Colors, Fonts } from '../../constants/theme';
+import { isDevAuthUserId } from '../../lib/devAuth';
 
 export default function TenantDepositScreen() {
   const { profile } = useAuthStore();
+  const isLocalDevUser = isDevAuthUserId(profile?.id);
 
   const { data: rental } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
@@ -23,7 +26,7 @@ export default function TenantDepositScreen() {
       if (error) throw error;
       return data as Rental | null;
     },
-    enabled: !!profile?.id,
+    enabled: !!profile?.id && !isLocalDevUser,
   });
 
   const { data: transactions, isLoading, refetch, isRefetching } = useQuery({
@@ -37,7 +40,7 @@ export default function TenantDepositScreen() {
       if (error) throw error;
       return data as DepositTransaction[];
     },
-    enabled: !!rental?.id,
+    enabled: !!rental?.id && !isLocalDevUser,
   });
 
   if (isLoading) return <LoadingScreen />;
@@ -57,8 +60,12 @@ export default function TenantDepositScreen() {
           {!rental ? (
             <EmptyState
               title="No rental found"
-              subtitle="Join a rental to see your deposit details."
-              icon={<Text style={{ fontSize: 48 }}>💰</Text>}
+              subtitle={
+                isLocalDevUser
+                  ? 'Local demo mode skips live deposit records.'
+                  : 'Join a rental to see your deposit details.'
+              }
+              icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>D</Text>}
             />
           ) : (
             <DepositCard

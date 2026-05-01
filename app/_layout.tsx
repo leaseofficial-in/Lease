@@ -4,6 +4,18 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+import {
+  Geist_400Regular,
+  Geist_500Medium,
+  Geist_600SemiBold,
+  Geist_700Bold,
+  useFonts as useGeistFonts,
+} from '@expo-google-fonts/geist';
+import {
+  InstrumentSerif_400Regular,
+  InstrumentSerif_400Regular_Italic,
+  useFonts as useInstrumentFonts,
+} from '@expo-google-fonts/instrument-serif';
 import { useAuthStore } from '../stores/authStore';
 import { registerForPushNotifications } from '../lib/notifications';
 import { LoadingScreen } from '../components/ui/LoadingScreen';
@@ -63,30 +75,40 @@ function AuthGate() {
 
 export default function RootLayout() {
   const { isInitialized, initialize } = useAuthStore();
+  const [geistLoaded] = useGeistFonts({
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    Geist_700Bold,
+  });
+  const [serifLoaded] = useInstrumentFonts({
+    InstrumentSerif_400Regular,
+    InstrumentSerif_400Regular_Italic,
+  });
 
   useEffect(() => {
     initialize();
   }, [initialize]);
 
-  if (!isInitialized) {
-    return <LoadingScreen message="Starting Flatvio…" />;
+  if (!isInitialized || !geistLoaded || !serifLoaded) {
+    return <LoadingScreen message="Starting Flatvio..." />;
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <WebContainer>
-      <QueryClientProvider client={queryClient}>
-        <StatusBar style="dark" />
-        <AuthGate />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(landlord)" />
-          <Stack.Screen name="(tenant)" />
-          <Stack.Screen name="auth/callback" />
-          <Stack.Screen name="join/[token]" />
-        </Stack>
-        <ToastHost />
-      </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+          <StatusBar style="dark" />
+          <AuthGate />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(landlord)" />
+            <Stack.Screen name="(tenant)" />
+            <Stack.Screen name="auth/callback" />
+            <Stack.Screen name="join/[token]" />
+          </Stack>
+          <ToastHost />
+        </QueryClientProvider>
       </WebContainer>
     </GestureHandlerRootView>
   );

@@ -26,7 +26,7 @@ interface ButtonProps extends TouchableOpacityProps {
 
 const variantStyles: Record<ButtonVariant, { container: string; text: string }> = {
   primary: {
-    container: 'bg-action',
+    container: 'bg-primary',
     text: 'text-white',
   },
   secondary: {
@@ -35,7 +35,7 @@ const variantStyles: Record<ButtonVariant, { container: string; text: string }> 
   },
   ghost: {
     container: 'bg-transparent',
-    text: 'text-action',
+    text: 'text-primary',
   },
   danger: {
     container: 'bg-danger',
@@ -44,9 +44,9 @@ const variantStyles: Record<ButtonVariant, { container: string; text: string }> 
 };
 
 const sizeStyles: Record<ButtonSize, { container: string; text: string }> = {
-  sm: { container: 'px-4 py-2 rounded-lg', text: 'text-sm font-medium' },
-  md: { container: 'px-6 py-3.5 rounded-xl', text: 'text-base font-semibold' },
-  lg: { container: 'px-8 py-4 rounded-2xl', text: 'text-lg font-semibold' },
+  sm: { container: 'px-4 rounded-full', text: 'text-sm font-medium' },
+  md: { container: 'px-6 rounded-full', text: 'text-base font-semibold' },
+  lg: { container: 'px-8 rounded-full', text: 'text-base font-semibold' },
 };
 
 export const Button: React.FC<ButtonProps> = ({
@@ -82,6 +82,7 @@ export const Button: React.FC<ButtonProps> = ({
     <Animated.View style={[fullWidth ? { alignSelf: 'stretch' } : undefined, animatedStyle, style]}>
       <TouchableOpacity
         className={`flex-row items-center justify-center ${container} ${sizeContainer} ${isDisabled ? 'opacity-50' : ''}`}
+        style={{ minHeight: size === 'lg' ? 56 : size === 'sm' ? 38 : 50 }}
         disabled={isDisabled}
         activeOpacity={1}
         onPressIn={handlePressIn}

@@ -23,7 +23,8 @@ import { Input } from '../../components/ui/Input';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { Colors } from '../../constants/theme';
+import { Colors, Fonts } from '../../constants/theme';
+import { isDevAuthUserId } from '../../lib/devAuth';
 
 const schema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
@@ -37,7 +38,7 @@ const priorities: { value: RepairPriority; label: string; color: string }[] = [
   { value: 'low', label: 'Low', color: 'border-gray-300' },
   { value: 'medium', label: 'Medium', color: 'border-warning' },
   { value: 'high', label: 'High', color: 'border-danger' },
-  { value: 'urgent', label: 'Urgent 🚨', color: 'border-red-600' },
+  { value: 'urgent', label: 'Urgent', color: 'border-red-600' },
 ];
 
 export default function RepairsScreen() {
@@ -46,6 +47,7 @@ export default function RepairsScreen() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const isLocalDevUser = isDevAuthUserId(profile?.id);
 
   const { data: rental } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
@@ -58,7 +60,7 @@ export default function RepairsScreen() {
       if (error) throw error;
       return data;
     },
-    enabled: !!profile?.id,
+    enabled: !!profile?.id && !isLocalDevUser,
   });
 
   const { data: repairs, isLoading, refetch, isRefetching } = useQuery({
@@ -72,7 +74,7 @@ export default function RepairsScreen() {
       if (error) throw error;
       return data as RepairRequest[];
     },
-    enabled: !!rental?.id,
+    enabled: !!rental?.id && !isLocalDevUser,
   });
 
   const { control, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
@@ -81,7 +83,10 @@ export default function RepairsScreen() {
   });
 
   const onSubmit = async (values: FormValues) => {
-    if (!rental || !profile) return;
+    if (!rental || !profile) {
+      showToast('Join a rental before creating a repair request', 'error');
+      return;
+    }
     setSubmitting(true);
     try {
       const { error } = await supabase.from('repair_requests').insert({
@@ -118,11 +123,15 @@ export default function RepairsScreen() {
         <View className="px-5 pb-8">
           {isLoading ? (
             <Text className="text-sm text-muted text-center mt-8">Loading…</Text>
-          ) : repairs?.length === 0 ? (
+          ) : !rental || repairs?.length === 0 ? (
             <EmptyState
               title="No repair requests"
-              subtitle="Tap 'Request' to log a maintenance issue for your landlord."
-              icon={<Text style={{ fontSize: 48 }}>🔧</Text>}
+              subtitle={
+                isLocalDevUser
+                  ? 'Local demo mode skips live repair records.'
+                  : "Tap 'Request' to log a maintenance issue for your landlord."
+              }
+              icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>M</Text>}
             />
           ) : (
             repairs?.map((r) => (
@@ -186,7 +195,7 @@ export default function RepairsScreen() {
               <TextInput
                 value={value}
                 onChangeText={onChange}
-                placeholder="Describe the problem in detail…"
+                placeholder="Describe the problem in detail..."
                 placeholderTextColor={Colors.muted}
                 multiline
                 numberOfLines={4}

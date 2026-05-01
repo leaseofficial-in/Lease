@@ -11,10 +11,13 @@ import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { PaymentRowSkeleton } from '../../components/ui/SkeletonLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Colors, Fonts } from '../../constants/theme';
+import { isDevAuthUserId } from '../../lib/devAuth';
 
 export default function RentHistoryScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
+  const isLocalDevUser = isDevAuthUserId(profile?.id);
 
   const { data: payments, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['tenant-payments', profile?.id],
@@ -27,7 +30,7 @@ export default function RentHistoryScreen() {
       if (error) throw error;
       return data as RentPayment[];
     },
-    enabled: !!profile?.id,
+    enabled: !!profile?.id && !isLocalDevUser,
   });
 
   const totalPaid = payments
@@ -67,11 +70,15 @@ export default function RentHistoryScreen() {
                 <PaymentRowSkeleton />
               </View>
             </Card>
-          ) : payments?.length === 0 ? (
+          ) : !payments?.length ? (
             <EmptyState
               title="No payments yet"
-              subtitle="Your rent payment history will appear here."
-              icon={<Text style={{ fontSize: 48 }}>📋</Text>}
+              subtitle={
+                isLocalDevUser
+                  ? 'Local demo mode skips live payment records.'
+                  : 'Your rent payment history will appear here.'
+              }
+              icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>R</Text>}
             />
           ) : (
             <Card padded={false}>

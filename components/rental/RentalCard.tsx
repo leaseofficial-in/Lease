@@ -6,6 +6,8 @@ import { formatCurrency, formatDate } from '../../lib/formatters';
 import { Card } from '../ui/Card';
 import { StatusPill } from '../ui/StatusPill';
 import { Avatar } from '../ui/Avatar';
+import { Cap, Chip } from '../ui/V2';
+import { Colors, Fonts } from '../../constants/theme';
 
 interface RentalCardProps {
   rental: Rental;
@@ -24,61 +26,65 @@ export const RentalCard: React.FC<RentalCardProps> = ({ rental, role }) => {
           router.push(`/(landlord)/property/${rental.property_id}`);
         }
       }}
-      activeOpacity={0.85}
+      activeOpacity={0.86}
     >
       <Card className="mb-3">
-        {/* Header */}
-        <View className="flex-row items-center mb-3">
-          <Avatar
-            name={person?.full_name ?? personLabel}
-            uri={person?.avatar_url}
-            size={44}
-          />
-          <View className="ml-3 flex-1">
-            <Text className="text-base font-semibold text-primary" numberOfLines={1}>
+        <View className="flex-row items-start justify-between mb-4">
+          <View className="flex-1 pr-3">
+            <Cap>{rental.property?.city ?? 'Rental'}</Cap>
+            <Text
+              numberOfLines={1}
+              style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18, marginTop: 4 }}
+            >
               {rental.property?.name ?? 'Property'}
             </Text>
-            <Text className="text-sm text-muted" numberOfLines={1}>
-              {rental.property?.city}, {rental.property?.state}
+            <Text numberOfLines={1} style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, marginTop: 2 }}>
+              {rental.property?.address_line1 ?? `${rental.property?.city ?? ''}, ${rental.property?.state ?? ''}`}
             </Text>
           </View>
           <StatusPill kind="rental" value={rental.status} />
         </View>
 
-        <View className="h-px bg-border mb-3" />
-
-        {/* Stats row */}
         <View className="flex-row justify-between">
-          <View>
-            <Text className="text-xs text-muted mb-0.5">Rent</Text>
-            <Text className="text-sm font-semibold text-primary">
-              {formatCurrency(rental.monthly_rent, true)}/mo
-            </Text>
-          </View>
-          <View>
-            <Text className="text-xs text-muted mb-0.5">Deposit</Text>
-            <Text className="text-sm font-semibold text-primary">
-              {formatCurrency(rental.security_deposit, true)}
-            </Text>
-          </View>
-          <View>
-            <Text className="text-xs text-muted mb-0.5">Since</Text>
-            <Text className="text-sm font-semibold text-primary">
-              {formatDate(rental.start_date)}
-            </Text>
-          </View>
+          <Metric label="Rent" value={`${formatCurrency(rental.monthly_rent, true)}/mo`} />
+          <Metric label="Deposit" value={formatCurrency(rental.security_deposit, true)} />
+          <Metric label="Since" value={formatDate(rental.start_date)} align="right" />
         </View>
 
-        {/* Tenant name row if landlord view */}
-        {role === 'landlord' && person && (
-          <View className="mt-3 pt-3 border-t border-border flex-row items-center">
-            <Text className="text-xs text-muted">{personLabel}:</Text>
-            <Text className="text-xs font-medium text-primary ml-1">
-              {person.full_name || person.phone}
-            </Text>
+        <View className="mt-4 pt-4 border-t border-border flex-row items-center justify-between">
+          <View className="flex-row items-center flex-1 pr-3">
+            <Avatar name={person?.full_name ?? personLabel} uri={person?.avatar_url} size={34} />
+            <View className="ml-2 flex-1">
+              <Cap>{personLabel}</Cap>
+              <Text numberOfLines={1} style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>
+                {person?.full_name || person?.phone || 'Not joined yet'}
+              </Text>
+            </View>
           </View>
-        )}
+          <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
+            {rental.status === 'active' ? 'Live' : 'Setup'}
+          </Chip>
+        </View>
       </Card>
     </TouchableOpacity>
   );
 };
+
+function Metric({
+  label,
+  value,
+  align = 'left',
+}: {
+  label: string;
+  value: string;
+  align?: 'left' | 'right';
+}) {
+  return (
+    <View style={{ flex: 1, alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
+      <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11 }}>{label}</Text>
+      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginTop: 2 }}>
+        {value}
+      </Text>
+    </View>
+  );
+}

@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../stores/authStore';
-import { Colors } from '../../constants/theme';
+import { Colors, Fonts } from '../../constants/theme';
+import { Cap, DisplayText, SerifItalic } from '../../components/ui/V2';
 import {
   DEV_AUTH_INPUT_PHONE,
   DEV_AUTH_OTP,
@@ -42,23 +43,24 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+    <SafeAreaView className="flex-1 bg-white" style={{ flex: 1, backgroundColor: Colors.surface }}>
       <View className="flex-1 px-6 pt-4 pb-6">
         <TouchableOpacity
           onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mb-10"
+          className="w-10 h-10 rounded-full bg-fill items-center justify-center mb-10"
         >
-          <Text className="text-primary text-xl">←</Text>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>‹</Text>
         </TouchableOpacity>
 
         <View className="mb-10">
-          <View className="w-12 h-12 rounded-2xl bg-action items-center justify-center mb-5">
+          <View className="w-12 h-12 rounded-2xl bg-primary items-center justify-center mb-5">
             <Text className="text-white text-xl font-bold">F</Text>
           </View>
-          <Text className="text-3xl font-bold text-primary mb-3">
-            Sign in to Flatvio
-          </Text>
-          <Text className="text-base text-muted leading-6">
+          <Cap style={{ marginBottom: 8 }}>Welcome back</Cap>
+          <DisplayText style={{ fontSize: 42, lineHeight: 43, marginBottom: 12 }}>
+            Sign in <SerifItalic>to Flatvio.</SerifItalic>
+          </DisplayText>
+          <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 15, lineHeight: 22 }}>
             Continue with Google for now. Phone OTP can be enabled later when Twilio is ready.
           </Text>
         </View>

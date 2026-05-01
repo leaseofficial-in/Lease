@@ -40,13 +40,13 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View className="mb-4">
       {label && (
-        <Text className="text-sm font-medium text-primary mb-1.5">
+        <Text className="text-[10px] font-semibold text-muted mb-1.5 uppercase tracking-widest">
           {label}
           {required && <Text className="text-danger"> *</Text>}
         </Text>
       )}
       <View
-        className={`flex-row items-center bg-white border rounded-xl px-3.5 ${borderColor}`}
+        className={`flex-row items-center bg-fill border rounded-[14px] px-4 ${borderColor}`}
         style={{ minHeight: 52 }}
       >
         {leftIcon && <View className="mr-2">{leftIcon}</View>}

@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { Rental, RentPayment } from '../../types';
-import { formatCurrency, formatDate, formatMonth, formatPhone } from '../../lib/formatters';
+import { formatCurrency, formatPhone } from '../../lib/formatters';
 import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { Avatar } from '../../components/ui/Avatar';
@@ -15,6 +15,8 @@ import { Button } from '../../components/ui/Button';
 import { RentStatusBadge } from '../../components/rental/RentStatusBadge';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Cap, Chip, CollectionRing, InkCard, Sparkline } from '../../components/ui/V2';
+import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
 
 export default function TenantDashboard() {
@@ -63,25 +65,25 @@ export default function TenantDashboard() {
         router.push({ pathname: '/(tenant)/join', params: { prefillToken: pendingToken } });
       }
     });
-  }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoading, isLocalDevUser, rental, router]);
 
   if (isLoading) return <LoadingScreen />;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        contentContainerStyle={{ paddingBottom: 28 }}
       >
-        {/* Header */}
         <View className="px-5 pt-4 pb-2 flex-row items-center justify-between">
           <View>
-            <Text className="text-sm text-muted">Hello,</Text>
-            <Text className="text-xl font-bold text-primary">
-              {profile?.full_name?.split(' ')[0] || 'Tenant'} 👋
+            <Cap>Tenant Home</Cap>
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 22, marginTop: 4 }}>
+              {profile?.full_name?.split(' ')[0] || 'Flatvio'}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/(tenant)/profile')}>
+          <TouchableOpacity onPress={() => router.push('/(tenant)/profile')} activeOpacity={0.75}>
             <Avatar name={profile?.full_name ?? 'T'} uri={profile?.avatar_url} size={42} />
           </TouchableOpacity>
         </View>
@@ -90,41 +92,48 @@ export default function TenantDashboard() {
           <View className="px-5 pt-8">
             <EmptyState
               title="No rental yet"
-              subtitle="Ask your landlord to share an invite link to join your rental."
+              subtitle="Ask your landlord for an invite link, then join the rental from here."
               actionLabel="Join via Link"
               onAction={() => router.push('/(tenant)/join')}
-              icon={<Text style={{ fontSize: 48 }}>🔗</Text>}
+              icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>F</Text>}
             />
           </View>
         ) : (
-          <View className="px-5 pt-2 pb-8 gap-4">
-            {/* Property card */}
-            <Card>
-              <View className="flex-row items-start justify-between mb-3">
-                <View className="flex-1">
-                  <Text className="text-lg font-bold text-primary" numberOfLines={1}>
-                    {rental.property?.name}
+          <View className="px-5 pt-2 gap-4">
+            <InkCard>
+              <View className="flex-row items-start justify-between">
+                <View className="flex-1 pr-4">
+                  <Cap style={{ color: 'rgba(255,255,255,0.58)' }}>Current Rental</Cap>
+                  <Text
+                    numberOfLines={2}
+                    style={{ color: Colors.surface, fontFamily: Fonts.serif, fontSize: 36, lineHeight: 37, marginTop: 8 }}
+                  >
+                    {rental.property?.name ?? 'Your home'}
                   </Text>
-                  <Text className="text-sm text-muted">
+                  <Text
+                    numberOfLines={2}
+                    style={{ color: 'rgba(255,255,255,0.68)', fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 10 }}
+                  >
                     {rental.property?.address_line1}, {rental.property?.city}
                   </Text>
                 </View>
-                <StatusPill kind="rental" value={rental.status} />
+                <CollectionRing value={currentPayment?.status === 'paid' ? 100 : 42} label={currentPayment?.status === 'paid' ? 'Paid' : 'Due'} inverse />
               </View>
 
-              <View className="flex-row justify-between pt-3 border-t border-border">
-                <InfoItem label="Rent" value={formatCurrency(rental.monthly_rent, true) + '/mo'} />
-                <InfoItem label="Deposit" value={formatCurrency(rental.security_deposit, true)} />
-                <InfoItem label="Due Day" value={`${rental.rent_due_day}th`} />
+              <View className="flex-row mt-6 gap-2">
+                <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
+                  {rental.status === 'active' ? 'Active' : 'Setup'}
+                </Chip>
+                <Chip tone="outline">{formatCurrency(rental.monthly_rent, true)}/mo</Chip>
               </View>
-            </Card>
+            </InkCard>
 
-            {/* Current month rent */}
             {currentPayment && (
-              <View>
-                <Text className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">
-                  This Month
-                </Text>
+              <Card>
+                <View className="flex-row items-center justify-between mb-3">
+                  <Cap>This Month</Cap>
+                  <StatusPill kind="payment" value={currentPayment.status} />
+                </View>
                 <RentStatusBadge payment={currentPayment} />
                 {currentPayment.status !== 'paid' && (
                   <Button
@@ -132,53 +141,46 @@ export default function TenantDashboard() {
                     onPress={() => router.push('/(tenant)/pay-rent')}
                     fullWidth
                     size="lg"
-                    style={{ marginTop: 8 }}
+                    style={{ marginTop: 10 }}
                   />
                 )}
-              </View>
+              </Card>
             )}
 
-            {/* Quick actions */}
-            <Text className="text-sm font-semibold text-muted uppercase tracking-wide">
-              Quick Actions
-            </Text>
-            <View className="flex-row flex-wrap gap-3">
-              {[
-                { label: 'Upload Proof', emoji: '📷', route: '/(tenant)/proof/upload' },
-                { label: 'Agreement', emoji: '📄', route: '/(tenant)/agreement' },
-                { label: 'Rent History', emoji: '📋', route: '/(tenant)/rent-history' },
-                { label: 'Repairs', emoji: '🔧', route: '/(tenant)/repairs' },
-              ].map((action) => (
-                <TouchableOpacity
-                  key={action.label}
-                  onPress={() => router.push(action.route as never)}
-                  className="bg-white rounded-2xl p-4 border border-border"
-                  style={{ width: '47%', elevation: 2 }}
-                  activeOpacity={0.75}
-                >
-                  <Text style={{ fontSize: 28 }} className="mb-1">{action.emoji}</Text>
-                  <Text className="text-sm font-medium text-primary">{action.label}</Text>
-                </TouchableOpacity>
-              ))}
+            <View className="flex-row gap-3">
+              <ActionTile label="Proof" code="P" onPress={() => router.push('/(tenant)/proof/upload')} />
+              <ActionTile label="Agreement" code="A" onPress={() => router.push('/(tenant)/agreement')} />
+              <ActionTile label="Rent" code="R" onPress={() => router.push('/(tenant)/rent-history')} />
+              <ActionTile label="Repairs" code="M" onPress={() => router.push('/(tenant)/repairs')} />
             </View>
 
-            {/* Landlord info */}
+            <Card>
+              <View className="flex-row items-center justify-between mb-3">
+                <Cap>Rental Terms</Cap>
+                <StatusPill kind="rental" value={rental.status} />
+              </View>
+              <Sparkline points={[12, 14, 13, 18, 16, 22, 21, 25]} height={42} />
+              <View className="flex-row justify-between mt-4">
+                <InfoItem label="Rent" value={`${formatCurrency(rental.monthly_rent, true)}/mo`} />
+                <InfoItem label="Deposit" value={formatCurrency(rental.security_deposit, true)} />
+                <InfoItem label="Due Day" value={`${rental.rent_due_day}`} align="right" />
+              </View>
+            </Card>
+
             {rental.landlord && (
               <Card>
-                <Text className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">
-                  Your Landlord
-                </Text>
+                <Cap style={{ marginBottom: 12 }}>Your Landlord</Cap>
                 <View className="flex-row items-center">
                   <Avatar
                     name={rental.landlord.full_name || 'Landlord'}
                     uri={rental.landlord.avatar_url}
                     size={44}
                   />
-                  <View className="ml-3">
-                    <Text className="text-base font-semibold text-primary">
+                  <View className="ml-3 flex-1">
+                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
                       {rental.landlord.full_name || 'Name not set'}
                     </Text>
-                    <Text className="text-sm text-muted">
+                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, marginTop: 2 }}>
                       {formatPhone(rental.landlord.phone)}
                     </Text>
                   </View>
@@ -192,11 +194,45 @@ export default function TenantDashboard() {
   );
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
+function ActionTile({
+  label,
+  code,
+  onPress,
+}: {
+  label: string;
+  code: string;
+  onPress: () => void;
+}) {
   return (
-    <View className="items-center">
-      <Text className="text-xs text-muted mb-0.5">{label}</Text>
-      <Text className="text-sm font-semibold text-primary">{value}</Text>
+    <TouchableOpacity
+      onPress={onPress}
+      className="bg-white border border-border items-center justify-center"
+      style={{ flex: 1, minHeight: 86, borderRadius: 20 }}
+      activeOpacity={0.78}
+    >
+      <View className="rounded-full items-center justify-center mb-2" style={{ width: 30, height: 30, backgroundColor: Colors.fill }}>
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 11 }}>{code}</Text>
+      </View>
+      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12 }}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function InfoItem({
+  label,
+  value,
+  align = 'left',
+}: {
+  label: string;
+  value: string;
+  align?: 'left' | 'right';
+}) {
+  return (
+    <View style={{ flex: 1, alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
+      <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11 }}>{label}</Text>
+      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginTop: 2 }}>
+        {value}
+      </Text>
     </View>
   );
 }

@@ -20,31 +20,31 @@ type StatusType =
   | { kind: 'proof'; value: ProofStatus };
 
 const rentalColors: Record<RentalStatus, string> = {
-  active: 'bg-emerald-50 text-success',
-  pending_tenant: 'bg-amber-50 text-warning',
-  pending_proof: 'bg-blue-50 text-action',
-  ended: 'bg-gray-100 text-muted',
+  active: 'bg-successSoft text-success',
+  pending_tenant: 'bg-warningSoft text-warning',
+  pending_proof: 'bg-actionSoft text-action',
+  ended: 'bg-fill text-muted',
 };
 
 const paymentColors: Record<PaymentStatus, string> = {
-  paid: 'bg-emerald-50 text-success',
-  pending: 'bg-amber-50 text-warning',
-  overdue: 'bg-red-50 text-danger',
-  partial: 'bg-blue-50 text-action',
+  paid: 'bg-successSoft text-success',
+  pending: 'bg-warningSoft text-warning',
+  overdue: 'bg-dangerSoft text-danger',
+  partial: 'bg-actionSoft text-action',
 };
 
 const repairColors: Record<RepairStatus, string> = {
-  open: 'bg-red-50 text-danger',
-  in_progress: 'bg-amber-50 text-warning',
-  resolved: 'bg-emerald-50 text-success',
-  closed: 'bg-gray-100 text-muted',
+  open: 'bg-dangerSoft text-danger',
+  in_progress: 'bg-warningSoft text-warning',
+  resolved: 'bg-successSoft text-success',
+  closed: 'bg-fill text-muted',
 };
 
 const proofColors: Record<ProofStatus, string> = {
-  pending: 'bg-amber-50 text-warning',
-  approved: 'bg-emerald-50 text-success',
-  rejected: 'bg-red-50 text-danger',
-  dispute: 'bg-purple-50 text-purple-600',
+  pending: 'bg-warningSoft text-warning',
+  approved: 'bg-successSoft text-success',
+  rejected: 'bg-dangerSoft text-danger',
+  dispute: 'bg-actionSoft text-action',
 };
 
 export const StatusPill: React.FC<StatusType> = (props) => {
@@ -66,8 +66,8 @@ export const StatusPill: React.FC<StatusType> = (props) => {
   }
 
   return (
-    <View className={`rounded-full px-2.5 py-0.5 self-start ${colorClass.split(' ')[0]}`}>
-      <Text className={`text-xs font-semibold ${colorClass.split(' ')[1]}`}>{label}</Text>
+    <View className={`rounded-full px-2.5 py-1 self-start ${colorClass.split(' ')[0]}`}>
+      <Text className={`text-[11px] font-semibold ${colorClass.split(' ')[1]}`}>{label}</Text>
     </View>
   );
 };

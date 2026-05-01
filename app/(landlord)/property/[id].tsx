@@ -7,6 +7,7 @@ import {
   Share,
   Alert,
   Platform,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,17 +16,23 @@ import * as Clipboard from 'expo-clipboard';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
-import { Rental, RentPayment } from '../../../types';
+import { DepositTransaction, Rental, RentPayment } from '../../../types';
 import { formatCurrency, formatDate, formatPhone } from '../../../lib/formatters';
 import { Card } from '../../../components/ui/Card';
 import { StatusPill } from '../../../components/ui/StatusPill';
 import { Avatar } from '../../../components/ui/Avatar';
 import { Button } from '../../../components/ui/Button';
+import { Input } from '../../../components/ui/Input';
 import { RentStatusBadge } from '../../../components/rental/RentStatusBadge';
+import { DepositCard } from '../../../components/rental/DepositCard';
+import { BottomSheet } from '../../../components/ui/BottomSheet';
 import { LoadingScreen } from '../../../components/ui/LoadingScreen';
-import { Config } from '../../../constants/config';
+import { Cap, Chip, InkCard } from '../../../components/ui/V2';
+import { Colors, Fonts } from '../../../constants/theme';
 import { isDevAuthUserId } from '../../../lib/devAuth';
 import { activateLocalRental, getLocalRentalByPropertyId } from '../../../lib/localRentals';
+
+type TxnType = 'deduction' | 'refund' | 'received';
 
 export default function PropertyDetailScreen() {
   const { id: propertyId } = useLocalSearchParams<{ id: string }>();
@@ -34,6 +41,12 @@ export default function PropertyDetailScreen() {
   const { showToast } = useUIStore();
   const queryClient = useQueryClient();
   const [activatingRental, setActivatingRental] = useState(false);
+  const [showDepositSheet, setShowDepositSheet] = useState(false);
+  const [txnType, setTxnType] = useState<TxnType>('deduction');
+  const [txnAmount, setTxnAmount] = useState('');
+  const [txnNote, setTxnNote] = useState('');
+  const [savingTxn, setSavingTxn] = useState(false);
+  const [localDepositTransactions, setLocalDepositTransactions] = useState<DepositTransaction[]>([]);
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
   const { data: rental, isLoading } = useQuery({
@@ -74,12 +87,83 @@ export default function PropertyDetailScreen() {
     enabled: !!rental?.id && !isLocalDevUser,
   });
 
-  const inviteLink = `${Config.appScheme}://join/${rental?.invite_token}`;
+  const { data: depositTransactions, refetch: refetchDeposit } = useQuery({
+    queryKey: ['deposit-transactions', rental?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('deposit_transactions')
+        .select('*')
+        .eq('rental_id', rental!.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as DepositTransaction[];
+    },
+    enabled: !!rental?.id && !isLocalDevUser,
+  });
+
+  const visibleDepositTransactions = isLocalDevUser ? localDepositTransactions : depositTransactions ?? [];
+
+  const resetTransactionForm = () => {
+    setTxnAmount('');
+    setTxnNote('');
+    setTxnType('deduction');
+  };
+
+  const handleAddTransaction = async () => {
+    if (!rental || !profile) return;
+    const amount = Number(txnAmount);
+    if (!amount || amount <= 0) {
+      showToast('Enter a valid amount', 'error');
+      return;
+    }
+    if (!txnNote.trim()) {
+      showToast('Add a note describing this transaction', 'error');
+      return;
+    }
+
+    setSavingTxn(true);
+    try {
+      if (isLocalDevUser) {
+        const now = new Date().toISOString();
+        setLocalDepositTransactions((current) => [
+          {
+            id: `local-deposit-${Date.now()}`,
+            rental_id: rental.id,
+            type: txnType,
+            amount,
+            note: txnNote.trim(),
+            created_by: profile.id,
+            created_at: now,
+          },
+          ...current,
+        ]);
+      } else {
+        const { error } = await supabase.from('deposit_transactions').insert({
+          rental_id: rental.id,
+          type: txnType,
+          amount,
+          note: txnNote.trim(),
+          created_by: profile.id,
+        });
+        if (error) throw error;
+        await refetchDeposit();
+      }
+
+      setShowDepositSheet(false);
+      resetTransactionForm();
+      showToast('Transaction added', 'success');
+    } catch {
+      showToast('Failed to save transaction', 'error');
+    } finally {
+      setSavingTxn(false);
+    }
+  };
+
   const webInviteLink = `https://flatvio.in/join/${rental?.invite_token}`;
 
   const handleCopyInvite = async () => {
     await Clipboard.setStringAsync(webInviteLink);
-    showToast('Invite link copied!', 'success');
+    showToast('Invite link copied', 'success');
   };
 
   const handleShareInvite = async () => {
@@ -88,7 +172,7 @@ export default function PropertyDetailScreen() {
         try {
           await navigator.share({
             title: 'Join my rental on Flatvio',
-            text: `Hi! I've added you as a tenant on Flatvio.`,
+            text: "Hi, I've added you as a tenant on Flatvio.",
             url: webInviteLink,
           });
         } catch {
@@ -100,7 +184,7 @@ export default function PropertyDetailScreen() {
       return;
     }
     await Share.share({
-      message: `Hi! I've added you as a tenant on Flatvio. Join here: ${webInviteLink}`,
+      message: `Hi, I've added you as a tenant on Flatvio. Join here: ${webInviteLink}`,
       url: webInviteLink,
     });
   };
@@ -132,8 +216,8 @@ export default function PropertyDetailScreen() {
               if (error) throw error;
               await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
               await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
-              showToast('Rental activated!', 'success');
-            } catch (e) {
+              showToast('Rental activated', 'success');
+            } catch {
               showToast('Failed to activate rental', 'error');
             } finally {
               setActivatingRental(false);
@@ -148,100 +232,118 @@ export default function PropertyDetailScreen() {
   if (!rental) return null;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
+    <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
         <View className="px-5 py-4 flex-row items-center bg-white border-b border-border">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center mr-3"
+            className="w-9 h-9 rounded-full bg-fill items-center justify-center mr-3"
+            activeOpacity={0.75}
           >
-            <Text className="text-primary">←</Text>
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>‹</Text>
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-lg font-bold text-primary" numberOfLines={1}>
+            <Text numberOfLines={1} style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>
               {rental.property?.name}
             </Text>
-            <Text className="text-xs text-muted">
+            <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12 }}>
               {rental.property?.city}, {rental.property?.state}
             </Text>
           </View>
           <StatusPill kind="rental" value={rental.status} />
         </View>
 
-        <View className="px-5 pt-4 pb-8 gap-4">
-          {/* Invite section (shown when tenant hasn't joined) */}
+        <View className="px-5 pt-4 gap-4">
+          <InkCard>
+            <Cap style={{ color: 'rgba(255,255,255,0.58)' }}>Property Ledger</Cap>
+            <Text style={{ color: Colors.surface, fontFamily: Fonts.serif, fontSize: 38, lineHeight: 39, marginTop: 8 }}>
+              {formatCurrency(rental.monthly_rent, true)}
+              <Text style={{ fontFamily: Fonts.sans, fontSize: 15 }}> / month</Text>
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.68)', fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 8 }}>
+              Deposit held: {formatCurrency(rental.security_deposit, true)}. Rent due on day {rental.rent_due_day}.
+            </Text>
+            <View className="flex-row gap-2 mt-5">
+              <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
+                {rental.status === 'active' ? 'Active rental' : 'Setup pending'}
+              </Chip>
+              <Chip tone="outline">{rental.property?.property_type ?? 'property'}</Chip>
+            </View>
+          </InkCard>
+
           {rental.status === 'pending_tenant' && (
             <Card>
-              <View className="flex-row items-center mb-3">
-                <Text style={{ fontSize: 24 }} className="mr-2">🔗</Text>
-                <View>
-                  <Text className="text-base font-semibold text-primary">Invite Tenant</Text>
-                  <Text className="text-xs text-muted">Share link to invite your tenant</Text>
-                </View>
-              </View>
-              <View className="bg-gray-50 rounded-xl p-3 mb-3">
-                <Text className="text-xs text-muted font-mono" numberOfLines={1}>
+              <Cap style={{ marginBottom: 10 }}>Invite Tenant</Cap>
+              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
+                Share this private join link
+              </Text>
+              <View className="bg-fill rounded-2xl p-3 my-3">
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.mono, fontSize: 11 }} numberOfLines={1}>
                   {webInviteLink}
                 </Text>
               </View>
               <View className="flex-row gap-2">
-                <Button
-                  title="Copy Link"
-                  variant="secondary"
-                  onPress={handleCopyInvite}
-                  style={{ flex: 1 }}
-                />
+                <Button title="Copy Link" variant="secondary" onPress={handleCopyInvite} style={{ flex: 1 }} />
                 <Button title="Share" onPress={handleShareInvite} style={{ flex: 1 }} />
               </View>
             </Card>
           )}
 
-          {/* Activate rental (tenant joined, not yet active) */}
           {rental.status === 'pending_proof' && (
-            <Card className="bg-amber-50 border border-amber-200">
-              <Text className="text-sm font-semibold text-warning mb-1">
-                Tenant joined — pending proof
+            <Card style={{ backgroundColor: Colors.warningSoft, borderColor: '#F1D39B' }}>
+              <Text style={{ color: Colors.warning, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
+                Tenant joined, proof pending
               </Text>
-              <Text className="text-xs text-muted mb-3">
+              <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 5, marginBottom: 12 }}>
                 Ask your tenant to upload move-in photos, then activate the rental.
               </Text>
-              <Button
-                title="Activate Rental"
-                onPress={handleActivateRental}
-                loading={activatingRental}
-                fullWidth
-              />
+              <Button title="Activate Rental" onPress={handleActivateRental} loading={activatingRental} fullWidth />
             </Card>
           )}
 
-          {/* Tenant card */}
           {rental.tenant && (
             <Card>
-              <Text className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">
-                Tenant
-              </Text>
+              <Cap style={{ marginBottom: 12 }}>Tenant</Cap>
               <View className="flex-row items-center">
-                <Avatar
-                  name={rental.tenant.full_name || 'Tenant'}
-                  uri={rental.tenant.avatar_url}
-                  size={48}
-                />
+                <Avatar name={rental.tenant.full_name || 'Tenant'} uri={rental.tenant.avatar_url} size={48} />
                 <View className="ml-3 flex-1">
-                  <Text className="text-base font-semibold text-primary">
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
                     {rental.tenant.full_name || 'Name not set'}
                   </Text>
-                  <Text className="text-sm text-muted">{formatPhone(rental.tenant.phone)}</Text>
+                  <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, marginTop: 2 }}>
+                    {formatPhone(rental.tenant.phone)}
+                  </Text>
                 </View>
               </View>
             </Card>
           )}
 
-          {/* Rental terms */}
+          <DepositCard
+            totalDeposit={rental.security_deposit}
+            transactions={visibleDepositTransactions}
+          />
+
+          <View className="flex-row gap-2">
+            <Button
+              title="Add Deposit Entry"
+              onPress={() => setShowDepositSheet(true)}
+              style={{ flex: 1 }}
+            />
+            <Button
+              title="Repairs"
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: '/(landlord)/repairs/[rentalId]',
+                  params: { rentalId: rental.id },
+                })
+              }
+              style={{ flex: 1 }}
+            />
+          </View>
+
           <Card>
-            <Text className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">
-              Rental Terms
-            </Text>
+            <Cap style={{ marginBottom: 12 }}>Rental Terms</Cap>
             <View className="gap-2.5">
               <TermRow label="Monthly Rent" value={formatCurrency(rental.monthly_rent)} />
               <TermRow label="Security Deposit" value={formatCurrency(rental.security_deposit)} />
@@ -251,12 +353,9 @@ export default function PropertyDetailScreen() {
             </View>
           </Card>
 
-          {/* Recent payments */}
           {payments && payments.length > 0 && (
             <Card>
-              <Text className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">
-                Recent Payments
-              </Text>
+              <Cap style={{ marginBottom: 12 }}>Recent Payments</Cap>
               <View className="gap-2">
                 {payments.map((p) => (
                   <RentStatusBadge key={p.id} payment={p} />
@@ -265,7 +364,6 @@ export default function PropertyDetailScreen() {
             </Card>
           )}
 
-          {/* Proof review */}
           {(rental.status === 'active' || rental.status === 'pending_proof') && (
             <Button
               title="Review Move-in Proof"
@@ -276,6 +374,70 @@ export default function PropertyDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <BottomSheet visible={showDepositSheet} onClose={() => setShowDepositSheet(false)} scrollable>
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20, marginBottom: 14 }}>
+          Add deposit entry
+        </Text>
+        <View className="flex-row gap-2 mb-4">
+          {(['deduction', 'refund', 'received'] as TxnType[]).map((type) => (
+            <TouchableOpacity
+              key={type}
+              onPress={() => setTxnType(type)}
+              className="rounded-full px-3 py-2 border"
+              style={{
+                backgroundColor: txnType === type ? Colors.primary : Colors.surface,
+                borderColor: txnType === type ? Colors.primary : Colors.border,
+              }}
+              activeOpacity={0.75}
+            >
+              <Text
+                style={{
+                  color: txnType === type ? Colors.surface : Colors.primary,
+                  fontFamily: Fonts.sansSemiBold,
+                  fontSize: 12,
+                  textTransform: 'capitalize',
+                }}
+              >
+                {type}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Input
+          label="Amount"
+          placeholder="2500"
+          value={txnAmount}
+          onChangeText={setTxnAmount}
+          keyboardType="numeric"
+          required
+        />
+
+        <View className="mb-4">
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 8 }}>
+            Note <Text style={{ color: Colors.danger }}>*</Text>
+          </Text>
+          <TextInput
+            value={txnNote}
+            onChangeText={setTxnNote}
+            placeholder="Cleaning deduction, refund issued, deposit received..."
+            placeholderTextColor={Colors.muted}
+            multiline
+            numberOfLines={4}
+            className="border border-border rounded-2xl p-3 text-sm text-primary bg-fill"
+            style={{ minHeight: 96, textAlignVertical: 'top', fontFamily: Fonts.sans }}
+          />
+        </View>
+
+        <Button
+          title="Save Entry"
+          onPress={handleAddTransaction}
+          loading={savingTxn}
+          fullWidth
+          size="lg"
+        />
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -283,8 +445,8 @@ export default function PropertyDetailScreen() {
 function TermRow({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-row justify-between items-center">
-      <Text className="text-sm text-muted">{label}</Text>
-      <Text className="text-sm font-medium text-primary">{value}</Text>
+      <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13 }}>{label}</Text>
+      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>{value}</Text>
     </View>
   );
 }

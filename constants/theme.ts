@@ -1,13 +1,23 @@
 export const Colors = {
-  primary: '#0A0A0A',
-  action: '#1A56FF',
-  success: '#00C896',
-  warning: '#F59E0B',
-  danger: '#EF4444',
+  primary: '#08090A',
+  ink2: '#2A2D31',
+  ink3: '#5C6068',
+  action: '#2E5BFF',
+  success: '#0E8E63',
+  warning: '#B8740F',
+  danger: '#C2362F',
   surface: '#FFFFFF',
-  border: '#EBEBEB',
-  muted: '#8A8A8A',
-  background: '#F7F7F7',
+  border: '#E4E6EA',
+  borderSoft: '#EFF1F4',
+  muted: '#9097A0',
+  background: '#F5F6F8',
+  canvas: '#F2F0EB',
+  fill: '#F5F6F8',
+  fill2: '#ECEEF1',
+  actionSoft: '#EAF0FF',
+  successSoft: '#E1F4EC',
+  warningSoft: '#FBEDD3',
+  dangerSoft: '#FBE2E0',
   cardShadow: 'rgba(0,0,0,0.06)',
 } as const;
 
@@ -22,10 +32,21 @@ export const Spacing = {
 
 export const Radius = {
   sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  md: 14,
+  lg: 18,
+  xl: 22,
+  xxl: 28,
   full: 9999,
+} as const;
+
+export const Fonts = {
+  sans: 'Geist_400Regular',
+  sansMedium: 'Geist_500Medium',
+  sansSemiBold: 'Geist_600SemiBold',
+  sansBold: 'Geist_700Bold',
+  serif: 'InstrumentSerif_400Regular',
+  serifItalic: 'InstrumentSerif_400Regular_Italic',
+  mono: 'Geist_500Medium',
 } as const;
 
 export const FontSize = {

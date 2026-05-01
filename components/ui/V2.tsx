@@ -1,0 +1,202 @@
+import React from 'react';
+import { Text, View, type TextProps, type ViewProps } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
+import { Colors, Fonts } from '../../constants/theme';
+
+export function Cap({ children, style, ...props }: TextProps) {
+  return (
+    <Text
+      {...props}
+      style={[
+        {
+          color: Colors.muted,
+          fontFamily: Fonts.mono,
+          fontSize: 10,
+          fontWeight: '500',
+          letterSpacing: 1.1,
+          textTransform: 'uppercase',
+        },
+        style,
+      ]}
+    >
+      {children}
+    </Text>
+  );
+}
+
+export function DisplayText({ children, italic = false, style, ...props }: TextProps & { italic?: boolean }) {
+  return (
+    <Text
+      {...props}
+      style={[
+        {
+          color: Colors.primary,
+          fontFamily: italic ? Fonts.serifItalic : Fonts.serif,
+          fontSize: 44,
+          letterSpacing: 0,
+          lineHeight: 46,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </Text>
+  );
+}
+
+export function SerifItalic({ children, style, ...props }: TextProps) {
+  return (
+    <Text
+      {...props}
+      style={[{ fontFamily: Fonts.serifItalic, color: Colors.ink3 }, style]}
+    >
+      {children}
+    </Text>
+  );
+}
+
+export function InkCard({ children, style, ...props }: ViewProps) {
+  return (
+    <View
+      {...props}
+      className="bg-primary overflow-hidden"
+      style={[{ borderRadius: 28, padding: 22 }, style]}
+    >
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: -80,
+          right: -80,
+          width: 220,
+          height: 220,
+          borderRadius: 110,
+          backgroundColor: 'rgba(255,255,255,0.06)',
+        }}
+      />
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          bottom: -90,
+          left: -70,
+          width: 180,
+          height: 180,
+          borderRadius: 90,
+          backgroundColor: 'rgba(255,255,255,0.035)',
+        }}
+      />
+      {children}
+    </View>
+  );
+}
+
+type ChipTone = 'default' | 'solid' | 'good' | 'warn' | 'bad' | 'outline';
+
+const chipTone: Record<ChipTone, { bg: string; fg: string; border?: string }> = {
+  default: { bg: Colors.fill, fg: Colors.ink2 },
+  solid: { bg: Colors.primary, fg: Colors.surface },
+  good: { bg: Colors.successSoft, fg: Colors.success },
+  warn: { bg: Colors.warningSoft, fg: Colors.warning },
+  bad: { bg: Colors.dangerSoft, fg: Colors.danger },
+  outline: { bg: 'transparent', fg: Colors.ink2, border: Colors.border },
+};
+
+export function Chip({ children, tone = 'default' }: { children: React.ReactNode; tone?: ChipTone }) {
+  const toneStyle = chipTone[tone];
+  return (
+    <View
+      className="rounded-full flex-row items-center"
+      style={{
+        alignSelf: 'flex-start',
+        backgroundColor: toneStyle.bg,
+        borderColor: toneStyle.border ?? 'transparent',
+        borderWidth: toneStyle.border ? 1 : 0,
+        minHeight: 26,
+        paddingHorizontal: 10,
+      }}
+    >
+      <Text style={{ color: toneStyle.fg, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
+        {children}
+      </Text>
+    </View>
+  );
+}
+
+export function CollectionRing({
+  value,
+  label,
+  sublabel,
+  inverse = false,
+}: {
+  value: number;
+  label?: string;
+  sublabel?: string;
+  inverse?: boolean;
+}) {
+  const size = 108;
+  const stroke = 9;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - Math.max(0, Math.min(value, 100)) / 100);
+  const fg = inverse ? Colors.surface : Colors.primary;
+  const bg = inverse ? 'rgba(255,255,255,0.15)' : Colors.borderSoft;
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: [{ rotate: '-90deg' }] }}>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={bg} strokeWidth={stroke} fill="none" />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={fg}
+          strokeWidth={stroke}
+          fill="none"
+          strokeDasharray={`${c} ${c}`}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+        />
+      </Svg>
+      <View className="absolute items-center">
+        <Text style={{ color: fg, fontFamily: Fonts.sansSemiBold, fontSize: 24 }}>
+          {label ?? `${Math.round(value)}%`}
+        </Text>
+        {sublabel && (
+          <Cap style={{ color: inverse ? 'rgba(255,255,255,0.55)' : Colors.muted }}>
+            {sublabel}
+          </Cap>
+        )}
+      </View>
+    </View>
+  );
+}
+
+export function Sparkline({
+  points = [20, 28, 18, 40, 32, 52, 46, 60],
+  height = 48,
+  color = Colors.primary,
+}: {
+  points?: number[];
+  height?: number;
+  color?: string;
+}) {
+  const width = 200;
+  const max = Math.max(...points, 1);
+  const step = width / Math.max(points.length - 1, 1);
+  const path = points
+    .map((p, i) => {
+      const x = i * step;
+      const y = height - (p / max) * (height - 6) - 3;
+      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+    })
+    .join(' ');
+  const fillPath = `${path} L ${width} ${height} L 0 ${height} Z`;
+
+  return (
+    <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+      <Path d={fillPath} fill="rgba(8,9,10,0.06)" />
+      <Path d={path} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
