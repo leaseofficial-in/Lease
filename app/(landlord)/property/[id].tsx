@@ -501,9 +501,55 @@ export default function PropertyDetailScreen() {
           {payments && payments.length > 0 && (
             <Card>
               <Cap style={{ marginBottom: 12 }}>Recent Payments</Cap>
-              <View className="gap-2">
+              <View className="gap-3">
                 {payments.map((p) => (
-                  <RentStatusBadge key={p.id} payment={p} />
+                  <View key={p.id}>
+                    <RentStatusBadge payment={p} />
+                    {p.status === 'pending_verification' && (
+                      <View
+                        style={{
+                          marginTop: 8,
+                          padding: 12,
+                          borderRadius: 12,
+                          backgroundColor: Colors.actionSoft,
+                          borderWidth: 1,
+                          borderColor: '#C7D7FF',
+                        }}
+                      >
+                        <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 13, marginBottom: 2 }}>
+                          Tenant says they paid {p.payment_method === 'cash' ? 'cash' : 'via UPI'}
+                        </Text>
+                        {p.utr_number ? (
+                          <Text style={{ color: Colors.ink3, fontFamily: Fonts.mono, fontSize: 12, marginBottom: 8 }}>
+                            UTR: {p.utr_number}
+                          </Text>
+                        ) : null}
+                        {p.payment_note ? (
+                          <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, marginBottom: 8 }}>
+                            Note: {p.payment_note}
+                          </Text>
+                        ) : null}
+                        <Button
+                          title="Confirm Receipt"
+                          size="sm"
+                          onPress={async () => {
+                            try {
+                              const { error } = await supabase
+                                .from('rent_payments')
+                                .update({ status: 'paid' })
+                                .eq('id', p.id);
+                              if (error) throw error;
+                              await refetchPayments();
+                              await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+                              showToast('Payment confirmed', 'success');
+                            } catch {
+                              showToast('Could not confirm payment', 'error');
+                            }
+                          }}
+                        />
+                      </View>
+                    )}
+                  </View>
                 ))}
               </View>
             </Card>

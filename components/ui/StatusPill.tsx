@@ -31,6 +31,7 @@ const paymentColors: Record<PaymentStatus, string> = {
   pending: 'bg-warningSoft text-warning',
   overdue: 'bg-dangerSoft text-danger',
   partial: 'bg-actionSoft text-action',
+  pending_verification: 'bg-actionSoft text-action',
 };
 
 const repairColors: Record<RepairStatus, string> = {

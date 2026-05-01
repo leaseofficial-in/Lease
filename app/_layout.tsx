@@ -19,7 +19,6 @@ import {
 import { useAuthStore } from '../stores/authStore';
 import { registerForPushNotifications } from '../lib/notifications';
 import { LoadingScreen } from '../components/ui/LoadingScreen';
-import { isDevAuthUserId } from '../lib/devAuth';
 import { ToastHost } from '../components/ui/ToastHost';
 import { WebContainer } from '../components/ui/WebContainer';
 import { ConfirmHost } from '../components/ui/ConfirmHost';
@@ -66,7 +65,7 @@ function AuthGate() {
   }, [isInitialized, session, profile, segments, router]);
 
   useEffect(() => {
-    if (session?.user.id && !isDevAuthUserId(session.user.id)) {
+    if (session?.user.id) {
       registerForPushNotifications(session.user.id);
     }
   }, [session]);

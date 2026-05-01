@@ -94,6 +94,7 @@ export const paymentStatusLabel: Record<PaymentStatus, string> = {
   pending: 'Due',
   overdue: 'Overdue',
   partial: 'Partial',
+  pending_verification: 'Confirm',
 };
 
 export const repairStatusLabel: Record<RepairStatus, string> = {

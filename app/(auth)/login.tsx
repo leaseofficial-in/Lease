@@ -2,44 +2,26 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../stores/authStore';
 import { Colors, Fonts } from '../../constants/theme';
 import { Cap, DisplayText, SerifItalic } from '../../components/ui/V2';
 import { Logo } from '../../components/brand/Logo';
-import {
-  DEV_AUTH_INPUT_PHONE,
-  DEV_AUTH_OTP,
-  isDevAuthEnabled,
-} from '../../lib/devAuth';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signInWithGoogle, signInWithDevOtp } = useAuthStore();
-  const [loadingProvider, setLoadingProvider] = useState<'google' | 'demo' | null>(null);
+  const { signInWithGoogle } = useAuthStore();
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleGoogleLogin = async () => {
     setError('');
-    setLoadingProvider('google');
+    setLoading(true);
     try {
       await signInWithGoogle();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Google sign-in failed. Please try again.');
     } finally {
-      setLoadingProvider(null);
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    setError('');
-    setLoadingProvider('demo');
-    try {
-      await signInWithDevOtp(DEV_AUTH_INPUT_PHONE, DEV_AUTH_OTP);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Local demo login failed.');
-    } finally {
-      setLoadingProvider(null);
+      setLoading(false);
     }
   };
 
@@ -63,13 +45,13 @@ export default function LoginScreen() {
             Sign in <SerifItalic>to Flatvio.</SerifItalic>
           </DisplayText>
           <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 15, lineHeight: 22 }}>
-            Continue with Google for now. Phone OTP can be enabled later when Twilio is ready.
+            Use your Google account to sign in or create a Flatvio account.
           </Text>
         </View>
 
         <TouchableOpacity
           onPress={handleGoogleLogin}
-          disabled={loadingProvider !== null}
+          disabled={loading}
           activeOpacity={0.85}
           className="h-14 rounded-2xl border border-border bg-white flex-row items-center justify-center"
           style={{
@@ -80,7 +62,7 @@ export default function LoginScreen() {
             elevation: 2,
           }}
         >
-          {loadingProvider === 'google' ? (
+          {loading ? (
             <ActivityIndicator color={Colors.action} />
           ) : (
             <>
@@ -91,23 +73,6 @@ export default function LoginScreen() {
             </>
           )}
         </TouchableOpacity>
-
-        {isDevAuthEnabled() && (
-          <View className="mt-4">
-            <Button
-              title="Use Local Demo Account"
-              variant="secondary"
-              onPress={handleDemoLogin}
-              loading={loadingProvider === 'demo'}
-              disabled={loadingProvider !== null}
-              fullWidth
-              size="lg"
-            />
-            <Text className="text-xs text-muted text-center mt-2">
-              Demo login uses {DEV_AUTH_INPUT_PHONE} / {DEV_AUTH_OTP}.
-            </Text>
-          </View>
-        )}
 
         {error ? (
           <Text className="text-sm text-danger text-center mt-6 leading-5">{error}</Text>

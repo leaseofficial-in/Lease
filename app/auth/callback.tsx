@@ -35,7 +35,9 @@ export default function AuthCallbackScreen() {
 
       setSession(session);
       await fetchProfile(session.user.id);
-      router.replace('/(auth)/role-select');
+      // AuthGate in _layout.tsx reads the profile and routes to the right dashboard
+      // (or role-select if this is a first-time sign-in with no role yet)
+      router.replace('/(auth)');
     };
 
     finishSignIn().catch((error) => {

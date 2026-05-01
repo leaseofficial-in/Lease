@@ -8,7 +8,7 @@ export type RentalStatus =
   | 'pending_proof'
   | 'ended';
 
-export type PaymentStatus = 'paid' | 'pending' | 'overdue' | 'partial';
+export type PaymentStatus = 'paid' | 'pending' | 'overdue' | 'partial' | 'pending_verification';
 
 export type ProofStatus = 'pending' | 'approved' | 'rejected' | 'dispute';
 
@@ -27,6 +27,7 @@ export interface Profile {
   email: string | null;
   pan_number: string | null;
   aadhaar_last4: string | null;
+  upi_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +81,9 @@ export interface RentPayment {
   amount: number;
   month: string; // ISO date — first day of the rent month
   status: PaymentStatus;
+  payment_method: 'upi' | 'cash' | null;
+  utr_number: string | null;          // UPI transaction reference, entered by tenant
+  payment_note: string | null;        // optional note for cash payments
   razorpay_order_id: string | null;
   razorpay_payment_id: string | null;
   paid_at: string | null;

@@ -9,7 +9,7 @@
 **Flatvio** is a React Native / Expo mobile app (also runs on web) for managing rental properties in India. It connects **landlords** and **tenants** in a shared rental workflow.
 
 **Core features:**
-- Phone OTP login (Supabase Auth, India +91 numbers)
+- Google OAuth login (Supabase Auth — works identically in local dev and production)
 - Role selection after first login: Landlord or Tenant
 - Landlord: create rentals, invite tenants via link, view rent payments, review move-in/move-out photo proof, manage deposit deductions, track repair requests
 - Tenant: join rental via invite link, pay rent (Razorpay), upload room photos for move-in proof, raise repair requests, view agreement, view rent history
@@ -62,7 +62,7 @@ c:\GitHub\Lease\
 │   ├── (auth)/
 │   │   ├── _layout.tsx          # Auth group layout
 │   │   ├── index.tsx            # Welcome / landing screen
-│   │   ├── login.tsx            # Phone OTP login (2-step: phone → 6-digit OTP)
+│   │   ├── login.tsx            # Google OAuth login screen
 │   │   └── role-select.tsx      # Pick landlord or tenant after first login
 │   ├── (landlord)/
 │   │   ├── _layout.tsx          # Landlord tab layout
@@ -158,15 +158,25 @@ c:\GitHub\Lease\
 ### Tables
 | Table | Description |
 |---|---|
-| `profiles` | One per auth user. Has `role` (landlord/tenant), phone, full_name, avatar_url, pan_number, push_token |
+| `profiles` | One per auth user. Has `role` (landlord/tenant), phone, full_name, avatar_url, pan_number, push_token, **upi_id** |
 | `properties` | Belongs to a landlord. Address + property_type |
 | `rentals` | Links property + landlord + tenant. Has invite_token, status, monthly_rent, security_deposit, rent_due_day |
-| `rent_payments` | One per rental per month. Has status (paid/pending/overdue/partial), razorpay IDs |
+| `rent_payments` | One per rental per month. Has status (paid/pending/overdue/partial/**pending_verification**), **payment_method**, **utr_number**, **payment_note**, razorpay IDs |
 | `deposit_transactions` | Received/deduction/refund entries for security deposit |
 | `proofs` | move_in or move_out proof submission (one per rental per type) |
 | `proof_photos` | Individual photos for a proof, keyed by room_label |
 | `repair_requests` | Raised by tenant, updated by landlord |
 | `notifications` | In-app notifications per user |
+
+### Pending DB Migration (run in Supabase SQL Editor)
+```sql
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS upi_id TEXT;
+ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS payment_method TEXT;
+ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS utr_number TEXT;
+ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS payment_note TEXT;
+-- payment_status is a PG enum — add the new value to it:
+ALTER TYPE payment_status ADD VALUE IF NOT EXISTS 'pending_verification';
+```
 
 ### Key Triggers
 - `on_auth_user_created` → auto-inserts into `profiles` on new Supabase auth signup
@@ -187,17 +197,25 @@ c:\GitHub\Lease\
 App opens
   └── RootLayout: calls initialize() → supabase.auth.getSession()
         ├── No session → AuthGate redirects to /(auth) → Welcome screen
-        │     └── "Get Started" → /login → Phone number → OTP → verified
-        │           └── First login (no role) → /role-select → pick landlord/tenant
-        │                 └── role saved to profiles → AuthGate redirects to dashboard
+        │     └── "Get Started" → /login → "Continue with Google" → Google OAuth popup
+        │           └── auth/callback → session set → AuthGate reads profile
+        │                 ├── First login (no role) → /role-select → pick landlord/tenant
+        │                 │     └── role saved to profiles → AuthGate redirects to dashboard
+        │                 └── Returning user (has role) → dashboard directly
         └── Has session + role
               ├── role = 'landlord' → /(landlord) dashboard
               └── role = 'tenant'   → /(tenant) dashboard
 ```
 
-**Phone auth uses Supabase's built-in OTP.** For testing without Twilio:
-- Supabase Dashboard → Authentication → Providers → Phone → On → SMS Provider: None (Testing only)
-- Add test phone number + fixed OTP code
+**Google OAuth is the only auth method — same flow in local dev and production.**
+
+Setup required in Supabase Dashboard:
+- Authentication → Providers → Google → enable, add Client ID + Secret
+- Add `flatvio://auth/callback` to "Redirect URLs" (for native/Expo Go)
+- Add `http://localhost:8081/auth/callback` to "Redirect URLs" (for web dev)
+- Add your production domain callback URL when deploying
+
+For local testing, sign in with any real Google account — no test credentials needed.
 
 ---
 
@@ -218,24 +236,25 @@ App opens
 
 ## Known Issues & Current Status
 
-### ✅ Fixed in this session
-1. **App stuck on "Starting Flatvio…"** — `initialize()` was inside `AuthGate` which only rendered after `isInitialized` was true (chicken-and-egg). Fixed by moving `initialize()` to `RootLayout`.
-2. **TypeScript errors** — `paymentId` non-null assertion in `pay-rent.tsx:83`, `useState<string>` type in `proof/upload.tsx:35`, `[...Config.defaultRooms]` spread to satisfy `string[]`.
-3. **Supabase schema ordering error** — `profiles` RLS policies referenced `rentals` before it existed. Fixed by creating all tables first, then all policies.
-4. **NativeWind / TailwindCSS version mismatch** — `tailwindcss` was v4 but NativeWind v4 requires v3. Downgraded to `tailwindcss@3.4.19`.
-5. **Metro config ESM error on Windows** — `nativewind/metro` couldn't load due to Node.js ESM URL scheme issue on Windows paths. Was caused by tailwindcss v4 (ESM-only). Resolved by the tailwindcss v3 downgrade.
-6. **`.gitignore` missing `.env`** — added `.env` to prevent secrets being pushed to GitHub.
+### ✅ Resolved
+1. **App stuck on "Starting Flatvio…"** — `initialize()` was inside `AuthGate` which only rendered after `isInitialized` was true. Fixed by moving `initialize()` to `RootLayout`.
+2. **TypeScript errors** — `paymentId` non-null assertion in `pay-rent.tsx`, `useState<string>` type in `proof/upload.tsx`, spread to satisfy `string[]`.
+3. **Supabase schema ordering error** — `profiles` RLS policies referenced `rentals` before it existed. Fixed by ordering: tables first, then policies.
+4. **NativeWind / TailwindCSS version mismatch** — downgraded to `tailwindcss@3.4.19` (NativeWind v4 requires v3, not v4).
+5. **Metro config ESM error on Windows** — caused by tailwindcss v4 (ESM-only). Resolved by the v3 downgrade.
+6. **`.gitignore` missing `.env`** — added to prevent secrets being pushed.
+7. **Auth switched from phone OTP to Google OAuth** — `lib/devAuth.ts` stubbed out (always returns false), `signInWithDevOtp` removed from authStore, login screen shows only Google button, `auth/callback` now routes to `/(auth)` and lets AuthGate decide dashboard vs role-select.
 
 ### ⚠️ In Progress / Not Yet Verified
-1. **NativeWind styling on web** — App renders unstyled (no className processing). `postcss.config.js` + `autoprefixer` were added; `darkMode: 'class'` added to tailwind config. **Needs restart with `--clear` to verify.**
-2. **Expo Go QR code on mobile** — User was scanning with camera app instead of Expo Go. Not yet confirmed working on device.
-3. **Supabase phone auth** — Schema is applied but phone auth provider needs to be enabled in Supabase Dashboard. Test OTP numbers not yet configured.
+1. **NativeWind styling on web** — App renders unstyled (no className processing). `postcss.config.js` + `autoprefixer` were added. Needs restart with `--clear` to verify.
+2. **Google OAuth Supabase config** — Google provider must be enabled in Supabase Dashboard (Authentication → Providers → Google) with redirect URLs for `flatvio://auth/callback` and `http://localhost:8081/auth/callback`.
+3. **Expo Go QR code on mobile** — Not yet confirmed working on device.
 
 ### 🔲 Not yet done
-1. **GitHub push** — Repo has no commits yet (`git status` shows all files as untracked). Need to `git init` + `git add` + `git commit` + push.
-2. **Deployment** — Not started. Likely EAS Build for native, or Expo web deploy for web preview.
-3. **Edge Functions deployment** — `supabase/functions/` not yet deployed (`supabase functions deploy`).
-4. **Razorpay integration** — Currently simulated (shows Alert, no real SDK). Needs `react-native-razorpay` or WebView integration.
+1. **GitHub push** — Need to commit and push.
+2. **Deployment** — Not started. EAS Build for native, or `expo export --platform web` for web preview.
+3. **Edge Functions deployment** — `supabase functions deploy` not yet run.
+4. **Razorpay integration** — Currently simulated. Needs `react-native-razorpay` or WebView integration.
 5. **HRA receipt PDF** — Edge Function exists but untested.
 
 ---

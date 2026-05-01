@@ -23,6 +23,10 @@ const schema = z.object({
     .string()
     .regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Enter valid PAN (e.g. ABCDE1234F)')
     .or(z.literal('')),
+  upi_id: z
+    .string()
+    .regex(/^[\w.\-]{2,256}@[a-zA-Z]{2,64}$/, 'Enter valid UPI ID (e.g. 9876543210@ybl)')
+    .or(z.literal('')),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -39,6 +43,7 @@ export default function LandlordProfileScreen() {
       full_name: profile?.full_name ?? '',
       email: profile?.email ?? '',
       pan_number: profile?.pan_number ?? '',
+      upi_id: profile?.upi_id ?? '',
     },
   });
 
@@ -49,6 +54,7 @@ export default function LandlordProfileScreen() {
         full_name: values.full_name,
         email: values.email || null,
         pan_number: values.pan_number || null,
+        upi_id: values.upi_id || null,
       });
       reset(values);
       showToast('Profile updated', 'success');
@@ -171,6 +177,22 @@ export default function LandlordProfileScreen() {
                   maxLength={10}
                   error={errors.pan_number?.message}
                   hint="Used for rent receipts above Rs 50,000/month."
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="upi_id"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="UPI ID"
+                  placeholder="9876543210@ybl"
+                  value={value}
+                  onChangeText={onChange}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  error={errors.upi_id?.message}
+                  hint="Tenants will pay rent directly to this UPI ID. No commission charged."
                 />
               )}
             />
