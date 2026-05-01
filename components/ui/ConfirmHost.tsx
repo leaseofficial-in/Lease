@@ -6,7 +6,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { Colors, Fonts } from '../../constants/theme';
 
 export function ConfirmHost() {
-  const { confirmOptions, closeConfirm } = useUIStore();
+  const { confirmOptions, closeConfirm, showToast } = useUIStore();
   const [working, setWorking] = useState(false);
 
   const handleClose = () => {
@@ -18,6 +18,9 @@ export function ConfirmHost() {
     setWorking(true);
     try {
       await confirmOptions.onConfirm();
+      closeConfirm();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Action failed. Please try again.', 'error');
       closeConfirm();
     } finally {
       setWorking(false);
