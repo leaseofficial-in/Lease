@@ -10,10 +10,7 @@ const getRedirectTo = (): string => {
     return `${window.location.origin}/auth/callback`;
   }
 
-  return makeRedirectUri({
-    scheme: 'flatvio',
-    path: 'auth/callback',
-  });
+  return makeRedirectUri({ path: 'auth/callback' });
 };
 
 const getAuthParams = (url: string): URLSearchParams => {
