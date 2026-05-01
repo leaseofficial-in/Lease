@@ -15,11 +15,12 @@ export default function TenantDepositScreen() {
   const { data: rental } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('rentals')
         .select('*')
         .eq('tenant_id', profile!.id)
-        .single();
+        .maybeSingle();
+      if (error) throw error;
       return data as Rental | null;
     },
     enabled: !!profile?.id,

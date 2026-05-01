@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -47,7 +48,7 @@ export default function UploadProofScreen() {
         .from('rentals')
         .select('*')
         .eq('tenant_id', profile!.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -266,13 +267,15 @@ export default function UploadProofScreen() {
       <BottomSheet visible={showPhotoSource} onClose={() => setShowPhotoSource(false)}>
         <Text className="text-lg font-semibold text-primary mb-4 pt-2">Add Photo</Text>
         <View className="gap-3 pb-2">
-          <TouchableOpacity
-            onPress={() => handlePickPhoto('camera')}
-            className="flex-row items-center p-4 rounded-xl border border-border bg-white"
-          >
-            <Text style={{ fontSize: 24 }} className="mr-3">📷</Text>
-            <Text className="text-base font-medium text-primary">Take Photo</Text>
-          </TouchableOpacity>
+          {Platform.OS !== 'web' && (
+            <TouchableOpacity
+              onPress={() => handlePickPhoto('camera')}
+              className="flex-row items-center p-4 rounded-xl border border-border bg-white"
+            >
+              <Text style={{ fontSize: 24 }} className="mr-3">📷</Text>
+              <Text className="text-base font-medium text-primary">Take Photo</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => handlePickPhoto('gallery')}
             className="flex-row items-center p-4 rounded-xl border border-border bg-white"

@@ -21,11 +21,12 @@ export default function AgreementScreen() {
   const { data: rental, isLoading } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('rentals')
         .select(`*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(*)`)
         .eq('tenant_id', profile!.id)
-        .single();
+        .maybeSingle();
+      if (error) throw error;
       return data as Rental | null;
     },
     enabled: !!profile?.id,

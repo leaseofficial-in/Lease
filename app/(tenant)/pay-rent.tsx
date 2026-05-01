@@ -27,11 +27,12 @@ export default function PayRentScreen() {
   const { data: rental, isLoading: loadingRental } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('rentals')
         .select(`*, property:properties(name)`)
         .eq('tenant_id', profile!.id)
-        .single();
+        .maybeSingle();
+      if (error) throw error;
       return data as Rental | null;
     },
     enabled: !!profile?.id,
@@ -46,8 +47,8 @@ export default function PayRentScreen() {
         .select('*')
         .eq('rental_id', rental!.id)
         .eq('month', month)
-        .single();
-      if (error && error.code !== 'PGRST116') throw error;
+        .maybeSingle();
+      if (error) throw error;
       return data as RentPayment | null;
     },
     enabled: !!rental?.id,
