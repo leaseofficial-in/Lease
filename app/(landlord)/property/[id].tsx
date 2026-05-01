@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Share,
-  Alert,
   Platform,
   TextInput,
 } from 'react-native';
@@ -31,7 +30,8 @@ import { Cap, Chip, InkCard } from '../../../components/ui/V2';
 import { Colors, Fonts } from '../../../constants/theme';
 import { Config } from '../../../constants/config';
 import { isDevAuthUserId } from '../../../lib/devAuth';
-import { activateLocalRental, getLocalRentalByPropertyId } from '../../../lib/localRentals';
+import { activateLocalRental, getLocalRentalByPropertyId, updateLocalRentalTerms } from '../../../lib/localRentals';
+import { confirmAction } from '../../../lib/confirm';
 
 type TxnType = 'deduction' | 'refund' | 'received';
 
@@ -48,6 +48,15 @@ export default function PropertyDetailScreen() {
   const [txnNote, setTxnNote] = useState('');
   const [savingTxn, setSavingTxn] = useState(false);
   const [localDepositTransactions, setLocalDepositTransactions] = useState<DepositTransaction[]>([]);
+  const [showTermsSheet, setShowTermsSheet] = useState(false);
+  const [savingTerms, setSavingTerms] = useState(false);
+  const [termsForm, setTermsForm] = useState({
+    monthlyRent: '',
+    securityDeposit: '',
+    rentDueDay: '',
+    startDate: '',
+    endDate: '',
+  });
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
   const { data: rental, isLoading } = useQuery({
@@ -194,42 +203,109 @@ export default function PropertyDetailScreen() {
     });
   };
 
+  const openTermsEditor = () => {
+    if (!rental) return;
+    setTermsForm({
+      monthlyRent: String(rental.monthly_rent ?? ''),
+      securityDeposit: String(rental.security_deposit ?? ''),
+      rentDueDay: String(rental.rent_due_day ?? ''),
+      startDate: rental.start_date ?? '',
+      endDate: rental.end_date ?? '',
+    });
+    setShowTermsSheet(true);
+  };
+
+  const handleSaveTerms = async () => {
+    if (!rental) return;
+    if (rental.agreement_signed_at) {
+      showToast('Agreement is already signed. Terms are locked.', 'error');
+      return;
+    }
+
+    const monthlyRent = Number(termsForm.monthlyRent);
+    const securityDeposit = Number(termsForm.securityDeposit);
+    const rentDueDay = Number(termsForm.rentDueDay);
+
+    if (!monthlyRent || monthlyRent <= 0) {
+      showToast('Enter a valid monthly rent', 'error');
+      return;
+    }
+    if (Number.isNaN(securityDeposit) || securityDeposit < 0) {
+      showToast('Enter a valid security deposit', 'error');
+      return;
+    }
+    if (!Number.isInteger(rentDueDay) || rentDueDay < 1 || rentDueDay > 31) {
+      showToast('Rent due day must be between 1 and 31', 'error');
+      return;
+    }
+    if (!termsForm.startDate.trim()) {
+      showToast('Start date is required', 'error');
+      return;
+    }
+
+    setSavingTerms(true);
+    const payload = {
+      monthly_rent: monthlyRent,
+      security_deposit: securityDeposit,
+      rent_due_day: rentDueDay,
+      start_date: termsForm.startDate.trim(),
+      end_date: termsForm.endDate.trim() || null,
+    };
+    try {
+      if (isLocalDevUser) {
+        await updateLocalRentalTerms(rental.id, payload);
+      } else {
+        const { error } = await supabase
+          .from('rentals')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', rental.id)
+          .is('agreement_signed_at', null)
+          .select('id')
+          .single();
+        if (error) throw error;
+      }
+      await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+      await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+      setShowTermsSheet(false);
+      showToast('Agreement terms updated', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to update terms', 'error');
+    } finally {
+      setSavingTerms(false);
+    }
+  };
+
   const handleActivateRental = async () => {
     if (!rental) return;
-    Alert.alert(
+    confirmAction(
       'Activate Rental',
       'Once activated, rent payments will be tracked from this month. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Activate',
-          onPress: async () => {
-            setActivatingRental(true);
-            try {
-              if (isLocalDevUser) {
-                await activateLocalRental(rental.id);
-                await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
-                await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
-                showToast('Rental activated locally.', 'success');
-                return;
-              }
+      async () => {
+        setActivatingRental(true);
+        try {
+          if (isLocalDevUser) {
+            await activateLocalRental(rental.id);
+            await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+            await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+            showToast('Rental activated locally.', 'success');
+            return;
+          }
 
-              const { error } = await supabase
-                .from('rentals')
-                .update({ status: 'active' })
-                .eq('id', rental.id);
-              if (error) throw error;
-              await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
-              await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
-              showToast('Rental activated', 'success');
-            } catch {
-              showToast('Failed to activate rental', 'error');
-            } finally {
-              setActivatingRental(false);
-            }
-          },
-        },
-      ],
+          const { error } = await supabase
+            .from('rentals')
+            .update({ status: 'active' })
+            .eq('id', rental.id);
+          if (error) throw error;
+          await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+          await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+          showToast('Rental activated', 'success');
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : 'Failed to activate rental', 'error');
+        } finally {
+          setActivatingRental(false);
+        }
+      },
+      'Activate',
     );
   };
 
@@ -348,13 +424,24 @@ export default function PropertyDetailScreen() {
           </View>
 
           <Card>
-            <Cap style={{ marginBottom: 12 }}>Rental Terms</Cap>
+            <View className="flex-row items-center justify-between" style={{ marginBottom: 12 }}>
+              <Cap>Rental Terms</Cap>
+              {!rental.agreement_signed_at && (
+                <TouchableOpacity onPress={openTermsEditor} activeOpacity={0.75}>
+                  <Cap style={{ color: Colors.primary }}>Edit</Cap>
+                </TouchableOpacity>
+              )}
+            </View>
             <View className="gap-2.5">
               <TermRow label="Monthly Rent" value={formatCurrency(rental.monthly_rent)} />
               <TermRow label="Security Deposit" value={formatCurrency(rental.security_deposit)} />
               <TermRow label="Due Day" value={`${rental.rent_due_day}${ordinal(rental.rent_due_day)} of each month`} />
               <TermRow label="Start Date" value={formatDate(rental.start_date)} />
               {rental.end_date && <TermRow label="End Date" value={formatDate(rental.end_date)} />}
+              <TermRow
+                label="Agreement"
+                value={rental.agreement_signed_at ? `Signed ${formatDate(rental.agreement_signed_at)}` : 'Editable before tenant signs'}
+              />
             </View>
           </Card>
 
@@ -439,6 +526,61 @@ export default function PropertyDetailScreen() {
           title="Save Entry"
           onPress={handleAddTransaction}
           loading={savingTxn}
+          fullWidth
+          size="lg"
+        />
+      </BottomSheet>
+
+      <BottomSheet visible={showTermsSheet} onClose={() => setShowTermsSheet(false)} scrollable>
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20, marginBottom: 6 }}>
+          Edit agreement terms
+        </Text>
+        <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
+          These values update the tenant agreement summary until the tenant signs it.
+        </Text>
+
+        <Input
+          label="Monthly Rent"
+          placeholder="25000"
+          value={termsForm.monthlyRent}
+          onChangeText={(value) => setTermsForm((current) => ({ ...current, monthlyRent: value }))}
+          keyboardType="numeric"
+          required
+        />
+        <Input
+          label="Security Deposit"
+          placeholder="50000"
+          value={termsForm.securityDeposit}
+          onChangeText={(value) => setTermsForm((current) => ({ ...current, securityDeposit: value }))}
+          keyboardType="numeric"
+          required
+        />
+        <Input
+          label="Rent Due Day"
+          placeholder="5"
+          value={termsForm.rentDueDay}
+          onChangeText={(value) => setTermsForm((current) => ({ ...current, rentDueDay: value }))}
+          keyboardType="numeric"
+          required
+        />
+        <Input
+          label="Start Date"
+          placeholder="YYYY-MM-DD"
+          value={termsForm.startDate}
+          onChangeText={(value) => setTermsForm((current) => ({ ...current, startDate: value }))}
+          required
+        />
+        <Input
+          label="End Date"
+          placeholder="YYYY-MM-DD (optional)"
+          value={termsForm.endDate}
+          onChangeText={(value) => setTermsForm((current) => ({ ...current, endDate: value }))}
+        />
+
+        <Button
+          title="Save Terms"
+          onPress={handleSaveTerms}
+          loading={savingTerms}
           fullWidth
           size="lg"
         />

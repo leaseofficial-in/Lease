@@ -1,13 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -26,6 +18,7 @@ import { BottomSheet } from '../../../components/ui/BottomSheet';
 import { StatusPill } from '../../../components/ui/StatusPill';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingScreen } from '../../../components/ui/LoadingScreen';
+import { confirmAction } from '../../../lib/confirm';
 
 export default function UploadProofScreen() {
   const router = useRouter();
@@ -41,13 +34,15 @@ export default function UploadProofScreen() {
   const [showPhotoSource, setShowPhotoSource] = useState(false);
 
   // Fetch current tenant rental
-  const { data: rental } = useQuery({
+  const { data: rental, isLoading: isRentalLoading, error: rentalError, refetch: refetchRental } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rentals')
         .select('*')
         .eq('tenant_id', profile!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -56,7 +51,7 @@ export default function UploadProofScreen() {
   });
 
   // Fetch existing proof
-  const { data: proof, isLoading } = useQuery({
+  const { data: proof, isLoading, error: proofError, refetch: refetchProof } = useQuery({
     queryKey: ['proof', rental?.id, 'move_in'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -80,18 +75,19 @@ export default function UploadProofScreen() {
 
   const ensureProof = useCallback(async (): Promise<string> => {
     if (proof?.id) return proof.id;
+    if (!rental?.id || !profile?.id) throw new Error('Join a rental before adding proof photos.');
     const { data, error } = await supabase
       .from('proofs')
       .insert({
-        rental_id: rental!.id,
+        rental_id: rental.id,
         type: 'move_in',
-        submitted_by: profile!.id,
+        submitted_by: profile.id,
         status: 'pending',
       })
       .select()
       .single();
     if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['proof', rental?.id] });
+    void queryClient.invalidateQueries({ queryKey: ['proof', rental.id] });
     return data.id;
   }, [proof, rental, profile, queryClient]);
 
@@ -115,7 +111,7 @@ export default function UploadProofScreen() {
         uploaded_by: profile!.id,
       });
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ['proof', rental.id] });
+      void queryClient.invalidateQueries({ queryKey: ['proof', rental.id] });
       showToast('Photo added!', 'success');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Upload failed', 'error');
@@ -130,8 +126,10 @@ export default function UploadProofScreen() {
       .from('proof_photos')
       .update({ annotation: annotation || null })
       .eq('id', selectedPhoto.id);
-    if (!error) {
-      await queryClient.invalidateQueries({ queryKey: ['proof', rental?.id] });
+    if (error) {
+      showToast(error.message, 'error');
+    } else {
+      void queryClient.invalidateQueries({ queryKey: ['proof', rental?.id] });
     }
     setSelectedPhoto(null);
   };
@@ -139,38 +137,70 @@ export default function UploadProofScreen() {
   const handleSubmitProof = async () => {
     const total = Object.values(photoCounts).reduce((a, b) => a + b, 0);
     if (total < 3) {
-      Alert.alert('Add more photos', 'Please add at least 3 photos before submitting.');
+      showToast('Please add at least 3 photos before submitting.', 'error');
       return;
     }
-    Alert.alert(
+    if (!proof?.id) {
+      showToast('Add photos before submitting proof.', 'error');
+      return;
+    }
+    confirmAction(
       'Submit Proof',
       'Once submitted, your landlord will review the photos. You won\'t be able to add more.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Submit',
-          onPress: async () => {
-            setSubmitting(true);
-            try {
-              await supabase
-                .from('proofs')
-                .update({ status: 'pending', updated_at: new Date().toISOString() })
-                .eq('id', proof!.id);
-              await queryClient.invalidateQueries({ queryKey: ['proof', rental?.id] });
-              showToast('Proof submitted! Your landlord will review it.', 'success');
-              router.back();
-            } catch {
-              showToast('Failed to submit proof', 'error');
-            } finally {
-              setSubmitting(false);
-            }
-          },
-        },
-      ],
+      async () => {
+        setSubmitting(true);
+        try {
+          const { error } = await supabase
+            .from('proofs')
+            .update({ status: 'pending', updated_at: new Date().toISOString() })
+            .eq('id', proof.id);
+          if (error) throw error;
+          void queryClient.invalidateQueries({ queryKey: ['proof', rental?.id] });
+          showToast('Proof submitted! Your landlord will review it.', 'success');
+          router.back();
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : 'Failed to submit proof', 'error');
+        } finally {
+          setSubmitting(false);
+        }
+      },
+      'Submit',
     );
   };
 
-  if (isLoading) return <LoadingScreen />;
+  if (isRentalLoading || (!!rental?.id && isLoading)) return <LoadingScreen />;
+
+  if (rentalError || proofError) {
+    const error = rentalError ?? proofError;
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+        <EmptyState
+          title="Could not load proof"
+          subtitle={error instanceof Error ? error.message : 'Please try again.'}
+          actionLabel="Retry"
+          onAction={() => {
+            void refetchRental();
+            if (rental?.id) void refetchProof();
+          }}
+          icon={<Text style={{ fontSize: 48 }}>!</Text>}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (!rental) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+        <EmptyState
+          title="No rental found"
+          subtitle="Join a rental before uploading move-in proof."
+          actionLabel="Go Back"
+          onAction={() => router.back()}
+          icon={<Text style={{ fontSize: 48 }}>P</Text>}
+        />
+      </SafeAreaView>
+    );
+  }
 
   const totalPhotos = Object.values(photoCounts).reduce((a, b) => a + b, 0);
   const isSubmitted = proof?.status !== undefined && proof.status !== 'pending';

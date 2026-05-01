@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +16,7 @@ import { StatusPill } from '../../../components/ui/StatusPill';
 import { LoadingScreen } from '../../../components/ui/LoadingScreen';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Colors } from '../../../constants/theme';
+import { confirmAction } from '../../../lib/confirm';
 
 export default function ReviewProofScreen() {
   const { rentalId } = useLocalSearchParams<{ rentalId: string }>();
@@ -65,45 +66,38 @@ export default function ReviewProofScreen() {
       return;
     }
 
-    Alert.alert(
+    confirmAction(
       action === 'approved' ? 'Approve Proof' : action === 'rejected' ? 'Reject Proof' : 'Raise Dispute',
       action === 'approved'
         ? 'Confirm that the move-in photos are satisfactory?'
         : action === 'rejected'
         ? 'Reject this proof submission?'
         : 'This will notify the tenant of your concern.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          style: action === 'approved' ? 'default' : 'destructive',
-          onPress: async () => {
-            setActioning(true);
-            try {
-              const { error } = await supabase
-                .from('proofs')
-                .update({
-                  status: action,
-                  reviewed_by: profile!.id,
-                  dispute_note: action === 'dispute' ? disputeNote.trim() : null,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', proof.id);
-              if (error) throw error;
-              await queryClient.invalidateQueries({ queryKey: ['proof', rentalId] });
-              showToast(
-                action === 'approved' ? 'Proof approved!' : action === 'rejected' ? 'Proof rejected' : 'Dispute raised',
-                action === 'approved' ? 'success' : 'info',
-              );
-              router.back();
-            } catch {
-              showToast('Failed to update proof status', 'error');
-            } finally {
-              setActioning(false);
-            }
-          },
-        },
-      ],
+      async () => {
+        setActioning(true);
+        try {
+          const { error } = await supabase
+            .from('proofs')
+            .update({
+              status: action,
+              reviewed_by: profile!.id,
+              dispute_note: action === 'dispute' ? disputeNote.trim() : null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', proof.id);
+          if (error) throw error;
+          await queryClient.invalidateQueries({ queryKey: ['proof', rentalId] });
+          showToast(
+            action === 'approved' ? 'Proof approved!' : action === 'rejected' ? 'Proof rejected' : 'Dispute raised',
+            action === 'approved' ? 'success' : 'info',
+          );
+          router.back();
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : 'Failed to update proof status', 'error');
+        } finally {
+          setActioning(false);
+        }
+      },
     );
   };
 

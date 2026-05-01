@@ -98,3 +98,17 @@ export const activateLocalRental = async (rentalId: string): Promise<void> => {
     ),
   );
 };
+
+export const updateLocalRentalTerms = async (
+  rentalId: string,
+  terms: Pick<Rental, 'monthly_rent' | 'security_deposit' | 'rent_due_day' | 'start_date' | 'end_date'>,
+): Promise<void> => {
+  const rentals = await readLocalRentals();
+  await writeLocalRentals(
+    rentals.map((rental) =>
+      rental.id === rentalId
+        ? { ...rental, ...terms, updated_at: new Date().toISOString() }
+        : rental,
+    ),
+  );
+};

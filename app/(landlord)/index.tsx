@@ -51,12 +51,13 @@ export default function LandlordDashboard() {
   });
 
   const activeRentals = rentals?.filter((r) => r.status === 'active') ?? [];
-  const pendingRentals = rentals?.filter((r) => r.status !== 'active') ?? [];
+  const actionableRentals = rentals?.filter((r) => r.status !== 'active' || !r.agreement_signed_at) ?? [];
   const totalExpected = rentals?.reduce((sum, r) => sum + Number(r.monthly_rent), 0) ?? 0;
   const collected = activeRentals.reduce((sum, r) => sum + Number(r.monthly_rent), 0);
   const collectionRate = totalExpected > 0 ? Math.round((collected / totalExpected) * 100) : 0;
   const firstName = profile?.full_name?.split(' ')[0] || 'Landlord';
-  const queueCount = pendingRentals.length + (rentals?.filter((r) => r.status === 'pending_proof').length ?? 0);
+  const queueCount = actionableRentals.length;
+  const firstAction = actionableRentals[0];
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']} style={{ flex: 1, backgroundColor: Colors.surface }}>
@@ -106,24 +107,33 @@ export default function LandlordDashboard() {
             </View>
           </InkCard>
 
-          <Card padded className="border-warning" style={{ borderWidth: queueCount ? 1.5 : 1 }}>
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center flex-1">
-                <View className="w-9 h-9 rounded-full bg-warning items-center justify-center mr-3">
-                  <Text className="text-white font-bold">!</Text>
+          <TouchableOpacity
+            activeOpacity={queueCount ? 0.78 : 1}
+            onPress={() => {
+              if (firstAction?.property_id) {
+                router.push(`/(landlord)/property/${firstAction.property_id}`);
+              }
+            }}
+          >
+            <Card padded className="border-warning" style={{ borderWidth: queueCount ? 1.5 : 1 }}>
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1">
+                  <View className="w-9 h-9 rounded-full bg-warning items-center justify-center mr-3">
+                    <Text className="text-white font-bold">!</Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-base text-primary" style={{ fontFamily: Fonts.sansSemiBold }}>
+                      {queueCount ? `${queueCount} actions for you` : 'Everything is current'}
+                    </Text>
+                    <Text className="text-xs text-muted mt-0.5">
+                      {queueCount ? 'Review invites, proof, and pending rentals.' : 'No landlord tasks need attention.'}
+                    </Text>
+                  </View>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-base text-primary" style={{ fontFamily: Fonts.sansSemiBold }}>
-                    {queueCount ? `${queueCount} actions for you` : 'Everything is current'}
-                  </Text>
-                  <Text className="text-xs text-muted mt-0.5">
-                    {queueCount ? 'Review invites, proof, and pending rentals.' : 'No landlord tasks need attention.'}
-                  </Text>
-                </View>
+                <Text className="text-xl text-muted">&gt;</Text>
               </View>
-              <Text className="text-xl text-muted">&gt;</Text>
-            </View>
-          </Card>
+            </Card>
+          </TouchableOpacity>
 
           <View className="flex-row gap-3">
             <MiniPanel label="Properties" value={String(rentals?.length ?? 0)}>

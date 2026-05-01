@@ -49,13 +49,15 @@ export default function RepairsScreen() {
   const [submitting, setSubmitting] = useState(false);
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
-  const { data: rental } = useQuery({
+  const { data: rental, isLoading: isRentalLoading, error: rentalError, refetch: refetchRental } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rentals')
         .select('id')
         .eq('tenant_id', profile!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -63,7 +65,7 @@ export default function RepairsScreen() {
     enabled: !!profile?.id && !isLocalDevUser,
   });
 
-  const { data: repairs, isLoading, refetch, isRefetching } = useQuery({
+  const { data: repairs, isLoading, refetch, isRefetching, error: repairsError } = useQuery({
     queryKey: ['repairs', rental?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -96,14 +98,14 @@ export default function RepairsScreen() {
         description: values.description,
         priority: values.priority,
         status: 'open',
-      });
+      }).select('id').single();
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ['repairs', rental.id] });
+      void queryClient.invalidateQueries({ queryKey: ['repairs', rental.id] });
       showToast('Repair request sent to your landlord', 'success');
       setShowForm(false);
       reset();
-    } catch {
-      showToast('Failed to submit request', 'error');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to submit request', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -121,8 +123,19 @@ export default function RepairsScreen() {
         </View>
 
         <View className="px-5 pb-8">
-          {isLoading ? (
+          {isRentalLoading || isLoading ? (
             <Text className="text-sm text-muted text-center mt-8">Loading…</Text>
+          ) : rentalError || repairsError ? (
+            <EmptyState
+              title="Could not load repairs"
+              subtitle={(rentalError ?? repairsError) instanceof Error ? (rentalError ?? repairsError)!.message : 'Please try again.'}
+              actionLabel="Retry"
+              onAction={() => {
+                void refetchRental();
+                if (rental?.id) void refetch();
+              }}
+              icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>!</Text>}
+            />
           ) : !rental || repairs?.length === 0 ? (
             <EmptyState
               title="No repair requests"

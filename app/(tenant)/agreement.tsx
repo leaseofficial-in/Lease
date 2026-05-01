@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, Linking, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, Linking, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,12 +11,14 @@ import { formatDate, formatCurrency } from '../../lib/formatters';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
+import { confirmAction } from '../../lib/confirm';
 
 export default function AgreementScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
   const { showToast } = useUIStore();
   const queryClient = useQueryClient();
+  const [signing, setSigning] = useState(false);
 
   const { data: rental, isLoading } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
@@ -25,6 +27,8 @@ export default function AgreementScreen() {
         .from('rentals')
         .select(`*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(*)`)
         .eq('tenant_id', profile!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data as Rental | null;
@@ -32,29 +36,31 @@ export default function AgreementScreen() {
     enabled: !!profile?.id,
   });
 
+  const signAgreement = async () => {
+    if (!rental) return;
+    setSigning(true);
+    try {
+      const { error } = await supabase
+        .from('rentals')
+        .update({ agreement_signed_at: new Date().toISOString() })
+        .eq('id', rental.id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
+      showToast('Agreement signed!', 'success');
+      router.back();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to sign agreement', 'error');
+    } finally {
+      setSigning(false);
+    }
+  };
+
   const handleSign = () => {
-    Alert.alert(
+    confirmAction(
       'Sign Agreement',
       'By signing, you confirm you have read and agree to the rental terms listed below.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign',
-          onPress: async () => {
-            if (!rental) return;
-            const { error } = await supabase
-              .from('rentals')
-              .update({ agreement_signed_at: new Date().toISOString() })
-              .eq('id', rental.id);
-            if (error) {
-              showToast('Failed to sign agreement', 'error');
-              return;
-            }
-            await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
-            showToast('Agreement signed!', 'success');
-          },
-        },
-      ],
+      signAgreement,
+      'Sign',
     );
   };
 
@@ -145,7 +151,7 @@ export default function AgreementScreen() {
           )}
 
           {!isSigned && (
-            <Button title="Sign Agreement" onPress={handleSign} fullWidth size="lg" />
+            <Button title="Sign Agreement" onPress={handleSign} loading={signing} fullWidth size="lg" />
           )}
         </View>
       </ScrollView>
