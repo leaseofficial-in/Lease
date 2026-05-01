@@ -112,7 +112,7 @@ export default function JoinRentalScreen() {
 
             <Input
               label="Invite Link or Token"
-              placeholder="https://flatvio.in/join/abc123… or just the token"
+              placeholder="https://flatvio.vercel.app/join/abc123 or just the token"
               value={token}
               onChangeText={(v) => { setToken(v); setPreview(null); }}
               autoCapitalize="none"

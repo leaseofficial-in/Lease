@@ -2,6 +2,7 @@ export const Config = {
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
   supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
   razorpayKeyId: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ?? '',
+  publicAppUrl: process.env.EXPO_PUBLIC_APP_URL ?? 'https://flatvio.vercel.app',
   appScheme: 'flatvio',
   appName: 'Flatvio',
   supportEmail: 'support@flatvio.in',

@@ -29,6 +29,7 @@ import { BottomSheet } from '../../../components/ui/BottomSheet';
 import { LoadingScreen } from '../../../components/ui/LoadingScreen';
 import { Cap, Chip, InkCard } from '../../../components/ui/V2';
 import { Colors, Fonts } from '../../../constants/theme';
+import { Config } from '../../../constants/config';
 import { isDevAuthUserId } from '../../../lib/devAuth';
 import { activateLocalRental, getLocalRentalByPropertyId } from '../../../lib/localRentals';
 
@@ -159,7 +160,11 @@ export default function PropertyDetailScreen() {
     }
   };
 
-  const webInviteLink = `https://flatvio.in/join/${rental?.invite_token}`;
+  const appOrigin =
+    Platform.OS === 'web' && typeof window !== 'undefined'
+      ? window.location.origin
+      : Config.publicAppUrl;
+  const webInviteLink = `${appOrigin}/join/${rental?.invite_token}`;
 
   const handleCopyInvite = async () => {
     await Clipboard.setStringAsync(webInviteLink);

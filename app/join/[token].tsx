@@ -10,7 +10,7 @@ import { Colors } from '../../constants/theme';
 
 const PENDING_JOIN_KEY = 'flatvio.pending_join_token';
 
-// Deep link handler: flatvio://join/<token> or https://flatvio.in/join/<token>
+// Deep link handler: flatvio://join/<token> or https://flatvio.vercel.app/join/<token>
 export default function JoinDeepLinkScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const router = useRouter();
