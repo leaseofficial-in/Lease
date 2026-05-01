@@ -620,16 +620,22 @@ export default function PropertyDetailScreen() {
                           size="sm"
                           onPress={async () => {
                             try {
-                              const { error } = await supabase
+                              const { data, error } = await supabase
                                 .from('rent_payments')
-                                .update({ status: 'paid' })
-                                .eq('id', p.id);
+                                .update({ status: 'paid', paid_at: new Date().toISOString() })
+                                .eq('id', p.id)
+                                .select('id')
+                                .single();
                               if (error) throw error;
-                              await refetchPayments();
-                              await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+                              if (!data) throw new Error('Payment not updated — check RLS policy in Supabase.');
+                              await Promise.all([
+                                refetchPayments(),
+                                queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] }),
+                                queryClient.invalidateQueries({ queryKey: ['landlord-payment-actions'] }),
+                              ]);
                               showToast('Payment confirmed', 'success');
-                            } catch {
-                              showToast('Could not confirm payment', 'error');
+                            } catch (e) {
+                              showToast(e instanceof Error ? e.message : 'Could not confirm payment', 'error');
                             }
                           }}
                         />
