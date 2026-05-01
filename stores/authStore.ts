@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Session } from '@supabase/supabase-js';
 import { Profile, UserRole } from '../types';
 import { supabase } from '../lib/supabase';
-import { signInWithGoogle } from '../lib/oauth';
+import { createSessionFromOAuthUrl, signInWithGoogle } from '../lib/oauth';
 
 interface AuthState {
   session: Session | null;
@@ -13,10 +13,11 @@ interface AuthState {
   setSession: (session: Session | null) => void;
   setProfile: (profile: Profile | null) => void;
   setLoading: (loading: boolean) => void;
-  fetchProfile: (userId: string) => Promise<void>;
+  fetchProfile: (userId: string) => Promise<Profile | null>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   setRole: (role: UserRole) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  completeOAuthSignIn: (callbackUrl: string) => Promise<Profile | null>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
@@ -36,11 +37,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
-    if (!error && data) {
-      set({ profile: data as Profile });
+    if (error) throw error;
+    const profile = data ? (data as Profile) : null;
+    set({ profile });
+    return profile;
+  },
+
+  completeOAuthSignIn: async (callbackUrl) => {
+    const session = await createSessionFromOAuthUrl(callbackUrl);
+    if (!session) {
+      throw new Error('Google sign-in did not return a session.');
     }
+    set({ session });
+    return get().fetchProfile(session.user.id);
   },
 
   updateProfile: async (updates) => {
@@ -79,7 +90,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithGoogle: async () => {
-    await signInWithGoogle();
+    const session = await signInWithGoogle();
+    if (session) {
+      set({ session });
+      await get().fetchProfile(session.user.id);
+    }
   },
 
   signOut: async () => {

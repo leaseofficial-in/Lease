@@ -40,27 +40,25 @@ function AuthGate() {
   useEffect(() => {
     if (!isInitialized) return;
 
-    const inAuth = segments[0] === '(auth)';
-    const inJoin = segments[0] === 'join';
-    const inAuthCallback = segments[0] === 'auth';
+    const root = segments[0];
+    const currentPath = segments.join('/');
+    const inAuthFlow = root === '(auth)' || root === 'auth';
+    const inJoinFlow = root === 'join';
 
     if (!session) {
-      if (!inAuth && !inJoin && !inAuthCallback) router.replace('/(auth)');
+      if (!inAuthFlow && !inJoinFlow) router.replace('/(auth)');
       return;
     }
 
-    // Signed in but no role yet — but don't redirect from auth/callback, it handles its own routing
     if (!profile?.role) {
-      if (!inAuthCallback) router.replace('/(auth)/role-select');
+      if (currentPath !== '(auth)/role-select' && root !== 'auth') {
+        router.replace('/(auth)/role-select');
+      }
       return;
     }
 
-    if (inAuth) {
-      if (profile.role === 'landlord') {
-        router.replace('/(landlord)');
-      } else {
-        router.replace('/(tenant)');
-      }
+    if (inAuthFlow) {
+      router.replace(profile.role === 'landlord' ? '/(landlord)' : '/(tenant)');
     }
   }, [isInitialized, session, profile, segments, router]);
 

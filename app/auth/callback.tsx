@@ -1,43 +1,38 @@
-import { useEffect, useState } from 'react';
-import { Platform, View, Text } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { createSessionFromOAuthUrl } from '../../lib/oauth';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../../components/ui/Button';
 import { Colors, Fonts } from '../../constants/theme';
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<Record<string, string>>();
-  const { setSession, fetchProfile } = useAuthStore();
+  const params = useLocalSearchParams<Record<string, string | string[]>>();
+  const { completeOAuthSignIn } = useAuthStore();
   const [errorMessage, setErrorMessage] = useState('');
+  const handledRef = useRef(false);
 
   useEffect(() => {
+    if (handledRef.current) return;
+    handledRef.current = true;
     let isMounted = true;
 
     const finishSignIn = async () => {
-      let session = null;
+      let callbackUrl = '';
 
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        session = await createSessionFromOAuthUrl(window.location.href);
+        callbackUrl = window.location.href;
       } else {
         const query = new URLSearchParams();
         Object.entries(params).forEach(([key, value]) => {
           if (typeof value === 'string') query.set(key, value);
+          if (Array.isArray(value) && typeof value[0] === 'string') query.set(key, value[0]);
         });
-
-        session = await createSessionFromOAuthUrl(`flatvio://auth/callback?${query.toString()}`);
+        callbackUrl = `flatvio://auth/callback?${query.toString()}`;
       }
 
-      if (!session) {
-        throw new Error('Google sign-in did not return a session.');
-      }
+      const profile = await completeOAuthSignIn(callbackUrl);
 
-      setSession(session);
-      await fetchProfile(session.user.id);
-
-      // Route directly — don't go via /(auth) welcome screen (avoids double-redirect race)
-      const { profile } = useAuthStore.getState();
       if (profile?.role === 'landlord') {
         router.replace('/(landlord)');
       } else if (profile?.role === 'tenant') {
@@ -48,14 +43,14 @@ export default function AuthCallbackScreen() {
     };
 
     finishSignIn().catch((error) => {
-      const message = error instanceof Error ? error.message : 'Google sign-in failed.';
-      if (isMounted) setErrorMessage(message);
+      if (!isMounted) return;
+      setErrorMessage(error instanceof Error ? error.message : 'Google sign-in failed.');
     });
 
     return () => {
       isMounted = false;
     };
-  }, [fetchProfile, params, router, setSession]);
+  }, [completeOAuthSignIn, params, router]);
 
   if (errorMessage) {
     return (
