@@ -123,7 +123,7 @@ export default function LandlordDashboard() {
           )
         `)
         .eq('rental.landlord_id', profile!.id)
-        .eq('status', 'paid')
+        .eq('status', 'pending_verification')
         .order('created_at', { ascending: false })
         .limit(20);
       if (error) throw error;
@@ -184,7 +184,7 @@ export default function LandlordDashboard() {
   const actionSummary = [
     durableActions.length ? `${durableActions.length} notification${durableActions.length === 1 ? '' : 's'}` : null,
     !durableActions.length && unviewedRepairs.length ? `${unviewedRepairs.length} repair${unviewedRepairs.length === 1 ? '' : 's'}` : null,
-    !durableActions.length && unviewedPayments.length ? `${unviewedPayments.length} payment${unviewedPayments.length === 1 ? '' : 's'}` : null,
+    !durableActions.length && unviewedPayments.length ? `${unviewedPayments.length} payment${unviewedPayments.length === 1 ? '' : 's'} to confirm` : null,
     actionableRentals.length ? `${actionableRentals.length} setup` : null,
   ].filter(Boolean).join(' - ');
   const primaryActionText = firstDurableAction
@@ -192,7 +192,7 @@ export default function LandlordDashboard() {
     : firstRepairAction
     ? `Repair: ${firstRepairAction.title}`
     : firstPaymentAction
-    ? `Payment received: ${formatCurrency(firstPaymentAction.amount, true)}`
+    ? `Confirm ${formatCurrency(firstPaymentAction.amount, true)} from ${firstPaymentAction.rental?.property?.name ?? 'tenant'}`
     : firstRentalAction
     ? 'Rental setup needs review'
     : 'No landlord tasks need attention.';
@@ -255,8 +255,8 @@ export default function LandlordDashboard() {
                   pathname: '/(landlord)/repairs/[rentalId]',
                   params: { rentalId: firstRepairAction.rental_id },
                 });
-              } else if (firstPaymentAction) {
-                router.push('/(landlord)/payments');
+              } else if (firstPaymentAction?.rental?.property_id) {
+                router.push(`/(landlord)/property/${firstPaymentAction.rental.property_id}`);
               } else if (firstRentalAction?.property_id) {
                 router.push(`/(landlord)/property/${firstRentalAction.property_id}`);
               }
