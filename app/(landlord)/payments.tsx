@@ -9,6 +9,7 @@ import { formatCurrency, formatMonth, formatDate } from '../../lib/formatters';
 import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { PaymentRowSkeleton } from '../../components/ui/SkeletonLoader';
+import { Colors, Fonts } from '../../constants/theme';
 import { markLandlordActionsViewed } from '../../lib/landlordActionViews';
 import { markNotificationsRead } from '../../lib/notificationActions';
 
@@ -89,15 +90,15 @@ export default function LandlordPaymentsScreen() {
 
         {/* Summary */}
         <View className="px-5 pb-4 flex-row gap-3">
-          <Card className="flex-1 bg-emerald-500" elevated>
-            <Text className="text-xs text-white/70 mb-1">Received</Text>
-            <Text className="text-xl font-bold text-white">
+          <Card style={{ flex: 1, backgroundColor: Colors.success }} elevated>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.sans, fontSize: 12, marginBottom: 4 }}>Received</Text>
+            <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
               {formatCurrency(totalReceived, true)}
             </Text>
           </Card>
-          <Card className="flex-1 bg-amber-400" elevated>
-            <Text className="text-xs text-white/70 mb-1">Pending</Text>
-            <Text className="text-xl font-bold text-white">
+          <Card style={{ flex: 1, backgroundColor: Colors.warning }} elevated>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.sans, fontSize: 12, marginBottom: 4 }}>Pending</Text>
+            <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
               {formatCurrency(totalPending, true)}
             </Text>
           </Card>
