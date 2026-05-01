@@ -55,10 +55,10 @@ export default function RentHistoryScreen() {
       >
         {/* Summary */}
         <View className="px-5 pt-4 pb-2">
-          <Card className="bg-action">
-            <Text className="text-white/70 text-xs mb-1">Total Paid</Text>
-            <Text className="text-white text-2xl font-bold">{formatCurrency(totalPaid, true)}</Text>
-            <Text className="text-white/60 text-xs mt-0.5">{payments?.filter(p => p.status === 'paid').length ?? 0} payments made</Text>
+          <Card style={{ backgroundColor: Colors.action }}>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontFamily: Fonts.sans }}>Total Paid</Text>
+            <Text style={{ color: '#fff', fontSize: 28, fontFamily: Fonts.sansSemiBold }}>{formatCurrency(totalPaid, true)}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2, fontFamily: Fonts.sans }}>{payments?.filter(p => p.status === 'paid').length ?? 0} payments made</Text>
           </Card>
         </View>
 
