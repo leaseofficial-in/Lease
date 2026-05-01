@@ -49,9 +49,9 @@ function AuthGate() {
       return;
     }
 
-    // Signed in but no role yet
+    // Signed in but no role yet — but don't redirect from auth/callback, it handles its own routing
     if (!profile?.role) {
-      router.replace('/(auth)/role-select');
+      if (!inAuthCallback) router.replace('/(auth)/role-select');
       return;
     }
 
