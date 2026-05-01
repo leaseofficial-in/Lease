@@ -2,8 +2,23 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../stores/authStore';
+import { useUIStore } from '../../stores/uiStore';
 import { Button } from '../../components/ui/Button';
 import { UserRole } from '../../types';
+
+const withTimeout = async <T,>(promise: PromiseLike<T>, message: string): Promise<T> => {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(message)), 15000);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+};
 
 interface RoleOption {
   role: UserRole;
@@ -34,12 +49,16 @@ export default function RoleSelectScreen() {
   const [selected, setSelected] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
   const { setRole } = useAuthStore();
+  const { showToast } = useUIStore();
 
   const handleContinue = async () => {
     if (!selected) return;
     setLoading(true);
     try {
-      await setRole(selected);
+      await withTimeout(setRole(selected), 'Saving your role timed out. Please try again.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save your role.';
+      showToast(message, 'error');
     } finally {
       setLoading(false);
     }

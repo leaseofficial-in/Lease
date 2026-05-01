@@ -19,6 +19,22 @@ import { Card } from '../../components/ui/Card';
 import { Rental } from '../../types';
 import { formatCurrency, formatDate } from '../../lib/formatters';
 
+const REQUEST_TIMEOUT_MS = 15000;
+
+const withTimeout = async <T,>(promise: PromiseLike<T>, message: string): Promise<T> => {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(message)), REQUEST_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+};
+
 export default function JoinRentalScreen() {
   const router = useRouter();
   const { prefillToken } = useLocalSearchParams<{ prefillToken?: string }>();
@@ -69,26 +85,45 @@ export default function JoinRentalScreen() {
     if (!preview || !profile) return;
     setJoining(true);
     try {
-      const { data: joinedRental, error } = await supabase
-        .from('rentals')
-        .update({
-          tenant_id: profile.id,
-          status: 'pending_proof',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', preview.id)
-        .is('tenant_id', null)
-        .select('id')
-        .maybeSingle();
+      let joinedRental: { id: string } | null = null;
+      const rpcResult = await withTimeout(
+        supabase
+          .rpc('accept_rental_invite', { invite_token_input: preview.invite_token })
+          .maybeSingle(),
+        'Joining the rental timed out. Please try again.',
+      );
 
-      if (error) throw error;
+      if (rpcResult.error) {
+        const canFallbackToPolicyUpdate = rpcResult.error.code === '42883' || rpcResult.error.code === 'PGRST202';
+        if (!canFallbackToPolicyUpdate) throw rpcResult.error;
+
+        const updateResult = await withTimeout(
+          supabase
+            .from('rentals')
+            .update({
+              tenant_id: profile.id,
+              status: 'pending_proof',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', preview.id)
+            .is('tenant_id', null)
+            .select('id')
+            .maybeSingle(),
+          'Joining the rental timed out. Please try again.',
+        );
+        if (updateResult.error) throw updateResult.error;
+        joinedRental = updateResult.data;
+      } else {
+        joinedRental = rpcResult.data as { id: string } | null;
+      }
+
       if (!joinedRental) throw new Error('Invite could not be accepted.');
       await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
-      await queryClient.refetchQueries({ queryKey: ['tenant-rental', profile.id] });
       showToast('You\'ve joined the rental! Upload move-in photos next.', 'success');
       router.replace('/(tenant)');
-    } catch {
-      showToast('Failed to join rental. It may have already been taken.', 'error');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to join rental. It may have already been taken.';
+      showToast(message, 'error');
     } finally {
       setJoining(false);
     }
