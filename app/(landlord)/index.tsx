@@ -11,7 +11,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
-import { Rental, RentPayment, RepairRequest } from '../../types';
+import { AppNotification, Rental, RentPayment, RepairRequest } from '../../types';
 import { formatCurrency } from '../../lib/formatters';
 import { RentalCard } from '../../components/rental/RentalCard';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -57,6 +57,22 @@ export default function LandlordDashboard() {
       return data as Rental[];
     },
     enabled: !!profile?.id,
+  });
+
+  const { data: unreadNotifications, refetch: refetchUnreadNotifications } = useQuery({
+    queryKey: ['landlord-unread-notifications', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', profile!.id)
+        .eq('read', false)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data as AppNotification[];
+    },
+    enabled: !!profile?.id && !isLocalDevUser,
   });
 
   const { data: repairActions, refetch: refetchRepairActions } = useQuery({
@@ -133,15 +149,17 @@ export default function LandlordDashboard() {
       void refetchViewedRepairIds();
       void refetchViewedPaymentIds();
       if (!isLocalDevUser) {
+        void refetchUnreadNotifications();
         void refetchRepairActions();
         void refetchPaymentActions();
       }
-    }, [isLocalDevUser, refetchPaymentActions, refetchRepairActions, refetchViewedPaymentIds, refetchViewedRepairIds]),
+    }, [isLocalDevUser, refetchPaymentActions, refetchRepairActions, refetchUnreadNotifications, refetchViewedPaymentIds, refetchViewedRepairIds]),
   );
 
   const refreshDashboard = async () => {
     await Promise.all([
       refetch(),
+      !isLocalDevUser ? refetchUnreadNotifications() : Promise.resolve(),
       !isLocalDevUser ? refetchRepairActions() : Promise.resolve(),
       !isLocalDevUser ? refetchPaymentActions() : Promise.resolve(),
       refetchViewedRepairIds(),
@@ -151,22 +169,27 @@ export default function LandlordDashboard() {
 
   const activeRentals = rentals?.filter((r) => r.status === 'active') ?? [];
   const actionableRentals = rentals?.filter((r) => r.status !== 'active' || !r.agreement_signed_at) ?? [];
+  const durableActions = unreadNotifications ?? [];
   const unviewedRepairs = (repairActions ?? []).filter((repair) => !viewedRepairIds.includes(repair.id));
   const unviewedPayments = (paymentActions ?? []).filter((payment) => !viewedPaymentIds.includes(payment.id));
   const totalExpected = rentals?.reduce((sum, r) => sum + Number(r.monthly_rent), 0) ?? 0;
   const collected = activeRentals.reduce((sum, r) => sum + Number(r.monthly_rent), 0);
   const collectionRate = totalExpected > 0 ? Math.round((collected / totalExpected) * 100) : 0;
   const firstName = profile?.full_name?.split(' ')[0] || 'Landlord';
-  const queueCount = actionableRentals.length + unviewedRepairs.length + unviewedPayments.length;
+  const queueCount = durableActions.length + actionableRentals.length + (durableActions.length ? 0 : unviewedRepairs.length + unviewedPayments.length);
   const firstRentalAction = actionableRentals[0];
   const firstRepairAction = unviewedRepairs[0];
   const firstPaymentAction = unviewedPayments[0];
+  const firstDurableAction = durableActions[0];
   const actionSummary = [
-    unviewedRepairs.length ? `${unviewedRepairs.length} repair${unviewedRepairs.length === 1 ? '' : 's'}` : null,
-    unviewedPayments.length ? `${unviewedPayments.length} payment${unviewedPayments.length === 1 ? '' : 's'}` : null,
+    durableActions.length ? `${durableActions.length} notification${durableActions.length === 1 ? '' : 's'}` : null,
+    !durableActions.length && unviewedRepairs.length ? `${unviewedRepairs.length} repair${unviewedRepairs.length === 1 ? '' : 's'}` : null,
+    !durableActions.length && unviewedPayments.length ? `${unviewedPayments.length} payment${unviewedPayments.length === 1 ? '' : 's'}` : null,
     actionableRentals.length ? `${actionableRentals.length} setup` : null,
   ].filter(Boolean).join(' - ');
-  const primaryActionText = firstRepairAction
+  const primaryActionText = firstDurableAction
+    ? firstDurableAction.title
+    : firstRepairAction
     ? `Repair: ${firstRepairAction.title}`
     : firstPaymentAction
     ? `Payment received: ${formatCurrency(firstPaymentAction.amount, true)}`
@@ -225,7 +248,9 @@ export default function LandlordDashboard() {
           <TouchableOpacity
             activeOpacity={queueCount ? 0.78 : 1}
             onPress={() => {
-              if (firstRepairAction?.rental_id) {
+              if (firstDurableAction) {
+                router.push('/(landlord)/actions');
+              } else if (firstRepairAction?.rental_id) {
                 router.push({
                   pathname: '/(landlord)/repairs/[rentalId]',
                   params: { rentalId: firstRepairAction.rental_id },

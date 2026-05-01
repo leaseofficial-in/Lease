@@ -78,6 +78,10 @@ export default function LandlordLayout() {
         options={{ tabBarIcon: ({ focused }) => <TabIcon mark="R" label="Rent" focused={focused} /> }}
       />
       <Tabs.Screen
+        name="actions"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{ tabBarIcon: ({ focused }) => <TabIcon mark="Y" label="You" focused={focused} /> }}
       />

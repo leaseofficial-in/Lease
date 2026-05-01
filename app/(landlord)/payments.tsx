@@ -10,6 +10,7 @@ import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { PaymentRowSkeleton } from '../../components/ui/SkeletonLoader';
 import { markLandlordActionsViewed } from '../../lib/landlordActionViews';
+import { markNotificationsRead } from '../../lib/notificationActions';
 
 interface PaymentWithRental extends RentPayment {
   rental: Rental & { property: { name: string; city: string } };
@@ -56,6 +57,25 @@ export default function LandlordPaymentsScreen() {
       void queryClient.invalidateQueries({ queryKey: ['landlord-viewed-actions', profile.id, 'payments'] });
     });
   }, [payments, profile?.id, queryClient]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    supabase
+      .from('notifications')
+      .select('id')
+      .eq('user_id', profile.id)
+      .eq('read', false)
+      .eq('type', 'payment_received')
+      .then(({ data }) => {
+        const ids = data?.map((item) => item.id) ?? [];
+        if (!ids.length) return;
+        markNotificationsRead(ids).then(() => {
+          void queryClient.invalidateQueries({ queryKey: ['landlord-unread-notifications', profile.id] });
+          void queryClient.invalidateQueries({ queryKey: ['landlord-notifications', profile.id] });
+        });
+      });
+  }, [profile?.id, queryClient]);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>

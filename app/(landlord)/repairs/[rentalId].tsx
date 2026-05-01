@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRepairs, useUpdateRepairStatus } from '../../../hooks/useRepairs';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
+import { supabase } from '../../../lib/supabase';
 import { RepairRequest, RepairStatus } from '../../../types';
 import { formatRelativeTime, repairPriorityLabel, repairStatusLabel } from '../../../lib/formatters';
 import { Card } from '../../../components/ui/Card';
@@ -16,6 +17,7 @@ import { Cap, Chip } from '../../../components/ui/V2';
 import { Colors, Fonts } from '../../../constants/theme';
 import { isDevAuthUserId } from '../../../lib/devAuth';
 import { markLandlordActionsViewed } from '../../../lib/landlordActionViews';
+import { markNotificationsRead } from '../../../lib/notificationActions';
 
 const NEXT_STATUS: Partial<Record<RepairStatus, RepairStatus>> = {
   open: 'in_progress',
@@ -49,6 +51,26 @@ export default function LandlordRepairsScreen() {
       void queryClient.invalidateQueries({ queryKey: ['landlord-viewed-actions', profile.id, 'repairs'] });
     });
   }, [profile?.id, queryClient, repairs]);
+
+  useEffect(() => {
+    if (!profile?.id || !rentalId) return;
+
+    supabase
+      .from('notifications')
+      .select('id')
+      .eq('user_id', profile.id)
+      .eq('read', false)
+      .eq('type', 'repair_update')
+      .contains('data', { rental_id: rentalId })
+      .then(({ data }) => {
+        const ids = data?.map((item) => item.id) ?? [];
+        if (!ids.length) return;
+        markNotificationsRead(ids).then(() => {
+          void queryClient.invalidateQueries({ queryKey: ['landlord-unread-notifications', profile.id] });
+          void queryClient.invalidateQueries({ queryKey: ['landlord-notifications', profile.id] });
+        });
+      });
+  }, [profile?.id, queryClient, rentalId]);
 
   const handleAdvance = async (repair: RepairRequest) => {
     const next = NEXT_STATUS[repair.status];

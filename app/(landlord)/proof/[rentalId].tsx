@@ -17,6 +17,7 @@ import { LoadingScreen } from '../../../components/ui/LoadingScreen';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Colors } from '../../../constants/theme';
 import { confirmAction } from '../../../lib/confirm';
+import { markNotificationsRead } from '../../../lib/notificationActions';
 
 export default function ReviewProofScreen() {
   const { rentalId } = useLocalSearchParams<{ rentalId: string }>();
@@ -28,6 +29,26 @@ export default function ReviewProofScreen() {
   const [disputeNote, setDisputeNote] = useState('');
   const [showDisputeInput, setShowDisputeInput] = useState(false);
   const [actioning, setActioning] = useState(false);
+
+  React.useEffect(() => {
+    if (!profile?.id || !rentalId) return;
+
+    supabase
+      .from('notifications')
+      .select('id')
+      .eq('user_id', profile.id)
+      .eq('read', false)
+      .eq('type', 'proof_submitted')
+      .contains('data', { rental_id: rentalId })
+      .then(({ data }) => {
+        const ids = data?.map((item) => item.id) ?? [];
+        if (!ids.length) return;
+        markNotificationsRead(ids).then(() => {
+          void queryClient.invalidateQueries({ queryKey: ['landlord-unread-notifications', profile.id] });
+          void queryClient.invalidateQueries({ queryKey: ['landlord-notifications', profile.id] });
+        });
+      });
+  }, [profile?.id, queryClient, rentalId]);
 
   const { data: proof, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['proof', rentalId, 'move_in'],

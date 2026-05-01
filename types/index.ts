@@ -156,7 +156,7 @@ export interface AppNotification {
   body: string;
   type: 'rent_due' | 'payment_received' | 'proof_submitted' | 'repair_update' | 'general';
   read: boolean;
-  data: Record<string, string> | null;
+  data: Record<string, string | number | boolean | null> | null;
   created_at: string;
 }
 
