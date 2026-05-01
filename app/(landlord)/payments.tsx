@@ -24,7 +24,7 @@ export default function LandlordPaymentsScreen() {
         .from('rent_payments')
         .select(`
           *,
-          rental:rentals(
+          rental:rentals!inner(
             *,
             property:properties(name, city)
           )
@@ -33,7 +33,7 @@ export default function LandlordPaymentsScreen() {
         .order('month', { ascending: false })
         .limit(50);
       if (error) throw error;
-      return (data as PaymentWithRental[]).filter((p) => p.rental !== null);
+      return data as PaymentWithRental[];
     },
     enabled: !!profile?.id,
   });

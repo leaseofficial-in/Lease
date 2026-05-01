@@ -43,12 +43,12 @@ export const useLandlordPayments = (landlordId: string | undefined) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_payments')
-        .select(`*, rental:rentals(*, property:properties(name, city))`)
+        .select(`*, rental:rentals!inner(*, property:properties(name, city))`)
         .eq('rental.landlord_id', landlordId!)
         .order('month', { ascending: false })
         .limit(50);
       if (error) throw error;
-      return (data as RentPayment[]).filter((p) => (p as unknown as { rental: unknown }).rental !== null);
+      return data as RentPayment[];
     },
     enabled: !!landlordId,
   });

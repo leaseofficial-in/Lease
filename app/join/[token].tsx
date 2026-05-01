@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../../components/ui/Button';
 import { Colors } from '../../constants/theme';
+
+const PENDING_JOIN_KEY = 'flatvio.pending_join_token';
 
 // Deep link handler: flatvio://join/<token> or https://flatvio.in/join/<token>
 export default function JoinDeepLinkScreen() {
@@ -50,19 +53,20 @@ export default function JoinDeepLinkScreen() {
     }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!session) {
-      // Not logged in — go to auth, then return
+      await AsyncStorage.setItem(PENDING_JOIN_KEY, token);
       router.replace('/(auth)/login');
       return;
     }
     if (!profile?.role) {
+      await AsyncStorage.setItem(PENDING_JOIN_KEY, token);
       router.replace('/(auth)/role-select');
       return;
     }
-    // Already logged in — go to join screen pre-filled
     router.replace({
       pathname: '/(tenant)/join',
+      params: { prefillToken: token },
     });
   };
 

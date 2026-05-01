@@ -9,6 +9,7 @@ import { registerForPushNotifications } from '../lib/notifications';
 import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { isDevAuthUserId } from '../lib/devAuth';
 import { ToastHost } from '../components/ui/ToastHost';
+import { WebContainer } from '../components/ui/WebContainer';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,6 +74,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <WebContainer>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" />
         <AuthGate />
@@ -85,6 +87,7 @@ export default function RootLayout() {
         </Stack>
         <ToastHost />
       </QueryClientProvider>
+      </WebContainer>
     </GestureHandlerRootView>
   );
 }

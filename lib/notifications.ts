@@ -1,18 +1,27 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// expo-notifications is not supported on web
+const isSupported = Platform.OS !== 'web';
+
+let Notifications: typeof import('expo-notifications') | null = null;
+
+if (isSupported) {
+  Notifications = require('expo-notifications');
+  Notifications!.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 export const registerForPushNotifications = async (userId: string): Promise<void> => {
+  if (!isSupported || !Notifications) return;
+
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
@@ -43,6 +52,8 @@ export const scheduleRentReminder = async (
   dueDay: number,
   monthlyRent: number,
 ): Promise<void> => {
+  if (!isSupported || !Notifications) return;
+
   await Notifications.cancelAllScheduledNotificationsAsync();
 
   const now = new Date();

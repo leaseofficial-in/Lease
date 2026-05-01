@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
@@ -21,16 +21,23 @@ import { formatCurrency, formatDate } from '../../lib/formatters';
 
 export default function JoinRentalScreen() {
   const router = useRouter();
+  const { prefillToken } = useLocalSearchParams<{ prefillToken?: string }>();
   const { profile } = useAuthStore();
   const { showToast } = useUIStore();
   const queryClient = useQueryClient();
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState(typeof prefillToken === 'string' ? prefillToken : '');
   const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
   const [preview, setPreview] = useState<(Rental & { property: { name: string; city: string; address_line1: string } }) | null>(null);
 
-  const handleLookup = async () => {
-    const raw = token.trim();
+  useEffect(() => {
+    if (typeof prefillToken === 'string' && prefillToken.length > 0) {
+      handleLookup(prefillToken);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleLookup = async (overrideToken?: string) => {
+    const raw = (overrideToken ?? token).trim();
     if (!raw) {
       showToast('Paste the invite link or token', 'error');
       return;
@@ -113,7 +120,7 @@ export default function JoinRentalScreen() {
             />
             <Button
               title="Look Up Rental"
-              onPress={handleLookup}
+              onPress={() => handleLookup()}
               loading={loading}
               fullWidth
               style={{ marginBottom: 24 }}

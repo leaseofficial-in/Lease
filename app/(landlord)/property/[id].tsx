@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Share,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -82,6 +83,22 @@ export default function PropertyDetailScreen() {
   };
 
   const handleShareInvite = async () => {
+    if (Platform.OS === 'web') {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Join my rental on Flatvio',
+            text: `Hi! I've added you as a tenant on Flatvio.`,
+            url: webInviteLink,
+          });
+        } catch {
+          handleCopyInvite();
+        }
+      } else {
+        handleCopyInvite();
+      }
+      return;
+    }
     await Share.share({
       message: `Hi! I've added you as a tenant on Flatvio. Join here: ${webInviteLink}`,
       url: webInviteLink,

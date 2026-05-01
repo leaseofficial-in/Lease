@@ -1,27 +1,15 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { Colors } from '../../constants/theme';
 
-function TabIcon({
-  shortLabel,
-  label,
-  focused,
-}: {
-  shortLabel: string;
-  label: string;
-  focused: boolean;
-}) {
+function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
   return (
     <View className="items-center pt-1">
-      <View className={`w-8 h-8 rounded-xl items-center justify-center ${focused ? 'bg-blue-50' : 'bg-transparent'}`}>
-        <Text className="text-xs font-bold" style={{ color: focused ? Colors.action : Colors.muted }}>
-          {shortLabel}
-        </Text>
-      </View>
+      <Text style={{ fontSize: Platform.OS === 'web' ? 18 : 22 }}>{emoji}</Text>
       <Text
-        className={`text-xs mt-0.5 ${focused ? 'font-semibold' : 'font-normal'}`}
-        style={{ color: focused ? Colors.action : Colors.muted }}
+        className="text-xs mt-0.5"
+        style={{ color: focused ? Colors.action : Colors.muted, fontWeight: focused ? '600' : '400' }}
       >
         {label}
       </Text>
@@ -38,26 +26,27 @@ export default function TenantLayout() {
         tabBarStyle: {
           backgroundColor: '#fff',
           borderTopColor: Colors.border,
-          height: 72,
-          paddingBottom: 8,
+          borderTopWidth: 1,
+          height: Platform.OS === 'web' ? 60 : 72,
+          paddingBottom: Platform.OS === 'web' ? 6 : 8,
         },
       }}
     >
       <Tabs.Screen
         name="index"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon shortLabel="HM" label="Home" focused={focused} /> }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🏡" label="Home" focused={focused} /> }}
       />
       <Tabs.Screen
         name="repairs"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon shortLabel="FX" label="Repairs" focused={focused} /> }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔧" label="Repairs" focused={focused} /> }}
       />
       <Tabs.Screen
         name="deposit"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon shortLabel="DP" label="Deposit" focused={focused} /> }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🏦" label="Deposit" focused={focused} /> }}
       />
       <Tabs.Screen
         name="profile"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon shortLabel="ME" label="Profile" focused={focused} /> }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="👤" label="Profile" focused={focused} /> }}
       />
       <Tabs.Screen name="join" options={{ href: null }} />
       <Tabs.Screen name="proof/upload" options={{ href: null }} />

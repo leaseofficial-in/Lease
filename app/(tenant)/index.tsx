@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
@@ -46,12 +47,23 @@ export default function TenantDashboard() {
         .select('*')
         .eq('rental_id', rental!.id)
         .eq('month', month)
-        .single();
-      if (error && error.code !== 'PGRST116') throw error;
+        .maybeSingle();
+      if (error) throw error;
       return data as RentPayment | null;
     },
     enabled: !!rental?.id && !isLocalDevUser,
   });
+
+  useEffect(() => {
+    if (isLoading || isLocalDevUser) return;
+    AsyncStorage.getItem('flatvio.pending_join_token').then((pendingToken) => {
+      if (!pendingToken) return;
+      AsyncStorage.removeItem('flatvio.pending_join_token');
+      if (!rental) {
+        router.push({ pathname: '/(tenant)/join', params: { prefillToken: pendingToken } });
+      }
+    });
+  }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isLoading) return <LoadingScreen />;
 
