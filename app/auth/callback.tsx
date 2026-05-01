@@ -35,9 +35,16 @@ export default function AuthCallbackScreen() {
 
       setSession(session);
       await fetchProfile(session.user.id);
-      // AuthGate in _layout.tsx reads the profile and routes to the right dashboard
-      // (or role-select if this is a first-time sign-in with no role yet)
-      router.replace('/(auth)');
+
+      // Route directly — don't go via /(auth) welcome screen (avoids double-redirect race)
+      const { profile } = useAuthStore.getState();
+      if (profile?.role === 'landlord') {
+        router.replace('/(landlord)');
+      } else if (profile?.role === 'tenant') {
+        router.replace('/(tenant)');
+      } else {
+        router.replace('/(auth)/role-select');
+      }
     };
 
     finishSignIn().catch((error) => {

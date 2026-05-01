@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { Button } from '../../components/ui/Button';
@@ -36,16 +37,22 @@ export default function RoleSelectScreen() {
   const [loading, setLoading] = useState(false);
   const { setRole } = useAuthStore();
   const { showToast } = useUIStore();
+  const router = useRouter();
 
   const handleContinue = async () => {
     if (!selected) return;
     setLoading(true);
     try {
       await setRole(selected);
+      // Navigate directly — don't wait for AuthGate to react
+      if (selected === 'landlord') {
+        router.replace('/(landlord)');
+      } else {
+        router.replace('/(tenant)');
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save your role.';
       showToast(message, 'error');
-    } finally {
       setLoading(false);
     }
   };

@@ -70,7 +70,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .single();
 
     if (error) throw error;
-    set({ profile: data as Profile });
+    if (data) {
+      set({ profile: data as Profile });
+    } else {
+      // UPDATE succeeded but SELECT returned nothing (RLS edge case) — re-fetch
+      await get().fetchProfile(session.user.id);
+    }
   },
 
   signInWithGoogle: async () => {
