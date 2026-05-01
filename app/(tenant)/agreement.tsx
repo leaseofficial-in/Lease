@@ -1,0 +1,171 @@
+import React from 'react';
+import { View, Text, ScrollView, Linking, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../stores/authStore';
+import { useUIStore } from '../../stores/uiStore';
+import { Rental } from '../../types';
+import { formatDate, formatCurrency } from '../../lib/formatters';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { LoadingScreen } from '../../components/ui/LoadingScreen';
+
+export default function AgreementScreen() {
+  const router = useRouter();
+  const { profile } = useAuthStore();
+  const { showToast } = useUIStore();
+  const queryClient = useQueryClient();
+
+  const { data: rental, isLoading } = useQuery({
+    queryKey: ['tenant-rental', profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('rentals')
+        .select(`*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(*)`)
+        .eq('tenant_id', profile!.id)
+        .single();
+      return data as Rental | null;
+    },
+    enabled: !!profile?.id,
+  });
+
+  const handleSign = () => {
+    Alert.alert(
+      'Sign Agreement',
+      'By signing, you confirm you have read and agree to the rental terms listed below.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign',
+          onPress: async () => {
+            if (!rental) return;
+            const { error } = await supabase
+              .from('rentals')
+              .update({ agreement_signed_at: new Date().toISOString() })
+              .eq('id', rental.id);
+            if (error) {
+              showToast('Failed to sign agreement', 'error');
+              return;
+            }
+            await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
+            showToast('Agreement signed!', 'success');
+          },
+        },
+      ],
+    );
+  };
+
+  if (isLoading) return <LoadingScreen />;
+  if (!rental) return null;
+
+  const isSigned = !!rental.agreement_signed_at;
+
+  return (
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+      <View className="px-5 py-4 flex-row items-center bg-white border-b border-border">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center mr-3"
+        >
+          <Text className="text-primary">←</Text>
+        </TouchableOpacity>
+        <Text className="text-lg font-bold text-primary">Rental Agreement</Text>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+        <View className="px-5 pt-4 pb-8 gap-4">
+          {/* Status banner */}
+          {isSigned ? (
+            <View className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex-row items-center">
+              <Text style={{ fontSize: 24 }} className="mr-3">✅</Text>
+              <View>
+                <Text className="text-sm font-semibold text-success">Agreement Signed</Text>
+                <Text className="text-xs text-muted">
+                  Signed on {formatDate(rental.agreement_signed_at!)}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <Text className="text-sm font-semibold text-warning mb-1">Awaiting Your Signature</Text>
+              <Text className="text-xs text-muted">
+                Review the terms below and sign to confirm your rental agreement.
+              </Text>
+            </View>
+          )}
+
+          {/* Agreement terms card */}
+          <Card>
+            <Text className="text-base font-bold text-primary mb-4">
+              RENTAL AGREEMENT SUMMARY
+            </Text>
+            <View className="gap-3">
+              <Section title="Property">
+                <Text className="text-sm text-primary">{rental.property?.name}</Text>
+                <Text className="text-sm text-muted">
+                  {rental.property?.address_line1}
+                  {rental.property?.address_line2 ? `, ${rental.property.address_line2}` : ''}
+                </Text>
+                <Text className="text-sm text-muted">
+                  {rental.property?.city}, {rental.property?.state} — {rental.property?.pincode}
+                </Text>
+              </Section>
+
+              <Section title="Parties">
+                <TermRow label="Landlord" value={rental.landlord?.full_name ?? '—'} />
+                <TermRow label="Tenant" value={profile?.full_name ?? '—'} />
+              </Section>
+
+              <Section title="Financial Terms">
+                <TermRow label="Monthly Rent" value={formatCurrency(rental.monthly_rent)} />
+                <TermRow label="Security Deposit" value={formatCurrency(rental.security_deposit)} />
+                <TermRow label="Rent Due Day" value={`${rental.rent_due_day}th of each month`} />
+              </Section>
+
+              <Section title="Duration">
+                <TermRow label="Start Date" value={formatDate(rental.start_date)} />
+                {rental.end_date && (
+                  <TermRow label="End Date" value={formatDate(rental.end_date)} />
+                )}
+              </Section>
+            </View>
+          </Card>
+
+          {/* External PDF link if available */}
+          {rental.agreement_url && (
+            <Button
+              title="View Full PDF Agreement"
+              variant="secondary"
+              onPress={() => Linking.openURL(rental.agreement_url!)}
+              fullWidth
+            />
+          )}
+
+          {!isSigned && (
+            <Button title="Sign Agreement" onPress={handleSign} fullWidth size="lg" />
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View className="border-b border-border pb-3">
+      <Text className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">{title}</Text>
+      <View className="gap-1">{children}</View>
+    </View>
+  );
+}
+
+function TermRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row justify-between">
+      <Text className="text-sm text-muted">{label}</Text>
+      <Text className="text-sm font-medium text-primary">{value}</Text>
+    </View>
+  );
+}
