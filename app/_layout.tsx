@@ -44,14 +44,11 @@ function AuthGate() {
     const currentPath = segments.join('/');
     const inAuthFlow = root === '(auth)' || root === 'auth';
     const inJoinFlow = root === 'join';
-    const inPostLogin = root === 'post-login';
 
     if (!session) {
-      if (!inAuthFlow && !inJoinFlow && !inPostLogin) router.replace('/(auth)');
+      if (!inAuthFlow && !inJoinFlow) router.replace('/(auth)');
       return;
     }
-
-    if (inPostLogin) return;
 
     if (isProfileLoading) return;
 
@@ -108,7 +105,6 @@ export default function RootLayout() {
             <Stack.Screen name="(landlord)" />
             <Stack.Screen name="(tenant)" />
             <Stack.Screen name="auth/callback" />
-            <Stack.Screen name="post-login" />
             <Stack.Screen name="join/[token]" />
           </Stack>
           <ConfirmHost />

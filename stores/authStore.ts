@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Session } from '@supabase/supabase-js';
 import { Profile, UserRole } from '../types';
 import { supabase } from '../lib/supabase';
-import { createSessionFromOAuthUrl, signInWithGoogle } from '../lib/oauth';
+import { signInWithGoogle } from '../lib/oauth';
 
 interface AuthState {
   session: Session | null;
@@ -18,10 +18,15 @@ interface AuthState {
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   setRole: (role: UserRole) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  completeOAuthSignIn: (callbackUrl: string) => Promise<Session>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
+
+const loadProfileSoon = (load: () => Promise<unknown>) => {
+  setTimeout(() => {
+    void load().catch(() => undefined);
+  }, 0);
+};
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
@@ -50,16 +55,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } finally {
       set({ isProfileLoading: false });
     }
-  },
-
-  completeOAuthSignIn: async (callbackUrl) => {
-    const session = await createSessionFromOAuthUrl(callbackUrl);
-    if (!session) {
-      throw new Error('Google sign-in did not return a session.');
-    }
-    set({ session });
-    void get().fetchProfile(session.user.id).catch(() => undefined);
-    return session;
   },
 
   updateProfile: async (updates) => {
@@ -119,13 +114,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await get().fetchProfile(session.user.id);
       }
 
-      supabase.auth.onAuthStateChange(async (event, newSession) => {
+      supabase.auth.onAuthStateChange((event, newSession) => {
         set({ session: newSession });
-        if (newSession && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-          await get().fetchProfile(newSession.user.id);
+        if (newSession) {
+          loadProfileSoon(() => get().fetchProfile(newSession.user.id));
         }
         if (event === 'SIGNED_OUT') {
-          set({ profile: null });
+          set({ profile: null, isProfileLoading: false });
         }
       });
     } finally {

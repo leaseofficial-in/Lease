@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
-import { Redirect, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { createSessionFromOAuthUrl } from '../../lib/oauth';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../../components/ui/Button';
 import { Colors, Fonts } from '../../constants/theme';
-import { supabase } from '../../lib/supabase';
-import { Session } from '@supabase/supabase-js';
 
 export default function AuthCallbackScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams<Record<string, string | string[]>>();
   const setSession = useAuthStore((state) => state.setSession);
-  const [done, setDone] = useState(false);
+  const fetchProfile = useAuthStore((state) => state.fetchProfile);
   const [errorMessage, setErrorMessage] = useState('');
   const startedRef = useRef(false);
 
@@ -33,45 +32,29 @@ export default function AuthCallbackScreen() {
     startedRef.current = true;
     let active = true;
 
-    const finish = (session: Session) => {
+    const finishSignIn = async () => {
+      const session = await createSessionFromOAuthUrl(callbackUrl);
       if (!active) return;
+
+      if (!session) {
+        setErrorMessage('Google sign-in did not return a session.');
+        return;
+      }
+
       setSession(session);
-      setDone(true);
+      void fetchProfile(session.user.id).catch(() => undefined);
+      router.replace('/');
     };
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) finish(session);
+    finishSignIn().catch((error) => {
+      if (!active) return;
+      setErrorMessage(error instanceof Error ? error.message : 'Google sign-in failed.');
     });
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) finish(data.session);
-    });
-
-    createSessionFromOAuthUrl(callbackUrl)
-      .then((session) => {
-        if (!session) {
-          if (!active) return;
-          setErrorMessage('Google sign-in did not return a session.');
-          return;
-        }
-        finish(session);
-      })
-      .catch((error) => {
-        if (!active) return;
-        setErrorMessage(error instanceof Error ? error.message : 'Google sign-in failed.');
-      });
 
     return () => {
       active = false;
-      subscription.unsubscribe();
     };
-  }, [callbackUrl, setSession]);
-
-  if (done) {
-    return <Redirect href="/post-login" />;
-  }
+  }, [callbackUrl, fetchProfile, router, setSession]);
 
   if (errorMessage) {
     return (
@@ -99,7 +82,7 @@ export default function AuthCallbackScreen() {
         >
           {errorMessage}
         </Text>
-        <Button title="Back to Sign In" onPress={() => setDone(true)} />
+        <Button title="Back to Sign In" onPress={() => router.replace('/(auth)/login')} />
       </View>
     );
   }
