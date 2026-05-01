@@ -6,20 +6,6 @@ import { useUIStore } from '../../stores/uiStore';
 import { Button } from '../../components/ui/Button';
 import { UserRole } from '../../types';
 
-const withTimeout = async <T,>(promise: PromiseLike<T>, message: string): Promise<T> => {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      Promise.resolve(promise),
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => reject(new Error(message)), 15000);
-      }),
-    ]);
-  } finally {
-    if (timeout) clearTimeout(timeout);
-  }
-};
-
 interface RoleOption {
   role: UserRole;
   badge: string;
@@ -55,7 +41,7 @@ export default function RoleSelectScreen() {
     if (!selected) return;
     setLoading(true);
     try {
-      await withTimeout(setRole(selected), 'Saving your role timed out. Please try again.');
+      await setRole(selected);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save your role.';
       showToast(message, 'error');
