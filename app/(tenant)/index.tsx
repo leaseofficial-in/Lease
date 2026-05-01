@@ -6,18 +6,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
-import { Rental, RentPayment } from '../../types';
+import { Proof, Rental, RentPayment, RepairRequest } from '../../types';
 import { formatCurrency, formatPhone } from '../../lib/formatters';
 import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { RentStatusBadge } from '../../components/rental/RentStatusBadge';
+import { ActivityFeed } from '../../components/rental/ActivityFeed';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Cap, Chip, CollectionRing, InkCard, Sparkline } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
+import { buildRentalActivity } from '../../lib/rentalActivity';
 
 export default function TenantDashboard() {
   const router = useRouter();
@@ -56,6 +58,51 @@ export default function TenantDashboard() {
     enabled: !!rental?.id && !isLocalDevUser,
   });
 
+  const { data: recentPayments } = useQuery({
+    queryKey: ['tenant-payments-preview', rental?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rent_payments')
+        .select('*')
+        .eq('rental_id', rental!.id)
+        .order('created_at', { ascending: false })
+        .limit(4);
+      if (error) throw error;
+      return data as RentPayment[];
+    },
+    enabled: !!rental?.id && !isLocalDevUser,
+  });
+
+  const { data: recentRepairs } = useQuery({
+    queryKey: ['tenant-repairs-preview', rental?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('repair_requests')
+        .select('*')
+        .eq('rental_id', rental!.id)
+        .order('created_at', { ascending: false })
+        .limit(4);
+      if (error) throw error;
+      return data as RepairRequest[];
+    },
+    enabled: !!rental?.id && !isLocalDevUser,
+  });
+
+  const { data: recentProofs } = useQuery({
+    queryKey: ['tenant-proofs-preview', rental?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('proofs')
+        .select('*')
+        .eq('rental_id', rental!.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      return data as Proof[];
+    },
+    enabled: !!rental?.id && !isLocalDevUser,
+  });
+
   useEffect(() => {
     if (isLoading || isLocalDevUser) return;
     AsyncStorage.getItem('flatvio.pending_join_token').then((pendingToken) => {
@@ -68,6 +115,14 @@ export default function TenantDashboard() {
   }, [isLoading, isLocalDevUser, rental, router]);
 
   if (isLoading) return <LoadingScreen />;
+  const activity = rental
+    ? buildRentalActivity({
+        rental,
+        payments: recentPayments ?? (currentPayment ? [currentPayment] : []),
+        repairs: recentRepairs ?? [],
+        proofs: recentProofs ?? [],
+      })
+    : [];
 
   return (
     <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -187,6 +242,16 @@ export default function TenantDashboard() {
                 </View>
               </Card>
             )}
+
+            <Card>
+              <View className="flex-row items-center justify-between mb-1">
+                <Cap>Timeline</Cap>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
+                  Shared ledger
+                </Text>
+              </View>
+              <ActivityFeed items={activity} limit={5} />
+            </Card>
           </View>
         )}
       </ScrollView>

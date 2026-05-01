@@ -1,50 +1,63 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { formatRelativeTime } from '../../lib/formatters';
+import { Colors, Fonts } from '../../constants/theme';
 
 export interface ActivityItem {
   id: string;
   title: string;
   subtitle: string;
   timestamp: string;
-  type: 'payment' | 'proof' | 'repair' | 'agreement' | 'invite';
+  type: 'payment' | 'proof' | 'repair' | 'agreement' | 'invite' | 'deposit';
 }
 
-const iconMap: Record<ActivityItem['type'], { emoji: string; bg: string }> = {
-  payment:   { emoji: '💰', bg: 'bg-emerald-50' },
-  proof:     { emoji: '📷', bg: 'bg-blue-50' },
-  repair:    { emoji: '🔧', bg: 'bg-amber-50' },
-  agreement: { emoji: '📄', bg: 'bg-purple-50' },
-  invite:    { emoji: '🔗', bg: 'bg-gray-100' },
+const iconMap: Record<ActivityItem['type'], { label: string; bg: string; fg: string }> = {
+  payment: { label: 'R', bg: Colors.successSoft, fg: Colors.success },
+  proof: { label: 'P', bg: Colors.actionSoft, fg: Colors.action },
+  repair: { label: 'M', bg: Colors.warningSoft, fg: Colors.warning },
+  agreement: { label: 'A', bg: Colors.fill2, fg: Colors.primary },
+  invite: { label: 'I', bg: Colors.fill, fg: Colors.ink3 },
+  deposit: { label: 'D', bg: Colors.successSoft, fg: Colors.success },
 };
 
 interface ActivityFeedProps {
   items: ActivityItem[];
+  limit?: number;
 }
 
-export const ActivityFeed: React.FC<ActivityFeedProps> = ({ items }) => {
-  if (items.length === 0) return null;
+export const ActivityFeed: React.FC<ActivityFeedProps> = ({ items, limit }) => {
+  const visibleItems = limit ? items.slice(0, limit) : items;
+  if (visibleItems.length === 0) return null;
 
   return (
     <View>
-      {items.map((item, index) => {
-        const { emoji, bg } = iconMap[item.type];
+      {visibleItems.map((item, index) => {
+        const icon = iconMap[item.type];
         return (
           <View key={item.id} className="flex-row items-start py-3">
-            {/* Icon + timeline line */}
             <View className="items-center mr-3">
-              <View className={`w-9 h-9 rounded-full ${bg} items-center justify-center`}>
-                <Text style={{ fontSize: 16 }}>{emoji}</Text>
+              <View
+                className="items-center justify-center rounded-full"
+                style={{ width: 36, height: 36, backgroundColor: icon.bg }}
+              >
+                <Text style={{ color: icon.fg, fontFamily: Fonts.sansSemiBold, fontSize: 12 }}>
+                  {icon.label}
+                </Text>
               </View>
-              {index < items.length - 1 && (
-                <View className="w-px flex-1 bg-border mt-1" style={{ minHeight: 16 }} />
+              {index < visibleItems.length - 1 && (
+                <View style={{ width: 1, minHeight: 18, flex: 1, backgroundColor: Colors.border, marginTop: 4 }} />
               )}
             </View>
-            {/* Content */}
             <View className="flex-1 pt-1">
-              <Text className="text-sm font-medium text-primary">{item.title}</Text>
-              <Text className="text-xs text-muted mt-0.5">{item.subtitle}</Text>
-              <Text className="text-xs text-muted mt-1">{formatRelativeTime(item.timestamp)}</Text>
+              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }} numberOfLines={1}>
+                {item.title}
+              </Text>
+              <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, lineHeight: 17, marginTop: 2 }} numberOfLines={2}>
+                {item.subtitle}
+              </Text>
+              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11, marginTop: 4 }}>
+                {formatRelativeTime(item.timestamp)}
+              </Text>
             </View>
           </View>
         );

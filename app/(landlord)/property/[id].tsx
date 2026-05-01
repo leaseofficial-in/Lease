@@ -16,7 +16,7 @@ import * as Clipboard from 'expo-clipboard';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
-import { DepositTransaction, Rental, RentPayment } from '../../../types';
+import { DepositTransaction, Proof, Rental, RentPayment, RepairRequest } from '../../../types';
 import { formatCurrency, formatDate, formatPhone } from '../../../lib/formatters';
 import { Card } from '../../../components/ui/Card';
 import { StatusPill } from '../../../components/ui/StatusPill';
@@ -25,6 +25,7 @@ import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { RentStatusBadge } from '../../../components/rental/RentStatusBadge';
 import { DepositCard } from '../../../components/rental/DepositCard';
+import { ActivityFeed } from '../../../components/rental/ActivityFeed';
 import { BottomSheet } from '../../../components/ui/BottomSheet';
 import { LoadingScreen } from '../../../components/ui/LoadingScreen';
 import { Cap, Chip, InkCard } from '../../../components/ui/V2';
@@ -33,6 +34,7 @@ import { Config } from '../../../constants/config';
 import { isDevAuthUserId } from '../../../lib/devAuth';
 import { activateLocalRental, getLocalRentalByPropertyId, updateLocalRentalTerms } from '../../../lib/localRentals';
 import { confirmAction } from '../../../lib/confirm';
+import { buildRentalActivity } from '../../../lib/rentalActivity';
 
 type TxnType = 'deduction' | 'refund' | 'received';
 
@@ -83,7 +85,7 @@ export default function PropertyDetailScreen() {
     enabled: !!propertyId && !!profile?.id,
   });
 
-  const { data: payments } = useQuery({
+  const { data: payments, refetch: refetchPayments } = useQuery({
     queryKey: ['payments-by-rental', rental?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -112,12 +114,44 @@ export default function PropertyDetailScreen() {
     enabled: !!rental?.id && !isLocalDevUser,
   });
 
+  const { data: repairs, refetch: refetchRepairs } = useQuery({
+    queryKey: ['repairs', rental?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('repair_requests')
+        .select('*')
+        .eq('rental_id', rental!.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data as RepairRequest[];
+    },
+    enabled: !!rental?.id && !isLocalDevUser,
+  });
+
+  const { data: proofs, refetch: refetchProofs } = useQuery({
+    queryKey: ['proofs-by-rental', rental?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('proofs')
+        .select('*')
+        .eq('rental_id', rental!.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as Proof[];
+    },
+    enabled: !!rental?.id && !isLocalDevUser,
+  });
+
   const visibleDepositTransactions = isLocalDevUser ? localDepositTransactions : depositTransactions ?? [];
 
   const refreshAll = async () => {
     await Promise.all([
       refetchRental(),
+      !isLocalDevUser && rental?.id ? refetchPayments() : Promise.resolve(),
       !isLocalDevUser && rental?.id ? refetchDeposit() : Promise.resolve(),
+      !isLocalDevUser && rental?.id ? refetchRepairs() : Promise.resolve(),
+      !isLocalDevUser && rental?.id ? refetchProofs() : Promise.resolve(),
     ]);
   };
 
@@ -319,6 +353,13 @@ export default function PropertyDetailScreen() {
 
   if (isLoading) return <LoadingScreen />;
   if (!rental) return null;
+  const activity = buildRentalActivity({
+    rental,
+    payments: payments ?? [],
+    repairs: repairs ?? [],
+    proofs: proofs ?? [],
+    deposits: visibleDepositTransactions,
+  });
 
   return (
     <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -467,6 +508,16 @@ export default function PropertyDetailScreen() {
               </View>
             </Card>
           )}
+
+          <Card>
+            <View className="flex-row items-center justify-between mb-1">
+              <Cap>Timeline</Cap>
+              <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
+                {activity.length} events
+              </Text>
+            </View>
+            <ActivityFeed items={activity} limit={8} />
+          </Card>
 
           {(rental.status === 'active' || rental.status === 'pending_proof') && (
             <Button
