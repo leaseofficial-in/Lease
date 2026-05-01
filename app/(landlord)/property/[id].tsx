@@ -35,6 +35,8 @@ import { isDevAuthUserId } from '../../../lib/devAuth';
 import { activateLocalRental, getLocalRentalByPropertyId, updateLocalRentalTerms } from '../../../lib/localRentals';
 import { confirmAction } from '../../../lib/confirm';
 import { buildRentalActivity } from '../../../lib/rentalActivity';
+import { generateRentalAgreement } from '../../../lib/agreement';
+import * as Linking from 'expo-linking';
 
 type TxnType = 'deduction' | 'refund' | 'received';
 
@@ -53,6 +55,7 @@ export default function PropertyDetailScreen() {
   const [localDepositTransactions, setLocalDepositTransactions] = useState<DepositTransaction[]>([]);
   const [showTermsSheet, setShowTermsSheet] = useState(false);
   const [savingTerms, setSavingTerms] = useState(false);
+  const [generatingAgreement, setGeneratingAgreement] = useState(false);
   const [termsForm, setTermsForm] = useState({
     monthlyRent: '',
     securityDeposit: '',
@@ -496,6 +499,89 @@ export default function PropertyDetailScreen() {
                 value={rental.agreement_signed_at ? `Signed ${formatDate(rental.agreement_signed_at)}` : 'Editable before tenant signs'}
               />
             </View>
+          </Card>
+
+          {/* Agreement */}
+          <Card>
+            <View className="flex-row items-center justify-between" style={{ marginBottom: 12 }}>
+              <View>
+                <Cap>Agreement</Cap>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 4 }}>
+                  Leave & License
+                </Text>
+              </View>
+              {rental.agreement_signed_at ? (
+                <View style={{ alignItems: 'flex-end' }}>
+                  <View style={{ backgroundColor: Colors.successSoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+                    <Text style={{ color: Colors.success, fontFamily: Fonts.sansSemiBold, fontSize: 11 }}>Signed</Text>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+
+            {rental.agreement_url ? (
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19 }}>
+                  {rental.agreement_signed_at
+                    ? `Tenant signed on ${formatDate(rental.agreement_signed_at)}.`
+                    : 'Agreement generated. Waiting for tenant to sign.'}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                  <Button
+                    title="View Agreement"
+                    variant="secondary"
+                    size="sm"
+                    onPress={() => Linking.openURL(rental.agreement_url!)}
+                    style={{ flex: 1 }}
+                  />
+                  {!rental.agreement_signed_at && (
+                    <Button
+                      title="Regenerate"
+                      variant="ghost"
+                      size="sm"
+                      loading={generatingAgreement}
+                      onPress={async () => {
+                        setGeneratingAgreement(true);
+                        try {
+                          const { agreementUrl } = await generateRentalAgreement(rental.id);
+                          await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+                          showToast('Agreement regenerated', 'success');
+                        } catch {
+                          showToast('Could not generate agreement', 'error');
+                        } finally {
+                          setGeneratingAgreement(false);
+                        }
+                      }}
+                      style={{ flex: 1 }}
+                    />
+                  )}
+                </View>
+              </View>
+            ) : (
+              <View>
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
+                  Generate a Leave & License agreement with all rental terms, legal clauses, and signature blocks. Share it with your tenant.
+                </Text>
+                <Button
+                  title="Generate Agreement"
+                  loading={generatingAgreement}
+                  onPress={async () => {
+                    setGeneratingAgreement(true);
+                    try {
+                      const { agreementUrl } = await generateRentalAgreement(rental.id);
+                      await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+                      showToast('Agreement ready', 'success');
+                      Linking.openURL(agreementUrl);
+                    } catch {
+                      showToast('Could not generate agreement', 'error');
+                    } finally {
+                      setGeneratingAgreement(false);
+                    }
+                  }}
+                  fullWidth
+                />
+              </View>
+            )}
           </Card>
 
           {payments && payments.length > 0 && (

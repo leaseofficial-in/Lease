@@ -16,17 +16,21 @@
 ## 1. Rental Agreement PDF Generation
 > **Why:** Every landlord needs a legally presentable agreement. Services charge ₹500–2000 for this. This is the "holy shit" moment that drives referrals — landlord creates rental, gets a real PDF in seconds.
 
-- [ ] Create `generate-rental-agreement` Edge Function (Deno, pdf-lib or external PDF API)
-- [ ] Pull all required data: landlord name + PAN, tenant name + Aadhaar last4, property address, rental terms, start/end dates
-- [ ] Generate stamped PDF with unique reference number and timestamp
-- [ ] Upload to `agreements` Supabase Storage bucket, store URL in `rentals.agreement_url`
-- [ ] Add "Download Agreement" button on landlord property detail screen
-- [ ] Add "View Agreement" button on tenant agreement screen (already navigates to URL if present)
-- [ ] Auto-trigger generation when rental is activated (both parties confirmed)
-- [ ] Add "Regenerate" option if terms change before agreement is signed
+- [x] Create `generate-rental-agreement` Edge Function
+- [x] Pull all required data: landlord name + PAN, tenant name + Aadhaar last4, property address, rental terms, start/end dates
+- [x] 16-clause Leave & License Agreement (legally correct Indian format, not a tenancy)
+- [x] Amount in words (Indian number system — lakhs, crores), ordinal due dates, all party details
+- [x] Upload to `agreements` Supabase Storage bucket, store URL in `rentals.agreement_url`
+- [x] "Generate Agreement" / "View Agreement" / "Regenerate" buttons on landlord property detail
+- [x] Tenant signed stamp rendered in the agreement when `agreement_signed_at` is set
+- [x] Print-to-PDF button in the HTML (browser native, no extra dependency)
+- [ ] Deploy Edge Function: `supabase functions deploy generate-rental-agreement`
+- [ ] Make `agreements` bucket public in Supabase Dashboard (Storage → agreements → Make Public)
+- [ ] Auto-regenerate agreement when tenant signs (re-render with signed stamp)
+- [ ] Add "View Agreement" deep link from tenant agreement screen (URL already stored in rental)
 
 **Notes:**
-<!-- Add implementation notes here when shipped -->
+Shipped 2026-05-01. Output is HTML stored in the agreements bucket. Tenant can print-to-PDF from the browser. Format: Leave & License (not Rental/Lease) — avoids Rent Control Act protections. Period: 11 months to avoid mandatory registration under Registration Act 1908.
 
 ---
 
@@ -225,6 +229,7 @@ Shipped 2026-05-01. No payment gateway fees. Money moves via UPI or cash directl
 |---|---|---|
 | 2026-05-01 | Google OAuth login | Replaced phone OTP. `devAuth.ts` stubbed. `auth/callback` now routes via AuthGate. |
 | 2026-05-01 | UPI Intent + Cash payments | Zero-commission payment flow. Landlord sets UPI ID, tenant pays via GPay/PhonePe/cash, landlord confirms. No gateway fees. |
+| 2026-05-01 | Leave & License Agreement PDF | 16-clause legally correct Indian L&L agreement. HTML output with print-to-PDF. Covers all standard clauses. Auto-stores URL in rental record. |
 
 ---
 
