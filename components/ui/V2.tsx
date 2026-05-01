@@ -102,21 +102,38 @@ const chipTone: Record<ChipTone, { bg: string; fg: string; border?: string }> = 
   outline: { bg: 'transparent', fg: Colors.ink2, border: Colors.border },
 };
 
-export function Chip({ children, tone = 'default' }: { children: React.ReactNode; tone?: ChipTone }) {
+export function Chip({
+  children,
+  tone = 'default',
+  inverse = false,
+}: {
+  children: React.ReactNode;
+  tone?: ChipTone;
+  inverse?: boolean;
+}) {
   const toneStyle = chipTone[tone];
+  const surfaceStyle =
+    inverse && tone === 'outline'
+      ? {
+          bg: 'rgba(255,255,255,0.08)',
+          fg: Colors.surface,
+          border: 'rgba(255,255,255,0.22)',
+        }
+      : toneStyle;
+
   return (
     <View
       className="rounded-full flex-row items-center"
       style={{
         alignSelf: 'flex-start',
-        backgroundColor: toneStyle.bg,
-        borderColor: toneStyle.border ?? 'transparent',
-        borderWidth: toneStyle.border ? 1 : 0,
+        backgroundColor: surfaceStyle.bg,
+        borderColor: surfaceStyle.border ?? 'transparent',
+        borderWidth: surfaceStyle.border ? 1 : 0,
         minHeight: 26,
         paddingHorizontal: 10,
       }}
     >
-      <Text style={{ color: toneStyle.fg, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
+      <Text style={{ color: surfaceStyle.fg, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
         {children}
       </Text>
     </View>

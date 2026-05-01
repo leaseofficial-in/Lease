@@ -360,7 +360,7 @@ export default function PropertyDetailScreen() {
               <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
                 {rental.status === 'active' ? 'Active rental' : 'Setup pending'}
               </Chip>
-              <Chip tone="outline">{rental.property?.property_type ?? 'property'}</Chip>
+              <Chip tone="outline" inverse>{rental.property?.property_type ?? 'property'}</Chip>
             </View>
           </InkCard>
 

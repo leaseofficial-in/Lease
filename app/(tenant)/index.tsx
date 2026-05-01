@@ -124,7 +124,7 @@ export default function TenantDashboard() {
                 <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
                   {rental.status === 'active' ? 'Active' : 'Setup'}
                 </Chip>
-                <Chip tone="outline">{formatCurrency(rental.monthly_rent, true)}/mo</Chip>
+                <Chip tone="outline" inverse>{formatCurrency(rental.monthly_rent, true)}/mo</Chip>
               </View>
             </InkCard>
 
