@@ -1,49 +1,77 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
+import { createSessionFromOAuthUrl } from '../../lib/oauth';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../../components/ui/Button';
 import { Colors, Fonts } from '../../constants/theme';
+import { supabase } from '../../lib/supabase';
+import { Session } from '@supabase/supabase-js';
 
 export default function AuthCallbackScreen() {
-  const router = useRouter();
   const params = useLocalSearchParams<Record<string, string | string[]>>();
-  const { completeOAuthSignIn } = useAuthStore();
+  const setSession = useAuthStore((state) => state.setSession);
+  const [done, setDone] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const handledRef = useRef(false);
+  const startedRef = useRef(false);
+
+  const callbackUrl = useMemo(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      return window.location.href;
+    }
+
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (typeof value === 'string') query.set(key, value);
+      if (Array.isArray(value) && typeof value[0] === 'string') query.set(key, value[0]);
+    });
+    return `flatvio://auth/callback?${query.toString()}`;
+  }, [params]);
 
   useEffect(() => {
-    if (handledRef.current) return;
-    handledRef.current = true;
-    let isMounted = true;
+    if (startedRef.current) return;
+    startedRef.current = true;
+    let active = true;
 
-    const finishSignIn = async () => {
-      let callbackUrl = '';
-
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        callbackUrl = window.location.href;
-      } else {
-        const query = new URLSearchParams();
-        Object.entries(params).forEach(([key, value]) => {
-          if (typeof value === 'string') query.set(key, value);
-          if (Array.isArray(value) && typeof value[0] === 'string') query.set(key, value[0]);
-        });
-        callbackUrl = `flatvio://auth/callback?${query.toString()}`;
-      }
-
-      await completeOAuthSignIn(callbackUrl);
-      router.replace('/');
+    const finish = (session: Session) => {
+      if (!active) return;
+      setSession(session);
+      setDone(true);
     };
 
-    finishSignIn().catch((error) => {
-      if (!isMounted) return;
-      setErrorMessage(error instanceof Error ? error.message : 'Google sign-in failed.');
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) finish(session);
     });
 
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) finish(data.session);
+    });
+
+    createSessionFromOAuthUrl(callbackUrl)
+      .then((session) => {
+        if (!session) {
+          if (!active) return;
+          setErrorMessage('Google sign-in did not return a session.');
+          return;
+        }
+        finish(session);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setErrorMessage(error instanceof Error ? error.message : 'Google sign-in failed.');
+      });
+
     return () => {
-      isMounted = false;
+      active = false;
+      subscription.unsubscribe();
     };
-  }, [completeOAuthSignIn, params, router]);
+  }, [callbackUrl, setSession]);
+
+  if (done) {
+    return <Redirect href="/post-login" />;
+  }
 
   if (errorMessage) {
     return (
@@ -71,7 +99,7 @@ export default function AuthCallbackScreen() {
         >
           {errorMessage}
         </Text>
-        <Button title="Back to Sign In" onPress={() => router.replace('/(auth)/login')} />
+        <Button title="Back to Sign In" onPress={() => setDone(true)} />
       </View>
     );
   }
