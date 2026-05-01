@@ -31,15 +31,8 @@ export default function AuthCallbackScreen() {
         callbackUrl = `flatvio://auth/callback?${query.toString()}`;
       }
 
-      const profile = await completeOAuthSignIn(callbackUrl);
-
-      if (profile?.role === 'landlord') {
-        router.replace('/(landlord)');
-      } else if (profile?.role === 'tenant') {
-        router.replace('/(tenant)');
-      } else {
-        router.replace('/(auth)/role-select');
-      }
+      await completeOAuthSignIn(callbackUrl);
+      router.replace('/');
     };
 
     finishSignIn().catch((error) => {

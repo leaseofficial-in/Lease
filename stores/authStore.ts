@@ -8,6 +8,7 @@ interface AuthState {
   session: Session | null;
   profile: Profile | null;
   isLoading: boolean;
+  isProfileLoading: boolean;
   isInitialized: boolean;
 
   setSession: (session: Session | null) => void;
@@ -17,7 +18,7 @@ interface AuthState {
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   setRole: (role: UserRole) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  completeOAuthSignIn: (callbackUrl: string) => Promise<Profile | null>;
+  completeOAuthSignIn: (callbackUrl: string) => Promise<Session>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
@@ -26,6 +27,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   profile: null,
   isLoading: true,
+  isProfileLoading: false,
   isInitialized: false,
 
   setSession: (session) => set({ session }),
@@ -33,16 +35,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setLoading: (isLoading) => set({ isLoading }),
 
   fetchProfile: async (userId) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    set({ isProfileLoading: true });
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (error) throw error;
-    const profile = data ? (data as Profile) : null;
-    set({ profile });
-    return profile;
+      if (error) throw error;
+      const profile = data ? (data as Profile) : null;
+      set({ profile });
+      return profile;
+    } finally {
+      set({ isProfileLoading: false });
+    }
   },
 
   completeOAuthSignIn: async (callbackUrl) => {
@@ -51,7 +58,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw new Error('Google sign-in did not return a session.');
     }
     set({ session });
-    return get().fetchProfile(session.user.id);
+    void get().fetchProfile(session.user.id).catch(() => undefined);
+    return session;
   },
 
   updateProfile: async (updates) => {

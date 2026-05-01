@@ -33,7 +33,7 @@ const queryClient = new QueryClient({
 });
 
 function AuthGate() {
-  const { session, profile, isInitialized } = useAuthStore();
+  const { session, profile, isInitialized, isProfileLoading } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
 
@@ -50,6 +50,8 @@ function AuthGate() {
       return;
     }
 
+    if (isProfileLoading) return;
+
     if (!profile?.role) {
       if (currentPath !== '(auth)/role-select' && root !== 'auth') {
         router.replace('/(auth)/role-select');
@@ -60,7 +62,7 @@ function AuthGate() {
     if (inAuthFlow) {
       router.replace(profile.role === 'landlord' ? '/(landlord)' : '/(tenant)');
     }
-  }, [isInitialized, session, profile, segments, router]);
+  }, [isInitialized, isProfileLoading, session, profile, segments, router]);
 
   useEffect(() => {
     if (session?.user.id) {
