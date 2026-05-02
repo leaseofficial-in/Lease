@@ -16,6 +16,7 @@ import { RentStatusBadge } from '../../components/rental/RentStatusBadge';
 import { ActivityFeed } from '../../components/rental/ActivityFeed';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Ionicons } from '@expo/vector-icons';
 import { Cap, Chip, CollectionRing, InkCard, Sparkline } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
@@ -172,7 +173,7 @@ export default function TenantDashboard() {
                     {rental.property?.address_line1}, {rental.property?.city}
                   </Text>
                 </View>
-                <CollectionRing value={currentPayment?.status === 'paid' ? 100 : 42} label={currentPayment?.status === 'paid' ? 'Paid' : 'Due'} inverse />
+                <CollectionRing value={currentPayment?.status === 'paid' ? 100 : 0} label={currentPayment?.status === 'paid' ? 'Paid' : 'Due'} inverse />
               </View>
 
               <View className="flex-row mt-6 gap-2">
@@ -203,10 +204,10 @@ export default function TenantDashboard() {
             )}
 
             <View className="flex-row gap-3">
-              <ActionTile label="Proof" code="P" onPress={() => router.push('/(tenant)/proof/upload')} />
-              <ActionTile label="Agreement" code="A" onPress={() => router.push('/(tenant)/agreement')} />
-              <ActionTile label="Rent" code="R" onPress={() => router.push('/(tenant)/rent-history')} />
-              <ActionTile label="Repairs" code="M" onPress={() => router.push('/(tenant)/repairs')} />
+              <ActionTile label="Proof" icon="camera-outline" onPress={() => router.push('/(tenant)/proof/upload')} />
+              <ActionTile label="Agreement" icon="document-text-outline" onPress={() => router.push('/(tenant)/agreement')} />
+              <ActionTile label="Rent" icon="receipt-outline" onPress={() => router.push('/(tenant)/rent-history')} />
+              <ActionTile label="Repairs" icon="construct-outline" onPress={() => router.push('/(tenant)/repairs')} />
             </View>
 
             <Card>
@@ -261,22 +262,21 @@ export default function TenantDashboard() {
 
 function ActionTile({
   label,
-  code,
+  icon,
   onPress,
 }: {
   label: string;
-  code: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
   onPress: () => void;
 }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      className="bg-white border border-border items-center justify-center"
-      style={{ flex: 1, minHeight: 86, borderRadius: 20 }}
+      style={{ flex: 1, minHeight: 86, borderRadius: 20, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' }}
       activeOpacity={0.78}
     >
-      <View className="rounded-full items-center justify-center mb-2" style={{ width: 30, height: 30, backgroundColor: Colors.fill }}>
-        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 11 }}>{code}</Text>
+      <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+        <Ionicons name={icon} size={17} color={Colors.primary} />
       </View>
       <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12 }}>{label}</Text>
     </TouchableOpacity>

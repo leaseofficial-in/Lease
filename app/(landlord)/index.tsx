@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { AppNotification, Rental, RentPayment, RepairRequest } from '../../types';
-import { formatCurrency } from '../../lib/formatters';
+import { formatCurrency, monthKey } from '../../lib/formatters';
 import { RentalCard } from '../../components/rental/RentalCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { RentalCardSkeleton } from '../../components/ui/SkeletonLoader';
@@ -132,6 +132,52 @@ export default function LandlordDashboard() {
     enabled: !!profile?.id && !isLocalDevUser,
   });
 
+  const currentMonth = monthKey(new Date());
+  const currentYear = new Date().getFullYear();
+
+  const { data: currentMonthPayments, refetch: refetchCurrentMonthPayments } = useQuery({
+    queryKey: ['landlord-month-payments', profile?.id, currentMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rent_payments')
+        .select(`
+          id,
+          rental_id,
+          amount,
+          status,
+          month,
+          rental:rentals!inner(landlord_id)
+        `)
+        .eq('rental.landlord_id', profile!.id)
+        .eq('month', currentMonth);
+      if (error) throw error;
+      return data as unknown as { id: string; rental_id: string; amount: number; status: string; month: string }[];
+    },
+    enabled: !!profile?.id && !isLocalDevUser,
+  });
+
+  const { data: ytdPayments, refetch: refetchYtdPayments } = useQuery({
+    queryKey: ['landlord-ytd-payments', profile?.id, currentYear],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rent_payments')
+        .select(`
+          id,
+          amount,
+          month,
+          rental:rentals!inner(landlord_id)
+        `)
+        .eq('rental.landlord_id', profile!.id)
+        .eq('status', 'paid')
+        .gte('month', `${currentYear}-01-01`)
+        .lte('month', `${currentYear}-12-01`)
+        .order('month', { ascending: true });
+      if (error) throw error;
+      return data as unknown as { id: string; amount: number; month: string }[];
+    },
+    enabled: !!profile?.id && !isLocalDevUser,
+  });
+
   const { data: viewedRepairIds = [], refetch: refetchViewedRepairIds } = useQuery({
     queryKey: ['landlord-viewed-actions', profile?.id, 'repairs'],
     queryFn: () => getViewedLandlordActionIds(profile!.id, 'repairs'),
@@ -152,8 +198,10 @@ export default function LandlordDashboard() {
         void refetchUnreadNotifications();
         void refetchRepairActions();
         void refetchPaymentActions();
+        void refetchCurrentMonthPayments();
+        void refetchYtdPayments();
       }
-    }, [isLocalDevUser, refetchPaymentActions, refetchRepairActions, refetchUnreadNotifications, refetchViewedPaymentIds, refetchViewedRepairIds]),
+    }, [isLocalDevUser, refetchPaymentActions, refetchRepairActions, refetchUnreadNotifications, refetchViewedPaymentIds, refetchViewedRepairIds, refetchCurrentMonthPayments, refetchYtdPayments]),
   );
 
   const refreshDashboard = async () => {
@@ -162,6 +210,8 @@ export default function LandlordDashboard() {
       !isLocalDevUser ? refetchUnreadNotifications() : Promise.resolve(),
       !isLocalDevUser ? refetchRepairActions() : Promise.resolve(),
       !isLocalDevUser ? refetchPaymentActions() : Promise.resolve(),
+      !isLocalDevUser ? refetchCurrentMonthPayments() : Promise.resolve(),
+      !isLocalDevUser ? refetchYtdPayments() : Promise.resolve(),
       refetchViewedRepairIds(),
       refetchViewedPaymentIds(),
     ]);
@@ -172,9 +222,17 @@ export default function LandlordDashboard() {
   const durableActions = unreadNotifications ?? [];
   const unviewedRepairs = (repairActions ?? []).filter((repair) => !viewedRepairIds.includes(repair.id));
   const unviewedPayments = (paymentActions ?? []).filter((payment) => !viewedPaymentIds.includes(payment.id));
-  const totalExpected = rentals?.reduce((sum, r) => sum + Number(r.monthly_rent), 0) ?? 0;
-  const collected = activeRentals.reduce((sum, r) => sum + Number(r.monthly_rent), 0);
+  const totalExpected = activeRentals.reduce((sum, r) => sum + Number(r.monthly_rent), 0);
+  const collected = (currentMonthPayments ?? [])
+    .filter((p) => p.status === 'paid')
+    .reduce((sum, p) => sum + Number(p.amount), 0);
   const collectionRate = totalExpected > 0 ? Math.round((collected / totalExpected) * 100) : 0;
+  const ytdTotal = (ytdPayments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
+  const ytdSparkline = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(currentYear, new Date().getMonth() - 5 + i, 1);
+    const key = monthKey(d);
+    return (ytdPayments ?? []).filter((p) => p.month === key).reduce((s, p) => s + Number(p.amount), 0);
+  });
   const firstName = profile?.full_name?.split(' ')[0] || 'Landlord';
   const queueCount = durableActions.length + actionableRentals.length + (durableActions.length ? 0 : unviewedRepairs.length + unviewedPayments.length);
   const firstRentalAction = actionableRentals[0];
@@ -290,8 +348,8 @@ export default function LandlordDashboard() {
                 <Chip tone="good">{activeRentals.length} active</Chip>
               </View>
             </MiniPanel>
-            <MiniPanel label="YTD income" value={formatCurrency(collected * 4, true)}>
-              <Sparkline points={[28, 30, 32, 31, 35, 38]} height={32} />
+            <MiniPanel label="YTD income" value={formatCurrency(ytdTotal, true)}>
+              <Sparkline points={ytdSparkline.length ? ytdSparkline : [0, 0, 0, 0, 0, 0]} height={32} />
             </MiniPanel>
           </View>
 

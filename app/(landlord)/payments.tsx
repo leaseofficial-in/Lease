@@ -10,6 +10,7 @@ import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { PaymentRowSkeleton } from '../../components/ui/SkeletonLoader';
 import { Colors, Fonts } from '../../constants/theme';
+import { Cap } from '../../components/ui/V2';
 import { markLandlordActionsViewed } from '../../lib/landlordActionViews';
 import { markNotificationsRead } from '../../lib/notificationActions';
 
@@ -47,7 +48,7 @@ export default function LandlordPaymentsScreen() {
     .reduce((sum, p) => sum + p.amount, 0) ?? 0;
 
   const totalPending = payments
-    ?.filter((p) => p.status === 'pending' || p.status === 'overdue')
+    ?.filter((p) => p.status === 'pending' || p.status === 'overdue' || p.status === 'pending_verification')
     .reduce((sum, p) => sum + p.amount, 0) ?? 0;
 
   useEffect(() => {
@@ -79,17 +80,20 @@ export default function LandlordPaymentsScreen() {
   }, [profile?.id, queryClient]);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <View className="px-5 pt-4 pb-2">
-          <Text className="text-2xl font-bold text-primary">Rent Collections</Text>
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
+          <Cap>Payments</Cap>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 24, marginTop: 4 }}>
+            Collections
+          </Text>
         </View>
 
-        {/* Summary */}
-        <View className="px-5 pb-4 flex-row gap-3">
+        <View style={{ paddingHorizontal: 20, paddingBottom: 16, flexDirection: 'row', gap: 12 }}>
           <Card style={{ flex: 1, backgroundColor: Colors.success }} elevated>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.sans, fontSize: 12, marginBottom: 4 }}>Received</Text>
             <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
@@ -104,46 +108,48 @@ export default function LandlordPaymentsScreen() {
           </Card>
         </View>
 
-        {/* Payment rows */}
-        <View className="px-5 pb-8">
-          <Text className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">
-            All Transactions
-          </Text>
+        <View style={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+          <Cap style={{ marginBottom: 12 }}>All Transactions</Cap>
           <Card padded={false}>
             {isLoading ? (
-              <View className="px-4">
+              <View style={{ paddingHorizontal: 16 }}>
                 <PaymentRowSkeleton />
                 <PaymentRowSkeleton />
                 <PaymentRowSkeleton />
               </View>
             ) : payments?.length === 0 ? (
-              <View className="px-4 py-8 items-center">
-                <Text style={{ fontSize: 36 }} className="mb-2">💰</Text>
-                <Text className="text-sm text-muted">No payments yet</Text>
+              <View style={{ paddingHorizontal: 16, paddingVertical: 32, alignItems: 'center' }}>
+                <Text style={{ fontSize: 36, marginBottom: 8 }}>💰</Text>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 14 }}>No payments yet</Text>
               </View>
             ) : (
               payments?.map((payment, i) => (
                 <View
                   key={payment.id}
-                  className={`flex-row items-center px-4 py-3.5 ${
-                    i < (payments?.length ?? 0) - 1 ? 'border-b border-border' : ''
-                  }`}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    borderBottomWidth: i < (payments?.length ?? 0) - 1 ? 1 : 0,
+                    borderBottomColor: Colors.border,
+                  }}
                 >
-                  <View className="flex-1">
-                    <Text className="text-sm font-medium text-primary" numberOfLines={1}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 14 }} numberOfLines={1}>
                       {payment.rental?.property?.name ?? 'Property'}
                     </Text>
-                    <Text className="text-xs text-muted">
+                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 2 }}>
                       {formatMonth(payment.month)} · {payment.rental?.property?.city}
                     </Text>
                     {payment.paid_at && (
-                      <Text className="text-xs text-muted">
+                      <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
                         Paid {formatDate(payment.paid_at)}
                       </Text>
                     )}
                   </View>
-                  <View className="items-end gap-1">
-                    <Text className="text-sm font-bold text-primary">
+                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
                       {formatCurrency(payment.amount)}
                     </Text>
                     <StatusPill kind="payment" value={payment.status} />
