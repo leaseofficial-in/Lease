@@ -72,6 +72,7 @@ export default function AgreementScreen() {
     try {
       await generateRentalAgreement(rental.id);
       await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
+      await queryClient.invalidateQueries({ queryKey: ['agreement-document', rental.id] });
       router.push({
         pathname: '/agreement/[rentalId]',
         params: { rentalId: rental.id },

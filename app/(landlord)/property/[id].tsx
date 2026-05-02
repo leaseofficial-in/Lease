@@ -553,6 +553,7 @@ export default function PropertyDetailScreen() {
                         try {
                           await generateRentalAgreement(rental.id);
                           await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+                          await queryClient.invalidateQueries({ queryKey: ['agreement-document', rental.id] });
                           showToast('Agreement regenerated', 'success');
                         } catch (error) {
                           showToast(error instanceof Error ? error.message : 'Could not generate agreement', 'error');
@@ -578,6 +579,7 @@ export default function PropertyDetailScreen() {
                     try {
                       await generateRentalAgreement(rental.id);
                       await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+                      await queryClient.invalidateQueries({ queryKey: ['agreement-document', rental.id] });
                       showToast('Agreement ready', 'success');
                       openAgreementDocument();
                     } catch (error) {

@@ -602,6 +602,7 @@ serve(async (req) => {
     }
 
     const r = rental as typeof rental & {
+      tenant_id: string | null;
       property: {
         name: string;
         address_line1: string;
@@ -611,9 +612,29 @@ serve(async (req) => {
         pincode: string;
         property_type: string;
       };
-      landlord: { full_name: string; pan_number: string | null };
-      tenant: { full_name: string; aadhaar_last4: string | null } | null;
+      landlord: { full_name: string; pan_number: string | null; email: string | null };
+      tenant: { full_name: string; aadhaar_last4: string | null; email: string | null } | null;
     };
+
+    let tenantProfile = r.tenant;
+    if (!tenantProfile && r.tenant_id) {
+      const { data: tenantData, error: tenantError } = await supabase
+        .from('profiles')
+        .select('full_name, aadhaar_last4, email')
+        .eq('id', r.tenant_id)
+        .maybeSingle();
+
+      if (tenantError) {
+        console.error('Tenant lookup error:', tenantError);
+      } else {
+        tenantProfile = tenantData;
+      }
+    }
+
+    const tenantName =
+      tenantProfile?.full_name?.trim() ||
+      tenantProfile?.email?.trim() ||
+      (r.tenant_id ? 'Tenant profile pending' : 'Tenant not joined');
 
     const refNo = `FLV-AGR-${r.id.slice(0, 8).toUpperCase()}`;
     const generatedOn = new Date().toLocaleDateString('en-IN', {
@@ -642,8 +663,8 @@ serve(async (req) => {
       state: r.property.state,
       landlordName: r.landlord.full_name,
       landlordPan: r.landlord.pan_number ?? '',
-      tenantName: r.tenant?.full_name ?? 'Tenant (not yet joined)',
-      tenantAadhaarLast4: r.tenant?.aadhaar_last4 ?? null,
+      tenantName,
+      tenantAadhaarLast4: tenantProfile?.aadhaar_last4 ?? null,
       propertyName: r.property.name,
       address: addressParts.join(', '),
       propertyType: propertyTypeLabel[r.property.property_type] ?? r.property.property_type,

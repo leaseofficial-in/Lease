@@ -39,6 +39,8 @@ export default function AgreementDocumentScreen() {
       return data as Rental;
     },
     enabled: !!rentalId && !!profile?.id,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   useEffect(() => {
@@ -109,8 +111,8 @@ export default function AgreementDocumentScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 18,
+          paddingHorizontal: Platform.OS === 'web' ? 24 : 20,
+          paddingTop: Platform.OS === 'web' ? 24 : 18,
           paddingBottom: Platform.OS === 'web' ? 28 : 40,
         }}
       >
@@ -129,7 +131,9 @@ export default function AgreementDocumentScreen() {
               srcDoc: documentHtml,
               style: {
                 width: '100%',
-                height: 860,
+                height: Platform.OS === 'web' && typeof window !== 'undefined'
+                  ? Math.max(860, window.innerHeight - 132)
+                  : 860,
                 border: 0,
                 display: 'block',
                 backgroundColor: Colors.surface,
