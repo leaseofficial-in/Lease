@@ -661,7 +661,7 @@ serve(async (req) => {
     });
 
     // Store in agreements bucket
-    const fileName = `agreements/${rentalId}/agreement.html`;
+    const fileName = `agreements/${rentalId}/agreement-${Date.now()}.html`;
     const { error: uploadError } = await supabase.storage
       .from('agreements')
       .upload(fileName, new Blob([html], { type: 'text/html; charset=utf-8' }), {

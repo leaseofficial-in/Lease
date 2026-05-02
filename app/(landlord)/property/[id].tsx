@@ -532,7 +532,19 @@ export default function PropertyDetailScreen() {
                     title="View Agreement"
                     variant="secondary"
                     size="sm"
-                    onPress={() => Linking.openURL(rental.agreement_url!)}
+                    loading={generatingAgreement}
+                    onPress={async () => {
+                      setGeneratingAgreement(true);
+                      try {
+                        const { agreementUrl } = await generateRentalAgreement(rental.id);
+                        await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+                        Linking.openURL(agreementUrl);
+                      } catch (error) {
+                        showToast(error instanceof Error ? error.message : 'Could not open agreement', 'error');
+                      } finally {
+                        setGeneratingAgreement(false);
+                      }
+                    }}
                     style={{ flex: 1 }}
                   />
                   {!rental.agreement_signed_at && (

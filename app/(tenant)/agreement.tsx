@@ -12,6 +12,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { confirmAction } from '../../lib/confirm';
+import { generateRentalAgreement } from '../../lib/agreement';
 
 export default function AgreementScreen() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function AgreementScreen() {
   const { showToast } = useUIStore();
   const queryClient = useQueryClient();
   const [signing, setSigning] = useState(false);
+  const [openingAgreement, setOpeningAgreement] = useState(false);
 
   const { data: rental, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
@@ -62,6 +64,20 @@ export default function AgreementScreen() {
       signAgreement,
       'Sign',
     );
+  };
+
+  const openFullAgreement = async () => {
+    if (!rental) return;
+    setOpeningAgreement(true);
+    try {
+      const { agreementUrl } = await generateRentalAgreement(rental.id);
+      await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
+      Linking.openURL(agreementUrl);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not open agreement', 'error');
+    } finally {
+      setOpeningAgreement(false);
+    }
   };
 
   if (isLoading) return <LoadingScreen />;
@@ -149,7 +165,8 @@ export default function AgreementScreen() {
             <Button
               title="View Full Agreement"
               variant="secondary"
-              onPress={() => Linking.openURL(rental.agreement_url!)}
+              onPress={openFullAgreement}
+              loading={openingAgreement}
               fullWidth
             />
           )}
