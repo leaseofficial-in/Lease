@@ -4,6 +4,18 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL              = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+const jsonResponse = (body: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtDate(iso: string): string {
@@ -556,8 +568,12 @@ function buildAgreementHtml(p: {
 // ─── Edge Function handler ────────────────────────────────────────────────────
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 });
+    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -566,7 +582,7 @@ serve(async (req) => {
     const { rentalId }: { rentalId: string } = await req.json();
 
     if (!rentalId) {
-      return new Response(JSON.stringify({ error: 'rentalId required' }), { status: 400 });
+      return jsonResponse({ error: 'rentalId required' }, 400);
     }
 
     // Fetch rental with all related data
@@ -582,7 +598,7 @@ serve(async (req) => {
       .single();
 
     if (error || !rental) {
-      return new Response(JSON.stringify({ error: 'Rental not found' }), { status: 404 });
+      return jsonResponse({ error: 'Rental not found' }, 404);
     }
 
     const r = rental as typeof rental & {
@@ -655,11 +671,19 @@ serve(async (req) => {
 
     if (uploadError) {
       console.error('Upload error:', uploadError);
-      return new Response(JSON.stringify({ error: 'Failed to store agreement' }), { status: 500 });
+      return jsonResponse({ error: 'Failed to store agreement' }, 500);
     }
 
-    const { data: urlData } = supabase.storage.from('agreements').getPublicUrl(fileName);
-    const agreementUrl = urlData.publicUrl;
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      .from('agreements')
+      .createSignedUrl(fileName, 60 * 60 * 24 * 7);
+
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      console.error('Signed URL error:', signedUrlError);
+      return jsonResponse({ error: 'Failed to prepare agreement link' }, 500);
+    }
+
+    const agreementUrl = signedUrlData.signedUrl;
 
     // Update rental record
     await supabase
@@ -667,15 +691,9 @@ serve(async (req) => {
       .update({ agreement_url: agreementUrl })
       .eq('id', rentalId);
 
-    return new Response(JSON.stringify({ agreementUrl, refNo }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ agreementUrl, refNo });
   } catch (err) {
     console.error('generate-rental-agreement error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });

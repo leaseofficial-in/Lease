@@ -93,3 +93,5 @@ drop trigger if exists rent_payment_notify_landlord on public.rent_payments;
 create trigger rent_payment_notify_landlord
   after insert or update of status on public.rent_payments
   for each row execute function public.notify_landlord_payment_received();
+
+notify pgrst, 'reload schema';

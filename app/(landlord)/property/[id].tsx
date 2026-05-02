@@ -36,6 +36,7 @@ import { activateLocalRental, getLocalRentalByPropertyId, updateLocalRentalTerms
 import { confirmAction } from '../../../lib/confirm';
 import { buildRentalActivity } from '../../../lib/rentalActivity';
 import { generateRentalAgreement } from '../../../lib/agreement';
+import { confirmRentPayment } from '../../../lib/payments';
 import * as Linking from 'expo-linking';
 
 type TxnType = 'deduction' | 'refund' | 'received';
@@ -546,8 +547,8 @@ export default function PropertyDetailScreen() {
                           const { agreementUrl } = await generateRentalAgreement(rental.id);
                           await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
                           showToast('Agreement regenerated', 'success');
-                        } catch {
-                          showToast('Could not generate agreement', 'error');
+                        } catch (error) {
+                          showToast(error instanceof Error ? error.message : 'Could not generate agreement', 'error');
                         } finally {
                           setGeneratingAgreement(false);
                         }
@@ -572,8 +573,8 @@ export default function PropertyDetailScreen() {
                       await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
                       showToast('Agreement ready', 'success');
                       Linking.openURL(agreementUrl);
-                    } catch {
-                      showToast('Could not generate agreement', 'error');
+                    } catch (error) {
+                      showToast(error instanceof Error ? error.message : 'Could not generate agreement', 'error');
                     } finally {
                       setGeneratingAgreement(false);
                     }
@@ -620,11 +621,7 @@ export default function PropertyDetailScreen() {
                           size="sm"
                           onPress={async () => {
                             try {
-                              const { data, error } = await supabase.rpc('confirm_rent_payment', {
-                                payment_id: p.id,
-                              });
-                              if (error) throw error;
-                              if (!data) throw new Error('Payment was not confirmed.');
+                              await confirmRentPayment(p.id);
                               await Promise.all([
                                 refetchPayments(),
                                 queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] }),

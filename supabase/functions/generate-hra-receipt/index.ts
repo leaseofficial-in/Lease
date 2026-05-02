@@ -4,6 +4,18 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL              = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+const jsonResponse = (body: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
 interface HRAPayload {
   paymentId: string;
 }
@@ -55,8 +67,12 @@ const buildReceiptHtml = (data: {
 `;
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 });
+    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -65,7 +81,7 @@ serve(async (req) => {
     const { paymentId }: HRAPayload = await req.json();
 
     if (!paymentId) {
-      return new Response(JSON.stringify({ error: 'paymentId required' }), { status: 400 });
+      return jsonResponse({ error: 'paymentId required' }, 400);
     }
 
     // Fetch payment with joined rental and profiles
@@ -84,11 +100,11 @@ serve(async (req) => {
       .single();
 
     if (error || !payment) {
-      return new Response(JSON.stringify({ error: 'Payment not found' }), { status: 404 });
+      return jsonResponse({ error: 'Payment not found' }, 404);
     }
 
     if (payment.status !== 'paid') {
-      return new Response(JSON.stringify({ error: 'Payment not yet confirmed' }), { status: 422 });
+      return jsonResponse({ error: 'Payment not yet confirmed' }, 422);
     }
 
     const { rental } = payment as typeof payment & {
@@ -128,22 +144,26 @@ serve(async (req) => {
     if (uploadError) {
       console.error('Receipt upload error:', uploadError);
     } else {
-      const { data: urlData } = supabase.storage.from('agreements').getPublicUrl(fileName);
-      await supabase
-        .from('rent_payments')
-        .update({ receipt_url: urlData.publicUrl })
-        .eq('id', paymentId);
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      .from('agreements')
+      .createSignedUrl(fileName, 60 * 60 * 24 * 7);
+
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      return jsonResponse({ error: 'Failed to prepare receipt link' }, 500);
+    }
+
+    await supabase
+      .from('rent_payments')
+      .update({ receipt_url: signedUrlData.signedUrl })
+      .eq('id', paymentId);
     }
 
     return new Response(html, {
       status: 200,
-      headers: { 'Content-Type': 'text/html' },
+      headers: { ...corsHeaders, 'Content-Type': 'text/html' },
     });
   } catch (err) {
     console.error('generate-hra-receipt error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });

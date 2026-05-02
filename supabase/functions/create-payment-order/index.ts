@@ -6,6 +6,18 @@ const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET')!;
 const SUPABASE_URL        = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+const jsonResponse = (body: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
 interface CreateOrderPayload {
   rentalId: string;
   paymentId: string;
@@ -13,14 +25,18 @@ interface CreateOrderPayload {
 }
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 });
+    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
   }
 
   // Verify caller is authenticated
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -30,10 +46,7 @@ serve(async (req) => {
     const { rentalId, paymentId, amount } = payload;
 
     if (!rentalId || !paymentId || !amount || amount < 1) {
-      return new Response(JSON.stringify({ error: 'Invalid payload' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'Invalid payload' }, 400);
     }
 
     // Verify rental exists
@@ -44,7 +57,7 @@ serve(async (req) => {
       .single();
 
     if (rentalError || !rental) {
-      return new Response(JSON.stringify({ error: 'Rental not found' }), { status: 404 });
+      return jsonResponse({ error: 'Rental not found' }, 404);
     }
 
     // Create Razorpay order (amount in paise)
@@ -72,10 +85,7 @@ serve(async (req) => {
 
     if (!razorpayResponse.ok) {
       console.error('Razorpay error:', order);
-      return new Response(JSON.stringify({ error: order.error?.description ?? 'Razorpay error' }), {
-        status: 502,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: order.error?.description ?? 'Razorpay error' }, 502);
     }
 
     // Store order ID on payment record
@@ -84,20 +94,14 @@ serve(async (req) => {
       .update({ razorpay_order_id: order.id })
       .eq('id', paymentId);
 
-    return new Response(
-      JSON.stringify({
-        orderId: order.id,
-        amount: order.amount,
-        currency: order.currency,
-        receipt: order.receipt,
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    );
+    return jsonResponse({
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      receipt: order.receipt,
+    });
   } catch (err) {
     console.error('create-payment-order error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });
