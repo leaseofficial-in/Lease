@@ -1,51 +1,67 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, Text, View } from 'react-native';
-import { Colors, Fonts } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors, Fonts, Shadow } from '../../constants/theme';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function TabIcon({
-  mark,
+  icon,
+  iconActive,
   label,
   focused,
-  featured = false,
 }: {
-  mark: string;
+  icon: IoniconName;
+  iconActive: IoniconName;
   label: string;
   focused: boolean;
-  featured?: boolean;
 }) {
   return (
-    <View className="items-center pt-1" style={featured ? { transform: [{ translateY: -8 }] } : undefined}>
-      <View
-        className="items-center justify-center rounded-full"
-        style={{
-          width: featured ? 42 : 24,
-          height: featured ? 42 : 24,
-          backgroundColor: focused || featured ? Colors.primary : Colors.fill,
-          borderColor: focused || featured ? Colors.primary : Colors.border,
-          borderWidth: 1,
-        }}
-      >
-        <Text
-          style={{
-            color: focused || featured ? Colors.surface : Colors.ink3,
-            fontFamily: Fonts.sansSemiBold,
-            fontSize: featured ? 18 : 10,
-          }}
-        >
-          {mark}
-        </Text>
-      </View>
+    <View style={{ alignItems: 'center', paddingTop: 10, gap: 3 }}>
+      <Ionicons
+        name={focused ? iconActive : icon}
+        size={22}
+        color={focused ? Colors.action : Colors.muted}
+      />
       <Text
-        className="mt-0.5"
         style={{
-          color: focused ? Colors.primary : Colors.muted,
-          fontFamily: focused ? Fonts.sansSemiBold : Fonts.sans,
           fontSize: 10,
+          fontFamily: focused ? Fonts.sansSemiBold : Fonts.sans,
+          color: focused ? Colors.action : Colors.muted,
+          lineHeight: 13,
         }}
       >
         {label}
       </Text>
+    </View>
+  );
+}
+
+function AddTabIcon() {
+  return (
+    <View
+      style={{
+        alignItems: 'center',
+        justifyContent: 'center',
+        transform: [{ translateY: -14 }],
+      }}
+    >
+      <View
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          backgroundColor: Colors.primary,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...Shadow.card,
+          shadowOpacity: 0.2,
+          elevation: 10,
+        }}
+      >
+        <Ionicons name="add" size={28} color={Colors.surface} />
+      </View>
     </View>
   );
 }
@@ -60,22 +76,36 @@ export default function LandlordLayout() {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.border,
           borderTopWidth: 1,
-          height: Platform.OS === 'web' ? 66 : 78,
-          paddingBottom: Platform.OS === 'web' ? 6 : 8,
+          height: Platform.OS === 'web' ? 64 : 82,
+          paddingBottom: Platform.OS === 'web' ? 4 : 18,
+          paddingTop: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+          overflow: 'visible',
         },
       }}
     >
       <Tabs.Screen
         name="index"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon mark="P" label="Places" focused={focused} /> }}
-      />
-      <Tabs.Screen
-        name="create-rental"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon mark="+" label="Add" focused={focused} featured /> }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="home-outline" iconActive="home" label="Home" focused={focused} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="payments"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon mark="R" label="Rent" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="wallet-outline" iconActive="wallet" label="Rent" focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="create-rental"
+        options={{
+          tabBarIcon: () => <AddTabIcon />,
+        }}
       />
       <Tabs.Screen
         name="actions"
@@ -83,7 +113,11 @@ export default function LandlordLayout() {
       />
       <Tabs.Screen
         name="profile"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon mark="Y" label="You" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="person-outline" iconActive="person" label="Profile" focused={focused} />
+          ),
+        }}
       />
       <Tabs.Screen name="property/[id]" options={{ href: null }} />
       <Tabs.Screen name="proof/[rentalId]" options={{ href: null }} />

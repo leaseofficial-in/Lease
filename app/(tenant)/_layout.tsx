@@ -1,37 +1,35 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../../constants/theme';
 
-function TabIcon({ mark, label, focused }: { mark: string; label: string; focused: boolean }) {
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+function TabIcon({
+  icon,
+  iconActive,
+  label,
+  focused,
+}: {
+  icon: IoniconName;
+  iconActive: IoniconName;
+  label: string;
+  focused: boolean;
+}) {
   return (
-    <View className="items-center pt-1">
-      <View
-        className="items-center justify-center rounded-full"
-        style={{
-          width: 24,
-          height: 24,
-          backgroundColor: focused ? Colors.primary : Colors.fill,
-          borderColor: focused ? Colors.primary : Colors.border,
-          borderWidth: 1,
-        }}
-      >
-        <Text
-          style={{
-            color: focused ? Colors.surface : Colors.ink3,
-            fontFamily: Fonts.sansSemiBold,
-            fontSize: 10,
-          }}
-        >
-          {mark}
-        </Text>
-      </View>
+    <View style={{ alignItems: 'center', paddingTop: 10, gap: 3 }}>
+      <Ionicons
+        name={focused ? iconActive : icon}
+        size={22}
+        color={focused ? Colors.action : Colors.muted}
+      />
       <Text
-        className="mt-0.5"
         style={{
-          color: focused ? Colors.primary : Colors.muted,
-          fontFamily: focused ? Fonts.sansSemiBold : Fonts.sans,
           fontSize: 10,
+          fontFamily: focused ? Fonts.sansSemiBold : Fonts.sans,
+          color: focused ? Colors.action : Colors.muted,
+          lineHeight: 13,
         }}
       >
         {label}
@@ -50,30 +48,53 @@ export default function TenantLayout() {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.border,
           borderTopWidth: 1,
-          height: Platform.OS === 'web' ? 64 : 76,
-          paddingBottom: Platform.OS === 'web' ? 6 : 8,
+          height: Platform.OS === 'web' ? 64 : 82,
+          paddingBottom: Platform.OS === 'web' ? 4 : 18,
+          paddingTop: 0,
+          elevation: 0,
+          shadowOpacity: 0,
         },
       }}
     >
       <Tabs.Screen
         name="index"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon mark="H" label="Home" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="home-outline" iconActive="home" label="Home" focused={focused} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="rent-history"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon mark="R" label="Rent" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="receipt-outline" iconActive="receipt" label="Rent" focused={focused} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="deposit"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon mark="D" label="Deposit" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="cash-outline" iconActive="cash" label="Deposit" focused={focused} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="repairs"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon mark="M" label="Repairs" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="hammer-outline" iconActive="hammer" label="Repairs" focused={focused} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="profile"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon mark="Y" label="You" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="person-outline" iconActive="person" label="Profile" focused={focused} />
+          ),
+        }}
       />
       <Tabs.Screen name="join" options={{ href: null }} />
       <Tabs.Screen name="proof/upload" options={{ href: null }} />
