@@ -23,6 +23,7 @@ import { Input } from '../../components/ui/Input';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
 
@@ -34,11 +35,11 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const priorities: { value: RepairPriority; label: string; color: string }[] = [
-  { value: 'low', label: 'Low', color: 'border-gray-300' },
-  { value: 'medium', label: 'Medium', color: 'border-warning' },
-  { value: 'high', label: 'High', color: 'border-danger' },
-  { value: 'urgent', label: 'Urgent', color: 'border-red-600' },
+const priorities: { value: RepairPriority; label: string; activeColor: string; activeBg: string }[] = [
+  { value: 'low',    label: 'Low',    activeColor: Colors.ink3,    activeBg: Colors.fill },
+  { value: 'medium', label: 'Medium', activeColor: Colors.warning, activeBg: Colors.warningSoft },
+  { value: 'high',   label: 'High',   activeColor: Colors.danger,  activeBg: Colors.dangerSoft },
+  { value: 'urgent', label: 'Urgent', activeColor: '#C2362F',      activeBg: '#FBE2E0' },
 ];
 
 export default function RepairsScreen() {
@@ -124,7 +125,7 @@ export default function RepairsScreen() {
 
         <View className="px-5 pb-8">
           {isRentalLoading || isLoading ? (
-            <Text className="text-sm text-muted text-center mt-8">Loading…</Text>
+            <LoadingScreen />
           ) : rentalError || repairsError ? (
             <EmptyState
               title="Could not load repairs"
@@ -148,29 +149,21 @@ export default function RepairsScreen() {
             />
           ) : (
             repairs?.map((r) => (
-              <Card key={r.id} className="mb-3">
-                <View className="flex-row items-start justify-between mb-2">
-                  <Text className="text-base font-semibold text-primary flex-1 mr-3">{r.title}</Text>
+              <Card key={r.id} style={{ marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15, flex: 1, marginRight: 12 }}>
+                    {r.title}
+                  </Text>
                   <StatusPill kind="repair" value={r.status} />
                 </View>
-                <Text className="text-sm text-muted mb-3 leading-5" numberOfLines={2}>
+                <Text numberOfLines={2} style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
                   {r.description}
                 </Text>
-                <View className="flex-row items-center justify-between">
-                  <View className={`px-2 py-0.5 rounded-full ${
-                    r.priority === 'urgent' ? 'bg-red-100' :
-                    r.priority === 'high' ? 'bg-red-50' :
-                    r.priority === 'medium' ? 'bg-amber-50' : 'bg-gray-100'
-                  }`}>
-                    <Text className={`text-xs font-medium ${
-                      r.priority === 'urgent' ? 'text-red-700' :
-                      r.priority === 'high' ? 'text-danger' :
-                      r.priority === 'medium' ? 'text-warning' : 'text-muted'
-                    }`}>
-                      {repairPriorityLabel[r.priority]}
-                    </Text>
-                  </View>
-                  <Text className="text-xs text-muted">{formatRelativeTime(r.created_at)}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <PriorityBadge priority={r.priority} />
+                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
+                    {formatRelativeTime(r.created_at)}
+                  </Text>
                 </View>
               </Card>
             ))
@@ -212,8 +205,18 @@ export default function RepairsScreen() {
                 placeholderTextColor={Colors.muted}
                 multiline
                 numberOfLines={4}
-                className="border border-border rounded-xl p-3 text-sm text-primary"
-                style={{ textAlignVertical: 'top', minHeight: 96 }}
+                style={{
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                  borderRadius: 12,
+                  padding: 12,
+                  fontFamily: Fonts.sans,
+                  fontSize: 14,
+                  color: Colors.primary,
+                  backgroundColor: Colors.fill,
+                  textAlignVertical: 'top',
+                  minHeight: 96,
+                }}
               />
               {errors.description && (
                 <Text className="text-xs text-danger mt-1">{errors.description.message}</Text>
@@ -222,21 +225,30 @@ export default function RepairsScreen() {
           )}
         />
 
-        <Text className="text-sm font-medium text-primary mb-2">Priority</Text>
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 8 }}>Priority</Text>
         <Controller
           control={control}
           name="priority"
           render={({ field: { onChange, value } }) => (
-            <View className="flex-row gap-2 mb-4 flex-wrap">
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
               {priorities.map((p) => (
                 <TouchableOpacity
                   key={p.value}
                   onPress={() => onChange(p.value)}
-                  className={`px-3 py-2 rounded-full border-2 ${
-                    value === p.value ? `${p.color} bg-red-50` : 'border-border bg-white'
-                  }`}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderRadius: 999,
+                    borderWidth: 2,
+                    borderColor: value === p.value ? p.activeColor : Colors.border,
+                    backgroundColor: value === p.value ? p.activeBg : Colors.surface,
+                  }}
                 >
-                  <Text className={`text-sm font-medium ${value === p.value ? 'text-danger' : 'text-primary'}`}>
+                  <Text style={{
+                    fontFamily: Fonts.sansMedium,
+                    fontSize: 13,
+                    color: value === p.value ? p.activeColor : Colors.ink3,
+                  }}>
                     {p.label}
                   </Text>
                 </TouchableOpacity>
@@ -253,5 +265,22 @@ export default function RepairsScreen() {
         />
       </BottomSheet>
     </SafeAreaView>
+  );
+}
+
+function PriorityBadge({ priority }: { priority: RepairPriority }) {
+  const map: Record<RepairPriority, { color: string; bg: string }> = {
+    low:    { color: Colors.ink3,    bg: Colors.fill },
+    medium: { color: Colors.warning, bg: Colors.warningSoft },
+    high:   { color: Colors.danger,  bg: Colors.dangerSoft },
+    urgent: { color: '#C2362F',      bg: '#FBE2E0' },
+  };
+  const { color, bg } = map[priority];
+  return (
+    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: bg }}>
+      <Text style={{ color, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
+        {repairPriorityLabel[priority]}
+      </Text>
+    </View>
   );
 }

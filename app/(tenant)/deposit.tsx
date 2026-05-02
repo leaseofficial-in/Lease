@@ -7,8 +7,11 @@ import { useAuthStore } from '../../stores/authStore';
 import { DepositTransaction, Rental } from '../../types';
 import { DepositCard } from '../../components/rental/DepositCard';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Card } from '../../components/ui/Card';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
+import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { formatCurrency } from '../../lib/formatters';
 import { isDevAuthUserId } from '../../lib/devAuth';
 
 export default function TenantDepositScreen() {
@@ -45,18 +48,25 @@ export default function TenantDepositScreen() {
 
   if (isLoading) return <LoadingScreen />;
 
+  const totalDeducted = transactions?.filter((t) => t.type === 'deduction').reduce((s, t) => s + t.amount, 0) ?? 0;
+  const totalRefunded = transactions?.filter((t) => t.type === 'refund').reduce((s, t) => s + t.amount, 0) ?? 0;
+  const balance = (rental?.security_deposit ?? 0) - totalDeducted - totalRefunded;
+
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <View className="px-5 pt-4 pb-6">
-          <Text className="text-2xl font-bold text-primary mb-1">Security Deposit</Text>
-          <Text className="text-sm text-muted mb-4">
-            Track your deposit and any deductions made by your landlord.
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
+          <Cap>Security</Cap>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 24, marginTop: 4 }}>
+            Deposit
           </Text>
+        </View>
 
+        <View style={{ paddingHorizontal: 20, gap: 16 }}>
           {!rental ? (
             <EmptyState
               title="No rental found"
@@ -68,10 +78,44 @@ export default function TenantDepositScreen() {
               icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>D</Text>}
             />
           ) : (
-            <DepositCard
-              totalDeposit={rental.security_deposit}
-              transactions={transactions ?? []}
-            />
+            <>
+              {/* Hero balance card */}
+              <Card style={{ backgroundColor: Colors.primary }}>
+                <Text style={{ color: 'rgba(255,255,255,0.55)', fontFamily: Fonts.sansMedium, fontSize: 12, marginBottom: 4 }}>
+                  Balance Held
+                </Text>
+                <Text style={{ color: Colors.surface, fontFamily: Fonts.sansSemiBold, fontSize: 38, lineHeight: 42 }}>
+                  {formatCurrency(balance, true)}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 24, marginTop: 16 }}>
+                  <View>
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.sansMedium, fontSize: 10 }}>HELD</Text>
+                    <Text style={{ color: Colors.surface, fontFamily: Fonts.sansSemiBold, fontSize: 15, marginTop: 2 }}>
+                      {formatCurrency(rental.security_deposit, true)}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.sansMedium, fontSize: 10 }}>DEDUCTED</Text>
+                    <Text style={{ color: totalDeducted > 0 ? '#FF8A7A' : 'rgba(255,255,255,0.4)', fontFamily: Fonts.sansSemiBold, fontSize: 15, marginTop: 2 }}>
+                      {formatCurrency(totalDeducted, true)}
+                    </Text>
+                  </View>
+                  {totalRefunded > 0 && (
+                    <View>
+                      <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.sansMedium, fontSize: 10 }}>REFUNDED</Text>
+                      <Text style={{ color: '#7AEFC0', fontFamily: Fonts.sansSemiBold, fontSize: 15, marginTop: 2 }}>
+                        {formatCurrency(totalRefunded, true)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </Card>
+
+              <DepositCard
+                totalDeposit={rental.security_deposit}
+                transactions={transactions ?? []}
+              />
+            </>
           )}
         </View>
       </ScrollView>
