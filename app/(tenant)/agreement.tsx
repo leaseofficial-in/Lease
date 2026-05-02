@@ -144,10 +144,10 @@ export default function AgreementScreen() {
             </View>
           </Card>
 
-          {/* External PDF link if available */}
+          {/* External agreement link if available */}
           {rental.agreement_url && (
             <Button
-              title="View Full PDF Agreement"
+              title="View Full Agreement"
               variant="secondary"
               onPress={() => Linking.openURL(rental.agreement_url!)}
               fullWidth

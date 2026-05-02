@@ -664,7 +664,7 @@ serve(async (req) => {
     const fileName = `agreements/${rentalId}/agreement.html`;
     const { error: uploadError } = await supabase.storage
       .from('agreements')
-      .upload(fileName, new TextEncoder().encode(html), {
+      .upload(fileName, new Blob([html], { type: 'text/html; charset=utf-8' }), {
         contentType: 'text/html; charset=utf-8',
         upsert: true,
       });
