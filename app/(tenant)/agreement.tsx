@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Linking, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -70,9 +70,12 @@ export default function AgreementScreen() {
     if (!rental) return;
     setOpeningAgreement(true);
     try {
-      const { agreementUrl } = await generateRentalAgreement(rental.id);
+      await generateRentalAgreement(rental.id);
       await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
-      Linking.openURL(agreementUrl);
+      router.push({
+        pathname: '/agreement/[rentalId]',
+        params: { rentalId: rental.id },
+      });
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Could not open agreement', 'error');
     } finally {

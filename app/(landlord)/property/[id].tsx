@@ -37,7 +37,6 @@ import { confirmAction } from '../../../lib/confirm';
 import { buildRentalActivity } from '../../../lib/rentalActivity';
 import { generateRentalAgreement } from '../../../lib/agreement';
 import { confirmRentPayment } from '../../../lib/payments';
-import * as Linking from 'expo-linking';
 
 type TxnType = 'deduction' | 'refund' | 'received';
 
@@ -355,6 +354,14 @@ export default function PropertyDetailScreen() {
     );
   };
 
+  const openAgreementDocument = () => {
+    if (!rental) return;
+    router.push({
+      pathname: '/agreement/[rentalId]',
+      params: { rentalId: rental.id },
+    });
+  };
+
   if (isLoading) return <LoadingScreen />;
   if (!rental) return null;
   const activity = buildRentalActivity({
@@ -532,19 +539,7 @@ export default function PropertyDetailScreen() {
                     title="View Agreement"
                     variant="secondary"
                     size="sm"
-                    loading={generatingAgreement}
-                    onPress={async () => {
-                      setGeneratingAgreement(true);
-                      try {
-                        const { agreementUrl } = await generateRentalAgreement(rental.id);
-                        await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
-                        Linking.openURL(agreementUrl);
-                      } catch (error) {
-                        showToast(error instanceof Error ? error.message : 'Could not open agreement', 'error');
-                      } finally {
-                        setGeneratingAgreement(false);
-                      }
-                    }}
+                    onPress={openAgreementDocument}
                     style={{ flex: 1 }}
                   />
                   {!rental.agreement_signed_at && (
@@ -556,7 +551,7 @@ export default function PropertyDetailScreen() {
                       onPress={async () => {
                         setGeneratingAgreement(true);
                         try {
-                          const { agreementUrl } = await generateRentalAgreement(rental.id);
+                          await generateRentalAgreement(rental.id);
                           await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
                           showToast('Agreement regenerated', 'success');
                         } catch (error) {
@@ -581,10 +576,10 @@ export default function PropertyDetailScreen() {
                   onPress={async () => {
                     setGeneratingAgreement(true);
                     try {
-                      const { agreementUrl } = await generateRentalAgreement(rental.id);
+                      await generateRentalAgreement(rental.id);
                       await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
                       showToast('Agreement ready', 'success');
-                      Linking.openURL(agreementUrl);
+                      openAgreementDocument();
                     } catch (error) {
                       showToast(error instanceof Error ? error.message : 'Could not generate agreement', 'error');
                     } finally {
