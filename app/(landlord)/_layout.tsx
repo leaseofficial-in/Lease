@@ -2,6 +2,9 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../stores/authStore';
 import { Colors, Fonts, Shadow } from '../../constants/theme';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -67,6 +70,23 @@ function AddTabIcon() {
 }
 
 export default function LandlordLayout() {
+  const { profile } = useAuthStore();
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['landlord-unread-notifications', profile?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile!.id)
+        .eq('read', false);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!profile?.id,
+    refetchInterval: 30_000,
+  });
+
   return (
     <Tabs
       screenOptions={{
@@ -109,7 +129,13 @@ export default function LandlordLayout() {
       />
       <Tabs.Screen
         name="actions"
-        options={{ href: null }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="notifications-outline" iconActive="notifications" label="Inbox" focused={focused} />
+          ),
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: Colors.danger, fontSize: 10, minWidth: 16, height: 16, lineHeight: 16 },
+        }}
       />
       <Tabs.Screen
         name="profile"

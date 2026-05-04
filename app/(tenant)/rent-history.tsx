@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
+import { useUIStore } from '../../stores/uiStore';
 import { RentPayment } from '../../types';
 import { formatCurrency, formatDate, formatMonth } from '../../lib/formatters';
 import { Card } from '../../components/ui/Card';
@@ -19,7 +20,34 @@ import { isDevAuthUserId } from '../../lib/devAuth';
 export default function RentHistoryScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
+  const { showToast } = useUIStore();
   const isLocalDevUser = isDevAuthUserId(profile?.id);
+  const [generatingReceipt, setGeneratingReceipt] = useState<Record<string, boolean>>({});
+
+  const handleGetReceipt = async (payment: RentPayment) => {
+    setGeneratingReceipt((prev) => ({ ...prev, [payment.id]: true }));
+    try {
+      await supabase.functions.invoke('generate-hra-receipt', {
+        body: { paymentId: payment.id },
+      });
+      const { data: updated } = await supabase
+        .from('rent_payments')
+        .select('receipt_url')
+        .eq('id', payment.id)
+        .single();
+      if (updated?.receipt_url) {
+        await Linking.openURL(updated.receipt_url);
+        void refetch();
+      } else {
+        showToast('Receipt generated — refresh to download', 'success');
+        void refetch();
+      }
+    } catch {
+      showToast('Could not generate receipt. Make sure edge functions are deployed.', 'error');
+    } finally {
+      setGeneratingReceipt((prev) => ({ ...prev, [payment.id]: false }));
+    }
+  };
 
   const { data: payments, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['tenant-payments', profile?.id],
@@ -132,16 +160,29 @@ export default function RentHistoryScreen() {
                       Late fee: {formatCurrency(payment.late_fee)}
                     </Text>
                   )}
-                  {payment.receipt_url && (
-                    <TouchableOpacity
-                      onPress={() => Linking.openURL(payment.receipt_url!)}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}
-                    >
-                      <Ionicons name="download-outline" size={13} color={Colors.action} />
-                      <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-                        Download Receipt
-                      </Text>
-                    </TouchableOpacity>
+                  {payment.status === 'paid' && (
+                    payment.receipt_url ? (
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(payment.receipt_url!)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}
+                      >
+                        <Ionicons name="download-outline" size={13} color={Colors.action} />
+                        <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+                          Download Receipt
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => void handleGetReceipt(payment)}
+                        disabled={generatingReceipt[payment.id]}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}
+                      >
+                        <Ionicons name="receipt-outline" size={13} color={Colors.muted} />
+                        <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+                          {generatingReceipt[payment.id] ? 'Generating…' : 'Get HRA Receipt'}
+                        </Text>
+                      </TouchableOpacity>
+                    )
                   )}
                 </View>
               ))}

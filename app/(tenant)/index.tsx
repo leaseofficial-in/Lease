@@ -210,14 +210,31 @@ export default function TenantDashboard() {
               </View>
             </InkCard>
 
+            {currentPayment?.status === 'overdue' && (
+              <Card style={{ backgroundColor: Colors.dangerSoft, borderColor: '#F5B8B5' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.danger, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="alert-circle" size={22} color="#fff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: Colors.danger, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>Rent Overdue</Text>
+                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, marginTop: 2 }}>
+                      Payment was due on the {rental.rent_due_day}th. Pay now to avoid late fees.
+                    </Text>
+                  </View>
+                </View>
+                <Button title="Pay Now — Overdue" variant="danger" onPress={() => router.push('/(tenant)/pay-rent')} fullWidth size="lg" />
+              </Card>
+            )}
+
             {currentPayment && (
               <Card>
-                <View className="flex-row items-center justify-between mb-3">
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <Cap>This Month</Cap>
                   <StatusPill kind="payment" value={currentPayment.status} />
                 </View>
                 <RentStatusBadge payment={currentPayment} />
-                {currentPayment.status !== 'paid' && (
+                {currentPayment.status !== 'paid' && currentPayment.status !== 'overdue' && (
                   <Button
                     title="Pay Now"
                     onPress={() => router.push('/(tenant)/pay-rent')}
