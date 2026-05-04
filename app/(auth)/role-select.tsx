@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { Button } from '../../components/ui/Button';
+import { Cap, DisplayText, SerifItalic } from '../../components/ui/V2';
 import { UserRole } from '../../types';
+import { Colors, Fonts } from '../../constants/theme';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 interface RoleOption {
   role: UserRole;
-  badge: string;
+  icon: IoniconName;
   title: string;
   subtitle: string;
   perks: string[];
@@ -18,17 +23,25 @@ interface RoleOption {
 const roles: RoleOption[] = [
   {
     role: 'landlord',
-    badge: 'Owner',
+    icon: 'home',
     title: 'Landlord',
-    subtitle: 'Manage properties, rent, deposits, and proof.',
-    perks: ['Create rentals and invite tenants', 'Track rent and deposits', 'Review move-in proof'],
+    subtitle: 'I own or manage a rental property.',
+    perks: [
+      'Create rentals and invite tenants',
+      'Track rent collection and deposits',
+      'Review move-in proof and repair requests',
+    ],
   },
   {
     role: 'tenant',
-    badge: 'Tenant',
+    icon: 'key',
     title: 'Tenant',
-    subtitle: 'Stay on top of your rental home.',
-    perks: ['Join by invite link', 'Upload move-in proof', 'Raise repair requests'],
+    subtitle: 'I rent or am looking to rent a home.',
+    perks: [
+      'Join your rental via invite link',
+      'Pay rent and view payment history',
+      'Upload move-in proof and raise repairs',
+    ],
   },
 ];
 
@@ -44,12 +57,8 @@ export default function RoleSelectScreen() {
     setLoading(true);
     try {
       await setRole(selected);
-      // Navigate directly — don't wait for AuthGate to react
-      if (selected === 'landlord') {
-        router.replace('/(landlord)');
-      } else {
-        router.replace('/(tenant)');
-      }
+      if (selected === 'landlord') router.replace('/(landlord)');
+      else router.replace('/(tenant)');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save your role.';
       showToast(message, 'error');
@@ -58,49 +67,122 @@ export default function RoleSelectScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-      <View className="flex-1 px-6 pt-8 pb-6">
-        <Text className="text-3xl font-bold text-primary mb-2">Choose your workspace</Text>
-        <Text className="text-base text-muted mb-8 leading-6">
-          Flatvio sets up different tools for landlords and tenants.
+    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: Colors.canvas }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32 }}
+      >
+        <Cap style={{ marginBottom: 10 }}>One last step</Cap>
+        <DisplayText style={{ fontSize: 38, lineHeight: 40, marginBottom: 8 }}>
+          How will you{'\n'}<SerifItalic>use the app?</SerifItalic>
+        </DisplayText>
+        <Text
+          style={{
+            color: Colors.ink3,
+            fontFamily: Fonts.sans,
+            fontSize: 15,
+            lineHeight: 23,
+            marginBottom: 32,
+          }}
+        >
+          Flatvio sets up different tools for each role. This cannot be changed later.
         </Text>
 
-        <View className="gap-4 mb-8">
+        <View style={{ gap: 12, marginBottom: 32 }}>
           {roles.map((option) => {
             const isSelected = selected === option.role;
             return (
               <TouchableOpacity
                 key={option.role}
                 onPress={() => setSelected(option.role)}
-                className={`rounded-2xl border-2 p-5 ${
-                  isSelected ? 'border-action bg-blue-50' : 'border-border bg-white'
-                }`}
+                style={{
+                  borderRadius: 22,
+                  borderWidth: 2,
+                  borderColor: isSelected ? Colors.action : Colors.border,
+                  backgroundColor: isSelected ? Colors.actionSoft : Colors.surface,
+                  padding: 20,
+                }}
                 activeOpacity={0.85}
               >
-                <View className="flex-row items-center mb-4">
-                  <View className="w-14 h-14 rounded-2xl bg-gray-100 items-center justify-center mr-3">
-                    <Text className="text-xs font-bold text-action">{option.badge}</Text>
+                {/* Header row */}
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 }}>
+                  <View
+                    style={{
+                      width: 54, height: 54, borderRadius: 17,
+                      backgroundColor: isSelected ? Colors.action : Colors.fill2,
+                      alignItems: 'center', justifyContent: 'center',
+                      marginRight: 14,
+                    }}
+                  >
+                    <Ionicons name={option.icon} size={26} color={isSelected ? '#fff' : Colors.ink2} />
                   </View>
-                  <View className="flex-1">
-                    <Text className={`text-lg font-bold ${isSelected ? 'text-action' : 'text-primary'}`}>
+
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        color: isSelected ? Colors.action : Colors.primary,
+                        fontFamily: Fonts.sansSemiBold,
+                        fontSize: 19,
+                        lineHeight: 22,
+                      }}
+                    >
                       {option.title}
                     </Text>
-                    <Text className="text-sm text-muted leading-5">{option.subtitle}</Text>
+                    <Text
+                      style={{
+                        color: Colors.ink3,
+                        fontFamily: Fonts.sans,
+                        fontSize: 13,
+                        lineHeight: 19,
+                        marginTop: 3,
+                      }}
+                    >
+                      {option.subtitle}
+                    </Text>
                   </View>
+
+                  {/* Radio indicator */}
                   <View
-                    className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
-                      isSelected ? 'border-action bg-action' : 'border-border'
-                    }`}
+                    style={{
+                      width: 22, height: 22, borderRadius: 11,
+                      borderWidth: 2,
+                      borderColor: isSelected ? Colors.action : Colors.border,
+                      backgroundColor: isSelected ? Colors.action : 'transparent',
+                      alignItems: 'center', justifyContent: 'center',
+                      marginTop: 2,
+                    }}
                   >
-                    {isSelected && <View className="w-2.5 h-2.5 rounded-full bg-white" />}
+                    {isSelected && <Ionicons name="checkmark" size={13} color="#fff" />}
                   </View>
                 </View>
 
-                <View className="gap-2">
+                {/* Perk list */}
+                <View
+                  style={{
+                    gap: 8,
+                    paddingTop: 16,
+                    borderTopWidth: 1,
+                    borderTopColor: isSelected ? 'rgba(46,91,255,0.12)' : Colors.borderSoft,
+                  }}
+                >
                   {option.perks.map((perk) => (
-                    <View key={perk} className="flex-row items-center">
-                      <View className={`w-1.5 h-1.5 rounded-full mr-2 ${isSelected ? 'bg-action' : 'bg-success'}`} />
-                      <Text className="text-sm text-primary flex-1">{perk}</Text>
+                    <View key={perk} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={16}
+                        color={isSelected ? Colors.action : Colors.success}
+                      />
+                      <Text
+                        style={{
+                          color: Colors.ink2,
+                          fontFamily: Fonts.sans,
+                          fontSize: 13,
+                          flex: 1,
+                          lineHeight: 19,
+                        }}
+                      >
+                        {perk}
+                      </Text>
                     </View>
                   ))}
                 </View>
@@ -109,17 +191,32 @@ export default function RoleSelectScreen() {
           })}
         </View>
 
-        <View className="mt-auto">
-          <Button
-            title="Continue"
-            onPress={handleContinue}
-            loading={loading}
-            disabled={!selected}
-            fullWidth
-            size="lg"
-          />
-        </View>
-      </View>
+        <Button
+          title={
+            selected
+              ? `Continue as ${selected === 'landlord' ? 'Landlord' : 'Tenant'}`
+              : 'Select a role to continue'
+          }
+          onPress={handleContinue}
+          loading={loading}
+          disabled={!selected}
+          fullWidth
+          size="lg"
+        />
+
+        <Text
+          style={{
+            color: Colors.muted,
+            fontFamily: Fonts.sans,
+            fontSize: 12,
+            textAlign: 'center',
+            marginTop: 14,
+            lineHeight: 18,
+          }}
+        >
+          Your role is permanent and tied to your account.
+        </Text>
+      </ScrollView>
     </SafeAreaView>
   );
 }

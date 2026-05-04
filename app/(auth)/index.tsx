@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/ui/Button';
 import { Logo } from '../../components/brand/Logo';
 import { HeroLoop } from '../../components/brand/HeroLoop';
@@ -50,17 +51,23 @@ export default function WelcomeScreen() {
 
         <View className="px-6 pt-6">
           <View className="self-center" style={{ width: contentWidth }}>
-            <View className="gap-3 mb-6">
-              {[
-                ['Proof', 'Move-in and move-out records'],
-                ['Rent', 'Monthly tracking for both sides'],
-                ['Repairs', 'Maintenance requests with status'],
-              ].map(([label, text]) => (
-                <View key={text} className="flex-row items-center">
-                  <View className="w-10 h-10 rounded-full bg-white border border-border items-center justify-center mr-3">
-                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 11 }}>
-                      {label.slice(0, 2)}
-                    </Text>
+            <View style={{ gap: 12, marginBottom: 24 }}>
+              {([
+                ['camera-outline', 'Move-in and move-out proof photos'],
+                ['receipt-outline', 'Monthly rent tracking for both sides'],
+                ['construct-outline', 'Maintenance requests with live status'],
+              ] as [React.ComponentProps<typeof Ionicons>['name'], string][]).map(([icon, text]) => (
+                <View key={text} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: 40, height: 40, borderRadius: 20,
+                      backgroundColor: Colors.surface,
+                      borderWidth: 1, borderColor: Colors.border,
+                      alignItems: 'center', justifyContent: 'center',
+                      marginRight: 12,
+                    }}
+                  >
+                    <Ionicons name={icon} size={18} color={Colors.action} />
                   </View>
                   <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 14, flex: 1 }}>
                     {text}
