@@ -38,6 +38,13 @@ export const listLocalRentals = async (landlordId: string): Promise<Rental[]> =>
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
 };
 
+export const listLocalRentalsByPropertyId = async (propertyId: string): Promise<Rental[]> => {
+  const rentals = await readLocalRentals();
+  return rentals
+    .filter((rental) => rental.property_id === propertyId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+};
+
 export const getLocalRentalByPropertyId = async (
   propertyId: string,
   landlordId: string,

@@ -33,7 +33,7 @@ import { Cap, Chip, InkCard } from '../../../components/ui/V2';
 import { Colors, Fonts } from '../../../constants/theme';
 import { Config } from '../../../constants/config';
 import { isDevAuthUserId } from '../../../lib/devAuth';
-import { activateLocalRental, getLocalRentalByPropertyId, updateLocalRentalTerms } from '../../../lib/localRentals';
+import { activateLocalRental, listLocalRentalsByPropertyId, updateLocalRentalTerms } from '../../../lib/localRentals';
 import { confirmAction } from '../../../lib/confirm';
 import { buildRentalActivity } from '../../../lib/rentalActivity';
 import { generateRentalAgreement } from '../../../lib/agreement';
@@ -73,28 +73,27 @@ export default function PropertyDetailScreen() {
   });
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
-  const { data: rental, isLoading, refetch: refetchRental, isRefetching: isRentalRefetching } = useQuery({
+  const { data: allPropertyRentals, isLoading, refetch: refetchRental, isRefetching: isRentalRefetching } = useQuery({
     queryKey: ['rental-by-property', propertyId],
     queryFn: async () => {
       if (isLocalDevUser) {
-        const localRental = await getLocalRentalByPropertyId(propertyId, profile!.id);
-        if (!localRental) throw new Error('Local rental not found');
-        return localRental;
+        return listLocalRentalsByPropertyId(propertyId);
       }
-
       const { data, error } = await supabase
         .from('rentals')
         .select(`*, property:properties(*), tenant:profiles!rentals_tenant_id_fkey(*)`)
         .eq('property_id', propertyId)
         .eq('landlord_id', profile!.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as Rental;
+      return data as Rental[];
     },
     enabled: !!propertyId && !!profile?.id,
   });
+
+  // Current = first non-ended rental; fallback to most recent ended
+  const rental = allPropertyRentals?.find((r) => r.status !== 'ended') ?? allPropertyRentals?.[0];
+  const rentalHistory = allPropertyRentals?.filter((r) => r.id !== rental?.id) ?? [];
 
   const { data: payments, refetch: refetchPayments } = useQuery({
     queryKey: ['payments-by-rental', rental?.id],
@@ -877,6 +876,58 @@ export default function PropertyDetailScreen() {
               loading={initiatingMoveout}
               fullWidth
             />
+          )}
+
+          {rental.status === 'ended' && (
+            <Card style={{ backgroundColor: Colors.fill, borderStyle: 'dashed' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <Ionicons name="add-circle-outline" size={20} color={Colors.action} />
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
+                  This rental has ended
+                </Text>
+              </View>
+              <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 14 }}>
+                Start a new rental for this property with a new tenant and fresh terms.
+              </Text>
+              <Button
+                title="New Rental on This Property"
+                onPress={() => router.push({ pathname: '/(landlord)/create-rental', params: { propertyId: rental.property_id } })}
+                fullWidth
+              />
+            </Card>
+          )}
+
+          {rentalHistory.length > 0 && (
+            <Card>
+              <Cap style={{ marginBottom: 12 }}>Rental History</Cap>
+              <View style={{ gap: 0 }}>
+                {rentalHistory.map((past, i) => (
+                  <View
+                    key={past.id}
+                    style={{
+                      paddingVertical: 12,
+                      borderTopWidth: i === 0 ? 0 : 1,
+                      borderTopColor: Colors.border,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>
+                        {past.tenant?.full_name ?? 'No tenant'}
+                      </Text>
+                      <StatusPill kind="rental" value={past.status} />
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+                        {formatDate(past.start_date)}{past.end_date ? ` → ${formatDate(past.end_date)}` : ''}
+                      </Text>
+                      <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+                        {formatCurrency(past.monthly_rent, true)}/mo
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </Card>
           )}
         </View>
       </ScrollView>

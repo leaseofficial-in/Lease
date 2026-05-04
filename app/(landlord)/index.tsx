@@ -217,6 +217,27 @@ export default function LandlordDashboard() {
     ]);
   };
 
+  // Group by property — one card per physical property, prefer non-ended rental as representative
+  const propertyGroups = React.useMemo(() => {
+    const map = new Map<string, { representative: Rental; count: number }>();
+    for (const rental of rentals ?? []) {
+      const key = rental.property_id;
+      if (!map.has(key)) {
+        map.set(key, { representative: rental, count: 1 });
+      } else {
+        const entry = map.get(key)!;
+        entry.count++;
+        // Prefer non-ended over ended; if same, prefer more recent updated_at
+        const repIsEnded = entry.representative.status === 'ended';
+        const curIsEnded = rental.status === 'ended';
+        if (repIsEnded && !curIsEnded) entry.representative = rental;
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => b.representative.updated_at.localeCompare(a.representative.updated_at),
+    );
+  }, [rentals]);
+
   const activeRentals = rentals?.filter((r) => r.status === 'active') ?? [];
   const actionableRentals = rentals?.filter((r) => r.status !== 'active' || !r.agreement_signed_at) ?? [];
   const durableActions = unreadNotifications ?? [];
@@ -343,7 +364,7 @@ export default function LandlordDashboard() {
           </TouchableOpacity>
 
           <View className="flex-row gap-3">
-            <MiniPanel label="Properties" value={String(rentals?.length ?? 0)}>
+            <MiniPanel label="Properties" value={String(propertyGroups.length)}>
               <View className="flex-row gap-2 mt-2">
                 <Chip tone="good">{activeRentals.length} active</Chip>
               </View>
@@ -355,7 +376,7 @@ export default function LandlordDashboard() {
 
           <View className="mt-2">
             <View className="flex-row items-center justify-between mb-3">
-              <Cap>Your rentals</Cap>
+              <Cap>Your properties ({propertyGroups.length})</Cap>
               <TouchableOpacity onPress={() => router.push('/(landlord)/create-rental')}>
                 <Cap style={{ color: Colors.primary }}>+ Add</Cap>
               </TouchableOpacity>
@@ -366,7 +387,7 @@ export default function LandlordDashboard() {
                 <RentalCardSkeleton />
                 <RentalCardSkeleton />
               </>
-            ) : rentals?.length === 0 ? (
+            ) : propertyGroups.length === 0 ? (
               <EmptyState
                 title="No rentals yet"
                 subtitle="Create your first rental and invite a tenant."
@@ -375,8 +396,8 @@ export default function LandlordDashboard() {
                 icon={<Text style={{ fontSize: 42 }}>+</Text>}
               />
             ) : (
-              rentals?.map((rental) => (
-                <RentalCard key={rental.id} rental={rental} role="landlord" />
+              propertyGroups.map(({ representative, count }) => (
+                <RentalCard key={representative.property_id} rental={representative} role="landlord" rentalCount={count} />
               ))
             )}
 

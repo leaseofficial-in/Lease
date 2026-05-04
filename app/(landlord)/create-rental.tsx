@@ -8,7 +8,8 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -169,11 +170,27 @@ function ChipSelect<T extends string>({
 
 export default function CreateRentalScreen() {
   const router = useRouter();
+  const { propertyId: existingPropertyId } = useLocalSearchParams<{ propertyId?: string }>();
   const { profile } = useAuthStore();
   const { showToast } = useUIStore();
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<Step>(0);
+  // Start at step 1 if adding to an existing property
+  const [step, setStep] = useState<Step>(existingPropertyId ? 1 : 0);
   const [loading, setLoading] = useState(false);
+
+  const { data: existingProperty } = useQuery({
+    queryKey: ['property-for-rental', existingPropertyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('properties')
+        .select('id, name, address_line1, city, state, pincode, property_type')
+        .eq('id', existingPropertyId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!existingPropertyId,
+  });
 
   const {
     control,
@@ -183,7 +200,14 @@ export default function CreateRentalScreen() {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      propertyType: 'apartment',
+      // Pre-fill property fields from existing property when adding to one
+      propertyName: existingProperty?.name ?? '',
+      addressLine1: existingProperty?.address_line1 ?? '',
+      city: existingProperty?.city ?? '',
+      state: existingProperty?.state ?? '',
+      pincode: existingProperty?.pincode ?? '',
+      propertyType: (existingProperty?.property_type as FormValues['propertyType']) ?? 'apartment',
+      // Rental terms defaults
       monthlyRent: '',
       maintenanceCharges: '',
       lateFeePercent: '5',
@@ -258,27 +282,31 @@ export default function CreateRentalScreen() {
         return;
       }
 
-      const { data: property, error: propError } = await supabase
-        .from('properties')
-        .insert({
-          landlord_id: profile.id,
-          name: values.propertyName,
-          address_line1: values.addressLine1,
-          address_line2: values.addressLine2 ?? null,
-          city: values.city,
-          state: values.state,
-          pincode: values.pincode,
-          property_type: values.propertyType,
-        })
-        .select()
-        .single();
+      // Reuse existing property or create a new one
+      let propertyId = existingPropertyId ?? null;
+      if (!propertyId) {
+        const { data: property, error: propError } = await supabase
+          .from('properties')
+          .insert({
+            landlord_id: profile.id,
+            name: values.propertyName,
+            address_line1: values.addressLine1,
+            address_line2: values.addressLine2 ?? null,
+            city: values.city,
+            state: values.state,
+            pincode: values.pincode,
+            property_type: values.propertyType,
+          })
+          .select()
+          .single();
+        if (propError) throw propError;
+        propertyId = property.id;
+      }
 
-      if (propError) throw propError;
-
-      const { data: rental, error: rentalError } = await supabase
+      const { error: rentalError } = await supabase
         .from('rentals')
         .insert({
-          property_id: property.id,
+          property_id: propertyId,
           landlord_id: profile.id,
           monthly_rent: Number(values.monthlyRent),
           security_deposit: Number(securityDeposit),
@@ -297,8 +325,9 @@ export default function CreateRentalScreen() {
       if (rentalError) throw rentalError;
 
       await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+      await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
       showToast('Rental created! Share the invite link with your tenant.', 'success');
-      router.replace(`/(landlord)/property/${property.id}`);
+      router.replace(`/(landlord)/property/${propertyId}`);
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Failed to create rental', 'error');
     } finally {
@@ -335,25 +364,27 @@ export default function CreateRentalScreen() {
           </TouchableOpacity>
 
           <View style={{ flex: 1 }}>
-            <Cap>Landlord</Cap>
+            <Cap>{existingPropertyId ? existingProperty?.name ?? 'Property' : 'Landlord'}</Cap>
             <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
-              Create Rental
+              {existingPropertyId ? 'New Rental' : 'Create Rental'}
             </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-            {STEPS.map((_, i) => (
-              <View
-                key={i}
-                style={{
-                  height: 6,
-                  borderRadius: 3,
-                  width: i === step ? 24 : 12,
-                  backgroundColor: i === step ? Colors.action : Colors.border,
-                }}
-              />
-            ))}
-          </View>
+          {!existingPropertyId && (
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              {STEPS.map((_, i) => (
+                <View
+                  key={i}
+                  style={{
+                    height: 6,
+                    borderRadius: 3,
+                    width: i === step ? 24 : 12,
+                    backgroundColor: i === step ? Colors.action : Colors.border,
+                  }}
+                />
+              ))}
+            </View>
+          )}
         </View>
 
         <ScrollView
@@ -364,11 +395,13 @@ export default function CreateRentalScreen() {
         >
           <View style={{ marginBottom: 20 }}>
             <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 22, lineHeight: 28, marginBottom: 2 }}>
-              {STEPS[step]}
+              {existingPropertyId ? 'Rental Terms' : STEPS[step]}
             </Text>
-            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>
-              Step {step + 1} of {STEPS.length}
-            </Text>
+            {!existingPropertyId && (
+              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>
+                Step {step + 1} of {STEPS.length}
+              </Text>
+            )}
           </View>
 
           {/* ─── Step 1: Property ─────────────────────────────────────────── */}

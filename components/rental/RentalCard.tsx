@@ -12,9 +12,10 @@ import { Colors, Fonts } from '../../constants/theme';
 interface RentalCardProps {
   rental: Rental;
   role: 'landlord' | 'tenant';
+  rentalCount?: number;
 }
 
-export const RentalCard: React.FC<RentalCardProps> = ({ rental, role }) => {
+export const RentalCard: React.FC<RentalCardProps> = ({ rental, role, rentalCount }) => {
   const router = useRouter();
   const person = role === 'landlord' ? rental.tenant : rental.landlord;
   const personLabel = role === 'landlord' ? 'Tenant' : 'Landlord';
@@ -31,7 +32,16 @@ export const RentalCard: React.FC<RentalCardProps> = ({ rental, role }) => {
       <Card className="mb-3">
         <View className="flex-row items-start justify-between mb-4">
           <View className="flex-1 pr-3">
-            <Cap>{rental.property?.city ?? 'Rental'}</Cap>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Cap>{rental.property?.city ?? 'Rental'}</Cap>
+              {rentalCount && rentalCount > 1 && (
+                <View style={{ backgroundColor: Colors.fill2, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 }}>
+                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 10 }}>
+                    {rentalCount} rentals
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text
               numberOfLines={1}
               style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18, marginTop: 4 }}
