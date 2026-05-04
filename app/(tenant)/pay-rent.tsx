@@ -24,6 +24,7 @@ import { BottomSheet } from '../../components/ui/BottomSheet';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { Colors, Fonts } from '../../constants/theme';
 import { openUPIPayment } from '../../lib/upi';
+import { notifyUser } from '../../lib/sendPush';
 
 type Screen = 'options' | 'utr_confirm' | 'cash_form' | 'done';
 
@@ -145,6 +146,13 @@ export default function PayRentScreen() {
         queryClient.invalidateQueries({ queryKey: ['current-payment'] }),
         queryClient.invalidateQueries({ queryKey: ['tenant-payments'] }),
       ]);
+      void notifyUser({
+        recipientId: rental.landlord_id,
+        title: 'Rent payment received',
+        body: `Your tenant has marked rent as paid via UPI. Please confirm receipt.`,
+        type: 'payment_received',
+        data: { rental_id: rental.id },
+      });
       setScreen('done');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Could not record payment', 'error');
@@ -173,6 +181,13 @@ export default function PayRentScreen() {
         queryClient.invalidateQueries({ queryKey: ['current-payment'] }),
         queryClient.invalidateQueries({ queryKey: ['tenant-payments'] }),
       ]);
+      void notifyUser({
+        recipientId: rental.landlord_id,
+        title: 'Rent payment received',
+        body: `Your tenant has marked rent as paid in cash. Please confirm receipt.`,
+        type: 'payment_received',
+        data: { rental_id: rental.id },
+      });
       setScreen('done');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Could not record payment', 'error');

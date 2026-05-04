@@ -21,9 +21,11 @@ import { Cap } from '../../../components/ui/V2';
 import { Colors, Fonts } from '../../../constants/theme';
 import { confirmAction } from '../../../lib/confirm';
 import { markNotificationsRead } from '../../../lib/notificationActions';
+import { notifyUser } from '../../../lib/sendPush';
 
 export default function ReviewProofScreen() {
-  const { rentalId } = useLocalSearchParams<{ rentalId: string }>();
+  const { rentalId, type: typeParam } = useLocalSearchParams<{ rentalId: string; type?: string }>();
+  const proofType: 'move_in' | 'move_out' = typeParam === 'move_out' ? 'move_out' : 'move_in';
   const router = useRouter();
   const { profile } = useAuthStore();
   const { showToast } = useUIStore();
@@ -56,13 +58,13 @@ export default function ReviewProofScreen() {
   }, [profile?.id, queryClient, rentalId]);
 
   const { data: proof, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['proof', rentalId, 'move_in'],
+    queryKey: ['proof', rentalId, proofType],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('proofs')
         .select('*, photos:proof_photos(*)')
         .eq('rental_id', rentalId)
-        .eq('type', 'move_in')
+        .eq('type', proofType)
         .single();
       if (error) throw error;
       return data as Proof & { photos: ProofPhoto[] };
@@ -111,6 +113,16 @@ export default function ReviewProofScreen() {
             .eq('id', proof.id);
           if (error) throw error;
           await queryClient.invalidateQueries({ queryKey: ['proof', rentalId] });
+
+          const label = proofType === 'move_out' ? 'move-out' : 'move-in';
+          const pushMsg =
+            action === 'approved'
+              ? { title: 'Proof approved', body: `Your ${label} photos have been approved by your landlord.` }
+              : action === 'rejected'
+              ? { title: 'Proof rejected', body: `Your ${label} photos were rejected. Contact your landlord.` }
+              : { title: 'Landlord raised a dispute', body: disputeNote.trim() };
+          void notifyUser({ recipientId: proof.submitted_by, ...pushMsg, type: 'proof_submitted', data: { rental_id: rentalId } });
+
           showToast(
             action === 'approved' ? 'Proof approved!' : action === 'rejected' ? 'Proof rejected' : 'Dispute raised',
             action === 'approved' ? 'success' : 'info',
@@ -157,7 +169,7 @@ export default function ReviewProofScreen() {
         <View style={{ flex: 1 }}>
           <Cap>Tenant</Cap>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
-            Move-in Proof
+            {proofType === 'move_out' ? 'Move-out Proof' : 'Move-in Proof'}
           </Text>
         </View>
 
@@ -167,8 +179,8 @@ export default function ReviewProofScreen() {
       {!proof ? (
         <EmptyState
           title="No proof submitted"
-          subtitle="The tenant hasn't uploaded move-in photos yet."
-          icon={<Text style={{ fontSize: 48 }}>📷</Text>}
+          subtitle={`The tenant hasn't uploaded ${proofType === 'move_out' ? 'move-out' : 'move-in'} photos yet.`}
+          icon={<Ionicons name="camera-outline" size={36} color={Colors.muted} />}
         />
       ) : (
         <>

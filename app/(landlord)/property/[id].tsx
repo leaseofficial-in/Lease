@@ -38,6 +38,7 @@ import { confirmAction } from '../../../lib/confirm';
 import { buildRentalActivity } from '../../../lib/rentalActivity';
 import { generateRentalAgreement } from '../../../lib/agreement';
 import { confirmRentPayment } from '../../../lib/payments';
+import { notifyUser } from '../../../lib/sendPush';
 
 type TxnType = 'deduction' | 'refund' | 'received';
 
@@ -372,6 +373,15 @@ export default function PropertyDetailScreen() {
           if (error) throw error;
           await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
           await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+          if (rental.tenant_id) {
+            void notifyUser({
+              recipientId: rental.tenant_id,
+              title: 'Move-out started',
+              body: `Your landlord has started the move-out process for ${rental.property?.name ?? 'your property'}. Please upload your move-out photos.`,
+              type: 'general',
+              data: { rental_id: rental.id },
+            });
+          }
           showToast('Move-out initiated. Tenant will be notified.', 'success');
         } catch (error) {
           showToast(error instanceof Error ? error.message : 'Failed to initiate move-out', 'error');
@@ -524,7 +534,7 @@ export default function PropertyDetailScreen() {
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Button
                   title="Review Photos"
-                  onPress={() => router.push(`/(landlord)/proof/${rental.id}`)}
+                  onPress={() => router.push({ pathname: '/(landlord)/proof/[rentalId]', params: { rentalId: rental.id, type: 'move_out' } })}
                   style={{ flex: 1 }}
                 />
                 <Button
@@ -728,6 +738,13 @@ export default function PropertyDetailScreen() {
                                 queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] }),
                                 queryClient.invalidateQueries({ queryKey: ['landlord-payment-actions'] }),
                               ]);
+                              void notifyUser({
+                                recipientId: p.tenant_id,
+                                title: 'Payment confirmed',
+                                body: `Your landlord confirmed receipt of your rent payment for ${rental.property?.name ?? 'your property'}.`,
+                                type: 'payment_received',
+                                data: { rental_id: rental.id },
+                              });
                               showToast('Payment confirmed', 'success');
                             } catch (e) {
                               showToast(e instanceof Error ? e.message : 'Could not confirm payment', 'error');

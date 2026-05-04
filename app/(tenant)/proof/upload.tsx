@@ -23,6 +23,7 @@ import { Cap } from '../../../components/ui/V2';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../../../constants/theme';
 import { confirmAction } from '../../../lib/confirm';
+import { notifyUser } from '../../../lib/sendPush';
 
 export default function UploadProofScreen() {
   const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
@@ -212,6 +213,16 @@ export default function UploadProofScreen() {
             .eq('id', proof.id);
           if (error) throw error;
           void queryClient.invalidateQueries({ queryKey: ['proof', rental?.id] });
+          if (rental.landlord_id) {
+            const label = proofType === 'move_out' ? 'move-out' : 'move-in';
+            void notifyUser({
+              recipientId: rental.landlord_id,
+              title: `${label === 'move-out' ? 'Move-out' : 'Move-in'} photos submitted`,
+              body: `Your tenant has submitted ${label} proof photos for review.`,
+              type: 'proof_submitted',
+              data: { rental_id: rental.id },
+            });
+          }
           showToast('Proof submitted! Your landlord will review it.', 'success');
           router.back();
         } catch (error) {

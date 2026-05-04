@@ -100,6 +100,7 @@ export default function TenantLayout() {
       <Tabs.Screen name="proof/upload" options={{ href: null }} />
       <Tabs.Screen name="agreement" options={{ href: null }} />
       <Tabs.Screen name="pay-rent" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );
 }

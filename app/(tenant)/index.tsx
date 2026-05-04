@@ -89,6 +89,20 @@ export default function TenantDashboard() {
     enabled: !!rental?.id && !isLocalDevUser,
   });
 
+  const { data: unreadNotifCount } = useQuery({
+    queryKey: ['tenant-unread-notifications', profile?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile!.id)
+        .eq('read', false);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!profile?.id,
+  });
+
   const { data: recentProofs } = useQuery({
     queryKey: ['tenant-proofs-preview', rental?.id],
     queryFn: async () => {
@@ -132,16 +146,28 @@ export default function TenantDashboard() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         contentContainerStyle={{ paddingBottom: 28 }}
       >
-        <View className="px-5 pt-4 pb-2 flex-row items-center justify-between">
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
             <Cap>Tenant Home</Cap>
             <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 22, marginTop: 4 }}>
               {profile?.full_name?.split(' ')[0] || 'Flatvio'}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/(tenant)/profile')} activeOpacity={0.75}>
-            <Avatar name={profile?.full_name ?? 'T'} uri={profile?.avatar_url} size={42} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => router.push('/(tenant)/notifications')}
+              activeOpacity={0.75}
+              style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Ionicons name="notifications-outline" size={20} color={Colors.primary} />
+              {(unreadNotifCount ?? 0) > 0 && (
+                <View style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.danger, borderWidth: 1.5, borderColor: Colors.background }} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(tenant)/profile')} activeOpacity={0.75}>
+              <Avatar name={profile?.full_name ?? 'T'} uri={profile?.avatar_url} size={42} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {!rental ? (

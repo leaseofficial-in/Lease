@@ -19,6 +19,7 @@ import { Colors, Fonts } from '../../../constants/theme';
 import { isDevAuthUserId } from '../../../lib/devAuth';
 import { markLandlordActionsViewed } from '../../../lib/landlordActionViews';
 import { markNotificationsRead } from '../../../lib/notificationActions';
+import { notifyUser } from '../../../lib/sendPush';
 
 const NEXT_STATUS: Partial<Record<RepairStatus, RepairStatus>> = {
   open: 'in_progress',
@@ -79,6 +80,13 @@ export default function LandlordRepairsScreen() {
     setActioningId(repair.id);
     try {
       await updateStatus.mutateAsync({ repairId: repair.id, status: next, rentalId });
+      void notifyUser({
+        recipientId: repair.raised_by,
+        title: `Repair ${repairStatusLabel[next].toLowerCase()}`,
+        body: `"${repair.title}" has been marked as ${repairStatusLabel[next].toLowerCase()} by your landlord.`,
+        type: 'repair_update',
+        data: { rental_id: rentalId },
+      });
       showToast(`Marked as ${repairStatusLabel[next]}`, 'success');
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Failed to update status', 'error');

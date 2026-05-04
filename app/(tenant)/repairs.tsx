@@ -27,6 +27,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
+import { notifyUser } from '../../lib/sendPush';
 
 const schema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
@@ -56,7 +57,7 @@ export default function RepairsScreen() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rentals')
-        .select('id')
+        .select('id, landlord_id')
         .eq('tenant_id', profile!.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -103,6 +104,15 @@ export default function RepairsScreen() {
       }).select('id').single();
       if (error) throw error;
       void queryClient.invalidateQueries({ queryKey: ['repairs', rental.id] });
+      if (rental.landlord_id) {
+        void notifyUser({
+          recipientId: rental.landlord_id,
+          title: 'New repair request',
+          body: `"${values.title}" — ${values.priority} priority. Your tenant needs maintenance help.`,
+          type: 'repair_update',
+          data: { rental_id: rental.id },
+        });
+      }
       showToast('Repair request sent to your landlord', 'success');
       setShowForm(false);
       reset();
