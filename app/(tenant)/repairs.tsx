@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
@@ -113,17 +114,31 @@ export default function RepairsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
       >
-        <View className="px-5 pt-4 pb-2 flex-row items-center justify-between">
-          <Text className="text-2xl font-bold text-primary">Repairs</Text>
-          <Button title="+ Request" onPress={() => setShowForm(true)} size="sm" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
+          <View>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase' }}>Tenant</Text>
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 24, marginTop: 2 }}>Repairs</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setShowForm(true)}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 6,
+              paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20,
+              backgroundColor: Colors.action,
+            }}
+          >
+            <Ionicons name="add" size={16} color="#fff" />
+            <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>Request</Text>
+          </TouchableOpacity>
         </View>
 
-        <View className="px-5 pb-8">
+        <View style={{ paddingHorizontal: 20, paddingBottom: 32 }}>
           {isRentalLoading || isLoading ? (
             <LoadingScreen />
           ) : rentalError || repairsError ? (
@@ -135,7 +150,7 @@ export default function RepairsScreen() {
                 void refetchRental();
                 if (rental?.id) void refetch();
               }}
-              icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>!</Text>}
+              icon={<Ionicons name="alert-circle-outline" size={48} color={Colors.danger} />}
             />
           ) : !rental || repairs?.length === 0 ? (
             <EmptyState
@@ -143,9 +158,9 @@ export default function RepairsScreen() {
               subtitle={
                 isLocalDevUser
                   ? 'Local demo mode skips live repair records.'
-                  : "Tap 'Request' to log a maintenance issue for your landlord."
+                  : 'Tap Request to log a maintenance issue for your landlord.'
               }
-              icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>M</Text>}
+              icon={<Ionicons name="construct-outline" size={48} color={Colors.muted} />}
             />
           ) : (
             repairs?.map((r) => (
@@ -173,7 +188,9 @@ export default function RepairsScreen() {
 
       {/* New request bottom sheet */}
       <BottomSheet visible={showForm} onClose={() => setShowForm(false)} scrollable>
-        <Text className="text-lg font-semibold text-primary mb-4 pt-2">New Repair Request</Text>
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20, marginBottom: 16, paddingTop: 4 }}>
+          New Repair Request
+        </Text>
 
         <Controller
           control={control}
@@ -194,9 +211,9 @@ export default function RepairsScreen() {
           control={control}
           name="description"
           render={({ field: { onChange, value } }) => (
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-primary mb-1.5">
-                Description <Text className="text-danger">*</Text>
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 6 }}>
+                Description <Text style={{ color: Colors.danger }}>*</Text>
               </Text>
               <TextInput
                 value={value}
@@ -206,20 +223,16 @@ export default function RepairsScreen() {
                 multiline
                 numberOfLines={4}
                 style={{
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                  borderRadius: 12,
-                  padding: 12,
-                  fontFamily: Fonts.sans,
-                  fontSize: 14,
-                  color: Colors.primary,
-                  backgroundColor: Colors.fill,
-                  textAlignVertical: 'top',
-                  minHeight: 96,
+                  borderWidth: 1, borderColor: Colors.border, borderRadius: 14,
+                  padding: 12, fontFamily: Fonts.sans, fontSize: 14,
+                  color: Colors.primary, backgroundColor: Colors.fill,
+                  textAlignVertical: 'top', minHeight: 96,
                 }}
               />
               {errors.description && (
-                <Text className="text-xs text-danger mt-1">{errors.description.message}</Text>
+                <Text style={{ color: Colors.danger, fontFamily: Fonts.sans, fontSize: 12, marginTop: 4 }}>
+                  {errors.description.message}
+                </Text>
               )}
             </View>
           )}

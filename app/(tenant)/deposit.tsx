@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
@@ -75,7 +76,7 @@ export default function TenantDepositScreen() {
                   ? 'Local demo mode skips live deposit records.'
                   : 'Join a rental to see your deposit details.'
               }
-              icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>D</Text>}
+              icon={<Ionicons name="shield-checkmark-outline" size={48} color={Colors.muted} />}
             />
           ) : (
             <>

@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
@@ -373,22 +374,30 @@ export default function PropertyDetailScreen() {
   });
 
   return (
-    <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 28 }}
         refreshControl={<RefreshControl refreshing={isRentalRefetching} onRefresh={refreshAll} />}
       >
-        <View className="px-5 py-4 flex-row items-center bg-white border-b border-border">
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row', alignItems: 'center',
+            paddingHorizontal: 20, paddingVertical: 12,
+            backgroundColor: Colors.surface,
+            borderBottomWidth: 1, borderBottomColor: Colors.border,
+          }}
+        >
           <TouchableOpacity
             onPress={() => router.back()}
-            className="w-9 h-9 rounded-full bg-fill items-center justify-center mr-3"
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}
             activeOpacity={0.75}
           >
-            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>‹</Text>
+            <Ionicons name="chevron-back" size={20} color={Colors.primary} />
           </TouchableOpacity>
-          <View className="flex-1">
-            <Text numberOfLines={1} style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>
+          <View style={{ flex: 1 }}>
+            <Text numberOfLines={1} style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17 }}>
               {rental.property?.name}
             </Text>
             <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12 }}>
@@ -398,7 +407,7 @@ export default function PropertyDetailScreen() {
           <StatusPill kind="rental" value={rental.status} />
         </View>
 
-        <View className="px-5 pt-4 gap-4">
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, gap: 14 }}>
           <InkCard>
             <Cap style={{ color: 'rgba(255,255,255,0.58)' }}>Property Ledger</Cap>
             <Text style={{ color: Colors.surface, fontFamily: Fonts.serif, fontSize: 38, lineHeight: 39, marginTop: 8 }}>
@@ -408,7 +417,7 @@ export default function PropertyDetailScreen() {
             <Text style={{ color: 'rgba(255,255,255,0.68)', fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 8 }}>
               Deposit held: {formatCurrency(rental.security_deposit, true)}. Rent due on day {rental.rent_due_day}.
             </Text>
-            <View className="flex-row gap-2 mt-5">
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
               <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
                 {rental.status === 'active' ? 'Active rental' : 'Setup pending'}
               </Chip>
@@ -422,12 +431,12 @@ export default function PropertyDetailScreen() {
               <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
                 Share this private join link
               </Text>
-              <View className="bg-fill rounded-2xl p-3 my-3">
+              <View style={{ backgroundColor: Colors.fill, borderRadius: 14, padding: 12, marginVertical: 12 }}>
                 <Text style={{ color: Colors.ink3, fontFamily: Fonts.mono, fontSize: 11 }} numberOfLines={1}>
                   {webInviteLink}
                 </Text>
               </View>
-              <View className="flex-row gap-2">
+              <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Button title="Copy Link" variant="secondary" onPress={handleCopyInvite} style={{ flex: 1 }} />
                 <Button title="Share" onPress={handleShareInvite} style={{ flex: 1 }} />
               </View>
@@ -449,9 +458,9 @@ export default function PropertyDetailScreen() {
           {rental.tenant && (
             <Card>
               <Cap style={{ marginBottom: 12 }}>Tenant</Cap>
-              <View className="flex-row items-center">
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Avatar name={rental.tenant.full_name || 'Tenant'} uri={rental.tenant.avatar_url} size={48} />
-                <View className="ml-3 flex-1">
+                <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
                     {rental.tenant.full_name || 'Name not set'}
                   </Text>
@@ -468,7 +477,7 @@ export default function PropertyDetailScreen() {
             transactions={visibleDepositTransactions}
           />
 
-          <View className="flex-row gap-2">
+          <View style={{ flexDirection: 'row', gap: 8 }}>
             <Button
               title="Add Deposit Entry"
               onPress={() => setShowDepositSheet(true)}
@@ -488,7 +497,7 @@ export default function PropertyDetailScreen() {
           </View>
 
           <Card>
-            <View className="flex-row items-center justify-between" style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <Cap>Rental Terms</Cap>
               {!rental.agreement_signed_at && (
                 <TouchableOpacity onPress={openTermsEditor} activeOpacity={0.75}>
@@ -496,7 +505,7 @@ export default function PropertyDetailScreen() {
                 </TouchableOpacity>
               )}
             </View>
-            <View className="gap-2.5">
+            <View style={{ gap: 10 }}>
               <TermRow label="Monthly Rent" value={formatCurrency(rental.monthly_rent)} />
               <TermRow label="Security Deposit" value={formatCurrency(rental.security_deposit)} />
               <TermRow label="Due Day" value={`${rental.rent_due_day}${ordinal(rental.rent_due_day)} of each month`} />
@@ -511,7 +520,7 @@ export default function PropertyDetailScreen() {
 
           {/* Agreement */}
           <Card>
-            <View className="flex-row items-center justify-between" style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <View>
                 <Cap>Agreement</Cap>
                 <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 4 }}>
@@ -597,7 +606,7 @@ export default function PropertyDetailScreen() {
           {payments && payments.length > 0 && (
             <Card>
               <Cap style={{ marginBottom: 12 }}>Recent Payments</Cap>
-              <View className="gap-3">
+              <View style={{ gap: 12 }}>
                 {payments.map((p) => (
                   <View key={p.id}>
                     <RentStatusBadge payment={p} />
@@ -651,7 +660,7 @@ export default function PropertyDetailScreen() {
           )}
 
           <Card>
-            <View className="flex-row items-center justify-between mb-1">
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
               <Cap>Timeline</Cap>
               <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
                 {activity.length} events
@@ -675,13 +684,13 @@ export default function PropertyDetailScreen() {
         <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20, marginBottom: 14 }}>
           Add deposit entry
         </Text>
-        <View className="flex-row gap-2 mb-4">
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
           {(['deduction', 'refund', 'received'] as TxnType[]).map((type) => (
             <TouchableOpacity
               key={type}
               onPress={() => setTxnType(type)}
-              className="rounded-full px-3 py-2 border"
               style={{
+                borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1.5,
                 backgroundColor: txnType === type ? Colors.primary : Colors.surface,
                 borderColor: txnType === type ? Colors.primary : Colors.border,
               }}
@@ -710,7 +719,7 @@ export default function PropertyDetailScreen() {
           required
         />
 
-        <View className="mb-4">
+        <View style={{ marginBottom: 16 }}>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 8 }}>
             Note <Text style={{ color: Colors.danger }}>*</Text>
           </Text>
@@ -721,8 +730,12 @@ export default function PropertyDetailScreen() {
             placeholderTextColor={Colors.muted}
             multiline
             numberOfLines={4}
-            className="border border-border rounded-2xl p-3 text-sm text-primary bg-fill"
-            style={{ minHeight: 96, textAlignVertical: 'top', fontFamily: Fonts.sans }}
+            style={{
+              borderWidth: 1, borderColor: Colors.border, borderRadius: 14,
+              padding: 12, minHeight: 96, textAlignVertical: 'top',
+              fontFamily: Fonts.sans, fontSize: 14, color: Colors.primary,
+              backgroundColor: Colors.fill,
+            }}
           />
         </View>
 
@@ -795,9 +808,9 @@ export default function PropertyDetailScreen() {
 
 function TermRow({ label, value }: { label: string; value: string }) {
   return (
-    <View className="flex-row justify-between items-center">
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
       <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13 }}>{label}</Text>
-      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>{value}</Text>
+      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, textAlign: 'right', flex: 1, marginLeft: 16 }}>{value}</Text>
     </View>
   );
 }

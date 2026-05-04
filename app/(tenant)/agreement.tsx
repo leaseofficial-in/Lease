@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -97,11 +98,14 @@ export default function AgreementScreen() {
           }}
           activeOpacity={0.75}
         >
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>‹</Text>
+          <Ionicons name="chevron-back" size={20} color={Colors.primary} />
         </TouchableOpacity>
-        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>
-          Rental Agreement
-        </Text>
+        <View>
+          <Cap>Tenant</Cap>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
+            Rental Agreement
+          </Text>
+        </View>
       </View>
 
       <ScrollView
@@ -132,7 +136,11 @@ export default function AgreementScreen() {
               marginRight: 14,
             }}
           >
-            <Text style={{ color: '#fff', fontSize: 18 }}>{isSigned ? '✓' : '!'}</Text>
+            <Ionicons
+              name={isSigned ? 'checkmark' : 'alert'}
+              size={20}
+              color="#fff"
+            />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>

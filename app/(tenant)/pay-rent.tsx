@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -186,26 +187,33 @@ export default function PayRentScreen() {
   const isPendingVerification = currentPayment?.status === 'pending_verification';
 
   return (
-    <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.canvas }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.canvas }}>
       {/* Header */}
       <View
-        className="px-5 py-4 flex-row items-center border-b border-border"
-        style={{ backgroundColor: Colors.surface }}
+        style={{
+          flexDirection: 'row', alignItems: 'center',
+          paddingHorizontal: 16, paddingVertical: 12,
+          backgroundColor: Colors.surface,
+          borderBottomWidth: 1, borderBottomColor: Colors.border,
+        }}
       >
         <TouchableOpacity
           onPress={() => router.back()}
-          className="w-9 h-9 rounded-full items-center justify-center mr-3"
-          style={{ backgroundColor: Colors.fill }}
+          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}
+          activeOpacity={0.75}
         >
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold }}>{'<'}</Text>
+          <Ionicons name="chevron-back" size={20} color={Colors.primary} />
         </TouchableOpacity>
-        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>
-          Pay Rent
-        </Text>
+        <View>
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase' }}>Tenant</Text>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
+            Pay Rent
+          </Text>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View className="px-5 pt-4 pb-10 gap-4">
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40, gap: 16 }}>
           {/* Amount card */}
           <Card style={{ backgroundColor: Colors.primary, alignItems: 'center', paddingVertical: 28 }}>
             <Text style={{ color: 'rgba(255,255,255,0.6)', fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 4 }}>
@@ -226,8 +234,10 @@ export default function PayRentScreen() {
 
           {/* Paid */}
           {isPaid && (
-            <Card style={{ alignItems: 'center', paddingVertical: 28 }}>
-              <Text style={{ fontSize: 40, marginBottom: 8 }}>✓</Text>
+            <Card style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.successSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
+              </View>
               <Text style={{ color: Colors.success, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>Paid</Text>
               <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, marginTop: 4 }}>
                 This month's rent has been recorded.
@@ -237,8 +247,10 @@ export default function PayRentScreen() {
 
           {/* Awaiting landlord confirmation */}
           {(isPendingVerification || screen === 'done') && !isPaid && (
-            <Card style={{ alignItems: 'center', paddingVertical: 28 }}>
-              <Text style={{ fontSize: 40, marginBottom: 8 }}>⏳</Text>
+            <Card style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.actionSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Ionicons name="time-outline" size={30} color={Colors.action} />
+              </View>
               <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>
                 Payment submitted
               </Text>

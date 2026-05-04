@@ -3,6 +3,7 @@ import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { RentPayment } from '../../types';
@@ -11,6 +12,7 @@ import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { PaymentRowSkeleton } from '../../components/ui/SkeletonLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
 
@@ -38,34 +40,54 @@ export default function RentHistoryScreen() {
     .reduce((s, p) => s + p.amount, 0) ?? 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View className="px-5 py-4 flex-row items-center bg-white border-b border-border">
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
+      {/* Header */}
+      <View
+        style={{
+          flexDirection: 'row', alignItems: 'center',
+          paddingHorizontal: 16, paddingVertical: 12,
+          backgroundColor: Colors.surface,
+          borderBottomWidth: 1, borderBottomColor: Colors.border,
+        }}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
-          className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center mr-3"
+          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}
+          activeOpacity={0.75}
         >
-          <Text className="text-primary">←</Text>
+          <Ionicons name="chevron-back" size={20} color={Colors.primary} />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-primary">Rent History</Text>
+        <View>
+          <Cap>Tenant</Cap>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
+            Rent History
+          </Text>
+        </View>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
       >
-        {/* Summary */}
-        <View className="px-5 pt-4 pb-2">
-          <Card style={{ backgroundColor: Colors.action }}>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontFamily: Fonts.sans }}>Total Paid</Text>
-            <Text style={{ color: '#fff', fontSize: 28, fontFamily: Fonts.sansSemiBold }}>{formatCurrency(totalPaid, true)}</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2, fontFamily: Fonts.sans }}>{payments?.filter(p => p.status === 'paid').length ?? 0} payments made</Text>
+        {/* Summary hero */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
+          <Card style={{ backgroundColor: Colors.primary }}>
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, marginBottom: 4, fontFamily: Fonts.sans }}>
+              Total Paid
+            </Text>
+            <Text style={{ color: '#fff', fontSize: 32, fontFamily: Fonts.sansSemiBold, lineHeight: 36 }}>
+              {formatCurrency(totalPaid, true)}
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, marginTop: 4, fontFamily: Fonts.sans }}>
+              {payments?.filter((p) => p.status === 'paid').length ?? 0} payments made
+            </Text>
           </Card>
         </View>
 
-        <View className="px-5 pb-8 pt-2">
+        <View style={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 8 }}>
           {isLoading ? (
             <Card padded={false}>
-              <View className="px-4">
+              <View style={{ paddingHorizontal: 16 }}>
                 <PaymentRowSkeleton />
                 <PaymentRowSkeleton />
               </View>
@@ -78,37 +100,47 @@ export default function RentHistoryScreen() {
                   ? 'Local demo mode skips live payment records.'
                   : 'Your rent payment history will appear here.'
               }
-              icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>R</Text>}
+              icon={<Ionicons name="receipt-outline" size={48} color={Colors.muted} />}
             />
           ) : (
             <Card padded={false}>
-              {payments?.map((payment, i) => (
+              {payments.map((payment, i) => (
                 <View
                   key={payment.id}
-                  className={`px-4 py-3.5 ${i < (payments.length - 1) ? 'border-b border-border' : ''}`}
+                  style={{
+                    paddingHorizontal: 16, paddingVertical: 14,
+                    borderBottomWidth: i < payments.length - 1 ? 1 : 0,
+                    borderBottomColor: Colors.border,
+                  }}
                 >
-                  <View className="flex-row items-center justify-between mb-1">
-                    <Text className="text-sm font-semibold text-primary">
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
                       {formatMonth(payment.month)}
                     </Text>
                     <StatusPill kind="payment" value={payment.status} />
                   </View>
-                  <View className="flex-row justify-between items-center">
-                    <Text className="text-sm text-muted">
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>
                       {payment.paid_at ? `Paid ${formatDate(payment.paid_at)}` : 'Not paid yet'}
                     </Text>
-                    <Text className="text-base font-bold text-primary">
+                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
                       {formatCurrency(payment.amount)}
                     </Text>
                   </View>
                   {payment.late_fee > 0 && (
-                    <Text className="text-xs text-danger mt-0.5">
+                    <Text style={{ color: Colors.danger, fontFamily: Fonts.sans, fontSize: 12, marginTop: 3 }}>
                       Late fee: {formatCurrency(payment.late_fee)}
                     </Text>
                   )}
                   {payment.receipt_url && (
-                    <TouchableOpacity onPress={() => Linking.openURL(payment.receipt_url!)}>
-                      <Text className="text-xs text-action mt-1">Download Receipt →</Text>
+                    <TouchableOpacity
+                      onPress={() => Linking.openURL(payment.receipt_url!)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}
+                    >
+                      <Ionicons name="download-outline" size={13} color={Colors.action} />
+                      <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+                        Download Receipt
+                      </Text>
                     </TouchableOpacity>
                   )}
                 </View>

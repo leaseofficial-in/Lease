@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -85,31 +86,37 @@ export default function LandlordProfileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-        <View className="px-5 pt-4 pb-2">
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
           <Cap>Account</Cap>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 24, marginTop: 4 }}>
             Profile
           </Text>
         </View>
 
-        <View className="px-5 pt-4 gap-4">
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, gap: 16 }}>
           <Card>
-            <View className="flex-row items-center">
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity onPress={handlePickAvatar} disabled={uploadingAvatar} activeOpacity={0.75}>
                 <Avatar name={profile?.full_name ?? 'L'} uri={profile?.avatar_url} size={72} />
                 <View
-                  className="absolute bottom-0 right-0 items-center justify-center border-2 border-white"
-                  style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.primary }}
+                  style={{
+                    position: 'absolute', bottom: 0, right: 0,
+                    width: 26, height: 26, borderRadius: 13,
+                    backgroundColor: Colors.primary,
+                    alignItems: 'center', justifyContent: 'center',
+                    borderWidth: 2, borderColor: Colors.surface,
+                  }}
                 >
-                  <Text style={{ color: Colors.surface, fontFamily: Fonts.sansSemiBold, fontSize: 12 }}>
-                    {uploadingAvatar ? '...' : '+'}
-                  </Text>
+                  {uploadingAvatar
+                    ? <ActivityIndicator size="small" color={Colors.surface} />
+                    : <Ionicons name="camera" size={13} color={Colors.surface} />
+                  }
                 </View>
               </TouchableOpacity>
 
-              <View className="ml-4 flex-1">
+              <View style={{ marginLeft: 16, flex: 1 }}>
                 <Chip tone="outline">Landlord</Chip>
                 <DisplayText style={{ fontSize: 30, lineHeight: 33, marginTop: 8 }} numberOfLines={1}>
                   {profile?.full_name || 'Your Name'}
@@ -122,7 +129,7 @@ export default function LandlordProfileScreen() {
           </Card>
 
           <Card>
-            <View className="flex-row items-center justify-between mb-4">
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <View>
                 <Cap>Details</Cap>
                 <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18, marginTop: 4 }}>
