@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -15,6 +17,7 @@ import { PaymentRowSkeleton } from '../../components/ui/SkeletonLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { Config } from '../../constants/config';
 import { isDevAuthUserId } from '../../lib/devAuth';
 
 export default function RentHistoryScreen() {
@@ -27,23 +30,52 @@ export default function RentHistoryScreen() {
   const handleGetReceipt = async (payment: RentPayment) => {
     setGeneratingReceipt((prev) => ({ ...prev, [payment.id]: true }));
     try {
-      await supabase.functions.invoke('generate-hra-receipt', {
-        body: { paymentId: payment.id },
-      });
-      const { data: updated } = await supabase
-        .from('rent_payments')
-        .select('receipt_url')
-        .eq('id', payment.id)
-        .single();
-      if (updated?.receipt_url) {
-        await Linking.openURL(updated.receipt_url);
-        void refetch();
-      } else {
-        showToast('Receipt generated — refresh to download', 'success');
-        void refetch();
+      // Fetch HTML from edge function
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      const response = await fetch(
+        `${Config.supabaseUrl}/functions/v1/generate-hra-receipt`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token ?? ''}`,
+            'apikey': Config.supabaseAnonKey,
+          },
+          body: JSON.stringify({ paymentId: payment.id }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Receipt generation failed (${response.status})`);
       }
-    } catch {
-      showToast('Could not generate receipt. Make sure edge functions are deployed.', 'error');
+
+      const html = await response.text();
+
+      if (Platform.OS === 'web') {
+        // On web, open HTML in a new tab
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        return;
+      }
+
+      // On native: convert HTML → PDF → share
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Save HRA Receipt',
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        showToast('Sharing not available on this device', 'error');
+      }
+
+      void refetch();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not generate receipt', 'error');
     } finally {
       setGeneratingReceipt((prev) => ({ ...prev, [payment.id]: false }));
     }
@@ -161,28 +193,20 @@ export default function RentHistoryScreen() {
                     </Text>
                   )}
                   {payment.status === 'paid' && (
-                    payment.receipt_url ? (
-                      <TouchableOpacity
-                        onPress={() => Linking.openURL(payment.receipt_url!)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}
-                      >
-                        <Ionicons name="download-outline" size={13} color={Colors.action} />
-                        <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-                          Download Receipt
-                        </Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity
-                        onPress={() => void handleGetReceipt(payment)}
-                        disabled={generatingReceipt[payment.id]}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}
-                      >
-                        <Ionicons name="receipt-outline" size={13} color={Colors.muted} />
-                        <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-                          {generatingReceipt[payment.id] ? 'Generating…' : 'Get HRA Receipt'}
-                        </Text>
-                      </TouchableOpacity>
-                    )
+                    <TouchableOpacity
+                      onPress={() => void handleGetReceipt(payment)}
+                      disabled={generatingReceipt[payment.id]}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}
+                    >
+                      <Ionicons
+                        name={generatingReceipt[payment.id] ? 'hourglass-outline' : 'document-text-outline'}
+                        size={13}
+                        color={Colors.action}
+                      />
+                      <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+                        {generatingReceipt[payment.id] ? 'Generating PDF…' : 'HRA Receipt (PDF)'}
+                      </Text>
+                    </TouchableOpacity>
                   )}
                 </View>
               ))}

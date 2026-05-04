@@ -22,6 +22,18 @@ interface HRAPayload {
 
 // Generates a plain-text HRA rent receipt
 // In production replace with a PDF generation library (e.g. pdfkit)
+const toWords = (n: number): string => {
+  const a = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const b = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  if (n === 0) return 'Zero';
+  if (n < 20) return a[n];
+  if (n < 100) return b[Math.floor(n/10)] + (n%10 ? ' ' + a[n%10] : '');
+  if (n < 1000) return a[Math.floor(n/100)] + ' Hundred' + (n%100 ? ' ' + toWords(n%100) : '');
+  if (n < 100000) return toWords(Math.floor(n/1000)) + ' Thousand' + (n%1000 ? ' ' + toWords(n%1000) : '');
+  if (n < 10000000) return toWords(Math.floor(n/100000)) + ' Lakh' + (n%100000 ? ' ' + toWords(n%100000) : '');
+  return toWords(Math.floor(n/10000000)) + ' Crore' + (n%10000000 ? ' ' + toWords(n%10000000) : '');
+};
+
 const buildReceiptHtml = (data: {
   tenantName: string;
   tenantPan?: string;
@@ -35,33 +47,133 @@ const buildReceiptHtml = (data: {
 }): string => `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>Rent Receipt</title>
+<head>
+<meta charset="utf-8">
+<title>Rent Receipt — ${data.receiptNo}</title>
 <style>
-  body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; color: #1a1a1a; }
-  h1 { font-size: 20px; text-align: center; }
-  .label { color: #666; font-size: 12px; text-transform: uppercase; }
-  .value { font-weight: bold; font-size: 14px; }
-  table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-  td { padding: 8px 0; border-bottom: 1px solid #eee; }
-  .amount { font-size: 24px; font-weight: bold; color: #1A56FF; }
-  .footer { margin-top: 40px; font-size: 11px; color: #999; text-align: center; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; background: #fff; padding: 0; }
+  .page { max-width: 680px; margin: 0 auto; padding: 40px 48px; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 24px; border-bottom: 2px solid #1a1a1a; margin-bottom: 28px; }
+  .brand { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #1a1a1a; }
+  .brand span { color: #2E5BFF; }
+  .receipt-label { text-align: right; }
+  .receipt-label h1 { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #555; }
+  .receipt-label .no { font-size: 13px; color: #888; margin-top: 4px; font-family: monospace; }
+
+  /* Amount hero */
+  .amount-hero { background: #0A0A0A; border-radius: 16px; padding: 24px 28px; margin-bottom: 28px; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+  .amount-hero .amt { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
+  .amount-hero .words { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 6px; max-width: 280px; }
+  .amount-hero .month-badge { background: rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 16px; text-align: center; }
+  .amount-hero .month-badge .ml { font-size: 11px; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 1px; }
+  .amount-hero .month-badge .mv { font-size: 15px; font-weight: 700; margin-top: 4px; }
+
+  /* Detail table */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  tr { border-bottom: 1px solid #eee; }
+  tr:last-child { border-bottom: none; }
+  td { padding: 11px 0; vertical-align: top; }
+  td.lbl { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; width: 36%; padding-right: 12px; padding-top: 13px; }
+  td.val { color: #1a1a1a; font-size: 14px; font-weight: 600; }
+  td.val .sub { font-size: 12px; color: #888; font-weight: 400; margin-top: 2px; }
+
+  /* Declaration */
+  .declaration { background: #f8f9fa; border-left: 3px solid #2E5BFF; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 32px; font-size: 13px; color: #555; line-height: 1.6; }
+
+  /* Signature */
+  .sig-row { display: flex; justify-content: space-between; margin-bottom: 28px; }
+  .sig-box { width: 46%; }
+  .sig-line { border-bottom: 1px solid #aaa; margin-bottom: 8px; height: 40px; }
+  .sig-name { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+  .sig-role { font-size: 11px; color: #888; margin-top: 2px; }
+
+  /* Footer */
+  .footer { border-top: 1px solid #eee; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .footer .brand-sm { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+  .footer .brand-sm span { color: #2E5BFF; }
+  .footer .note { font-size: 11px; color: #aaa; text-align: right; }
+
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { padding: 20px 32px; }
+  }
 </style>
 </head>
 <body>
-  <h1>RENT RECEIPT</h1>
-  <p style="text-align:center">Receipt No: <strong>${data.receiptNo}</strong></p>
-  <p class="amount" style="text-align:center">₹${data.amount.toLocaleString('en-IN')}</p>
+<div class="page">
+  <div class="header">
+    <div class="brand">flat<span>vio</span></div>
+    <div class="receipt-label">
+      <h1>Rent Receipt</h1>
+      <div class="no">${data.receiptNo}</div>
+    </div>
+  </div>
+
+  <div class="amount-hero">
+    <div>
+      <div class="amt">₹${data.amount.toLocaleString('en-IN')}</div>
+      <div class="words">${toWords(data.amount)} Rupees Only</div>
+    </div>
+    <div class="month-badge">
+      <div class="ml">For</div>
+      <div class="mv">${data.month}</div>
+    </div>
+  </div>
+
   <table>
-    <tr><td class="label">Received From</td><td class="value">${data.tenantName}${data.tenantPan ? ` (PAN: ${data.tenantPan})` : ''}</td></tr>
-    <tr><td class="label">Paid To</td><td class="value">${data.landlordName}${data.landlordPan ? ` (PAN: ${data.landlordPan})` : ''}</td></tr>
-    <tr><td class="label">Property</td><td class="value">${data.propertyAddress}</td></tr>
-    <tr><td class="label">Rent Month</td><td class="value">${data.month}</td></tr>
-    <tr><td class="label">Payment Date</td><td class="value">${data.paidAt}</td></tr>
-    <tr><td class="label">Amount</td><td class="value">₹${data.amount.toLocaleString('en-IN')} (Rupees only)</td></tr>
+    <tr>
+      <td class="lbl">Received From</td>
+      <td class="val">
+        ${data.tenantName}
+        ${data.tenantPan ? `<div class="sub">PAN: ${data.tenantPan}</div>` : ''}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Paid To</td>
+      <td class="val">
+        ${data.landlordName}
+        ${data.landlordPan ? `<div class="sub">PAN: ${data.landlordPan}</div>` : ''}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Property</td>
+      <td class="val">${data.propertyAddress}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Payment Date</td>
+      <td class="val">${data.paidAt}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Amount</td>
+      <td class="val">₹${data.amount.toLocaleString('en-IN')}</td>
+    </tr>
   </table>
-  <p>I, <strong>${data.landlordName}</strong>, hereby acknowledge receipt of the above amount as rent for the above-mentioned property.</p>
-  <p style="margin-top: 40px;">________________________<br><strong>${data.landlordName}</strong><br>Landlord Signature</p>
-  <div class="footer">Generated by Flatvio · flatvio.in · This is a computer-generated receipt.</div>
+
+  <div class="declaration">
+    I, <strong>${data.landlordName}</strong>, hereby acknowledge receipt of <strong>₹${data.amount.toLocaleString('en-IN')}</strong> (${toWords(data.amount)} Rupees Only) from <strong>${data.tenantName}</strong> as rent for the above property for the month of <strong>${data.month}</strong>.
+  </div>
+
+  <div class="sig-row">
+    <div class="sig-box">
+      <div class="sig-line"></div>
+      <div class="sig-name">${data.landlordName}</div>
+      <div class="sig-role">Landlord Signature</div>
+    </div>
+    <div class="sig-box" style="text-align:right">
+      <div class="sig-line"></div>
+      <div class="sig-name">${data.tenantName}</div>
+      <div class="sig-role">Tenant Acknowledgement</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="brand-sm">flat<span>vio</span> · flatvio.in</div>
+    <div class="note">Computer-generated receipt · ${data.receiptNo}<br>Valid for HRA exemption under Income Tax Act</div>
+  </div>
+</div>
 </body>
 </html>
 `;
