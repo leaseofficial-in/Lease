@@ -30,11 +30,24 @@ export default function TenantDashboard() {
   const { data: rental, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
     queryFn: async () => {
+      // Prefer the most recently active/joined rental; ignore ended ones unless that's all there is
+      const { data: active, error: activeError } = await supabase
+        .from('rentals')
+        .select(`*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(*)`)
+        .eq('tenant_id', profile!.id)
+        .neq('status', 'ended')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (activeError) throw activeError;
+      if (active) return active as Rental;
+
+      // Fallback: show most recent ended rental so history isn't blank
       const { data, error } = await supabase
         .from('rentals')
         .select(`*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(*)`)
         .eq('tenant_id', profile!.id)
-        .order('created_at', { ascending: false })
+        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;

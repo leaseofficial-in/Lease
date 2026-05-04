@@ -70,7 +70,7 @@ export default function JoinRentalScreen() {
     }
   };
 
-  const handleJoin = async () => {
+  const doJoin = async () => {
     if (!preview || !profile) return;
     setJoining(true);
     try {
@@ -108,6 +108,29 @@ export default function JoinRentalScreen() {
     } finally {
       setJoining(false);
     }
+  };
+
+  const handleJoin = async () => {
+    if (!preview || !profile) return;
+    // Check for existing active rental
+    const { data: existing } = await supabase
+      .from('rentals')
+      .select('id, status, property:properties(name)')
+      .eq('tenant_id', profile.id)
+      .neq('status', 'ended')
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      const prop = Array.isArray(existing.property) ? existing.property[0] : existing.property;
+      const propName = (prop as { name?: string } | null)?.name ?? 'another property';
+      showToast(
+        `You already have an active rental at ${propName}. Your dashboard will show the newest one.`,
+        'error',
+      );
+      return;
+    }
+    await doJoin();
   };
 
   return (

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import * as Linking from 'expo-linking';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -23,6 +24,7 @@ export default function AgreementScreen() {
   const { showToast } = useUIStore();
   const queryClient = useQueryClient();
   const [signing, setSigning] = useState(false);
+  const [openingDoc, setOpeningDoc] = useState(false);
 
   const { data: rental, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
@@ -188,9 +190,40 @@ export default function AgreementScreen() {
 
         {rental.agreement_url && (
           <Button
-            title="View Full Agreement"
+            title={openingDoc ? 'Preparing…' : 'View / Download Agreement'}
             variant="secondary"
-            onPress={() => Linking.openURL(rental.agreement_url!)}
+            loading={openingDoc}
+            onPress={async () => {
+              setOpeningDoc(true);
+              try {
+                const res = await fetch(rental.agreement_url!);
+                if (!res.ok) throw new Error('Could not fetch agreement');
+                const html = await res.text();
+
+                if (Platform.OS === 'web') {
+                  const blob = new Blob([html], { type: 'text/html' });
+                  const url = URL.createObjectURL(blob);
+                  window.open(url, '_blank');
+                  return;
+                }
+
+                const { uri } = await Print.printToFileAsync({ html, base64: false });
+                const canShare = await Sharing.isAvailableAsync();
+                if (canShare) {
+                  await Sharing.shareAsync(uri, {
+                    mimeType: 'application/pdf',
+                    dialogTitle: 'Rental Agreement',
+                    UTI: 'com.adobe.pdf',
+                  });
+                } else {
+                  showToast('Sharing not available on this device', 'error');
+                }
+              } catch (err) {
+                showToast(err instanceof Error ? err.message : 'Could not open agreement', 'error');
+              } finally {
+                setOpeningDoc(false);
+              }
+            }}
             fullWidth
           />
         )}
