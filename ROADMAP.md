@@ -200,6 +200,112 @@ Shipped 2026-05-01. No payment gateway fees. Money moves via UPI or cash directl
 
 ---
 
+## Immediate Ship Blockers
+
+> Nothing works reliably in production without these. Do before anything else.
+
+- [ ] **Automated overdue marking** — Enable `pg_cron` extension in Supabase and add a daily job:
+  ```sql
+  SELECT cron.schedule('mark-overdue', '0 9 * * *', $$
+    UPDATE rent_payments SET status = 'overdue', updated_at = now()
+    WHERE status = 'pending' AND due_date < CURRENT_DATE;
+  $$);
+  ```
+- [ ] **Deploy EAS Build** — `eas build --platform all` then `eas submit` for iOS/Android. `npx expo export --platform web` → Vercel for web preview.
+- [ ] **Deploy all Edge Functions** — `supabase functions deploy` for `send-whatsapp`, `create-payment-order`, `generate-hra-receipt`, `generate-rental-agreement`. Set all Supabase secrets.
+- [ ] **Landlord repairs screen** — `app/(landlord)/repairs/[rentalId].tsx` is referenced in `property/[id].tsx` but doesn't exist. Landlords cannot respond to repair requests. Needs: list view, status update (open → in_progress → resolved), landlord note field. Add `landlord_note TEXT` column to `repair_requests`.
+- [ ] **In-app notification inbox** — `notifications` table is already populated by existing flows. Needs a screen for both roles. Add tab bar icon with unread badge count. Tapping a notification navigates to the relevant screen.
+
+---
+
+## Infrastructure & Reliability
+
+### Error Monitoring (Sentry)
+- [ ] `npx expo install @sentry/react-native`
+- [ ] `Sentry.init({ dsn: '...' })` in `app/_layout.tsx`
+- [ ] Wrap root layout in `Sentry.wrap()`
+- [ ] Free tier covers ~5k errors/month — enough for early growth
+- [ ] **Do this before any user touches prod.** You need to know when things break.
+
+### Product Analytics (PostHog)
+- [ ] `npm install posthog-react-native`
+- [ ] Key events to track: `landlord_created_rental`, `tenant_joined_rental`, `payment_submitted`, `proof_uploaded`, `agreement_signed`
+- [ ] Funnel: landlord signup → first rental created → tenant joined → first payment confirmed
+- [ ] Can't improve what you can't measure
+
+### CI/CD (GitHub Actions)
+- [ ] Create `.github/workflows/ci.yml`
+- [ ] On every push: `npm install` → `npx tsc --noEmit` → `npx expo export --platform web`
+- [ ] On merge to main: trigger EAS preview build
+- [ ] Prevents broken TypeScript reaching users
+
+### Database Indices
+Run in Supabase SQL Editor — these queries fire on every screen load:
+```sql
+CREATE INDEX IF NOT EXISTS idx_rent_payments_rental_month   ON rent_payments(rental_id, month);
+CREATE INDEX IF NOT EXISTS idx_rent_payments_tenant_month   ON rent_payments(tenant_id, month);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read      ON notifications(user_id, read);
+CREATE INDEX IF NOT EXISTS idx_repair_requests_rental       ON repair_requests(rental_id, status);
+CREATE INDEX IF NOT EXISTS idx_rentals_landlord_status      ON rentals(landlord_id, status);
+CREATE INDEX IF NOT EXISTS idx_rentals_tenant               ON rentals(tenant_id);
+```
+
+### Supabase Connection Pooling
+- [ ] Dashboard → Settings → Database → Connection Pooling → Enable PgBouncer (Transaction mode)
+- [ ] Update `EXPO_PUBLIC_SUPABASE_URL` to use the pooler endpoint (port 6543)
+- [ ] Required before ~200 concurrent users — Postgres default connection limit will exhaust
+
+---
+
+## India-Specific Trust & Compliance
+
+### Tenant KYC / Aadhaar Verification
+- [ ] Integrate DigiLocker API or a KYC provider (Setu, Karza, Signzy)
+- [ ] Flow: tenant joins rental → "Complete KYC" prompt → Aadhaar + PAN verification → verified badge on tenant profile
+- [ ] Landlords will not trust the app without knowing who their tenant is — this is table-stakes for the Indian market
+
+### Police Verification Form
+- [ ] Generate a pre-filled PDF tenants can take to their local police station
+- [ ] Fields: tenant name, photo, DOB, permanent address, rental address, landlord name + contact
+- [ ] Reuse agreement PDF infrastructure — cost is near zero, trust signal is huge
+
+### TDS Reminders
+- [ ] If `monthly_rent > 50000`, show a banner on `pay-rent.tsx`: "Your rent exceeds ₹50,000/month. You're required to deduct 10% TDS and file Form 26QC. [Learn more →]"
+- [ ] Landlord side: show TDS received amount on tax dashboard
+- [ ] Annual reminder push notification before March 31 (TDS filing deadline)
+
+### Rent Agreement Registration Guidance
+- [ ] Agreements > 11 months legally require registration in most Indian states
+- [ ] After agreement is generated, show checklist: stamp duty amount (state-specific), nearest registration office, required documents
+- [ ] States to handle first: Maharashtra, Telangana, Karnataka, Delhi, Tamil Nadu
+
+---
+
+## Quick Wins (under 1 hour each)
+
+| Task | File | What to do |
+|---|---|---|
+| Repair photo upload | `(tenant)/repairs.tsx` | Add `ImagePicker` + `uploadRepairPhoto()` to new repair form |
+| Landlord UPI missing warning | `(landlord)/profile.tsx` | Banner if `upi_id` is empty: "Add your UPI ID so tenants can pay you" |
+| Payment method icon in history | `(tenant)/rent-history.tsx` | Show UPI/cash Ionicons per payment row based on `payment_method` |
+| Tenant "no rental" CTA | `(tenant)/index.tsx` | Empty dashboard → show "Join a rental" button linking to `/(tenant)/join` |
+| Property type icon on dashboard | `(landlord)/index.tsx` | Show `business/home/bed/storefront` Ionicons per rental card |
+| Copy invite from tenant join screen | `(tenant)/join.tsx` | "Copy token" button next to the input so tenants can paste from clipboard |
+| Date picker for rental start date | `(landlord)/create-rental.tsx` | Replace free-text `YYYY-MM-DD` with `@react-native-community/datetimepicker` |
+| Pincode → auto-fill city/state | `(landlord)/create-rental.tsx` | Call India Post API on 6-digit pincode input |
+
+---
+
+## Technical Debt
+
+- [ ] Remove all remaining static `className` usage in `components/` — convert to inline styles for consistency with screens
+- [ ] Remove `lib/localRentals.ts` and `lib/devAuth.ts` dev-auth paths before prod — they bypass all real Supabase logic and are a security risk if left in
+- [ ] `isDevAuthUserId()` checks scattered across every screen — gate behind `__DEV__` flag or remove entirely
+- [ ] `lib/confirm.ts` uses `Alert.alert` on native — replace with a proper in-app modal (`BottomSheet` variant) for consistency
+- [ ] `supabase/migrations/001_schema.sql` is monolithic — split into individual migration files as schema evolves
+
+---
+
 ## Architecture (Non-Feature Work)
 
 ### Real-Time Subscriptions
@@ -233,4 +339,4 @@ Shipped 2026-05-01. No payment gateway fees. Money moves via UPI or cash directl
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-05-03*
