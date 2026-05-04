@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, RefreshControl } f
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
@@ -11,11 +12,13 @@ import { formatDate, proofStatusLabel } from '../../../lib/formatters';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { PhotoGrid } from '../../../components/proof/PhotoGrid';
+import { PhotoViewer } from '../../../components/proof/PhotoViewer';
 import { RoomTabs } from '../../../components/proof/RoomTabs';
 import { StatusPill } from '../../../components/ui/StatusPill';
 import { LoadingScreen } from '../../../components/ui/LoadingScreen';
 import { EmptyState } from '../../../components/ui/EmptyState';
-import { Colors } from '../../../constants/theme';
+import { Cap } from '../../../components/ui/V2';
+import { Colors, Fonts } from '../../../constants/theme';
 import { confirmAction } from '../../../lib/confirm';
 import { markNotificationsRead } from '../../../lib/notificationActions';
 
@@ -25,14 +28,16 @@ export default function ReviewProofScreen() {
   const { profile } = useAuthStore();
   const { showToast } = useUIStore();
   const queryClient = useQueryClient();
+
   const [activeRoom, setActiveRoom] = useState('');
   const [disputeNote, setDisputeNote] = useState('');
   const [showDisputeInput, setShowDisputeInput] = useState(false);
   const [actioning, setActioning] = useState(false);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerPhotoIndex, setViewerPhotoIndex] = useState(0);
 
   React.useEffect(() => {
     if (!profile?.id || !rentalId) return;
-
     supabase
       .from('notifications')
       .select('id')
@@ -55,7 +60,7 @@ export default function ReviewProofScreen() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('proofs')
-        .select(`*, photos:proof_photos(*)`)
+        .select('*, photos:proof_photos(*)')
         .eq('rental_id', rentalId)
         .eq('type', 'move_in')
         .single();
@@ -65,9 +70,7 @@ export default function ReviewProofScreen() {
     enabled: !!rentalId,
   });
 
-  const rooms = proof
-    ? [...new Set(proof.photos?.map((p) => p.room_label) ?? [])]
-    : [];
+  const rooms = proof ? [...new Set(proof.photos?.map((p) => p.room_label) ?? [])] : [];
 
   React.useEffect(() => {
     if (rooms.length > 0 && !activeRoom) setActiveRoom(rooms[0]);
@@ -90,9 +93,9 @@ export default function ReviewProofScreen() {
     confirmAction(
       action === 'approved' ? 'Approve Proof' : action === 'rejected' ? 'Reject Proof' : 'Raise Dispute',
       action === 'approved'
-        ? 'Confirm that the move-in photos are satisfactory?'
+        ? 'Confirm that the move-in photos are satisfactory.'
         : action === 'rejected'
-        ? 'Reject this proof submission?'
+        ? 'Reject this proof submission.'
         : 'This will notify the tenant of your concern.',
       async () => {
         setActioning(true);
@@ -125,16 +128,39 @@ export default function ReviewProofScreen() {
   if (isLoading) return <LoadingScreen />;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       {/* Header */}
-      <View className="px-5 py-4 flex-row items-center bg-white border-b border-border">
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          backgroundColor: Colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: Colors.border,
+        }}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
-          className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center mr-3"
+          style={{
+            width: 36, height: 36, borderRadius: 18,
+            backgroundColor: Colors.fill,
+            alignItems: 'center', justifyContent: 'center',
+            marginRight: 12,
+          }}
+          activeOpacity={0.75}
         >
-          <Text className="text-primary">←</Text>
+          <Ionicons name="chevron-back" size={20} color={Colors.primary} />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-primary flex-1">Move-in Proof</Text>
+
+        <View style={{ flex: 1 }}>
+          <Cap>Tenant</Cap>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
+            Move-in Proof
+          </Text>
+        </View>
+
         {proof && <StatusPill kind="proof" value={proof.status} />}
       </View>
 
@@ -145,83 +171,140 @@ export default function ReviewProofScreen() {
           icon={<Text style={{ fontSize: 48 }}>📷</Text>}
         />
       ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-        >
-          {/* Meta */}
-          <Card className="mx-5 mt-4">
-            <View className="flex-row justify-between">
-              <Text className="text-sm text-muted">Submitted</Text>
-              <Text className="text-sm font-medium text-primary">
-                {formatDate(proof.created_at)}
-              </Text>
+        <>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+            contentContainerStyle={{ paddingBottom: proof.status === 'pending' ? 0 : 32 }}
+          >
+            {/* Meta */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 }}>
+              <Card padded={false}>
+                <View style={{ flexDirection: 'row' }}>
+                  <View
+                    style={{
+                      flex: 1,
+                      padding: 16,
+                      borderRightWidth: 1,
+                      borderRightColor: Colors.border,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 10, letterSpacing: 0.6 }}>
+                      SUBMITTED
+                    </Text>
+                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginTop: 4 }}>
+                      {formatDate(proof.created_at)}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, padding: 16, alignItems: 'center' }}>
+                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 10, letterSpacing: 0.6 }}>
+                      PHOTOS
+                    </Text>
+                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginTop: 4 }}>
+                      {proof.photos?.length ?? 0} across {rooms.length} room{rooms.length === 1 ? '' : 's'}
+                    </Text>
+                  </View>
+                </View>
+              </Card>
             </View>
-            <View className="flex-row justify-between mt-2">
-              <Text className="text-sm text-muted">Photos</Text>
-              <Text className="text-sm font-medium text-primary">
-                {proof.photos?.length ?? 0} across {rooms.length} rooms
-              </Text>
-            </View>
-          </Card>
 
-          {/* Room tabs */}
-          {rooms.length > 0 && (
-            <>
-              <RoomTabs
-                rooms={rooms}
-                activeRoom={activeRoom}
-                onSelect={setActiveRoom}
-                photoCounts={photoCounts}
-              />
-              <View className="px-5 pb-4">
-                <PhotoGrid photos={filteredPhotos} onPhotoPress={() => {}} />
+            {/* Dispute note (if already raised) */}
+            {proof.status === 'dispute' && proof.dispute_note && (
+              <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+                <Card style={{ backgroundColor: Colors.warningSoft, borderColor: '#F1D39B', borderWidth: 1 }}>
+                  <Text style={{ color: Colors.warning, fontFamily: Fonts.sansSemiBold, fontSize: 11, letterSpacing: 0.6, marginBottom: 6 }}>
+                    YOUR DISPUTE NOTE
+                  </Text>
+                  <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 14, lineHeight: 21 }}>
+                    {proof.dispute_note}
+                  </Text>
+                </Card>
               </View>
-            </>
-          )}
+            )}
 
-          {/* Actions for pending proofs */}
-          {proof.status === 'pending' && (
-            <View className="px-5 pb-8 gap-3">
-              <Button
-                title="Approve Proof ✓"
-                onPress={() => handleAction('approved')}
-                loading={actioning}
-                fullWidth
-              />
-              <Button
-                title="Raise Dispute"
-                variant="secondary"
-                onPress={() => setShowDisputeInput(!showDisputeInput)}
-                fullWidth
-              />
-
-              {showDisputeInput && (
-                <View>
-                  <TextInput
-                    value={disputeNote}
-                    onChangeText={setDisputeNote}
-                    placeholder="Describe what's missing or wrong in the photos…"
-                    placeholderTextColor={Colors.muted}
-                    multiline
-                    numberOfLines={4}
-                    className="border border-border rounded-xl p-3 text-sm text-primary"
-                    style={{ textAlignVertical: 'top', minHeight: 96 }}
-                    maxLength={500}
-                  />
-                  <Button
-                    title="Submit Dispute"
-                    variant="danger"
-                    onPress={() => handleAction('dispute')}
-                    loading={actioning}
-                    fullWidth
-                    style={{ marginTop: 8 }}
+            {/* Room tabs + photos */}
+            {rooms.length > 0 && (
+              <>
+                <RoomTabs
+                  rooms={rooms}
+                  activeRoom={activeRoom}
+                  onSelect={setActiveRoom}
+                  photoCounts={photoCounts}
+                />
+                <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+                  <PhotoGrid
+                    photos={filteredPhotos}
+                    onPhotoPress={(photo, index) => {
+                      setViewerPhotoIndex(index);
+                      setViewerVisible(true);
+                    }}
                   />
                 </View>
-              )}
-            </View>
-          )}
-        </ScrollView>
+              </>
+            )}
+
+            {/* Action area for pending proofs */}
+            {proof.status === 'pending' && (
+              <View style={{ paddingHorizontal: 20, paddingBottom: 32, gap: 10 }}>
+                <Button
+                  title="Approve Proof"
+                  onPress={() => void handleAction('approved')}
+                  loading={actioning}
+                  fullWidth
+                />
+
+                <Button
+                  title={showDisputeInput ? 'Cancel Dispute' : 'Raise Dispute'}
+                  variant="secondary"
+                  onPress={() => setShowDisputeInput(!showDisputeInput)}
+                  fullWidth
+                />
+
+                {showDisputeInput && (
+                  <View style={{ gap: 10 }}>
+                    <TextInput
+                      value={disputeNote}
+                      onChangeText={setDisputeNote}
+                      placeholder="Describe what's missing or wrong in the photos…"
+                      placeholderTextColor={Colors.muted}
+                      multiline
+                      numberOfLines={4}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: Colors.border,
+                        borderRadius: 14,
+                        padding: 14,
+                        fontFamily: Fonts.sans,
+                        fontSize: 14,
+                        color: Colors.primary,
+                        backgroundColor: Colors.surface,
+                        textAlignVertical: 'top',
+                        minHeight: 100,
+                      }}
+                      maxLength={500}
+                    />
+                    <Button
+                      title="Submit Dispute"
+                      variant="danger"
+                      onPress={() => void handleAction('dispute')}
+                      loading={actioning}
+                      fullWidth
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Full-screen photo viewer (read-only for landlord) */}
+          <PhotoViewer
+            photos={filteredPhotos}
+            initialIndex={viewerPhotoIndex}
+            visible={viewerVisible}
+            onClose={() => setViewerVisible(false)}
+          />
+        </>
       )}
     </SafeAreaView>
   );

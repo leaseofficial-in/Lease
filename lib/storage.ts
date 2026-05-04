@@ -51,6 +51,32 @@ const pickWebFile = async (capture = false): Promise<string | null> => {
   });
 };
 
+const pickWebFiles = async (): Promise<string[]> => {
+  if (typeof document === 'undefined') return [];
+
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.onchange = () => {
+      const files = Array.from(input.files ?? []);
+      document.body.removeChild(input);
+      resolve(files.map((f) => URL.createObjectURL(f)));
+    };
+
+    input.oncancel = () => {
+      document.body.removeChild(input);
+      resolve([]);
+    };
+
+    input.click();
+  });
+};
+
 export const pickPhoto = async (): Promise<string | null> => {
   if (Platform.OS === 'web') {
     return pickWebFile(false);
@@ -119,6 +145,31 @@ export const uploadAvatar = async (uri: string, userId: string): Promise<UploadR
 
   const { data } = supabase.storage.from('avatars').getPublicUrl(filename);
   return { storagePath: filename, publicUrl: data.publicUrl };
+};
+
+export const pickMultiplePhotos = async (): Promise<string[]> => {
+  if (Platform.OS === 'web') {
+    return pickWebFiles();
+  }
+
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) return [];
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: 1,
+    allowsEditing: false,
+    allowsMultipleSelection: true,
+    selectionLimit: 10,
+  });
+
+  if (result.canceled || result.assets.length === 0) return [];
+  return result.assets.map((a) => a.uri);
+};
+
+export const deleteProofPhoto = async (storagePath: string): Promise<void> => {
+  const { error } = await supabase.storage.from('proof-photos').remove([storagePath]);
+  if (error) throw new Error(`Failed to delete photo: ${error.message}`);
 };
 
 export const uploadRepairPhoto = async (

@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
-import { uploadProofPhoto, pickPhoto, takePhoto } from '../../../lib/storage';
+import { uploadProofPhoto, pickMultiplePhotos, takePhoto, deleteProofPhoto } from '../../../lib/storage';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { Proof, ProofPhoto } from '../../../types';
@@ -12,12 +12,16 @@ import { Config } from '../../../constants/config';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { PhotoGrid } from '../../../components/proof/PhotoGrid';
+import { PhotoViewer } from '../../../components/proof/PhotoViewer';
 import { RoomTabs } from '../../../components/proof/RoomTabs';
 import { AnnotationModal } from '../../../components/proof/AnnotationModal';
 import { BottomSheet } from '../../../components/ui/BottomSheet';
 import { StatusPill } from '../../../components/ui/StatusPill';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingScreen } from '../../../components/ui/LoadingScreen';
+import { Cap } from '../../../components/ui/V2';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors, Fonts } from '../../../constants/theme';
 import { confirmAction } from '../../../lib/confirm';
 
 export default function UploadProofScreen() {
@@ -27,13 +31,16 @@ export default function UploadProofScreen() {
   const queryClient = useQueryClient();
 
   const [activeRoom, setActiveRoom] = useState<string>(Config.defaultRooms[0]);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<ProofPhoto | null>(null);
-  const [showAnnotation, setShowAnnotation] = useState(false);
   const [showPhotoSource, setShowPhotoSource] = useState(false);
 
-  // Fetch current tenant rental
+  // Viewer + annotation state
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerPhotoIndex, setViewerPhotoIndex] = useState(0);
+  const [annotationPhoto, setAnnotationPhoto] = useState<ProofPhoto | null>(null);
+  const [annotationVisible, setAnnotationVisible] = useState(false);
+
   const { data: rental, isLoading: isRentalLoading, error: rentalError, refetch: refetchRental } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
     queryFn: async () => {
@@ -50,13 +57,12 @@ export default function UploadProofScreen() {
     enabled: !!profile?.id,
   });
 
-  // Fetch existing proof
   const { data: proof, isLoading, error: proofError, refetch: refetchProof } = useQuery({
     queryKey: ['proof', rental?.id, 'move_in'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('proofs')
-        .select(`*, photos:proof_photos(*)`)
+        .select('*, photos:proof_photos(*)')
         .eq('rental_id', rental!.id)
         .eq('type', 'move_in')
         .maybeSingle();
@@ -72,7 +78,9 @@ export default function UploadProofScreen() {
   }, {}) ?? {};
 
   const activeRoomPhotos = proof?.photos?.filter((p) => p.room_label === activeRoom) ?? [];
-  const isRefreshing = rental?.id ? isLoading : isRentalLoading;
+  const totalPhotos = Object.values(photoCounts).reduce((a, b) => a + b, 0);
+  const isReviewed = proof?.status !== undefined && proof.status !== 'pending';
+  const uploading = uploadingCount > 0;
 
   const refreshAll = async () => {
     await refetchRental();
@@ -84,12 +92,7 @@ export default function UploadProofScreen() {
     if (!rental?.id || !profile?.id) throw new Error('Join a rental before adding proof photos.');
     const { data, error } = await supabase
       .from('proofs')
-      .insert({
-        rental_id: rental.id,
-        type: 'move_in',
-        submitted_by: profile.id,
-        status: 'pending',
-      })
+      .insert({ rental_id: rental.id, type: 'move_in', submitted_by: profile.id, status: 'pending' })
       .select()
       .single();
     if (error) throw error;
@@ -97,53 +100,98 @@ export default function UploadProofScreen() {
     return data.id;
   }, [proof, rental, profile, queryClient]);
 
-  const handlePickPhoto = async (source: 'camera' | 'gallery') => {
+  const handlePickPhotos = async (source: 'camera' | 'gallery') => {
     setShowPhotoSource(false);
     if (!rental) return;
 
-    const uri = source === 'camera' ? await takePhoto() : await pickPhoto();
-    if (!uri) return;
+    const uris: string[] = source === 'camera'
+      ? await takePhoto().then((u) => (u ? [u] : []))
+      : await pickMultiplePhotos();
 
-    setUploading(true);
+    if (uris.length === 0) return;
+
+    setUploadingCount(uris.length);
+    let successCount = 0;
     try {
       const proofId = await ensureProof();
-      const { storagePath, publicUrl } = await uploadProofPhoto(uri, rental.id, proofId, profile!.id);
-
-      const { error } = await supabase.from('proof_photos').insert({
-        proof_id: proofId,
-        room_label: activeRoom,
-        storage_path: storagePath,
-        public_url: publicUrl,
-        uploaded_by: profile!.id,
-      });
-      if (error) throw error;
+      for (const uri of uris) {
+        try {
+          const { storagePath, publicUrl } = await uploadProofPhoto(uri, rental.id, proofId, profile!.id);
+          const { error } = await supabase.from('proof_photos').insert({
+            proof_id: proofId,
+            room_label: activeRoom,
+            storage_path: storagePath,
+            public_url: publicUrl,
+            uploaded_by: profile!.id,
+          });
+          if (error) throw error;
+          successCount++;
+        } catch {
+          // continue with remaining photos
+        } finally {
+          setUploadingCount((prev) => Math.max(0, prev - 1));
+        }
+      }
       void queryClient.invalidateQueries({ queryKey: ['proof', rental.id] });
-      showToast('Photo added!', 'success');
+      if (successCount > 0) {
+        showToast(successCount === 1 ? 'Photo added!' : `${successCount} photos added!`, 'success');
+      }
+      if (successCount < uris.length) {
+        showToast(`${uris.length - successCount} photo(s) failed to upload`, 'error');
+      }
     } catch (e) {
+      setUploadingCount(0);
       showToast(e instanceof Error ? e.message : 'Upload failed', 'error');
-    } finally {
-      setUploading(false);
     }
   };
 
+  const handlePhotoPress = (photo: ProofPhoto, index: number) => {
+    setViewerPhotoIndex(index);
+    setViewerVisible(true);
+  };
+
+  const handleEditNote = (photo: ProofPhoto) => {
+    setViewerVisible(false);
+    setAnnotationPhoto(photo);
+    setAnnotationVisible(true);
+  };
+
+  const handleDeletePhoto = (photo: ProofPhoto) => {
+    setViewerVisible(false);
+    confirmAction(
+      'Delete Photo',
+      'This photo will be permanently removed from your proof.',
+      async () => {
+        try {
+          await deleteProofPhoto(photo.storage_path);
+          const { error } = await supabase.from('proof_photos').delete().eq('id', photo.id);
+          if (error) throw error;
+          void queryClient.invalidateQueries({ queryKey: ['proof', rental?.id] });
+          showToast('Photo removed', 'info');
+        } catch (e) {
+          showToast(e instanceof Error ? e.message : 'Delete failed', 'error');
+        }
+      },
+      'Delete',
+    );
+  };
+
   const handleSaveAnnotation = async (annotation: string) => {
-    if (!selectedPhoto) return;
+    if (!annotationPhoto) return;
     const { error } = await supabase
       .from('proof_photos')
       .update({ annotation: annotation || null })
-      .eq('id', selectedPhoto.id);
+      .eq('id', annotationPhoto.id);
     if (error) {
       showToast(error.message, 'error');
     } else {
       void queryClient.invalidateQueries({ queryKey: ['proof', rental?.id] });
     }
-    setSelectedPhoto(null);
   };
 
   const handleSubmitProof = async () => {
-    const total = Object.values(photoCounts).reduce((a, b) => a + b, 0);
-    if (total < 3) {
-      showToast('Please add at least 3 photos before submitting.', 'error');
+    if (totalPhotos < 3) {
+      showToast('Add at least 3 photos before submitting.', 'error');
       return;
     }
     if (!proof?.id) {
@@ -152,7 +200,7 @@ export default function UploadProofScreen() {
     }
     confirmAction(
       'Submit Proof',
-      'Once submitted, your landlord will review the photos. You won\'t be able to add more.',
+      'Your landlord will be notified to review the photos.',
       async () => {
         setSubmitting(true);
         try {
@@ -177,18 +225,14 @@ export default function UploadProofScreen() {
   if (isRentalLoading || (!!rental?.id && isLoading)) return <LoadingScreen />;
 
   if (rentalError || proofError) {
-    const error = rentalError ?? proofError;
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
         <EmptyState
           title="Could not load proof"
-          subtitle={error instanceof Error ? error.message : 'Please try again.'}
+          subtitle={(rentalError ?? proofError) instanceof Error ? (rentalError ?? proofError)!.message : 'Please try again.'}
           actionLabel="Retry"
-          onAction={() => {
-            void refetchRental();
-            if (rental?.id) void refetchProof();
-          }}
-          icon={<Text style={{ fontSize: 48 }}>!</Text>}
+          onAction={() => { void refetchRental(); if (rental?.id) void refetchProof(); }}
+          icon={<Text style={{ fontSize: 48, color: Colors.danger }}>!</Text>}
         />
       </SafeAreaView>
     );
@@ -196,70 +240,150 @@ export default function UploadProofScreen() {
 
   if (!rental) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
         <EmptyState
           title="No rental found"
           subtitle="Join a rental before uploading move-in proof."
           actionLabel="Go Back"
           onAction={() => router.back()}
-          icon={<Text style={{ fontSize: 48 }}>P</Text>}
+          icon={<Text style={{ fontSize: 48 }}>🏠</Text>}
         />
       </SafeAreaView>
     );
   }
 
-  const totalPhotos = Object.values(photoCounts).reduce((a, b) => a + b, 0);
-  const isSubmitted = proof?.status !== undefined && proof.status !== 'pending';
-
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       {/* Header */}
-      <View className="px-5 py-4 flex-row items-center bg-white border-b border-border">
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          backgroundColor: Colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: Colors.border,
+        }}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
-          className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center mr-3"
+          style={{
+            width: 36, height: 36, borderRadius: 18,
+            backgroundColor: Colors.fill,
+            alignItems: 'center', justifyContent: 'center',
+            marginRight: 12,
+          }}
+          activeOpacity={0.75}
         >
-          <Text className="text-primary">←</Text>
+          <Ionicons name="chevron-back" size={20} color={Colors.primary} />
         </TouchableOpacity>
-        <View className="flex-1">
-          <Text className="text-lg font-bold text-primary">Move-in Proof</Text>
-          <Text className="text-xs text-muted">{totalPhotos} photos across {Config.defaultRooms.length} rooms</Text>
+
+        <View style={{ flex: 1 }}>
+          <Cap>Move-in</Cap>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
+            Proof Photos
+          </Text>
         </View>
-        {proof && <StatusPill kind="proof" value={proof.status} />}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {totalPhotos > 0 && (
+            <View style={{
+              backgroundColor: Colors.actionSoft,
+              paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+            }}>
+              <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 12 }}>
+                {totalPhotos} photos
+              </Text>
+            </View>
+          )}
+          {proof && <StatusPill kind="proof" value={proof.status} />}
+        </View>
       </View>
 
-      {isSubmitted && proof ? (
-        <EmptyState
-          title={proof.status === 'approved' ? 'Proof Approved ✓' : 'Proof Submitted'}
-          subtitle={
-            proof.status === 'approved'
-              ? 'Your landlord has approved the move-in photos.'
-              : proof.status === 'dispute'
-              ? `Dispute: ${proof.dispute_note}`
-              : 'Your landlord is reviewing the photos.'
-          }
-          icon={<Text style={{ fontSize: 48 }}>{proof.status === 'approved' ? '✅' : '📷'}</Text>}
-        />
+      {/* Reviewed state */}
+      {isReviewed && proof ? (
+        <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+          <View
+            style={{
+              alignItems: 'center',
+              paddingVertical: 32,
+              gap: 14,
+            }}
+          >
+            <View
+              style={{
+                width: 72, height: 72, borderRadius: 36,
+                backgroundColor:
+                  proof.status === 'approved' ? Colors.successSoft
+                  : proof.status === 'dispute' ? Colors.warningSoft
+                  : Colors.dangerSoft,
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 32 }}>
+                {proof.status === 'approved' ? '✓' : proof.status === 'dispute' ? '⚠' : '✗'}
+              </Text>
+            </View>
+
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
+              {proof.status === 'approved' ? 'Proof Approved'
+                : proof.status === 'dispute' ? 'Dispute Raised'
+                : 'Proof Rejected'}
+            </Text>
+
+            {proof.status === 'approved' && (
+              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 14, textAlign: 'center', paddingHorizontal: 24 }}>
+                Your landlord has confirmed your move-in photos.
+              </Text>
+            )}
+          </View>
+
+          {proof.status === 'dispute' && proof.dispute_note && (
+            <Card style={{ backgroundColor: Colors.warningSoft, borderColor: '#F1D39B', borderWidth: 1 }}>
+              <Text style={{ color: Colors.warning, fontFamily: Fonts.sansSemiBold, fontSize: 11, letterSpacing: 0.6, marginBottom: 6 }}>
+                LANDLORD'S NOTE
+              </Text>
+              <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 14, lineHeight: 21 }}>
+                {proof.dispute_note}
+              </Text>
+            </Card>
+          )}
+
+          {/* Show submitted photos read-only */}
+          {proof.photos && proof.photos.length > 0 && (
+            <>
+              <RoomTabs
+                rooms={[...new Set(proof.photos.map((p) => p.room_label))]}
+                activeRoom={activeRoom}
+                onSelect={setActiveRoom}
+                photoCounts={photoCounts}
+              />
+              <PhotoGrid
+                photos={activeRoomPhotos}
+                onPhotoPress={(photo, index) => { setViewerPhotoIndex(index); setViewerVisible(true); }}
+              />
+            </>
+          )}
+        </ScrollView>
       ) : (
         <>
           <ScrollView
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+            refreshControl={<RefreshControl refreshing={isRentalLoading || (!!rental?.id && isLoading)} onRefresh={refreshAll} />}
           >
-            {/* Instructions */}
-            {!proof && (
-              <Card className="mx-5 mt-4">
-                <Text className="text-sm font-medium text-primary mb-1">📸 Tips for good proof photos</Text>
-                <Text className="text-xs text-muted leading-4">
-                  • Take wide shots of each room{'\n'}
-                  • Document any existing damage or marks{'\n'}
-                  • Tap a photo to add a note about what you see{'\n'}
-                  • Cover all rooms before submitting
+            {/* Tips — shown until first photo uploaded */}
+            {totalPhotos === 0 && (
+              <Card style={{ marginHorizontal: 20, marginTop: 16 }}>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 13, marginBottom: 8 }}>
+                  📸 Tips for good proof photos
+                </Text>
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 20 }}>
+                  {'• Wide shots of each full room\n• Close-ups of any existing damage or marks\n• Tap a photo to add a note about what you see\n• Cover all rooms before submitting'}
                 </Text>
               </Card>
             )}
 
-            {/* Room tabs */}
             <RoomTabs
               rooms={[...Config.defaultRooms]}
               activeRoom={activeRoom}
@@ -267,31 +391,39 @@ export default function UploadProofScreen() {
               photoCounts={photoCounts}
             />
 
-            <View className="px-5 pb-4">
-              {uploading && (
-                <View className="items-center py-4">
-                  <ActivityIndicator color="#1A56FF" />
-                  <Text className="text-sm text-muted mt-2">Uploading…</Text>
-                </View>
-              )}
-
+            <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
               <PhotoGrid
                 photos={activeRoomPhotos}
-                canAdd={!uploading}
-                onAddPhoto={() => setShowPhotoSource(true)}
-                onPhotoPress={(photo) => {
-                  setSelectedPhoto(photo);
-                  setShowAnnotation(true);
-                }}
+                canAdd
+                canDelete
+                uploading={uploading}
                 maxPhotos={Config.maxPhotosPerRoom}
+                onAddPhoto={() => setShowPhotoSource(true)}
+                onPhotoPress={handlePhotoPress}
+                onDeletePhoto={handleDeletePhoto}
               />
             </View>
           </ScrollView>
 
           {/* Submit bar */}
-          <View className="px-5 py-4 bg-white border-t border-border">
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: 16,
+              backgroundColor: Colors.surface,
+              borderTopWidth: 1,
+              borderTopColor: Colors.border,
+              gap: 6,
+            }}
+          >
+            {totalPhotos > 0 && totalPhotos < 3 && (
+              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, textAlign: 'center' }}>
+                Add at least {3 - totalPhotos} more photo{3 - totalPhotos === 1 ? '' : 's'} to submit
+              </Text>
+            )}
             <Button
-              title={totalPhotos === 0 ? 'Add photos to submit' : `Submit ${totalPhotos} Photos`}
+              title={totalPhotos === 0 ? 'Add photos to submit' : `Submit ${totalPhotos} Photo${totalPhotos === 1 ? '' : 's'}`}
               onPress={handleSubmitProof}
               loading={submitting}
               disabled={totalPhotos === 0}
@@ -302,37 +434,70 @@ export default function UploadProofScreen() {
         </>
       )}
 
-      {/* Photo source bottom sheet */}
+      {/* Photo source picker */}
       <BottomSheet visible={showPhotoSource} onClose={() => setShowPhotoSource(false)}>
-        <Text className="text-lg font-semibold text-primary mb-4 pt-2">Add Photo</Text>
-        <View className="gap-3 pb-2">
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16, marginBottom: 16, paddingTop: 4 }}>
+          Add Photo
+        </Text>
+        <View style={{ gap: 10, paddingBottom: 4 }}>
           <TouchableOpacity
-            onPress={() => handlePickPhoto('camera')}
-            className="flex-row items-center p-4 rounded-xl border border-border bg-white"
-            style={{ backgroundColor: '#FFFFFF' }}
+            onPress={() => void handlePickPhotos('camera')}
+            style={{
+              flexDirection: 'row', alignItems: 'center',
+              padding: 16, borderRadius: 14,
+              borderWidth: 1, borderColor: Colors.border,
+              backgroundColor: Colors.surface, gap: 14,
+            }}
+            activeOpacity={0.78}
           >
-            <Text style={{ fontSize: 24 }} className="mr-3">📷</Text>
-            <Text className="text-base font-medium text-primary">Take Photo</Text>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.fill2, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="camera-outline" size={20} color={Colors.primary} />
+            </View>
+            <View>
+              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>Take Photo</Text>
+              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>Use your camera</Text>
+            </View>
           </TouchableOpacity>
+
           <TouchableOpacity
-            onPress={() => handlePickPhoto('gallery')}
-            className="flex-row items-center p-4 rounded-xl border border-border bg-white"
-            style={{ backgroundColor: '#FFFFFF' }}
+            onPress={() => void handlePickPhotos('gallery')}
+            style={{
+              flexDirection: 'row', alignItems: 'center',
+              padding: 16, borderRadius: 14,
+              borderWidth: 1, borderColor: Colors.border,
+              backgroundColor: Colors.surface, gap: 14,
+            }}
+            activeOpacity={0.78}
           >
-            <Text style={{ fontSize: 24 }} className="mr-3">🖼️</Text>
-            <Text className="text-base font-medium text-primary">Choose from Gallery</Text>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.fill2, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="images-outline" size={20} color={Colors.primary} />
+            </View>
+            <View>
+              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>Choose from Gallery</Text>
+              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>Select multiple photos</Text>
+            </View>
           </TouchableOpacity>
         </View>
       </BottomSheet>
 
-      {/* Annotation modal */}
-      {selectedPhoto && (
+      {/* Full-screen photo viewer */}
+      <PhotoViewer
+        photos={activeRoomPhotos}
+        initialIndex={viewerPhotoIndex}
+        visible={viewerVisible}
+        onClose={() => setViewerVisible(false)}
+        onEditNote={handleEditNote}
+        onDelete={handleDeletePhoto}
+      />
+
+      {/* Annotation editor */}
+      {annotationPhoto && (
         <AnnotationModal
-          visible={showAnnotation}
-          photoUri={selectedPhoto.public_url}
-          existingAnnotation={selectedPhoto.annotation ?? ''}
+          visible={annotationVisible}
+          photoUri={annotationPhoto.public_url}
+          existingAnnotation={annotationPhoto.annotation ?? ''}
           onSave={handleSaveAnnotation}
-          onClose={() => { setShowAnnotation(false); setSelectedPhoto(null); }}
+          onClose={() => { setAnnotationVisible(false); setAnnotationPhoto(null); }}
         />
       )}
     </SafeAreaView>

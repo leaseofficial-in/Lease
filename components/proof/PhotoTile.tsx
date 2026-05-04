@@ -1,47 +1,124 @@
 import React from 'react';
-import { TouchableOpacity, Image, View, Text } from 'react-native';
+import { TouchableOpacity, Image, View, Text, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ProofPhoto } from '../../types';
+import { Colors } from '../../constants/theme';
 
 interface PhotoTileProps {
   photo: ProofPhoto | null;
   size: number;
   onPress: () => void;
+  onDelete?: () => void;
+  canDelete?: boolean;
+  isUploading?: boolean;
 }
 
-export const PhotoTile: React.FC<PhotoTileProps> = ({ photo, size, onPress }) => {
+export const PhotoTile: React.FC<PhotoTileProps> = ({
+  photo,
+  size,
+  onPress,
+  onDelete,
+  canDelete = false,
+  isUploading = false,
+}) => {
+  const tileBase = {
+    width: size,
+    height: size,
+    borderRadius: 14,
+  };
+
   if (!photo) {
+    if (isUploading) {
+      return (
+        <View
+          style={{
+            ...tileBase,
+            backgroundColor: Colors.fill,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1.5,
+            borderStyle: 'dashed' as const,
+            borderColor: Colors.border,
+          }}
+        >
+          <ActivityIndicator color={Colors.action} size="small" />
+        </View>
+      );
+    }
+
     return (
       <TouchableOpacity
         onPress={onPress}
-        style={{ width: size, height: size }}
-        className="bg-gray-100 rounded-xl items-center justify-center border-2 border-dashed border-border"
+        style={{
+          ...tileBase,
+          backgroundColor: Colors.fill,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1.5,
+          borderStyle: 'dashed' as const,
+          borderColor: Colors.border,
+        }}
         activeOpacity={0.7}
       >
-        <Text className="text-2xl text-muted">+</Text>
-        <Text className="text-xs text-muted mt-1">Add</Text>
+        <Ionicons name="add" size={24} color={Colors.muted} />
+        <Text style={{ color: Colors.muted, fontSize: 10, marginTop: 2 }}>Add</Text>
       </TouchableOpacity>
     );
   }
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={{ width: size, height: size }}
-      className="rounded-xl overflow-hidden"
-      activeOpacity={0.85}
-    >
-      <Image
-        source={{ uri: photo.public_url }}
-        style={{ width: size, height: size }}
-        resizeMode="cover"
-      />
-      {photo.annotation && (
-        <View className="absolute bottom-0 left-0 right-0 bg-black/50 px-1.5 py-0.5">
-          <Text className="text-white text-xs" numberOfLines={1}>
-            {photo.annotation}
-          </Text>
-        </View>
+    <View style={{ ...tileBase, overflow: 'hidden' }}>
+      <TouchableOpacity onPress={onPress} style={{ flex: 1 }} activeOpacity={0.85}>
+        <Image
+          source={{ uri: photo.public_url }}
+          style={{ width: size, height: size }}
+          resizeMode="cover"
+        />
+        {photo.annotation ? (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 0, left: 0, right: 0,
+              backgroundColor: 'rgba(0,0,0,0.52)',
+              paddingHorizontal: 6,
+              paddingVertical: 3,
+            }}
+          >
+            <Text style={{ color: '#fff', fontSize: 10 }} numberOfLines={1}>
+              {photo.annotation}
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 5, right: 5,
+              width: 18, height: 18, borderRadius: 9,
+              backgroundColor: 'rgba(0,0,0,0.35)',
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="create-outline" size={10} color="rgba(255,255,255,0.75)" />
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {canDelete && onDelete && (
+        <TouchableOpacity
+          onPress={onDelete}
+          style={{
+            position: 'absolute',
+            top: 4, right: 4,
+            width: 22, height: 22, borderRadius: 11,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+          activeOpacity={0.8}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="close" size={12} color="#fff" />
+        </TouchableOpacity>
       )}
-    </TouchableOpacity>
+    </View>
   );
 };

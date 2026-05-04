@@ -1,5 +1,6 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, Text, View } from 'react-native';
+import { Colors, Fonts } from '../../constants/theme';
 
 interface RoomTabsProps {
   rooms: string[];
@@ -18,34 +19,54 @@ export const RoomTabs: React.FC<RoomTabsProps> = ({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
-      className="py-3"
+      contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingVertical: 12 }}
     >
       {rooms.map((room) => {
         const isActive = room === activeRoom;
         const count = photoCounts[room] ?? 0;
+
         return (
           <TouchableOpacity
             key={room}
             onPress={() => onSelect(room)}
-            className={`flex-row items-center rounded-full px-4 py-2 border ${
-              isActive ? 'bg-action border-action' : 'bg-white border-border'
-            }`}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 999,
+              borderWidth: 1.5,
+              borderColor: isActive ? Colors.action : Colors.border,
+              backgroundColor: isActive ? Colors.action : Colors.surface,
+            }}
             activeOpacity={0.75}
           >
             <Text
-              className={`text-sm font-medium ${isActive ? 'text-white' : 'text-primary'}`}
+              style={{
+                fontFamily: isActive ? Fonts.sansSemiBold : Fonts.sansMedium,
+                fontSize: 13,
+                color: isActive ? '#fff' : Colors.primary,
+              }}
             >
               {room}
             </Text>
+
             {count > 0 && (
               <View
-                className={`ml-1.5 rounded-full w-4 h-4 items-center justify-center ${
-                  isActive ? 'bg-white/30' : 'bg-gray-100'
-                }`}
+                style={{
+                  marginLeft: 6,
+                  minWidth: 18, height: 18, borderRadius: 9,
+                  paddingHorizontal: 4,
+                  backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : Colors.fill2,
+                  alignItems: 'center', justifyContent: 'center',
+                }}
               >
                 <Text
-                  className={`text-xs font-semibold ${isActive ? 'text-white' : 'text-muted'}`}
+                  style={{
+                    fontSize: 10,
+                    fontFamily: Fonts.sansSemiBold,
+                    color: isActive ? '#fff' : Colors.muted,
+                  }}
                 >
                   {count}
                 </Text>
