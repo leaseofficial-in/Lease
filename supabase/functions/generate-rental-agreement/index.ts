@@ -16,7 +16,7 @@ const jsonResponse = (body: Record<string, unknown>, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-IN', {
@@ -25,7 +25,7 @@ function fmtDate(iso: string): string {
 }
 
 function fmtCurrency(n: number): string {
-  return `₹${n.toLocaleString('en-IN')}`;
+  return `Rs ${n.toLocaleString('en-IN')}`;
 }
 
 function ordinal(n: number): string {
@@ -73,7 +73,7 @@ function addMonths(iso: string, months: number): string {
   return fmtDate(d.toISOString());
 }
 
-// ─── HTML template ────────────────────────────────────────────────────────────
+// HTML template
 
 function buildAgreementHtml(p: {
   refNo: string;
@@ -103,7 +103,7 @@ function buildAgreementHtml(p: {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Leave and License Agreement — ${p.refNo}</title>
+<title>Leave and License Agreement - ${p.refNo}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -339,9 +339,9 @@ function buildAgreementHtml(p: {
 <button class="print-btn no-print" onclick="window.print()">Print / Save PDF</button>
 
 <div class="header">
-  <div class="badge">Flatvio · Rental Management Platform</div>
+  <div class="badge">Flatvio - Rental Management Platform</div>
   <h1>Leave and License Agreement</h1>
-  <div class="ref">Ref: ${p.refNo} &nbsp;·&nbsp; Generated: ${p.generatedOn}</div>
+  <div class="ref">Ref: ${p.refNo} &nbsp;-&nbsp; Generated: ${p.generatedOn}</div>
 </div>
 
 <p class="preamble">
@@ -391,7 +391,7 @@ function buildAgreementHtml(p: {
 
 <div class="clause">
   <div class="clause-heading"><span class="clause-num">1.</span>Grant of License</div>
-  <p class="sub-clause">1.1 The Licensor hereby grants a bare license — and expressly <em>not</em> a lease or tenancy — to the Licensee to use and occupy the Licensed Premises for residential purposes only.</p>
+  <p class="sub-clause">1.1 The Licensor hereby grants a bare license - and expressly <em>not</em> a lease or tenancy - to the Licensee to use and occupy the Licensed Premises for residential purposes only.</p>
   <p class="sub-clause">1.2 This Agreement shall not be construed as creating any tenancy rights, right of renewal, or any other interest in the Licensed Premises in favour of the Licensee. The Licensee is a licensee and not a tenant.</p>
   <p class="sub-clause">1.3 The Licensee acknowledges and agrees that they have no right, title, or interest in the Licensed Premises other than the limited right to use and occupy as a bare licensee under this Agreement.</p>
 </div>
@@ -408,7 +408,7 @@ function buildAgreementHtml(p: {
   <p class="sub-clause">3.1 The Licensee shall pay the Licensor a monthly license fee of <strong>${fmtCurrency(p.monthlyRent)}/- (Rupees ${rentWords} only)</strong>.</p>
   <p class="sub-clause">3.2 The license fee is due and payable on or before the <strong>${ordinal(p.rentDueDay)} day</strong> of each calendar month, without demand.</p>
   <p class="sub-clause">3.3 Payment shall be made by UPI transfer, bank transfer, or cash. UPI and bank transfers shall constitute good payment on the date of credit to the Licensor's account.</p>
-  <p class="sub-clause">3.4 A late fee of <strong>₹500/-</strong> per month (or part thereof) shall be charged if the license fee is not paid within 5 days of the due date.</p>
+  <p class="sub-clause">3.4 A late fee of <strong>Rs 500/-</strong> per month (or part thereof) shall be charged if the license fee is not paid within 5 days of the due date.</p>
   <p class="sub-clause">3.5 Non-payment of license fee for 2 (two) consecutive months shall entitle the Licensor to terminate this Agreement forthwith without notice.</p>
 </div>
 
@@ -433,8 +433,8 @@ function buildAgreementHtml(p: {
 <div class="clause">
   <div class="clause-heading"><span class="clause-num">6.</span>Maintenance and Repairs</div>
   <p class="sub-clause">6.1 The Licensee shall maintain the Licensed Premises in a clean, hygienic, and good condition, ordinary wear and tear excepted.</p>
-  <p class="sub-clause">6.2 Minor repairs costing up to <strong>₹500/-</strong> per incident (blocked drains, fused bulbs, broken door handles, etc.) shall be the Licensee's responsibility.</p>
-  <p class="sub-clause">6.3 Major structural repairs and repairs to existing plumbing, electrical wiring, or fixtures costing above ₹500/- shall be the Licensor's responsibility, provided the Licensee reports the defect promptly in writing.</p>
+  <p class="sub-clause">6.2 Minor repairs costing up to <strong>Rs 500/-</strong> per incident (blocked drains, fused bulbs, broken door handles, etc.) shall be the Licensee's responsibility.</p>
+  <p class="sub-clause">6.3 Major structural repairs and repairs to existing plumbing, electrical wiring, or fixtures costing above Rs 500/- shall be the Licensor's responsibility, provided the Licensee reports the defect promptly in writing.</p>
   <p class="sub-clause">6.4 Damage caused by the Licensee's negligence or misuse shall be repaired at the Licensee's cost, irrespective of the amount.</p>
 </div>
 
@@ -528,7 +528,7 @@ function buildAgreementHtml(p: {
       <div class="sig-line"></div>
       <div class="sig-meta">
         ${p.agreementSigned && p.tenantSignedAt
-          ? `<span class="signed-stamp">✓ Signed on Flatvio</span><br><span style="font-size:11px; color:#555; margin-top:4px; display:block">${p.tenantSignedAt}</span>`
+          ? `<span class="signed-stamp">Signed on Flatvio</span><br><span style="font-size:11px; color:#555; margin-top:4px; display:block">${p.tenantSignedAt}</span>`
           : 'Signature &amp; Date'}
       </div>
       ${p.tenantAadhaarLast4 ? `<div class="sig-meta" style="margin-top:4px">Aadhaar: XXXX XXXX ${p.tenantAadhaarLast4}</div>` : ''}
@@ -540,13 +540,13 @@ function buildAgreementHtml(p: {
     <div class="witness-row">
       <div>
         <div class="witness-field"></div>
-        <div class="witness-label">Witness 1 — Name &amp; Signature</div>
+        <div class="witness-label">Witness 1 - Name &amp; Signature</div>
         <div class="witness-field" style="margin-top:12px;"></div>
         <div class="witness-label">Address</div>
       </div>
       <div>
         <div class="witness-field"></div>
-        <div class="witness-label">Witness 2 — Name &amp; Signature</div>
+        <div class="witness-label">Witness 2 - Name &amp; Signature</div>
         <div class="witness-field" style="margin-top:12px;"></div>
         <div class="witness-label">Address</div>
       </div>
@@ -555,8 +555,8 @@ function buildAgreementHtml(p: {
 </div>
 
 <div class="footer">
-  Generated by <strong>Flatvio</strong> · flatvio.in<br>
-  Agreement Reference: ${p.refNo} · ${p.generatedOn}<br>
+  Generated by <strong>Flatvio</strong> - flatvio.in<br>
+  Agreement Reference: ${p.refNo} - ${p.generatedOn}<br>
   This is a computer-generated document. For legal validity, both parties must sign in the presence of two witnesses.<br>
   Agreements for periods exceeding 11 months must be registered with the Sub-Registrar of Assurances under the Registration Act, 1908.
 </div>
@@ -565,7 +565,7 @@ function buildAgreementHtml(p: {
 </html>`;
 }
 
-// ─── Edge Function handler ────────────────────────────────────────────────────
+// Edge Function handler
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -579,6 +579,17 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const jwt = authHeader.replace(/^Bearer\s+/i, '');
+    if (!jwt) {
+      return jsonResponse({ error: 'Authentication required' }, 401);
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(jwt);
+    if (authError || !authData.user) {
+      return jsonResponse({ error: 'Invalid session' }, 401);
+    }
+
     const { rentalId }: { rentalId: string } = await req.json();
 
     if (!rentalId) {
@@ -603,6 +614,7 @@ serve(async (req) => {
 
     const r = rental as typeof rental & {
       tenant_id: string | null;
+      landlord_id: string;
       property: {
         name: string;
         address_line1: string;
@@ -615,6 +627,10 @@ serve(async (req) => {
       landlord: { full_name: string; pan_number: string | null; email: string | null };
       tenant: { full_name: string; aadhaar_last4: string | null; email: string | null } | null;
     };
+
+    if (authData.user.id !== r.landlord_id && authData.user.id !== r.tenant_id) {
+      return jsonResponse({ error: 'You do not have access to this rental agreement' }, 403);
+    }
 
     let tenantProfile = r.tenant;
     if (!tenantProfile && r.tenant_id) {

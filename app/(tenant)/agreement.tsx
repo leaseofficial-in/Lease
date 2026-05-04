@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, ScrollView, RefreshControl, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,10 +12,13 @@ import { Rental } from '../../types';
 import { formatDate, formatCurrency } from '../../lib/formatters';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { AppIcon, BackButton } from '../../components/ui/Icon';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
 import { confirmAction } from '../../lib/confirm';
+import { generateRentalAgreement, loadRentalAgreementHtml } from '../../lib/agreement';
 
 export default function AgreementScreen() {
   const router = useRouter();
@@ -51,7 +53,13 @@ export default function AgreementScreen() {
         .update({ agreement_signed_at: new Date().toISOString() })
         .eq('id', rental.id);
       if (error) throw error;
+      try {
+        await generateRentalAgreement(rental.id);
+      } catch {
+        // The signature is saved even if document refresh is temporarily unavailable.
+      }
       await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
+      await queryClient.invalidateQueries({ queryKey: ['agreement-document', rental.id] });
       showToast('Agreement signed!', 'success');
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Failed to sign agreement', 'error');
@@ -69,8 +77,73 @@ export default function AgreementScreen() {
     );
   };
 
+  const openAgreement = async () => {
+    if (!rental) return;
+
+    if (Platform.OS === 'web') {
+      router.push({ pathname: '/agreement/[rentalId]', params: { rentalId: rental.id } });
+      return;
+    }
+
+    setOpeningDoc(true);
+    try {
+      const result = await loadRentalAgreementHtml(rental.id, rental.agreement_url);
+      if (result.refreshed) {
+        await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
+        await queryClient.invalidateQueries({ queryKey: ['agreement-document', rental.id] });
+      }
+
+      const { uri } = await Print.printToFileAsync({ html: result.html, base64: false });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Rental Agreement',
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        showToast('Sharing is not available on this device', 'error');
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not open agreement', 'error');
+    } finally {
+      setOpeningDoc(false);
+    }
+  };
+
   if (isLoading) return <LoadingScreen />;
-  if (!rental) return null;
+  if (!rental) {
+    return (
+      <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingVertical: 14,
+            backgroundColor: Colors.surface,
+            borderBottomWidth: 1,
+            borderBottomColor: Colors.border,
+          }}
+        >
+          <BackButton onPress={() => router.back()} style={{ marginRight: 12 }} />
+          <View>
+            <Cap>Tenant</Cap>
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
+              Rental Agreement
+            </Text>
+          </View>
+        </View>
+        <EmptyState
+          title="No active rental"
+          subtitle="Join a rental before viewing or signing an agreement."
+          actionLabel="Go Home"
+          onAction={() => router.replace('/(tenant)')}
+          icon={<AppIcon name="document-text-outline" size={42} color={Colors.muted} />}
+        />
+      </SafeAreaView>
+    );
+  }
 
   const isSigned = !!rental.agreement_signed_at;
 
@@ -87,21 +160,7 @@ export default function AgreementScreen() {
           borderBottomColor: Colors.border,
         }}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: Colors.fill,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: 12,
-          }}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="chevron-back" size={20} color={Colors.primary} />
-        </TouchableOpacity>
+        <BackButton onPress={() => router.back()} style={{ marginRight: 12 }} />
         <View>
           <Cap>Tenant</Cap>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
@@ -138,7 +197,7 @@ export default function AgreementScreen() {
               marginRight: 14,
             }}
           >
-            <Ionicons
+            <AppIcon
               name={isSigned ? 'checkmark' : 'alert'}
               size={20}
               color="#fff"
@@ -161,7 +220,7 @@ export default function AgreementScreen() {
           <Cap style={{ marginBottom: 14 }}>Agreement Summary</Cap>
 
           <Section title="Property">
-            <TermRow label="Name" value={rental.property?.name ?? '—'} />
+            <TermRow label="Name" value={rental.property?.name ?? '-'} />
             <TermRow
               label="Address"
               value={[rental.property?.address_line1, rental.property?.city, rental.property?.state]
@@ -170,8 +229,8 @@ export default function AgreementScreen() {
           </Section>
 
           <Section title="Parties">
-            <TermRow label="Landlord" value={rental.landlord?.full_name ?? '—'} />
-            <TermRow label="Tenant" value={profile?.full_name ?? '—'} />
+            <TermRow label="Landlord" value={rental.landlord?.full_name ?? '-'} />
+            <TermRow label="Tenant" value={profile?.full_name ?? '-'} />
           </Section>
 
           <Section title="Financial Terms">
@@ -188,45 +247,13 @@ export default function AgreementScreen() {
           </Section>
         </Card>
 
-        {rental.agreement_url && (
-          <Button
-            title={openingDoc ? 'Preparing…' : 'View / Download Agreement'}
-            variant="secondary"
-            loading={openingDoc}
-            onPress={async () => {
-              setOpeningDoc(true);
-              try {
-                const res = await fetch(rental.agreement_url!);
-                if (!res.ok) throw new Error('Could not fetch agreement');
-                const html = await res.text();
-
-                if (Platform.OS === 'web') {
-                  const blob = new Blob([html], { type: 'text/html' });
-                  const url = URL.createObjectURL(blob);
-                  window.open(url, '_blank');
-                  return;
-                }
-
-                const { uri } = await Print.printToFileAsync({ html, base64: false });
-                const canShare = await Sharing.isAvailableAsync();
-                if (canShare) {
-                  await Sharing.shareAsync(uri, {
-                    mimeType: 'application/pdf',
-                    dialogTitle: 'Rental Agreement',
-                    UTI: 'com.adobe.pdf',
-                  });
-                } else {
-                  showToast('Sharing not available on this device', 'error');
-                }
-              } catch (err) {
-                showToast(err instanceof Error ? err.message : 'Could not open agreement', 'error');
-              } finally {
-                setOpeningDoc(false);
-              }
-            }}
-            fullWidth
-          />
-        )}
+        <Button
+          title={openingDoc ? 'Preparing...' : 'View / Download Agreement'}
+          variant="secondary"
+          loading={openingDoc}
+          onPress={openAgreement}
+          fullWidth
+        />
 
         {!isSigned && (
           <Button

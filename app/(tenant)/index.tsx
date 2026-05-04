@@ -12,6 +12,7 @@ import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
+import { AppIcon, type AppIconName } from '../../components/ui/Icon';
 import { RentStatusBadge } from '../../components/rental/RentStatusBadge';
 import { ActivityFeed } from '../../components/rental/ActivityFeed';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
@@ -190,7 +191,7 @@ export default function TenantDashboard() {
               subtitle="Ask your landlord for an invite link, then join the rental from here."
               actionLabel="Join via Link"
               onAction={() => router.push('/(tenant)/join')}
-              icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>F</Text>}
+              icon={<AppIcon name="home-outline" size={42} color={Colors.muted} />}
             />
           </View>
         ) : (
@@ -236,7 +237,7 @@ export default function TenantDashboard() {
                     </Text>
                   </View>
                 </View>
-                <Button title="Pay Now — Overdue" variant="danger" onPress={() => router.push('/(tenant)/pay-rent')} fullWidth size="lg" />
+                <Button title="Pay Now - Overdue" variant="danger" onPress={() => router.push('/(tenant)/pay-rent')} fullWidth size="lg" />
               </Card>
             )}
 
@@ -341,7 +342,7 @@ function ActionTile({
   onPress,
 }: {
   label: string;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
+  icon: AppIconName;
   onPress: () => void;
 }) {
   return (
@@ -351,7 +352,7 @@ function ActionTile({
       activeOpacity={0.78}
     >
       <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-        <Ionicons name={icon} size={17} color={Colors.primary} />
+        <AppIcon name={icon} size={17} color={Colors.primary} />
       </View>
       <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12 }}>{label}</Text>
     </TouchableOpacity>

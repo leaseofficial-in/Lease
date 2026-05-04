@@ -1,21 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
+import { useUIStore } from '../../stores/uiStore';
 import { Rental } from '../../types';
 import { formatCurrency, formatDate } from '../../lib/formatters';
 import { Colors, Fonts } from '../../constants/theme';
 import { Button } from '../../components/ui/Button';
+import { BackButton } from '../../components/ui/Icon';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { Cap, DisplayText } from '../../components/ui/V2';
+import { loadRentalAgreementHtml } from '../../lib/agreement';
 
 export default function AgreementDocumentScreen() {
   const router = useRouter();
   const { rentalId } = useLocalSearchParams<{ rentalId: string }>();
   const { profile } = useAuthStore();
+  const { showToast } = useUIStore();
+  const queryClient = useQueryClient();
   const [documentHtml, setDocumentHtml] = useState<string | null>(null);
   const [documentLoading, setDocumentLoading] = useState(false);
 
@@ -44,23 +49,28 @@ export default function AgreementDocumentScreen() {
   });
 
   useEffect(() => {
-    if (Platform.OS !== 'web' || !rental?.agreement_url) {
+    if (Platform.OS !== 'web' || !rental?.id) {
       setDocumentHtml(null);
       return;
     }
 
     let isMounted = true;
     setDocumentLoading(true);
-    fetch(rental.agreement_url, { cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Agreement document could not be loaded.');
-        return response.text();
+    loadRentalAgreementHtml(rental.id, rental.agreement_url)
+      .then(async (result) => {
+        if (!isMounted) return;
+        setDocumentHtml(result.html);
+        if (result.refreshed) {
+          await queryClient.invalidateQueries({ queryKey: ['agreement-document', rental.id] });
+          await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
+          await queryClient.invalidateQueries({ queryKey: ['rental-by-property', rental.property_id] });
+        }
       })
-      .then((html) => {
-        if (isMounted) setDocumentHtml(html);
-      })
-      .catch(() => {
-        if (isMounted) setDocumentHtml(null);
+      .catch((loadError) => {
+        if (isMounted) {
+          setDocumentHtml(null);
+          showToast(loadError instanceof Error ? loadError.message : 'Could not open agreement', 'error');
+        }
       })
       .finally(() => {
         if (isMounted) setDocumentLoading(false);
@@ -69,7 +79,7 @@ export default function AgreementDocumentScreen() {
     return () => {
       isMounted = false;
     };
-  }, [rental?.agreement_url]);
+  }, [queryClient, rental?.agreement_url, rental?.id, rental?.property_id, showToast]);
 
   if (isLoading) return <LoadingScreen message="Opening agreement..." />;
 
@@ -227,23 +237,7 @@ function DocumentHeader({ title, onBack }: { title: string; onBack: () => void }
         alignItems: 'center',
       }}
     >
-      <TouchableOpacity
-        onPress={onBack}
-        activeOpacity={0.75}
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 19,
-          backgroundColor: Colors.fill,
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: 12,
-        }}
-      >
-        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20, lineHeight: 22 }}>
-          {'<'}
-        </Text>
-      </TouchableOpacity>
+      <BackButton onPress={onBack} style={{ marginRight: 12 }} />
       <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17 }}>{title}</Text>
     </View>
   );
