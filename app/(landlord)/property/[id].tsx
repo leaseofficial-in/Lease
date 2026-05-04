@@ -272,12 +272,8 @@ export default function PropertyDetailScreen() {
     setShowTermsSheet(true);
   };
 
-  const handleSaveTerms = async () => {
+  const doSaveTerms = async () => {
     if (!rental) return;
-    if (rental.agreement_signed_at) {
-      showToast('Agreement is already signed. Terms are locked.', 'error');
-      return;
-    }
 
     const monthlyRent = Number(termsForm.monthlyRent);
     const securityDeposit = Number(termsForm.securityDeposit);
@@ -318,9 +314,8 @@ export default function PropertyDetailScreen() {
       } else {
         const { error } = await supabase
           .from('rentals')
-          .update({ ...payload, updated_at: new Date().toISOString() })
+          .update({ ...payload, agreement_signed_at: null, updated_at: new Date().toISOString() })
           .eq('id', rental.id)
-          .is('agreement_signed_at', null)
           .select('id')
           .single();
         if (error) throw error;
@@ -328,12 +323,40 @@ export default function PropertyDetailScreen() {
       await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
       await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
       setShowTermsSheet(false);
-      showToast('Agreement terms updated', 'success');
+
+      // Auto-regenerate agreement if one already exists
+      if (!isLocalDevUser && rental.agreement_url) {
+        showToast('Terms updated · Regenerating agreement…', 'success');
+        try {
+          await generateRentalAgreement(rental.id);
+          await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+          await queryClient.invalidateQueries({ queryKey: ['agreement-document', rental.id] });
+          showToast('Agreement regenerated with new terms', 'success');
+        } catch {
+          showToast('Terms saved · Please regenerate the agreement manually', 'error');
+        }
+      } else {
+        showToast('Rental terms updated', 'success');
+      }
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Failed to update terms', 'error');
     } finally {
       setSavingTerms(false);
     }
+  };
+
+  const handleSaveTerms = async () => {
+    if (!rental) return;
+    if (rental.agreement_signed_at) {
+      confirmAction(
+        'Edit Signed Agreement?',
+        'The tenant has already signed this agreement. Editing terms will void the signature and generate a new agreement for re-signing.',
+        doSaveTerms,
+        'Edit & Regenerate',
+      );
+      return;
+    }
+    await doSaveTerms();
   };
 
   const handleActivateRental = async () => {
@@ -629,13 +652,27 @@ export default function PropertyDetailScreen() {
           </View>
 
           <Card>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <Cap>Rental Terms</Cap>
-              {!rental.agreement_signed_at && (
-                <TouchableOpacity onPress={openTermsEditor} activeOpacity={0.75}>
-                  <Cap style={{ color: Colors.primary }}>Edit</Cap>
-                </TouchableOpacity>
-              )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
+                </View>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>Rental Terms</Text>
+              </View>
+              <TouchableOpacity
+                onPress={openTermsEditor}
+                activeOpacity={0.75}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 5,
+                  paddingHorizontal: 12, paddingVertical: 7,
+                  borderRadius: 20, borderWidth: 1.5,
+                  borderColor: Colors.action,
+                  backgroundColor: Colors.actionSoft,
+                }}
+              >
+                <Ionicons name="pencil-outline" size={13} color={Colors.action} />
+                <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 12 }}>Edit Terms</Text>
+              </TouchableOpacity>
             </View>
             <View style={{ gap: 10 }}>
               <TermRow label="Monthly Rent" value={formatCurrency(rental.monthly_rent)} />
@@ -913,11 +950,18 @@ export default function PropertyDetailScreen() {
       </BottomSheet>
 
       <BottomSheet visible={showTermsSheet} onClose={() => setShowTermsSheet(false)} scrollable>
-        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20, marginBottom: 6 }}>
-          Edit agreement terms
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: Colors.actionSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="pencil-outline" size={17} color={Colors.action} />
+          </View>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>Edit Rental Terms</Text>
+        </View>
         <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
-          These values update the tenant agreement summary until the tenant signs it.
+          {rental?.agreement_signed_at
+            ? 'Editing will void the tenant\'s signature and regenerate the agreement for re-signing.'
+            : rental?.agreement_url
+            ? 'Saving will automatically regenerate the agreement document.'
+            : 'These terms will be used when you generate the rental agreement.'}
         </Text>
 
         <Input
