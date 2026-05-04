@@ -203,6 +203,25 @@ export default function TenantDashboard() {
               </Card>
             )}
 
+            {rental.status === 'pending_moveout' && (
+              <Card style={{ backgroundColor: '#EDE9FE', borderColor: '#C4B5FD' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <Ionicons name="exit-outline" size={20} color="#7C3AED" />
+                  <Text style={{ color: '#7C3AED', fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
+                    Move-out requested
+                  </Text>
+                </View>
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
+                  Your landlord has initiated a move-out. Please upload photos of all rooms to complete the handover.
+                </Text>
+                <Button
+                  title="Upload Move-out Photos"
+                  onPress={() => router.push({ pathname: '/(tenant)/proof/upload', params: { type: 'move_out' } })}
+                  fullWidth
+                />
+              </Card>
+            )}
+
             <View className="flex-row gap-3">
               <ActionTile label="Proof" icon="camera-outline" onPress={() => router.push('/(tenant)/proof/upload')} />
               <ActionTile label="Agreement" icon="document-text-outline" onPress={() => router.push('/(tenant)/agreement')} />

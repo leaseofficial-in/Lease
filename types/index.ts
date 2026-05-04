@@ -6,6 +6,7 @@ export type RentalStatus =
   | 'active'
   | 'pending_tenant'
   | 'pending_proof'
+  | 'pending_moveout'
   | 'ended';
 
 export type PaymentStatus = 'paid' | 'pending' | 'overdue' | 'partial' | 'pending_verification';
@@ -144,6 +145,7 @@ export interface RepairRequest {
   priority: RepairPriority;
   status: RepairStatus;
   photos: string[]; // storage paths
+  landlord_note: string | null;
   resolved_at: string | null;
   created_at: string;
   updated_at: string;

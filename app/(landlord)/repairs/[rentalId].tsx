@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -93,25 +94,26 @@ export default function LandlordRepairsScreen() {
   const closed = repairs.filter((r) => r.status === 'resolved' || r.status === 'closed');
 
   return (
-    <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
-      <View className="px-5 py-4 flex-row items-center bg-white border-b border-border">
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
+      <View style={{ paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
         <TouchableOpacity
           onPress={() => router.back()}
-          className="w-9 h-9 rounded-full bg-fill items-center justify-center mr-3"
+          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}
           activeOpacity={0.75}
         >
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>‹</Text>
+          <Ionicons name="chevron-back" size={20} color={Colors.primary} />
         </TouchableOpacity>
-        <View className="flex-1">
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>
+        <View style={{ flex: 1 }}>
+          <Cap>Maintenance</Cap>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18, marginTop: 2 }}>
             Repair Requests
           </Text>
-          {repairs.length > 0 && (
-            <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, marginTop: 2 }}>
-              {needsAction.length} new, {inProgress.length} in progress, {closed.length} closed
-            </Text>
-          )}
         </View>
+        {repairs.length > 0 && (
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+            {needsAction.length} new
+          </Text>
+        )}
       </View>
 
       {!repairs.length ? (
@@ -122,15 +124,15 @@ export default function LandlordRepairsScreen() {
               ? 'Local demo mode skips live maintenance records.'
               : "Your tenant hasn't raised any maintenance issues yet."
           }
-          icon={<Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 32 }}>M</Text>}
+          icon={<Ionicons name="construct-outline" size={32} color={Colors.muted} />}
         />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         >
-          <View className="px-5 pt-4 pb-8">
-            <View className="flex-row gap-3 mb-4">
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 }}>
+            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
               <Metric label="New" value={String(needsAction.length)} tone="bad" />
               <Metric label="In work" value={String(inProgress.length)} tone="warn" />
               <Metric label="Closed" value={String(closed.length)} tone="good" />
@@ -152,7 +154,7 @@ export default function LandlordRepairsScreen() {
 
             {inProgress.length > 0 && (
               <>
-                <Cap style={{ marginTop: needsAction.length ? 16 : 0, marginBottom: 12 }}>
+                <Cap style={{ marginTop: needsAction.length ? 20 : 0, marginBottom: 12 }}>
                   In progress ({inProgress.length})
                 </Cap>
                 {inProgress.map((r) => (
@@ -168,7 +170,7 @@ export default function LandlordRepairsScreen() {
 
             {closed.length > 0 && (
               <>
-                <Cap style={{ marginTop: 16, marginBottom: 12 }}>Closed ({closed.length})</Cap>
+                <Cap style={{ marginTop: 20, marginBottom: 12 }}>Closed ({closed.length})</Cap>
                 {closed.map((r) => (
                   <RepairCard
                     key={r.id}
@@ -190,8 +192,8 @@ function Metric({ label, value, tone }: { label: string; value: string; tone: 'g
   const color = tone === 'good' ? Colors.success : tone === 'warn' ? Colors.warning : Colors.danger;
   const bg = tone === 'good' ? Colors.successSoft : tone === 'warn' ? Colors.warningSoft : Colors.dangerSoft;
   return (
-    <View className="flex-1 rounded-2xl px-3 py-3" style={{ backgroundColor: bg }}>
-      <Text style={{ color, fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>{value}</Text>
+    <View style={{ flex: 1, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: bg }}>
+      <Text style={{ color, fontFamily: Fonts.sansSemiBold, fontSize: 22 }}>{value}</Text>
       <Text style={{ color, fontFamily: Fonts.sansMedium, fontSize: 11, marginTop: 2 }}>{label}</Text>
     </View>
   );
@@ -214,8 +216,8 @@ function RepairCard({
     : 'default';
 
   return (
-    <Card className={`mb-3 ${isClosed ? 'opacity-60' : ''}`}>
-      <View className="flex-row items-start justify-between mb-2">
+    <Card style={{ marginBottom: 12, opacity: isClosed ? 0.6 : 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
         <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16, flex: 1, marginRight: 12 }}>
           {repair.title}
         </Text>
@@ -227,15 +229,15 @@ function RepairCard({
       >
         {repair.description}
       </Text>
-      <View className="flex-row items-center gap-2 mb-3">
-          <Chip tone={priorityTone}>{repairPriorityLabel[repair.priority]}</Chip>
-          <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
-            Reported {formatRelativeTime(repair.created_at)}
-          </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <Chip tone={priorityTone}>{repairPriorityLabel[repair.priority]}</Chip>
+        <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
+          Reported {formatRelativeTime(repair.created_at)}
+        </Text>
       </View>
 
-      <View className="flex-row items-center justify-between pt-3 border-t border-border">
-        <View className="flex-1 pr-3">
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.border }}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
           <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
             {statusHint(repair.status)}
           </Text>
@@ -245,7 +247,7 @@ function RepairCard({
           <TouchableOpacity
             onPress={() => onAdvance(repair)}
             disabled={advancing}
-            className="bg-primary px-4 py-2 rounded-full"
+            style={{ backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999 }}
             activeOpacity={0.75}
           >
             <Text style={{ color: Colors.surface, fontFamily: Fonts.sansSemiBold, fontSize: 12 }}>

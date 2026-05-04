@@ -379,6 +379,10 @@ export default function LandlordDashboard() {
                 <RentalCard key={rental.id} rental={rental} role="landlord" />
               ))
             )}
+
+            {actionableRentals.length > 0 && (
+              <SetupChecklist rentals={actionableRentals} onPress={(r) => router.push(`/(landlord)/property/${r.property_id}`)} />
+            )}
           </View>
         </View>
       </ScrollView>
@@ -401,6 +405,81 @@ function MiniPanel({ label, value, children }: { label: string; value: string; c
       <Cap>{label}</Cap>
       <DisplayText style={{ fontSize: 34, lineHeight: 38, marginTop: 6 }}>{value}</DisplayText>
       {children}
+    </Card>
+  );
+}
+
+const SETUP_STEPS: { status: Rental['status']; label: string }[] = [
+  { status: 'pending_tenant', label: 'Invite sent' },
+  { status: 'pending_proof', label: 'Tenant joined' },
+  { status: 'active', label: 'Rental active' },
+];
+
+function setupStep(status: Rental['status']): number {
+  if (status === 'pending_tenant') return 0;
+  if (status === 'pending_proof') return 1;
+  if (status === 'active') return 2;
+  if (status === 'pending_moveout') return 3;
+  return 3;
+}
+
+function SetupChecklist({ rentals, onPress }: { rentals: Rental[]; onPress: (r: Rental) => void }) {
+  const pendingSetup = rentals.filter((r) => r.status === 'pending_tenant' || r.status === 'pending_proof');
+  if (!pendingSetup.length) return null;
+
+  return (
+    <Card style={{ marginTop: 12 }}>
+      <Cap style={{ marginBottom: 10 }}>Setup in progress</Cap>
+      {pendingSetup.map((rental) => {
+        const step = setupStep(rental.status);
+        return (
+          <TouchableOpacity
+            key={rental.id}
+            onPress={() => onPress(rental)}
+            activeOpacity={0.8}
+            style={{ marginBottom: 14 }}
+          >
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 8 }}>
+              {rental.property?.name ?? 'Rental'}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 0 }}>
+              {SETUP_STEPS.map((s, i) => {
+                const done = i < step;
+                const current = i === step;
+                return (
+                  <React.Fragment key={s.label}>
+                    <View style={{ alignItems: 'center' }}>
+                      <View style={{
+                        width: 22, height: 22, borderRadius: 11,
+                        backgroundColor: done ? Colors.success : current ? Colors.action : Colors.fill,
+                        borderWidth: current ? 2 : 0,
+                        borderColor: Colors.action,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {done && <Text style={{ color: Colors.surface, fontSize: 11, fontFamily: Fonts.sansBold }}>✓</Text>}
+                        {current && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.action }} />}
+                      </View>
+                      <Text style={{
+                        color: done ? Colors.success : current ? Colors.action : Colors.muted,
+                        fontFamily: Fonts.sans, fontSize: 9, marginTop: 4, textAlign: 'center',
+                      }}>
+                        {s.label}
+                      </Text>
+                    </View>
+                    {i < SETUP_STEPS.length - 1 && (
+                      <View style={{
+                        flex: 1, height: 2, marginBottom: 14,
+                        backgroundColor: done ? Colors.success : Colors.fill,
+                        marginHorizontal: 2,
+                      }} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+        );
+      })}
     </Card>
   );
 }

@@ -57,6 +57,8 @@ export default function PropertyDetailScreen() {
   const [showTermsSheet, setShowTermsSheet] = useState(false);
   const [savingTerms, setSavingTerms] = useState(false);
   const [generatingAgreement, setGeneratingAgreement] = useState(false);
+  const [initiatingMoveout, setInitiatingMoveout] = useState(false);
+  const [closingRental, setClosingRental] = useState(false);
   const [termsForm, setTermsForm] = useState({
     monthlyRent: '',
     securityDeposit: '',
@@ -355,6 +357,59 @@ export default function PropertyDetailScreen() {
     );
   };
 
+  const handleInitiateMoveout = () => {
+    if (!rental) return;
+    confirmAction(
+      'Initiate Move-out',
+      'This will notify the tenant to upload move-out photos. The rental status will change to "Move-out". Continue?',
+      async () => {
+        setInitiatingMoveout(true);
+        try {
+          const { error } = await supabase
+            .from('rentals')
+            .update({ status: 'pending_moveout', updated_at: new Date().toISOString() })
+            .eq('id', rental.id);
+          if (error) throw error;
+          await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+          await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+          showToast('Move-out initiated. Tenant will be notified.', 'success');
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : 'Failed to initiate move-out', 'error');
+        } finally {
+          setInitiatingMoveout(false);
+        }
+      },
+      'Initiate',
+    );
+  };
+
+  const handleCloseRental = () => {
+    if (!rental) return;
+    confirmAction(
+      'Close Rental',
+      'This will end the rental permanently. Make sure deposit settlement is complete. This cannot be undone.',
+      async () => {
+        setClosingRental(true);
+        try {
+          const { error } = await supabase
+            .from('rentals')
+            .update({ status: 'ended', updated_at: new Date().toISOString() })
+            .eq('id', rental.id);
+          if (error) throw error;
+          await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+          await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+          showToast('Rental closed.', 'success');
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : 'Failed to close rental', 'error');
+        } finally {
+          setClosingRental(false);
+        }
+      },
+      'Close Rental',
+      true,
+    );
+  };
+
   const openAgreementDocument = () => {
     if (!rental) return;
     router.push({
@@ -452,6 +507,34 @@ export default function PropertyDetailScreen() {
                 Ask your tenant to upload move-in photos, then activate the rental.
               </Text>
               <Button title="Activate Rental" onPress={handleActivateRental} loading={activatingRental} fullWidth />
+            </Card>
+          )}
+
+          {rental.status === 'pending_moveout' && (
+            <Card style={{ backgroundColor: '#EDE9FE', borderColor: '#C4B5FD' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <Ionicons name="exit-outline" size={20} color="#7C3AED" />
+                <Text style={{ color: '#7C3AED', fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
+                  Move-out in progress
+                </Text>
+              </View>
+              <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
+                Tenant needs to upload move-out photos. Review them, then settle the deposit and close the rental.
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Button
+                  title="Review Photos"
+                  onPress={() => router.push(`/(landlord)/proof/${rental.id}`)}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  title="Close Rental"
+                  variant="danger"
+                  onPress={handleCloseRental}
+                  loading={closingRental}
+                  style={{ flex: 1 }}
+                />
+              </View>
             </Card>
           )}
 
@@ -674,6 +757,16 @@ export default function PropertyDetailScreen() {
               title="Review Move-in Proof"
               variant="secondary"
               onPress={() => router.push(`/(landlord)/proof/${rental.id}`)}
+              fullWidth
+            />
+          )}
+
+          {rental.status === 'active' && (
+            <Button
+              title="Initiate Move-out"
+              variant="ghost"
+              onPress={handleInitiateMoveout}
+              loading={initiatingMoveout}
               fullWidth
             />
           )}

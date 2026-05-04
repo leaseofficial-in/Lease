@@ -86,6 +86,7 @@ export const rentalStatusLabel: Record<RentalStatus, string> = {
   active: 'Active',
   pending_tenant: 'Awaiting Tenant',
   pending_proof: 'Proof Pending',
+  pending_moveout: 'Move-out',
   ended: 'Ended',
 };
 

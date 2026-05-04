@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import { uploadProofPhoto, pickMultiplePhotos, takePhoto, deleteProofPhoto } from '../../../lib/storage';
@@ -25,6 +25,8 @@ import { Colors, Fonts } from '../../../constants/theme';
 import { confirmAction } from '../../../lib/confirm';
 
 export default function UploadProofScreen() {
+  const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
+  const proofType: 'move_in' | 'move_out' = typeParam === 'move_out' ? 'move_out' : 'move_in';
   const router = useRouter();
   const { profile } = useAuthStore();
   const { showToast } = useUIStore();
@@ -58,13 +60,13 @@ export default function UploadProofScreen() {
   });
 
   const { data: proof, isLoading, error: proofError, refetch: refetchProof } = useQuery({
-    queryKey: ['proof', rental?.id, 'move_in'],
+    queryKey: ['proof', rental?.id, proofType],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('proofs')
         .select('*, photos:proof_photos(*)')
         .eq('rental_id', rental!.id)
-        .eq('type', 'move_in')
+        .eq('type', proofType)
         .maybeSingle();
       if (error) throw error;
       return data as (Proof & { photos: ProofPhoto[] }) | null;
@@ -92,7 +94,7 @@ export default function UploadProofScreen() {
     if (!rental?.id || !profile?.id) throw new Error('Join a rental before adding proof photos.');
     const { data, error } = await supabase
       .from('proofs')
-      .insert({ rental_id: rental.id, type: 'move_in', submitted_by: profile.id, status: 'pending' })
+      .insert({ rental_id: rental.id, type: proofType, submitted_by: profile.id, status: 'pending' })
       .select()
       .single();
     if (error) throw error;
@@ -280,7 +282,7 @@ export default function UploadProofScreen() {
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
-          <Cap>Move-in</Cap>
+          <Cap>{proofType === 'move_out' ? 'Move-out' : 'Move-in'}</Cap>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
             Proof Photos
           </Text>
