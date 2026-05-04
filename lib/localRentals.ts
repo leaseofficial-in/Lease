@@ -15,6 +15,11 @@ type CreateLocalRentalInput = {
   securityDeposit: string;
   rentDueDay: string;
   startDate: string;
+  endDate?: string;
+  noticePeriodDays?: string;
+  furnishedStatus?: string;
+  lateFeePercent?: string;
+  maintenanceCharges?: string;
 };
 
 const readLocalRentals = async (): Promise<Rental[]> => {
@@ -72,7 +77,11 @@ export const createLocalRental = async (
     security_deposit: Number(values.securityDeposit || 0),
     rent_due_day: Number(values.rentDueDay),
     start_date: values.startDate,
-    end_date: null,
+    end_date: values.endDate ?? null,
+    notice_period_days: Number(values.noticePeriodDays ?? 30),
+    furnished_status: (values.furnishedStatus as Rental['furnished_status']) ?? 'unfurnished',
+    late_fee_percent: Number(values.lateFeePercent ?? 5),
+    maintenance_charges: Number(values.maintenanceCharges ?? 0),
     invite_token: `local-${idBase}`,
     invite_expires_at: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
     agreement_url: null,
@@ -101,7 +110,7 @@ export const activateLocalRental = async (rentalId: string): Promise<void> => {
 
 export const updateLocalRentalTerms = async (
   rentalId: string,
-  terms: Pick<Rental, 'monthly_rent' | 'security_deposit' | 'rent_due_day' | 'start_date' | 'end_date'>,
+  terms: Pick<Rental, 'monthly_rent' | 'security_deposit' | 'rent_due_day' | 'start_date' | 'end_date' | 'notice_period_days' | 'furnished_status' | 'late_fee_percent' | 'maintenance_charges'>,
 ): Promise<void> => {
   const rentals = await readLocalRentals();
   await writeLocalRentals(

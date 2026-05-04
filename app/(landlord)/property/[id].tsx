@@ -66,6 +66,10 @@ export default function PropertyDetailScreen() {
     rentDueDay: '',
     startDate: '',
     endDate: '',
+    noticePeriodDays: '30',
+    furnishedStatus: 'unfurnished',
+    lateFeePercent: '5',
+    maintenanceCharges: '0',
   });
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
@@ -260,6 +264,10 @@ export default function PropertyDetailScreen() {
       rentDueDay: String(rental.rent_due_day ?? ''),
       startDate: rental.start_date ?? '',
       endDate: rental.end_date ?? '',
+      noticePeriodDays: String(rental.notice_period_days ?? 30),
+      furnishedStatus: rental.furnished_status ?? 'unfurnished',
+      lateFeePercent: String(rental.late_fee_percent ?? 5),
+      maintenanceCharges: String(rental.maintenance_charges ?? 0),
     });
     setShowTermsSheet(true);
   };
@@ -299,6 +307,10 @@ export default function PropertyDetailScreen() {
       rent_due_day: rentDueDay,
       start_date: termsForm.startDate.trim(),
       end_date: termsForm.endDate.trim() || null,
+      notice_period_days: Number(termsForm.noticePeriodDays) || 30,
+      furnished_status: (termsForm.furnishedStatus || 'unfurnished') as 'furnished' | 'semi_furnished' | 'unfurnished',
+      late_fee_percent: Number(termsForm.lateFeePercent) || 5,
+      maintenance_charges: Number(termsForm.maintenanceCharges) || 0,
     };
     try {
       if (isLocalDevUser) {
@@ -490,6 +502,33 @@ export default function PropertyDetailScreen() {
             </View>
           </InkCard>
 
+          {(() => {
+            if (!rental.end_date) return null;
+            const daysLeft = Math.ceil((new Date(rental.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            if (daysLeft > 60) return null;
+            const expired = daysLeft <= 0;
+            return (
+              <View
+                style={{
+                  backgroundColor: expired ? '#FEF2F2' : Colors.warningSoft,
+                  borderColor: expired ? '#F5B8B5' : '#F1D39B',
+                  borderWidth: 1, borderRadius: 16, padding: 14,
+                  flexDirection: 'row', alignItems: 'center', gap: 12,
+                }}
+              >
+                <Ionicons name="calendar-outline" size={20} color={expired ? Colors.danger : Colors.warning} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: expired ? Colors.danger : Colors.warning, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
+                    {expired ? 'Lease has expired' : `Lease ending in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`}
+                  </Text>
+                  <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, marginTop: 2 }}>
+                    End date: {new Date(rental.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </Text>
+                </View>
+              </View>
+            );
+          })()}
+
           {rental.status === 'pending_tenant' && (
             <Card>
               <Cap style={{ marginBottom: 10 }}>Invite Tenant</Cap>
@@ -600,10 +639,25 @@ export default function PropertyDetailScreen() {
             </View>
             <View style={{ gap: 10 }}>
               <TermRow label="Monthly Rent" value={formatCurrency(rental.monthly_rent)} />
+              {(rental.maintenance_charges ?? 0) > 0 && (
+                <TermRow label="Maintenance" value={`${formatCurrency(rental.maintenance_charges)} / month`} />
+              )}
               <TermRow label="Security Deposit" value={formatCurrency(rental.security_deposit)} />
               <TermRow label="Due Day" value={`${rental.rent_due_day}${ordinal(rental.rent_due_day)} of each month`} />
+              <TermRow label="Late Fee" value={`${rental.late_fee_percent ?? 5}%`} />
               <TermRow label="Start Date" value={formatDate(rental.start_date)} />
               {rental.end_date && <TermRow label="End Date" value={formatDate(rental.end_date)} />}
+              <TermRow label="Notice Period" value={`${rental.notice_period_days ?? 30} days`} />
+              <TermRow
+                label="Furnished"
+                value={
+                  rental.furnished_status === 'furnished'
+                    ? 'Fully Furnished'
+                    : rental.furnished_status === 'semi_furnished'
+                    ? 'Semi-Furnished'
+                    : 'Unfurnished'
+                }
+              />
               <TermRow
                 label="Agreement"
                 value={rental.agreement_signed_at ? `Signed ${formatDate(rental.agreement_signed_at)}` : 'Editable before tenant signs'}
@@ -902,6 +956,30 @@ export default function PropertyDetailScreen() {
           placeholder="YYYY-MM-DD (optional)"
           value={termsForm.endDate}
           onChangeText={(value) => setTermsForm((current) => ({ ...current, endDate: value }))}
+          hint="Move-out / lease end date"
+        />
+        <Input
+          label="Notice Period (days)"
+          placeholder="30"
+          value={termsForm.noticePeriodDays}
+          onChangeText={(value) => setTermsForm((current) => ({ ...current, noticePeriodDays: value }))}
+          keyboardType="numeric"
+          hint="30 or 60 days is standard"
+        />
+        <Input
+          label="Late Fee (%)"
+          placeholder="5"
+          value={termsForm.lateFeePercent}
+          onChangeText={(value) => setTermsForm((current) => ({ ...current, lateFeePercent: value }))}
+          keyboardType="numeric"
+        />
+        <Input
+          label="Maintenance Charges"
+          placeholder="0"
+          value={termsForm.maintenanceCharges}
+          onChangeText={(value) => setTermsForm((current) => ({ ...current, maintenanceCharges: value }))}
+          keyboardType="numeric"
+          hint="Monthly society / utility charges"
         />
 
         <Button

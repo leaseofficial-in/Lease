@@ -61,6 +61,10 @@ export interface Rental {
   rent_due_day: number;
   start_date: string;
   end_date: string | null;
+  notice_period_days: number;
+  furnished_status: 'furnished' | 'semi_furnished' | 'unfurnished';
+  late_fee_percent: number;
+  maintenance_charges: number;
   invite_token: string;
   invite_expires_at: string;
   agreement_url: string | null;
