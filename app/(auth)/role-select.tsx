@@ -7,9 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { Button } from '../../components/ui/Button';
-import { Cap, DisplayText, SerifItalic } from '../../components/ui/V2';
 import { UserRole } from '../../types';
-import { Colors, Fonts } from '../../constants/theme';
+import { Colors, Fonts, Shadow } from '../../constants/theme';
 import { recordTenantReferral } from '../../lib/referrals';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -19,30 +18,36 @@ interface RoleOption {
   icon: IoniconName;
   title: string;
   subtitle: string;
-  perks: string[];
+  color: string;
+  bg: string;
+  perks: { icon: IoniconName; text: string }[];
 }
 
 const roles: RoleOption[] = [
   {
     role: 'landlord',
-    icon: 'home',
+    icon: 'business-outline',
     title: 'Landlord',
     subtitle: 'I own or manage a rental property.',
+    color: Colors.action,
+    bg: Colors.actionSoft,
     perks: [
-      'Create rentals and invite tenants',
-      'Track rent collection and deposits',
-      'Review move-in proof and repair requests',
+      { icon: 'person-add-outline', text: 'Create rentals and invite tenants' },
+      { icon: 'cash-outline', text: 'Track rent collection and deposits' },
+      { icon: 'camera-outline', text: 'Review move-in proof and repair requests' },
     ],
   },
   {
     role: 'tenant',
-    icon: 'key',
+    icon: 'home-outline',
     title: 'Tenant',
     subtitle: 'I rent or am looking to rent a home.',
+    color: Colors.success,
+    bg: Colors.successSoft,
     perks: [
-      'Join your rental via invite link',
-      'Pay rent and view payment history',
-      'Upload move-in proof and raise repairs',
+      { icon: 'link-outline', text: 'Join your rental via invite link' },
+      { icon: 'receipt-outline', text: 'Pay rent and download HRA receipts' },
+      { icon: 'construct-outline', text: 'Upload move-in proof and raise repairs' },
     ],
   },
 ];
@@ -100,118 +105,121 @@ export default function RoleSelectScreen() {
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: Colors.canvas }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32 }}
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 36, paddingBottom: 32 }}
       >
-        <Cap style={{ marginBottom: 10 }}>One last step</Cap>
-        <DisplayText style={{ fontSize: 38, lineHeight: 40, marginBottom: 8 }}>
-          How will you{'\n'}<SerifItalic>use the app?</SerifItalic>
-        </DisplayText>
-        <Text
-          style={{
-            color: Colors.ink3,
-            fontFamily: Fonts.sans,
-            fontSize: 15,
-            lineHeight: 23,
-            marginBottom: 32,
-          }}
-        >
+        {/* Header */}
+        <Text style={{
+          color: Colors.muted, fontFamily: Fonts.mono,
+          fontSize: 10, letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 10,
+        }}>
+          One last step
+        </Text>
+        <Text style={{
+          color: Colors.primary, fontFamily: Fonts.sansSemiBold,
+          fontSize: 36, lineHeight: 40, letterSpacing: -0.8, marginBottom: 4,
+        }}>
+          How will you
+        </Text>
+        <Text style={{
+          color: Colors.ink3, fontFamily: Fonts.serifItalic,
+          fontSize: 36, lineHeight: 42, marginBottom: 10,
+        }}>
+          use the app?
+        </Text>
+        <Text style={{
+          color: Colors.ink3, fontFamily: Fonts.sans,
+          fontSize: 15, lineHeight: 23, marginBottom: 32,
+        }}>
           Flatvio sets up different tools for each role. This cannot be changed later.
         </Text>
 
-        <View style={{ gap: 12, marginBottom: 32 }}>
+        {/* Role cards */}
+        <View style={{ gap: 16, marginBottom: 32 }}>
           {roles.map((option) => {
             const isSelected = selected === option.role;
             return (
               <TouchableOpacity
                 key={option.role}
                 onPress={() => setSelected(option.role)}
+                activeOpacity={0.88}
                 style={{
-                  borderRadius: 22,
-                  borderWidth: 2,
-                  borderColor: isSelected ? Colors.action : Colors.border,
-                  backgroundColor: isSelected ? Colors.actionSoft : Colors.surface,
-                  padding: 20,
+                  borderRadius: 24, overflow: 'hidden',
+                  borderWidth: isSelected ? 2.5 : 1,
+                  borderColor: isSelected ? option.color : Colors.border,
+                  backgroundColor: Colors.surface,
+                  ...(isSelected ? Shadow.card : {}),
                 }}
-                activeOpacity={0.85}
               >
-                {/* Header row */}
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 }}>
-                  <View
-                    style={{
-                      width: 54, height: 54, borderRadius: 17,
-                      backgroundColor: isSelected ? Colors.action : Colors.fill2,
-                      alignItems: 'center', justifyContent: 'center',
-                      marginRight: 14,
-                    }}
-                  >
-                    <Ionicons name={option.icon} size={26} color={isSelected ? '#fff' : Colors.ink2} />
+                {/* Colored header band */}
+                <View style={{
+                  backgroundColor: isSelected ? option.color : option.bg,
+                  paddingHorizontal: 20, paddingVertical: 20,
+                  flexDirection: 'row', alignItems: 'center', gap: 14,
+                }}>
+                  <View style={{
+                    width: 58, height: 58, borderRadius: 18,
+                    backgroundColor: isSelected ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.65)',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Ionicons
+                      name={option.icon}
+                      size={29}
+                      color={isSelected ? '#fff' : option.color}
+                    />
                   </View>
-
                   <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        color: isSelected ? Colors.action : Colors.primary,
-                        fontFamily: Fonts.sansSemiBold,
-                        fontSize: 19,
-                        lineHeight: 22,
-                      }}
-                    >
+                    <Text style={{
+                      color: isSelected ? '#fff' : option.color,
+                      fontFamily: Fonts.sansSemiBold, fontSize: 20, lineHeight: 24,
+                    }}>
                       {option.title}
                     </Text>
-                    <Text
-                      style={{
-                        color: Colors.ink3,
-                        fontFamily: Fonts.sans,
-                        fontSize: 13,
-                        lineHeight: 19,
-                        marginTop: 3,
-                      }}
-                    >
+                    <Text style={{
+                      color: isSelected ? 'rgba(255,255,255,0.7)' : Colors.ink3,
+                      fontFamily: Fonts.sans, fontSize: 13, marginTop: 3, lineHeight: 18,
+                    }}>
                       {option.subtitle}
                     </Text>
                   </View>
 
-                  {/* Radio indicator */}
-                  <View
-                    style={{
-                      width: 22, height: 22, borderRadius: 11,
-                      borderWidth: 2,
-                      borderColor: isSelected ? Colors.action : Colors.border,
-                      backgroundColor: isSelected ? Colors.action : 'transparent',
-                      alignItems: 'center', justifyContent: 'center',
-                      marginTop: 2,
-                    }}
-                  >
-                    {isSelected && <Ionicons name="checkmark" size={13} color="#fff" />}
+                  {/* Radio */}
+                  <View style={{
+                    width: 26, height: 26, borderRadius: 13,
+                    backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.65)',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {isSelected
+                      ? <Ionicons name="checkmark" size={15} color={option.color} />
+                      : <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: option.color, opacity: 0.4 }} />
+                    }
                   </View>
                 </View>
 
                 {/* Perk list */}
-                <View
-                  style={{
-                    gap: 8,
-                    paddingTop: 16,
-                    borderTopWidth: 1,
-                    borderTopColor: isSelected ? 'rgba(46,91,255,0.12)' : Colors.borderSoft,
-                  }}
-                >
+                <View style={{
+                  paddingHorizontal: 20, paddingVertical: 16, gap: 10,
+                  borderTopWidth: 1,
+                  borderTopColor: isSelected ? `${option.color}22` : Colors.borderSoft,
+                }}>
                   {option.perks.map((perk) => (
-                    <View key={perk} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={16}
-                        color={isSelected ? Colors.action : Colors.success}
-                      />
-                      <Text
-                        style={{
-                          color: Colors.ink2,
-                          fontFamily: Fonts.sans,
-                          fontSize: 13,
-                          flex: 1,
-                          lineHeight: 19,
-                        }}
-                      >
-                        {perk}
+                    <View key={perk.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={{
+                        width: 30, height: 30, borderRadius: 10,
+                        backgroundColor: isSelected ? option.bg : Colors.fill,
+                        alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        <Ionicons
+                          name={perk.icon}
+                          size={15}
+                          color={isSelected ? option.color : Colors.muted}
+                        />
+                      </View>
+                      <Text style={{
+                        color: Colors.ink2, fontFamily: Fonts.sans,
+                        fontSize: 13, flex: 1, lineHeight: 19,
+                      }}>
+                        {perk.text}
                       </Text>
                     </View>
                   ))}
@@ -234,16 +242,10 @@ export default function RoleSelectScreen() {
           size="lg"
         />
 
-        <Text
-          style={{
-            color: Colors.muted,
-            fontFamily: Fonts.sans,
-            fontSize: 12,
-            textAlign: 'center',
-            marginTop: 14,
-            lineHeight: 18,
-          }}
-        >
+        <Text style={{
+          color: Colors.muted, fontFamily: Fonts.sans,
+          fontSize: 12, textAlign: 'center', marginTop: 14, lineHeight: 18,
+        }}>
           Your role is permanent and tied to your account.
         </Text>
       </ScrollView>
