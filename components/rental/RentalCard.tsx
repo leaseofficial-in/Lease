@@ -19,6 +19,7 @@ export const RentalCard: React.FC<RentalCardProps> = ({ rental, role, rentalCoun
   const router = useRouter();
   const person = role === 'landlord' ? rental.tenant : rental.landlord;
   const personLabel = role === 'landlord' ? 'Tenant' : 'Landlord';
+  const archived = !!rental.property?.archived_at;
 
   return (
     <TouchableOpacity
@@ -52,7 +53,7 @@ export const RentalCard: React.FC<RentalCardProps> = ({ rental, role, rentalCoun
               {rental.property?.address_line1 ?? `${rental.property?.city ?? ''}, ${rental.property?.state ?? ''}`}
             </Text>
           </View>
-          <StatusPill kind="rental" value={rental.status} />
+          {archived ? <Chip tone="outline">Archived</Chip> : <StatusPill kind="rental" value={rental.status} />}
         </View>
 
         <View className="flex-row justify-between">
@@ -71,8 +72,8 @@ export const RentalCard: React.FC<RentalCardProps> = ({ rental, role, rentalCoun
               </Text>
             </View>
           </View>
-          <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
-            {rental.status === 'active' ? 'Live' : 'Setup'}
+          <Chip tone={archived ? 'outline' : rental.status === 'active' ? 'good' : 'warn'}>
+            {archived ? 'Hidden' : rental.status === 'active' ? 'Live' : 'Setup'}
           </Chip>
         </View>
       </Card>

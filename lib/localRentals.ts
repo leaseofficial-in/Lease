@@ -72,6 +72,7 @@ export const createLocalRental = async (
     pincode: values.pincode,
     property_type: values.propertyType,
     created_at: now,
+    archived_at: null,
   };
 
   const rental: Rental = {
@@ -129,7 +130,34 @@ export const updateLocalRentalTerms = async (
   );
 };
 
-export const deleteLocalProperty = async (propertyId: string): Promise<void> => {
+export const archiveLocalProperty = async (propertyId: string): Promise<void> => {
+  const now = new Date().toISOString();
   const rentals = await readLocalRentals();
-  await writeLocalRentals(rentals.filter((rental) => rental.property_id !== propertyId));
+  await writeLocalRentals(
+    rentals.map((rental) =>
+      rental.property_id === propertyId && rental.property
+        ? {
+            ...rental,
+            property: { ...rental.property, archived_at: now },
+            updated_at: now,
+          }
+        : rental,
+    ),
+  );
+};
+
+export const restoreLocalProperty = async (propertyId: string): Promise<void> => {
+  const now = new Date().toISOString();
+  const rentals = await readLocalRentals();
+  await writeLocalRentals(
+    rentals.map((rental) =>
+      rental.property_id === propertyId && rental.property
+        ? {
+            ...rental,
+            property: { ...rental.property, archived_at: null },
+            updated_at: now,
+          }
+        : rental,
+    ),
+  );
 };

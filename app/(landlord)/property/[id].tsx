@@ -34,7 +34,7 @@ import { Cap, Chip, InkCard } from '../../../components/ui/V2';
 import { Colors, Fonts } from '../../../constants/theme';
 import { Config } from '../../../constants/config';
 import { isDevAuthUserId } from '../../../lib/devAuth';
-import { activateLocalRental, deleteLocalProperty, listLocalRentalsByPropertyId, updateLocalRentalTerms } from '../../../lib/localRentals';
+import { activateLocalRental, archiveLocalProperty, listLocalRentalsByPropertyId, restoreLocalProperty, updateLocalRentalTerms } from '../../../lib/localRentals';
 import { confirmAction } from '../../../lib/confirm';
 import { buildRentalActivity } from '../../../lib/rentalActivity';
 import { generateRentalAgreement } from '../../../lib/agreement';
@@ -61,7 +61,7 @@ export default function PropertyDetailScreen() {
   const [generatingAgreement, setGeneratingAgreement] = useState(false);
   const [initiatingMoveout, setInitiatingMoveout] = useState(false);
   const [closingRental, setClosingRental] = useState(false);
-  const [deletingPlace, setDeletingPlace] = useState(false);
+  const [archivingPlace, setArchivingPlace] = useState(false);
   const [termsForm, setTermsForm] = useState({
     monthlyRent: '',
     securityDeposit: '',
@@ -156,10 +156,11 @@ export default function PropertyDetailScreen() {
   });
 
   const visibleDepositTransactions = isLocalDevUser ? localDepositTransactions : depositTransactions ?? [];
-  const blockingDeleteRental = allPropertyRentals?.find((item) =>
+  const blockingArchiveRental = allPropertyRentals?.find((item) =>
     item.status === 'active' || item.status === 'pending_proof' || item.status === 'pending_moveout',
   );
-  const canDeletePlace = !!rental && !blockingDeleteRental;
+  const isArchivedPlace = !!rental?.property?.archived_at;
+  const canArchivePlace = !!rental && !blockingArchiveRental;
 
   const refreshAll = async () => {
     await Promise.all([
@@ -460,28 +461,60 @@ export default function PropertyDetailScreen() {
     );
   };
 
-  const handleDeletePlace = () => {
+  const handleArchivePlace = () => {
     if (!rental || !profile) return;
 
-    if (!canDeletePlace) {
-      showToast('Close active or tenant-joined rentals before deleting this place.', 'error');
+    if (isArchivedPlace) {
+      confirmAction(
+        'Restore Place',
+        'This will move the place back into your current portfolio filters.',
+        async () => {
+          setArchivingPlace(true);
+          try {
+            if (isLocalDevUser) {
+              await restoreLocalProperty(rental.property_id);
+            } else {
+              const { error } = await supabase
+                .from('properties')
+                .update({ archived_at: null })
+                .eq('id', rental.property_id)
+                .eq('landlord_id', profile.id);
+              if (error) throw error;
+            }
+
+            await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+            await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+            showToast('Place restored', 'success');
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Failed to restore place', 'error');
+          } finally {
+            setArchivingPlace(false);
+          }
+        },
+        'Restore',
+      );
+      return;
+    }
+
+    if (!canArchivePlace) {
+      showToast('Close active or tenant-joined rentals before archiving this place.', 'error');
       return;
     }
 
     const placeName = rental.property?.name ?? 'this place';
     const rentalCount = allPropertyRentals?.length ?? 1;
     confirmAction(
-      'Delete Place',
-      `This permanently removes ${placeName} and ${rentalCount} rental record${rentalCount === 1 ? '' : 's'} linked to it. Use this only for duplicates, test records, or places you no longer need in Flatvio.`,
+      'Archive Place',
+      `This hides ${placeName} from your current portfolio while keeping ${rentalCount} linked rental record${rentalCount === 1 ? '' : 's'}, receipts, agreements, and history available.`,
       async () => {
-        setDeletingPlace(true);
+        setArchivingPlace(true);
         try {
           if (isLocalDevUser) {
-            await deleteLocalProperty(rental.property_id);
+            await archiveLocalProperty(rental.property_id);
           } else {
             const { error } = await supabase
               .from('properties')
-              .delete()
+              .update({ archived_at: new Date().toISOString() })
               .eq('id', rental.property_id)
               .eq('landlord_id', profile.id);
             if (error) throw error;
@@ -489,15 +522,14 @@ export default function PropertyDetailScreen() {
 
           await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
           await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
-          showToast('Place deleted', 'success');
-          router.replace('/(landlord)');
+          showToast('Place archived', 'success');
         } catch (error) {
-          showToast(error instanceof Error ? error.message : 'Failed to delete place', 'error');
+          showToast(error instanceof Error ? error.message : 'Failed to archive place', 'error');
         } finally {
-          setDeletingPlace(false);
+          setArchivingPlace(false);
         }
       },
-      'Delete Place',
+      'Archive',
       true,
     );
   };
@@ -551,7 +583,7 @@ export default function PropertyDetailScreen() {
               {rental.property?.city}, {rental.property?.state}
             </Text>
           </View>
-          <StatusPill kind="rental" value={rental.status} />
+          {isArchivedPlace ? <Chip tone="outline">Archived</Chip> : <StatusPill kind="rental" value={rental.status} />}
         </View>
 
         <View style={{ paddingHorizontal: 20, paddingTop: 16, gap: 14 }}>
@@ -565,6 +597,7 @@ export default function PropertyDetailScreen() {
               Deposit held: {formatCurrency(rental.security_deposit, true)}. Rent due on day {rental.rent_due_day}.
             </Text>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
+              {isArchivedPlace && <Chip tone="outline" inverse>Archived</Chip>}
               <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
                 {rental.status === 'active' ? 'Active rental' : 'Setup pending'}
               </Chip>
@@ -978,42 +1011,44 @@ export default function PropertyDetailScreen() {
             </Card>
           )}
 
-          <Card style={{ borderColor: canDeletePlace ? '#F5B8B5' : Colors.border }}>
+          <Card style={{ borderColor: isArchivedPlace ? Colors.border : canArchivePlace ? '#F5B8B5' : Colors.border }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
               <View
                 style={{
                   width: 36,
                   height: 36,
                   borderRadius: 11,
-                  backgroundColor: canDeletePlace ? Colors.dangerSoft : Colors.fill,
+                  backgroundColor: isArchivedPlace ? Colors.fill : canArchivePlace ? Colors.dangerSoft : Colors.fill,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
                 <AppIcon
-                  name={canDeletePlace ? 'trash-outline' : 'lock-closed-outline'}
+                  name={isArchivedPlace ? 'archive-outline' : canArchivePlace ? 'archive-outline' : 'lock-closed-outline'}
                   size={18}
-                  color={canDeletePlace ? Colors.danger : Colors.muted}
+                  color={isArchivedPlace ? Colors.muted : canArchivePlace ? Colors.danger : Colors.muted}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Cap>Danger Zone</Cap>
+                <Cap>Portfolio Status</Cap>
                 <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15, marginTop: 4 }}>
-                  Delete this place
+                  {isArchivedPlace ? 'Archived place' : 'Archive this place'}
                 </Text>
                 <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 4 }}>
-                  {canDeletePlace
-                    ? 'Permanently remove this property and its linked rental records.'
-                    : 'Close active, move-out, or tenant-joined rentals before deleting this place.'}
+                  {isArchivedPlace
+                    ? 'This place is hidden from the current portfolio. Restore it whenever you need it active again.'
+                    : canArchivePlace
+                    ? 'Hide this property from current views while keeping receipts, agreements, and history intact.'
+                    : 'Close active, move-out, or tenant-joined rentals before archiving this place.'}
                 </Text>
               </View>
             </View>
             <Button
-              title="Delete Place"
-              variant="danger"
-              onPress={handleDeletePlace}
-              loading={deletingPlace}
-              disabled={!canDeletePlace}
+              title={isArchivedPlace ? 'Restore Place' : 'Archive Place'}
+              variant={isArchivedPlace ? 'secondary' : 'danger'}
+              onPress={handleArchivePlace}
+              loading={archivingPlace}
+              disabled={!isArchivedPlace && !canArchivePlace}
               fullWidth
             />
           </Card>

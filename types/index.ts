@@ -46,6 +46,7 @@ export interface Property {
   pincode: string;
   property_type: 'apartment' | 'house' | 'pg' | 'commercial';
   created_at: string;
+  archived_at: string | null;
 }
 
 // ─── Rental ───────────────────────────────────────────────────────────────────

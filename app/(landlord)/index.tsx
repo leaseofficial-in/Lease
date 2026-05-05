@@ -32,10 +32,13 @@ interface LandlordPaymentAction extends Pick<RentPayment, 'id' | 'rental_id' | '
   rental?: { id: string; property_id: string; property?: { name: string } | null };
 }
 
+type PortfolioFilter = 'current' | 'active' | 'setup' | 'ended' | 'archived';
+
 export default function LandlordDashboard() {
   const router = useRouter();
   const { profile } = useAuthStore();
   const isLocalDevUser = isDevAuthUserId(profile?.id);
+  const [portfolioFilter, setPortfolioFilter] = React.useState<PortfolioFilter>('current');
 
   const { data: rentals, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['landlord-rentals', profile?.id],
@@ -238,8 +241,38 @@ export default function LandlordDashboard() {
     );
   }, [rentals]);
 
-  const activeRentals = rentals?.filter((r) => r.status === 'active') ?? [];
-  const actionableRentals = rentals?.filter((r) => r.status !== 'active' || !r.agreement_signed_at) ?? [];
+  const currentRentals = rentals?.filter((r) => !r.property?.archived_at) ?? [];
+  const activeRentals = currentRentals.filter((r) => r.status === 'active');
+  const actionableRentals = currentRentals.filter((r) => r.status !== 'active' || !r.agreement_signed_at);
+  const currentPropertyCount = propertyGroups.filter(({ representative }) =>
+    !representative.property?.archived_at && representative.status !== 'ended',
+  ).length;
+  const activePropertyCount = propertyGroups.filter(({ representative }) =>
+    !representative.property?.archived_at && (representative.status === 'active' || representative.status === 'pending_moveout'),
+  ).length;
+  const setupPropertyCount = propertyGroups.filter(({ representative }) =>
+    !representative.property?.archived_at && (representative.status === 'pending_tenant' || representative.status === 'pending_proof'),
+  ).length;
+  const endedPropertyCount = propertyGroups.filter(({ representative }) =>
+    !representative.property?.archived_at && representative.status === 'ended',
+  ).length;
+  const archivedPropertyCount = propertyGroups.filter(({ representative }) => !!representative.property?.archived_at).length;
+  const filteredPropertyGroups = propertyGroups.filter(({ representative }) => {
+    const archived = !!representative.property?.archived_at;
+    if (portfolioFilter === 'archived') return archived;
+    if (archived) return false;
+    if (portfolioFilter === 'active') return representative.status === 'active' || representative.status === 'pending_moveout';
+    if (portfolioFilter === 'setup') return representative.status === 'pending_tenant' || representative.status === 'pending_proof';
+    if (portfolioFilter === 'ended') return representative.status === 'ended';
+    return representative.status !== 'ended';
+  });
+  const portfolioFilters: { key: PortfolioFilter; label: string; count: number }[] = [
+    { key: 'current', label: 'Current', count: currentPropertyCount },
+    { key: 'active', label: 'Active', count: activePropertyCount },
+    { key: 'setup', label: 'Setup', count: setupPropertyCount },
+    { key: 'ended', label: 'Ended', count: endedPropertyCount },
+    { key: 'archived', label: 'Archived', count: archivedPropertyCount },
+  ];
   const durableActions = unreadNotifications ?? [];
   const unviewedRepairs = (repairActions ?? []).filter((repair) => !viewedRepairIds.includes(repair.id));
   const unviewedPayments = (paymentActions ?? []).filter((payment) => !viewedPaymentIds.includes(payment.id));
@@ -364,9 +397,10 @@ export default function LandlordDashboard() {
           </TouchableOpacity>
 
           <View className="flex-row gap-3">
-            <MiniPanel label="Properties" value={String(propertyGroups.length)}>
+            <MiniPanel label="Properties" value={String(currentPropertyCount)}>
               <View className="flex-row gap-2 mt-2">
                 <Chip tone="good">{activeRentals.length} active</Chip>
+                {archivedPropertyCount > 0 && <Chip tone="outline">{archivedPropertyCount} archived</Chip>}
               </View>
             </MiniPanel>
             <MiniPanel label="YTD income" value={formatCurrency(ytdTotal, true)}>
@@ -376,27 +410,63 @@ export default function LandlordDashboard() {
 
           <View className="mt-2">
             <View className="flex-row items-center justify-between mb-3">
-              <Cap>Your properties ({propertyGroups.length})</Cap>
+              <Cap>Your properties ({filteredPropertyGroups.length})</Cap>
               <TouchableOpacity onPress={() => router.push('/(landlord)/create-rental')}>
                 <Cap style={{ color: Colors.primary }}>+ Add</Cap>
               </TouchableOpacity>
             </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
+              {portfolioFilters.map((filter) => {
+                const selected = portfolioFilter === filter.key;
+                return (
+                  <TouchableOpacity
+                    key={filter.key}
+                    onPress={() => setPortfolioFilter(filter.key)}
+                    activeOpacity={0.75}
+                    style={{
+                      minHeight: 34,
+                      paddingHorizontal: 13,
+                      borderRadius: 18,
+                      borderWidth: 1,
+                      borderColor: selected ? Colors.primary : Colors.border,
+                      backgroundColor: selected ? Colors.primary : Colors.surface,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: selected ? Colors.surface : Colors.primary,
+                        fontFamily: Fonts.sansSemiBold,
+                        fontSize: 12,
+                      }}
+                    >
+                      {filter.label} {filter.count}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
             {isLoading ? (
               <>
                 <RentalCardSkeleton />
                 <RentalCardSkeleton />
               </>
-            ) : propertyGroups.length === 0 ? (
+            ) : filteredPropertyGroups.length === 0 ? (
               <EmptyState
-                title="No rentals yet"
-                subtitle="Create your first rental and invite a tenant."
-                actionLabel="Create Rental"
-                onAction={() => router.push('/(landlord)/create-rental')}
+                title={portfolioFilter === 'archived' ? 'No archived places' : 'No places here'}
+                subtitle={
+                  portfolioFilter === 'archived'
+                    ? 'Archived places will appear here when you hide old records from the active portfolio.'
+                    : 'Create a rental or switch filters to view another part of your portfolio.'
+                }
+                actionLabel={portfolioFilter === 'current' ? 'Create Rental' : undefined}
+                onAction={portfolioFilter === 'current' ? () => router.push('/(landlord)/create-rental') : undefined}
                 icon={<Text style={{ fontSize: 42 }}>+</Text>}
               />
             ) : (
-              propertyGroups.map(({ representative, count }) => (
+              filteredPropertyGroups.map(({ representative, count }) => (
                 <RentalCard key={representative.property_id} rental={representative} role="landlord" rentalCount={count} />
               ))
             )}
