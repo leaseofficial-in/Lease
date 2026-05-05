@@ -20,6 +20,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Card } from '../../components/ui/Card';
 import { Cap, Chip, CollectionRing, DisplayText, InkCard, Sparkline } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { listLocalRentals } from '../../lib/localRentals';
 import { getViewedLandlordActionIds } from '../../lib/landlordActionViews';
@@ -345,9 +346,9 @@ export default function LandlordDashboard() {
           </View>
           <TouchableOpacity
             onPress={() => router.push('/(landlord)/create-rental')}
-            className="w-11 h-11 rounded-full bg-primary items-center justify-center"
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Text className="text-white text-xl">+</Text>
+            <Ionicons name="add" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
@@ -420,8 +421,8 @@ export default function LandlordDashboard() {
             <Card padded className="border-warning" style={{ borderWidth: queueCount ? 1.5 : 1 }}>
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center flex-1">
-                  <View className="w-9 h-9 rounded-full bg-warning items-center justify-center mr-3">
-                    <Text className="text-white font-bold">!</Text>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: queueCount ? Colors.warning : Colors.success, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <Ionicons name={queueCount ? 'alert' : 'checkmark'} size={18} color="#fff" />
                   </View>
                   <View className="flex-1">
                     <Text className="text-base text-primary" style={{ fontFamily: Fonts.sansSemiBold }}>
@@ -434,7 +435,7 @@ export default function LandlordDashboard() {
                     </Text>
                   </View>
                 </View>
-                <Text className="text-xl text-muted">&gt;</Text>
+                <Ionicons name="chevron-forward" size={18} color={Colors.muted} />
               </View>
             </Card>
           </TouchableOpacity>

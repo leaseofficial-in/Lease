@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -132,6 +132,20 @@ export default function TenantDashboard() {
     enabled: !!rental?.id && !isLocalDevUser,
   });
 
+  const { data: openRepairsCount } = useQuery({
+    queryKey: ['tenant-open-repairs-count', rental?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('repair_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('rental_id', rental!.id)
+        .in('status', ['open', 'in_progress']);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!rental?.id && !isLocalDevUser,
+  });
+
   useEffect(() => {
     if (isLoading || isLocalDevUser) return;
     AsyncStorage.getItem('flatvio.pending_join_token').then((pendingToken) => {
@@ -152,6 +166,11 @@ export default function TenantDashboard() {
         proofs: recentProofs ?? [],
       })
     : [];
+
+  const sparklinePoints = React.useMemo(() => {
+    if (!recentPayments?.length) return null;
+    return [...recentPayments].reverse().map((p) => p.amount);
+  }, [recentPayments]);
   const currentRentMonth = monthKey(new Date());
   const currentDueDate = rental
     ? new Date(new Date().getFullYear(), new Date().getMonth(), Math.min(rental.rent_due_day, 28))
@@ -299,8 +318,20 @@ export default function TenantDashboard() {
             <View className="flex-row gap-3">
               <ActionTile label="Proof" icon="camera-outline" onPress={() => router.push('/(tenant)/proof/upload')} />
               <ActionTile label="Docs" icon="folder-open-outline" onPress={() => router.push('/(tenant)/documents')} />
-              <ActionTile label="Rent" icon="receipt-outline" onPress={() => router.push('/(tenant)/rent-history')} />
-              <ActionTile label="Repairs" icon="construct-outline" onPress={() => router.push('/(tenant)/repairs')} />
+              <ActionTile
+                label="Rent"
+                icon="receipt-outline"
+                onPress={() => router.push('/(tenant)/rent-history')}
+                badge={currentPayment?.status === 'overdue' ? '!' : undefined}
+                badgeColor={Colors.danger}
+              />
+              <ActionTile
+                label="Repairs"
+                icon="construct-outline"
+                onPress={() => router.push('/(tenant)/repairs')}
+                badge={(openRepairsCount ?? 0) > 0 ? String(openRepairsCount) : undefined}
+                badgeColor={Colors.warning}
+              />
             </View>
 
             <Card>
@@ -308,7 +339,9 @@ export default function TenantDashboard() {
                 <Cap>Rental Terms</Cap>
                 <StatusPill kind="rental" value={rental.status} />
               </View>
-              <Sparkline points={[12, 14, 13, 18, 16, 22, 21, 25]} height={42} />
+              {sparklinePoints && sparklinePoints.length > 1 && (
+                <Sparkline points={sparklinePoints} height={42} />
+              )}
               <View className="flex-row justify-between mt-4">
                 <InfoItem label="Rent" value={`${formatCurrency(rental.monthly_rent, true)}/mo`} />
                 <InfoItem label="Deposit" value={formatCurrency(rental.security_deposit, true)} />
@@ -319,13 +352,13 @@ export default function TenantDashboard() {
             {rental.landlord && (
               <Card>
                 <Cap style={{ marginBottom: 12 }}>Your Landlord</Cap>
-                <View className="flex-row items-center">
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Avatar
                     name={rental.landlord.full_name || 'Landlord'}
                     uri={rental.landlord.avatar_url}
                     size={44}
                   />
-                  <View className="ml-3 flex-1">
+                  <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
                       {rental.landlord.full_name || 'Name not set'}
                     </Text>
@@ -333,6 +366,20 @@ export default function TenantDashboard() {
                       {formatPhone(rental.landlord.phone)}
                     </Text>
                   </View>
+                  {rental.landlord.phone && (
+                    <TouchableOpacity
+                      onPress={() => void Linking.openURL(`tel:${rental.landlord!.phone}`)}
+                      activeOpacity={0.75}
+                      style={{
+                        width: 40, height: 40, borderRadius: 20,
+                        backgroundColor: Colors.successSoft,
+                        alignItems: 'center', justifyContent: 'center',
+                        marginLeft: 8,
+                      }}
+                    >
+                      <Ionicons name="call" size={18} color={Colors.success} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </Card>
             )}
@@ -357,10 +404,14 @@ function ActionTile({
   label,
   icon,
   onPress,
+  badge,
+  badgeColor = Colors.danger,
 }: {
   label: string;
   icon: AppIconName;
   onPress: () => void;
+  badge?: string;
+  badgeColor?: string;
 }) {
   return (
     <TouchableOpacity
@@ -368,8 +419,22 @@ function ActionTile({
       style={{ flex: 1, minHeight: 86, borderRadius: 20, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' }}
       activeOpacity={0.78}
     >
-      <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-        <AppIcon name={icon} size={17} color={Colors.primary} />
+      <View style={{ position: 'relative', marginBottom: 6 }}>
+        <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}>
+          <AppIcon name={icon} size={17} color={Colors.primary} />
+        </View>
+        {badge && (
+          <View style={{
+            position: 'absolute', top: -4, right: -6,
+            minWidth: 16, height: 16, borderRadius: 8,
+            backgroundColor: badgeColor,
+            alignItems: 'center', justifyContent: 'center',
+            paddingHorizontal: 3,
+            borderWidth: 1.5, borderColor: Colors.surface,
+          }}>
+            <Text style={{ color: '#fff', fontSize: 9, fontFamily: Fonts.sansBold, lineHeight: 11 }}>{badge}</Text>
+          </View>
+        )}
       </View>
       <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12 }}>{label}</Text>
     </TouchableOpacity>

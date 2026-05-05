@@ -181,9 +181,24 @@ export default function RepairsScreen() {
                   </Text>
                   <StatusPill kind="repair" value={r.status} />
                 </View>
-                <Text numberOfLines={2} style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
+                <Text numberOfLines={2} style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 10 }}>
                   {r.description}
                 </Text>
+                {r.landlord_note ? (
+                  <View style={{
+                    backgroundColor: Colors.fill, borderRadius: 10,
+                    paddingHorizontal: 12, paddingVertical: 10,
+                    marginBottom: 10,
+                    borderLeftWidth: 3, borderLeftColor: Colors.action,
+                  }}>
+                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>
+                      Landlord's update
+                    </Text>
+                    <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 18 }}>
+                      {r.landlord_note}
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <PriorityBadge priority={r.priority} />
                   <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
