@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -51,12 +52,28 @@ export default function RoleSelectScreen() {
   const { setRole } = useAuthStore();
   const { showToast } = useUIStore();
   const router = useRouter();
+  const { role } = useLocalSearchParams<{ role?: string }>();
+
+  useEffect(() => {
+    if (role === 'landlord' || role === 'tenant') {
+      setSelected(role);
+      void AsyncStorage.setItem('flatvio.pending_role', role);
+      return;
+    }
+
+    AsyncStorage.getItem('flatvio.pending_role').then((pendingRole) => {
+      if (pendingRole === 'landlord' || pendingRole === 'tenant') {
+        setSelected(pendingRole);
+      }
+    });
+  }, [role]);
 
   const handleContinue = async () => {
     if (!selected) return;
     setLoading(true);
     try {
       await setRole(selected);
+      await AsyncStorage.removeItem('flatvio.pending_role');
       if (selected === 'landlord') router.replace('/(landlord)');
       else router.replace('/(tenant)');
     } catch (error) {

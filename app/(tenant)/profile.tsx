@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,9 +12,11 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { AppIcon } from '../../components/ui/Icon';
 import { Cap, Chip, DisplayText } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
 import { confirmAction } from '../../lib/confirm';
+import { shareLandlordReferral } from '../../lib/referrals';
 
 const schema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -66,6 +67,15 @@ export default function TenantProfileScreen() {
     }
   };
 
+  const handleInviteLandlord = async () => {
+    try {
+      const result = await shareLandlordReferral(profile?.id);
+      showToast(result.shared ? 'Invite shared' : 'Invite link copied', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not share invite', 'error');
+    }
+  };
+
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
@@ -92,7 +102,7 @@ export default function TenantProfileScreen() {
                 >
                   {uploadingAvatar
                     ? <ActivityIndicator size="small" color={Colors.surface} />
-                    : <Ionicons name="camera" size={13} color={Colors.surface} />
+                    : <AppIcon name="camera" size={13} color={Colors.surface} />
                   }
                 </View>
               </TouchableOpacity>
@@ -107,6 +117,38 @@ export default function TenantProfileScreen() {
                 </Text>
               </View>
             </View>
+          </Card>
+
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
+              <View
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 14,
+                  backgroundColor: Colors.actionSoft,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AppIcon name="megaphone-outline" size={20} color={Colors.action} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Cap>Invite Owner</Cap>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 4 }}>
+                  Moving to another rental?
+                </Text>
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 4 }}>
+                  Share Flatvio with the owner so your next rent, proof, agreement, and receipts stay in one place.
+                </Text>
+              </View>
+            </View>
+            <Button
+              title="Invite a Landlord"
+              variant="secondary"
+              onPress={handleInviteLandlord}
+              fullWidth
+            />
           </Card>
 
           <Card>

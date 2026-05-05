@@ -49,7 +49,7 @@ const buildReceiptHtml = (data: {
 <html>
 <head>
 <meta charset="utf-8">
-<title>Rent Receipt — ${data.receiptNo}</title>
+<title>Rent Receipt - ${data.receiptNo}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; background: #fff; padding: 0; }
@@ -114,7 +114,7 @@ const buildReceiptHtml = (data: {
 
   <div class="amount-hero">
     <div>
-      <div class="amt">₹${data.amount.toLocaleString('en-IN')}</div>
+      <div class="amt">Rs ${data.amount.toLocaleString('en-IN')}</div>
       <div class="words">${toWords(data.amount)} Rupees Only</div>
     </div>
     <div class="month-badge">
@@ -148,12 +148,12 @@ const buildReceiptHtml = (data: {
     </tr>
     <tr>
       <td class="lbl">Amount</td>
-      <td class="val">₹${data.amount.toLocaleString('en-IN')}</td>
+      <td class="val">Rs ${data.amount.toLocaleString('en-IN')}</td>
     </tr>
   </table>
 
   <div class="declaration">
-    I, <strong>${data.landlordName}</strong>, hereby acknowledge receipt of <strong>₹${data.amount.toLocaleString('en-IN')}</strong> (${toWords(data.amount)} Rupees Only) from <strong>${data.tenantName}</strong> as rent for the above property for the month of <strong>${data.month}</strong>.
+    I, <strong>${data.landlordName}</strong>, hereby acknowledge receipt of <strong>Rs ${data.amount.toLocaleString('en-IN')}</strong> (${toWords(data.amount)} Rupees Only) from <strong>${data.tenantName}</strong> as rent for the above property for the month of <strong>${data.month}</strong>.
   </div>
 
   <div class="sig-row">
@@ -170,8 +170,8 @@ const buildReceiptHtml = (data: {
   </div>
 
   <div class="footer">
-    <div class="brand-sm">flat<span>vio</span> · flatvio.in</div>
-    <div class="note">Computer-generated receipt · ${data.receiptNo}<br>Valid for HRA exemption under Income Tax Act</div>
+    <div class="brand-sm">flat<span>vio</span> - flatvio.in</div>
+    <div class="note">Computer-generated receipt - ${data.receiptNo}<br>Valid for HRA exemption under Income Tax Act</div>
   </div>
 </div>
 </body>
@@ -190,6 +190,17 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const jwt = authHeader.replace(/^Bearer\s+/i, '');
+    if (!jwt) {
+      return jsonResponse({ error: 'Authentication required' }, 401);
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(jwt);
+    if (authError || !authData.user) {
+      return jsonResponse({ error: 'Invalid session' }, 401);
+    }
+
     const { paymentId }: HRAPayload = await req.json();
 
     if (!paymentId) {
@@ -221,15 +232,21 @@ serve(async (req) => {
 
     const { rental } = payment as typeof payment & {
       rental: {
+        landlord_id: string;
+        tenant_id: string | null;
         property: { name: string; address_line1: string; city: string; state: string };
         landlord: { full_name: string; pan_number?: string };
         tenant: { full_name: string; pan_number?: string };
       };
     };
 
+    if (authData.user.id !== rental.landlord_id && authData.user.id !== rental.tenant_id) {
+      return jsonResponse({ error: 'You do not have access to this receipt' }, 403);
+    }
+
     const receiptNo = `FLV-${payment.id.slice(0, 8).toUpperCase()}`;
     const month = new Date(payment.month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-    const paidAt = new Date(payment.paid_at!).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    const paidAt = new Date(payment.paid_at ?? payment.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
     const address = `${rental.property.name}, ${rental.property.address_line1}, ${rental.property.city}, ${rental.property.state}`;
 
     const html = buildReceiptHtml({

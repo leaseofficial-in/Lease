@@ -24,6 +24,7 @@ import { StatusPill } from '../../../components/ui/StatusPill';
 import { Avatar } from '../../../components/ui/Avatar';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { AppIcon } from '../../../components/ui/Icon';
 import { RentStatusBadge } from '../../../components/rental/RentStatusBadge';
 import { DepositCard } from '../../../components/rental/DepositCard';
 import { ActivityFeed } from '../../../components/rental/ActivityFeed';
@@ -33,7 +34,7 @@ import { Cap, Chip, InkCard } from '../../../components/ui/V2';
 import { Colors, Fonts } from '../../../constants/theme';
 import { Config } from '../../../constants/config';
 import { isDevAuthUserId } from '../../../lib/devAuth';
-import { activateLocalRental, listLocalRentalsByPropertyId, updateLocalRentalTerms } from '../../../lib/localRentals';
+import { activateLocalRental, deleteLocalProperty, listLocalRentalsByPropertyId, updateLocalRentalTerms } from '../../../lib/localRentals';
 import { confirmAction } from '../../../lib/confirm';
 import { buildRentalActivity } from '../../../lib/rentalActivity';
 import { generateRentalAgreement } from '../../../lib/agreement';
@@ -60,6 +61,7 @@ export default function PropertyDetailScreen() {
   const [generatingAgreement, setGeneratingAgreement] = useState(false);
   const [initiatingMoveout, setInitiatingMoveout] = useState(false);
   const [closingRental, setClosingRental] = useState(false);
+  const [deletingPlace, setDeletingPlace] = useState(false);
   const [termsForm, setTermsForm] = useState({
     monthlyRent: '',
     securityDeposit: '',
@@ -154,6 +156,10 @@ export default function PropertyDetailScreen() {
   });
 
   const visibleDepositTransactions = isLocalDevUser ? localDepositTransactions : depositTransactions ?? [];
+  const blockingDeleteRental = allPropertyRentals?.find((item) =>
+    item.status === 'active' || item.status === 'pending_proof' || item.status === 'pending_moveout',
+  );
+  const canDeletePlace = !!rental && !blockingDeleteRental;
 
   const refreshAll = async () => {
     await Promise.all([
@@ -450,6 +456,48 @@ export default function PropertyDetailScreen() {
         }
       },
       'Close Rental',
+      true,
+    );
+  };
+
+  const handleDeletePlace = () => {
+    if (!rental || !profile) return;
+
+    if (!canDeletePlace) {
+      showToast('Close active or tenant-joined rentals before deleting this place.', 'error');
+      return;
+    }
+
+    const placeName = rental.property?.name ?? 'this place';
+    const rentalCount = allPropertyRentals?.length ?? 1;
+    confirmAction(
+      'Delete Place',
+      `This permanently removes ${placeName} and ${rentalCount} rental record${rentalCount === 1 ? '' : 's'} linked to it. Use this only for duplicates, test records, or places you no longer need in Flatvio.`,
+      async () => {
+        setDeletingPlace(true);
+        try {
+          if (isLocalDevUser) {
+            await deleteLocalProperty(rental.property_id);
+          } else {
+            const { error } = await supabase
+              .from('properties')
+              .delete()
+              .eq('id', rental.property_id)
+              .eq('landlord_id', profile.id);
+            if (error) throw error;
+          }
+
+          await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
+          await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+          showToast('Place deleted', 'success');
+          router.replace('/(landlord)');
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : 'Failed to delete place', 'error');
+        } finally {
+          setDeletingPlace(false);
+        }
+      },
+      'Delete Place',
       true,
     );
   };
@@ -929,6 +977,46 @@ export default function PropertyDetailScreen() {
               </View>
             </Card>
           )}
+
+          <Card style={{ borderColor: canDeletePlace ? '#F5B8B5' : Colors.border }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 11,
+                  backgroundColor: canDeletePlace ? Colors.dangerSoft : Colors.fill,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AppIcon
+                  name={canDeletePlace ? 'trash-outline' : 'lock-closed-outline'}
+                  size={18}
+                  color={canDeletePlace ? Colors.danger : Colors.muted}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Cap>Danger Zone</Cap>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15, marginTop: 4 }}>
+                  Delete this place
+                </Text>
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 4 }}>
+                  {canDeletePlace
+                    ? 'Permanently remove this property and its linked rental records.'
+                    : 'Close active, move-out, or tenant-joined rentals before deleting this place.'}
+                </Text>
+              </View>
+            </View>
+            <Button
+              title="Delete Place"
+              variant="danger"
+              onPress={handleDeletePlace}
+              loading={deletingPlace}
+              disabled={!canDeletePlace}
+              fullWidth
+            />
+          </Card>
         </View>
       </ScrollView>
 

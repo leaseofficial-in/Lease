@@ -128,3 +128,8 @@ export const updateLocalRentalTerms = async (
     ),
   );
 };
+
+export const deleteLocalProperty = async (propertyId: string): Promise<void> => {
+  const rentals = await readLocalRentals();
+  await writeLocalRentals(rentals.filter((rental) => rental.property_id !== propertyId));
+};

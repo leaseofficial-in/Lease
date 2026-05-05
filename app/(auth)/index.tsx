@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, ScrollView, useWindowDimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/ui/Button';
@@ -11,8 +12,15 @@ import { Colors, Fonts } from '../../constants/theme';
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { role } = useLocalSearchParams<{ role?: string }>();
   const { width } = useWindowDimensions();
   const contentWidth = Math.max(280, Math.min(448, width - 48));
+
+  useEffect(() => {
+    if (role === 'landlord' || role === 'tenant') {
+      void AsyncStorage.setItem('flatvio.pending_role', role);
+    }
+  }, [role]);
 
   return (
     <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.canvas }}>
