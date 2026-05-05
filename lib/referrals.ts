@@ -1,6 +1,7 @@
 import { Platform, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Config } from '../constants/config';
+import { supabase } from './supabase';
 
 export const buildLandlordReferralLink = (tenantId?: string | null) => {
   const origin =
@@ -40,4 +41,25 @@ export const shareLandlordReferral = async (tenantId?: string | null) => {
     url,
   });
   return { shared: true, url };
+};
+
+export const recordTenantReferral = async (
+  tenantId?: string | null,
+  landlordId?: string | null,
+): Promise<boolean> => {
+  if (!tenantId || !landlordId || tenantId === landlordId) return false;
+
+  const { error } = await supabase
+    .from('tenant_referrals')
+    .upsert(
+      {
+        tenant_id: tenantId,
+        landlord_id: landlordId,
+        source: 'tenant_referral',
+        status: 'signed_up',
+      },
+      { onConflict: 'tenant_id,landlord_id' },
+    );
+
+  return !error;
 };

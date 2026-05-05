@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { Cap, DisplayText, SerifItalic } from '../../components/ui/V2';
 import { UserRole } from '../../types';
 import { Colors, Fonts } from '../../constants/theme';
+import { recordTenantReferral } from '../../lib/referrals';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -52,28 +53,40 @@ export default function RoleSelectScreen() {
   const { setRole } = useAuthStore();
   const { showToast } = useUIStore();
   const router = useRouter();
-  const { role } = useLocalSearchParams<{ role?: string }>();
+  const { role, ref } = useLocalSearchParams<{ role?: string; ref?: string }>();
 
   useEffect(() => {
     if (role === 'landlord' || role === 'tenant') {
       setSelected(role);
       void AsyncStorage.setItem('flatvio.pending_role', role);
-      return;
     }
+    if (typeof ref === 'string' && ref.trim()) {
+      void AsyncStorage.setItem('flatvio.pending_referrer_tenant', ref.trim());
+    }
+
+    if (role === 'landlord' || role === 'tenant') return;
 
     AsyncStorage.getItem('flatvio.pending_role').then((pendingRole) => {
       if (pendingRole === 'landlord' || pendingRole === 'tenant') {
         setSelected(pendingRole);
       }
     });
-  }, [role]);
+  }, [ref, role]);
 
   const handleContinue = async () => {
     if (!selected) return;
     setLoading(true);
     try {
+      const pendingReferrer = await AsyncStorage.getItem('flatvio.pending_referrer_tenant');
       await setRole(selected);
       await AsyncStorage.removeItem('flatvio.pending_role');
+      if (selected === 'landlord') {
+        const session = useAuthStore.getState().session;
+        await recordTenantReferral(pendingReferrer, session?.user.id);
+        await AsyncStorage.removeItem('flatvio.pending_referrer_tenant');
+      } else {
+        await AsyncStorage.removeItem('flatvio.pending_referrer_tenant');
+      }
       if (selected === 'landlord') router.replace('/(landlord)');
       else router.replace('/(tenant)');
     } catch (error) {

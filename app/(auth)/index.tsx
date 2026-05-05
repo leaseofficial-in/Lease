@@ -12,7 +12,7 @@ import { Colors, Fonts } from '../../constants/theme';
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { role } = useLocalSearchParams<{ role?: string }>();
+  const { role, ref } = useLocalSearchParams<{ role?: string; ref?: string }>();
   const { width } = useWindowDimensions();
   const contentWidth = Math.max(280, Math.min(448, width - 48));
 
@@ -20,7 +20,10 @@ export default function WelcomeScreen() {
     if (role === 'landlord' || role === 'tenant') {
       void AsyncStorage.setItem('flatvio.pending_role', role);
     }
-  }, [role]);
+    if (typeof ref === 'string' && ref.trim()) {
+      void AsyncStorage.setItem('flatvio.pending_referrer_tenant', ref.trim());
+    }
+  }, [ref, role]);
 
   return (
     <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.canvas }}>

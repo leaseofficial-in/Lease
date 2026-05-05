@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { Proof, Rental, RentPayment, RepairRequest } from '../../types';
-import { formatCurrency, formatPhone } from '../../lib/formatters';
+import { formatCurrency, formatDateShort, formatMonth, formatPhone, monthKey } from '../../lib/formatters';
 import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { Avatar } from '../../components/ui/Avatar';
@@ -152,6 +152,13 @@ export default function TenantDashboard() {
         proofs: recentProofs ?? [],
       })
     : [];
+  const currentRentMonth = monthKey(new Date());
+  const currentDueDate = rental
+    ? new Date(new Date().getFullYear(), new Date().getMonth(), Math.min(rental.rent_due_day, 28))
+    : null;
+  const nextDueDate = rental
+    ? new Date(new Date().getFullYear(), new Date().getMonth() + 1, Math.min(rental.rent_due_day, 28))
+    : null;
 
   return (
     <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -244,10 +251,20 @@ export default function TenantDashboard() {
             {currentPayment && (
               <Card>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <Cap>This Month</Cap>
+                  <Cap>{formatMonth(currentRentMonth)} Rent</Cap>
                   <StatusPill kind="payment" value={currentPayment.status} />
                 </View>
                 <RentStatusBadge payment={currentPayment} />
+                <View style={{ marginTop: 10, gap: 4 }}>
+                  <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12 }}>
+                    Due date: {currentDueDate ? formatDateShort(currentDueDate.toISOString()) : `day ${rental.rent_due_day}`}
+                  </Text>
+                  {currentPayment.status === 'paid' && nextDueDate && (
+                    <Text style={{ color: Colors.success, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+                      Next rent due {formatDateShort(nextDueDate.toISOString())}
+                    </Text>
+                  )}
+                </View>
                 {currentPayment.status !== 'paid' && currentPayment.status !== 'overdue' && (
                   <Button
                     title="Pay Now"

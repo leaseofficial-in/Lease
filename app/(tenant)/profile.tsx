@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
+import { supabase } from '../../lib/supabase';
 import { uploadAvatar, pickPhoto } from '../../lib/storage';
 import { formatPhone } from '../../lib/formatters';
 import { Avatar } from '../../components/ui/Avatar';
@@ -30,6 +32,19 @@ export default function TenantProfileScreen() {
   const { showToast } = useUIStore();
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const { data: invitedOwnerCount = 0 } = useQuery({
+    queryKey: ['tenant-referrals-count', profile?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('tenant_referrals')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', profile!.id);
+      if (error) return 0;
+      return count ?? 0;
+    },
+    enabled: !!profile?.id,
+  });
 
   const { control, handleSubmit, reset, formState: { errors, isDirty } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -143,6 +158,14 @@ export default function TenantProfileScreen() {
                 </Text>
               </View>
             </View>
+            {invitedOwnerCount > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Chip tone="good">{invitedOwnerCount} owner{invitedOwnerCount === 1 ? '' : 's'} joined</Chip>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+                  Thanks for helping Flatvio grow.
+                </Text>
+              </View>
+            )}
             <Button
               title="Invite a Landlord"
               variant="secondary"

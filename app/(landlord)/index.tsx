@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { AppNotification, Rental, RentPayment, RepairRequest } from '../../types';
-import { formatCurrency, monthKey } from '../../lib/formatters';
+import { formatCurrency, formatDateShort, formatMonth, monthKey } from '../../lib/formatters';
 import { RentalCard } from '../../components/rental/RentalCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { RentalCardSkeleton } from '../../components/ui/SkeletonLoader';
@@ -136,6 +136,8 @@ export default function LandlordDashboard() {
   });
 
   const currentMonth = monthKey(new Date());
+  const nextMonthDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+  const nextMonth = monthKey(nextMonthDate);
   const currentYear = new Date().getFullYear();
 
   const { data: currentMonthPayments, refetch: refetchCurrentMonthPayments } = useQuery({
@@ -280,7 +282,22 @@ export default function LandlordDashboard() {
   const collected = (currentMonthPayments ?? [])
     .filter((p) => p.status === 'paid')
     .reduce((sum, p) => sum + Number(p.amount), 0);
+  const pendingVerification = (currentMonthPayments ?? [])
+    .filter((p) => p.status === 'pending_verification')
+    .reduce((sum, p) => sum + Number(p.amount), 0);
   const collectionRate = totalExpected > 0 ? Math.round((collected / totalExpected) * 100) : 0;
+  const nextMonthExpected = activeRentals
+    .filter((rental) => !rental.end_date || new Date(rental.end_date) >= nextMonthDate)
+    .reduce((sum, rental) => sum + Number(rental.monthly_rent), 0);
+  const upcomingEndings = currentRentals
+    .filter((rental) => rental.status !== 'ended' && rental.end_date)
+    .map((rental) => {
+      const daysLeft = Math.ceil((new Date(rental.end_date!).getTime() - Date.now()) / 86_400_000);
+      return { rental, daysLeft };
+    })
+    .filter((item) => item.daysLeft >= 0 && item.daysLeft <= 60)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+  const closestEnding = upcomingEndings[0];
   const ytdTotal = (ytdPayments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
   const ytdSparkline = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(currentYear, new Date().getMonth() - 5 + i, 1);
@@ -337,23 +354,49 @@ export default function LandlordDashboard() {
         <View className="px-5 pt-4 gap-4">
           <InkCard>
             <View className="flex-row justify-between items-center">
-              <Cap style={{ color: 'rgba(255,255,255,0.55)' }}>This month</Cap>
               <Cap style={{ color: 'rgba(255,255,255,0.55)' }}>Collection</Cap>
+              <Cap style={{ color: 'rgba(255,255,255,0.55)' }}>{formatMonth(currentMonth)}</Cap>
             </View>
             <View className="flex-row items-center mt-4">
               <CollectionRing value={collectionRate} label={`${collectionRate}%`} sublabel="Collected" inverse />
               <View className="ml-5 flex-1">
                 <Text style={{ color: 'rgba(255,255,255,0.55)', fontFamily: Fonts.mono, fontSize: 10 }}>
-                  EXPECTED
+                  EXPECTED THIS MONTH
                 </Text>
                 <DisplayText style={{ color: Colors.surface, fontSize: 38, lineHeight: 40 }}>
                   {formatCurrency(totalExpected, true)}
                 </DisplayText>
                 <View className="flex-row gap-5 mt-3">
                   <MoneyStat label="Paid" value={formatCurrency(collected, true)} />
-                  <MoneyStat label="Pending" value={formatCurrency(Math.max(totalExpected - collected, 0), true)} warn />
+                  <MoneyStat label={pendingVerification ? 'To confirm' : 'Pending'} value={formatCurrency(pendingVerification || Math.max(totalExpected - collected, 0), true)} warn />
                 </View>
               </View>
+            </View>
+            <View
+              style={{
+                marginTop: 18,
+                paddingTop: 14,
+                borderTopWidth: 1,
+                borderTopColor: 'rgba(255,255,255,0.12)',
+                flexDirection: 'row',
+                gap: 12,
+              }}
+            >
+              <CollectionForecast
+                label={`Next: ${formatMonth(nextMonth)}`}
+                value={formatCurrency(nextMonthExpected, true)}
+                note={`${activeRentals.length} active rental${activeRentals.length === 1 ? '' : 's'}`}
+              />
+              <CollectionForecast
+                label="Closing soon"
+                value={closestEnding ? `${closestEnding.daysLeft}d` : 'None'}
+                note={
+                  closestEnding
+                    ? `${closestEnding.rental.property?.name ?? 'Rental'} ends ${formatDateShort(closestEnding.rental.end_date!)}`
+                    : 'No lease ends in 60 days'
+                }
+                warn={!!closestEnding}
+              />
             </View>
           </InkCard>
 
@@ -486,6 +529,36 @@ function MoneyStat({ label, value, warn = false }: { label: string; value: strin
     <View>
       <Text style={{ color: Colors.surface, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>{value}</Text>
       <Cap style={{ color: warn ? '#FFC56B' : 'rgba(255,255,255,0.5)' }}>{label}</Cap>
+    </View>
+  );
+}
+
+function CollectionForecast({
+  label,
+  value,
+  note,
+  warn = false,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  warn?: boolean;
+}) {
+  return (
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <Cap style={{ color: warn ? '#FFC56B' : 'rgba(255,255,255,0.5)' }}>{label}</Cap>
+      <Text
+        numberOfLines={1}
+        style={{ color: Colors.surface, fontFamily: Fonts.sansSemiBold, fontSize: 18, marginTop: 3 }}
+      >
+        {value}
+      </Text>
+      <Text
+        numberOfLines={2}
+        style={{ color: 'rgba(255,255,255,0.58)', fontFamily: Fonts.sans, fontSize: 11, lineHeight: 15, marginTop: 2 }}
+      >
+        {note}
+      </Text>
     </View>
   );
 }
