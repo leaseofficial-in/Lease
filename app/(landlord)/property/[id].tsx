@@ -8,6 +8,7 @@ import {
   Platform,
   TextInput,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -722,6 +723,32 @@ export default function PropertyDetailScreen() {
                   </Text>
                 </View>
               </View>
+              {rental.status === 'active' && rental.tenant.phone ? (
+                <TouchableOpacity
+                  onPress={() => {
+                    const digits = rental.tenant!.phone!.replace(/\D/g, '');
+                    const firstName = (rental.tenant!.full_name || 'there').split(' ')[0];
+                    const msg = `Hi ${firstName}, your rent of ₹${rental.monthly_rent.toLocaleString('en-IN')} for ${rental.property?.name ?? 'the property'} is due on the ${rental.rent_due_day}th. Please pay at your earliest convenience. — via Flatvio`;
+                    void Linking.openURL(`https://wa.me/${digits}?text=${encodeURIComponent(msg)}`);
+                  }}
+                  activeOpacity={0.82}
+                  style={{
+                    marginTop: 14,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    backgroundColor: '#25D366',
+                    borderRadius: 14,
+                    paddingVertical: 11,
+                  }}
+                >
+                  <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+                  <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
+                    Send Rent Reminder
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </Card>
           )}
 

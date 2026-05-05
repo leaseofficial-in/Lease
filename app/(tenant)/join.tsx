@@ -17,6 +17,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { Rental } from '../../types';
 import { formatCurrency, formatDate } from '../../lib/formatters';
+import { notifyUser } from '../../lib/sendPush';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Cap } from '../../components/ui/V2';
@@ -98,6 +99,13 @@ export default function JoinRentalScreen() {
 
       if (!joinedRental) throw new Error('Invite could not be accepted.');
       await queryClient.invalidateQueries({ queryKey: ['tenant-rental'] });
+      void notifyUser({
+        recipientId: preview.landlord_id,
+        title: 'Tenant joined your rental',
+        body: `${profile.full_name || 'A tenant'} joined ${preview.property?.name ?? 'your property'}. They'll upload move-in photos next.`,
+        type: 'general',
+        data: { rental_id: joinedRental.id },
+      });
       showToast("You've joined the rental! Upload move-in photos next.", 'success');
       router.replace('/(tenant)');
     } catch (error) {

@@ -114,6 +114,26 @@ export default function LandlordPaymentsScreen() {
     });
   }, [payments, profile?.id, queryClient]);
 
+  // Mark pending payments overdue client-side when due date has passed (replaces pg_cron)
+  useEffect(() => {
+    if (!payments?.length) return;
+    const today = new Date();
+    const overdueIds = payments
+      .filter((p) => {
+        if (p.status !== 'pending') return false;
+        const monthDate = new Date(p.month);
+        const due = new Date(monthDate.getFullYear(), monthDate.getMonth(), p.rental.rent_due_day);
+        return due < today;
+      })
+      .map((p) => p.id);
+    if (!overdueIds.length) return;
+    void supabase
+      .from('rent_payments')
+      .update({ status: 'overdue' })
+      .in('id', overdueIds)
+      .then(() => queryClient.invalidateQueries({ queryKey: ['landlord-payments'] }));
+  }, [payments, queryClient]);
+
   useEffect(() => {
     if (!profile?.id) return;
     supabase
