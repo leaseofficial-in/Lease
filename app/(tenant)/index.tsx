@@ -146,6 +146,12 @@ export default function TenantDashboard() {
     enabled: !!rental?.id && !isLocalDevUser,
   });
 
+  // Must be before early return — hooks cannot be called conditionally
+  const sparklinePoints = React.useMemo(() => {
+    if (!recentPayments?.length) return null;
+    return [...recentPayments].reverse().map((p) => p.amount);
+  }, [recentPayments]);
+
   useEffect(() => {
     if (isLoading || isLocalDevUser) return;
     AsyncStorage.getItem('flatvio.pending_join_token').then((pendingToken) => {
@@ -166,11 +172,6 @@ export default function TenantDashboard() {
         proofs: recentProofs ?? [],
       })
     : [];
-
-  const sparklinePoints = React.useMemo(() => {
-    if (!recentPayments?.length) return null;
-    return [...recentPayments].reverse().map((p) => p.amount);
-  }, [recentPayments]);
   const currentRentMonth = monthKey(new Date());
   const currentDueDate = rental
     ? new Date(new Date().getFullYear(), new Date().getMonth(), Math.min(rental.rent_due_day, 28))

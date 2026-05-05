@@ -1,342 +1,137 @@
 # Flatvio — Product Roadmap
 
-> Living document. Check off tasks as they ship. Add notes under each item when done.
-> Priority order reflects business impact + acquisition appeal.
+> **Goal:** Be the best rental management app in India by winning on three pillars:
+> 1. **Best tenant experience** — tenants are the growth vector. Each landlord brings 1 tenant. Each happy tenant might become tomorrow's landlord.
+> 2. **Deepest trust layer** — photo proof, deposit protection, dispute resolution. No competitor has this as a core feature.
+> 3. **India-first compliance** — HRA, L&L agreements, Aadhaar/PAN, WhatsApp-first communication.
+
+> Living document. Priority = P0 (fix now) → P1 (Month 1–2) → P2 (Month 2–3) → P3 (Month 3–4) → P4 (6+ months)
 
 ---
 
-## Legend
-- `[ ]` Not started
-- `[x]` Shipped
-- `[-]` In progress
-- `[~]` Partially done / stubbed
+## P0 — Fix Now (Bugs & Blockers)
+
+- [x] **Rules of Hooks violation on tenant dashboard** — `sparklinePoints` useMemo was after early return causing React error #310 on tenant join. Moved before `if (isLoading)`.
+- [ ] **Deploy Twilio WhatsApp Edge Function** — Function exists at `supabase/functions/send-whatsapp/`. Run `supabase functions deploy send-whatsapp` and set `TWILIO_*` secrets. Without this, WhatsApp rent reminders never fire.
+- [ ] **Deploy Razorpay Edge Function** — `supabase/functions/create-payment-order/` needs `supabase functions deploy create-payment-order` and `RAZORPAY_KEY_SECRET` secret set.
+- [ ] **Enable pg_cron for overdue marking** — Migration `007` marks payments overdue automatically. Enable pg_cron in Supabase dashboard → Extensions, then run the migration SQL.
+- [ ] **HRA receipt Edge Function** — Deploy `supabase/functions/generate-hra-receipt/` so tenants can generate PDF receipts. Currently the button exists but the function isn't live.
+- [ ] **Fix join deep-link on web** — `flatvio://` scheme doesn't work on web. Detect platform and use `https://flatvio.in/join/[token]` as the share URL for web users.
 
 ---
 
-## 1. Rental Agreement PDF Generation
-> **Why:** Every landlord needs a legally presentable agreement. Services charge ₹500–2000 for this. This is the "holy shit" moment that drives referrals — landlord creates rental, gets a real PDF in seconds.
+## P1 — Month 1–2 (Competitive Necessity)
 
-- [x] Create `generate-rental-agreement` Edge Function
-- [x] Pull all required data: landlord name + PAN, tenant name + Aadhaar last4, property address, rental terms, start/end dates
-- [x] 16-clause Leave & License Agreement (legally correct Indian format, not a tenancy)
-- [x] Amount in words (Indian number system — lakhs, crores), ordinal due dates, all party details
-- [x] Upload to `agreements` Supabase Storage bucket, store URL in `rentals.agreement_url`
-- [x] "Generate Agreement" / "View Agreement" / "Regenerate" buttons on landlord property detail
-- [x] Tenant signed stamp rendered in the agreement when `agreement_signed_at` is set
-- [x] Print-to-PDF button in the HTML (browser native, no extra dependency)
-- [ ] Deploy Edge Function: `supabase functions deploy generate-rental-agreement`
-- [ ] Make `agreements` bucket public in Supabase Dashboard (Storage → agreements → Make Public)
-- [ ] Auto-regenerate agreement when tenant signs (re-render with signed stamp)
-- [ ] Add "View Agreement" deep link from tenant agreement screen (URL already stored in rental)
+### Notifications & Communication
+- [ ] **Automated rent reminder push notifications** — 3 days before due date, 1 day before, day of. Use `scheduleRentReminder` in `lib/notifications.ts` which already exists. Wire it up when a rental activates.
+- [ ] **WhatsApp rent reminder** — Call the Twilio Edge Function on the same schedule. Indian tenants respond to WhatsApp 5× faster than push.
+- [ ] **Landlord notification when tenant joins** — Currently no push is sent to landlord when `invite_token` is consumed. Add notify call in the join flow.
+- [ ] **In-app notifications screen** — The `/(tenant)/notifications` and `/(landlord)/actions` routes are referenced but not fully implemented. Build a clean notification list screen.
 
-**Notes:**
-Shipped 2026-05-01. Output is HTML stored in the agreements bucket. Tenant can print-to-PDF from the browser. Format: Leave & License (not Rental/Lease) — avoids Rent Control Act protections. Period: 11 months to avoid mandatory registration under Registration Act 1908.
+### Landlord Repairs Dashboard
+- [ ] **All-properties repairs list for landlord** — Currently landlord must navigate into each property to see repairs. Add a dedicated `/repairs` tab in landlord tab bar showing all open/in-progress repairs across all properties, sortable by priority and property.
+- [ ] **Landlord repair response** — Landlord can add a note, change status (open → in_progress → resolved), and attach a photo. The `landlord_note` field exists in DB but there's no UI for landlords to write to it.
+- [ ] **Repair priority escalation** — Visually escalate urgent repairs: red border, sorted to top, push notification with urgency indicator.
 
----
+### Analytics & Insights (Landlord)
+- [ ] **Occupancy rate metric** — (Active rentals / Total properties) × 100. Show on dashboard as a ring or stat card.
+- [ ] **Per-property payment health** — In the property detail, show a heatmap or bar chart of the last 12 months: green = paid on time, yellow = paid late, red = overdue. Gives landlord instant history at a glance.
+- [ ] **Average days to pay** — How many days after due date does each tenant typically pay. Surface in property detail to help landlords identify slow payers.
+- [ ] **YTD income by property** — Breakdown of the landlord's annual income attributed to each property. Currently total YTD exists, but not split by property.
 
-## 2. HRA Receipt Auto-Generation
-> **Why:** Tenants paying ₹15k–60k/month can save ₹18,000–75,000/year in taxes by claiming HRA exemption. They need a landlord-signed receipt every month. This is the feature that makes tenants *ask their landlord to use Flatvio* — built-in viral loop.
-
-- [ ] Fix and test existing `generate-hra-receipt` Edge Function (currently exists but untested)
-- [ ] Generate monthly receipt: tenant name, landlord name + PAN, property address, rent amount, month, payment date
-- [ ] Store receipt URL in `rent_payments.receipt_url`
-- [ ] Auto-generate receipt when payment status flips to `paid`
-- [ ] Add "Download HRA Receipt" button in tenant rent history screen (link already exists in UI, just needs URL)
-- [ ] Add "Generate All Receipts for FY 2025–26" bulk action in tenant rent history
-- [ ] Show personalized tax savings estimate on tenant dashboard: "Generate receipts → Save up to ₹X this year"
-- [ ] WhatsApp tenant when receipt is ready (use existing Twilio Edge Function)
-
-**Notes:**
-<!-- Add implementation notes here when shipped -->
+### Tenant Experience
+- [ ] **Rent history improvements** — Running total of rent paid since move-in. Receipt download button per payment (HRA PDF). Payment method badge (UPI / Cash). Currently all this data exists in DB but the UI is minimal.
+- [ ] **Deposit screen upgrade** — Show deposit balance prominently (paid − deductions), list each deduction with landlord's reason and date, show expected refund date if rental has ended. The `deposit_transactions` table exists.
+- [ ] **Agreement screen upgrade** — Show signing status for both parties clearly. If not signed, show a prominent "Sign Now" banner. After signing, show signed date + a "Download PDF" button that generates the agreement as a PDF.
 
 ---
 
-## 3. Move-Out Flow + Deposit Settlement
-> **Why:** Move-out is where all the pain is — deposit deductions, photo disputes, legal threats. This is the feature that makes the app irreplaceable once started. Landlords who begin a move-out in Flatvio cannot leave.
+## P2 — Month 2–3 (Differentiation — Build the Moat)
 
-- [ ] Add "Initiate Move-Out" action on landlord property detail screen (sets move-out date on rental)
-- [ ] Tenant: upload move-out photos (same room tabs as move-in — reuse `proof/upload.tsx` with `proof_type = 'move_out'`)
-- [ ] Landlord: review move-out proof screen — add side-by-side comparison (move-in vs move-out per room)
-- [ ] Deposit settlement sheet: landlord adds deduction line items, each optionally linked to a photo
-- [ ] Auto-calculate refund: `security_deposit - total_deductions`
-- [ ] Both parties confirm settlement (tenant must acknowledge deductions)
-- [ ] Generate deposit settlement PDF (summary of deductions + photos + final refund amount)
-- [ ] Mark rental as `closed` after settlement confirmed
-- [ ] Add move-out events to activity timeline
-- [ ] Send WhatsApp notifications to both parties at each step
+### Photo Proof — The Killer Feature
+- [ ] **Side-by-side move-in vs move-out comparison** — Landlord proof review screen should show move-in photo and move-out photo for the same room label side by side. This is the feature that prevents every deposit dispute. No competitor has this.
+- [ ] **Proof dispute flow** — Landlord can mark individual rooms as "disputed" with a note. Tenant gets notified and can respond. Creates a documented paper trail. Connects to deposit deduction UI.
+- [ ] **Proof share link** — Generate a shareable URL for the move-in proof (e.g., for court/insurance purposes). The photos are already public in Supabase Storage.
+- [ ] **Room labels customization** — Currently hardcoded labels (Hall, Bedroom, Kitchen…). Let landlords define custom labels per property (e.g., "Terrace", "Servant Quarter").
 
-**Notes:**
-<!-- Add implementation notes here when shipped -->
+### Calculators & Tools (Acquisition + Retention)
+- [ ] **Rent estimator calculator** — Input: city, locality, BHK type, furnishing, floor. Output: estimated rent range based on market data. Drives SEO. Can be a simple screen under a "Tools" tab.
+- [ ] **Stamp duty calculator** — State-wise 2026 rates. Input: rent, duration, city. Output: stamp duty amount and where to pay. Rivals include this — it's a high-search-volume feature.
+- [ ] **HRA tax benefit calculator** — How much HRA exemption can a tenant claim? Input: salary, HRA received, rent paid, city. Output: exempt amount. Very high value for salaried tenants.
+- [ ] **Rent increase calculator** — Based on CPI or a fixed percentage, project rent increases over the lease duration. Useful for landlords when discussing renewal.
+- [ ] **ROI calculator** — For landlords: input property cost, rent, maintenance, taxes. Output: annual yield %. Drives landlord acquisition.
 
----
+### Communication
+- [ ] **In-app chat between landlord and tenant** — A simple message thread per rental. Not a full messenger — just text messages tied to the rental context. Replaces WhatsApp for rental-related communication and keeps everything documented.
+- [ ] **Broadcast message** — Landlord with multiple properties can send a message to all active tenants at once (e.g., "Water supply off tomorrow 9am–1pm").
 
-## 4. UPI Intent Payments + Cash Recording (Zero Commission)
-> **Why:** Razorpay charges ~2% per transaction — on ₹25,000 rent that's ₹500/month in fees that someone has to absorb. For first users, commission-free is the right call. UPI Intent opens GPay/PhonePe directly, money goes landlord-to-tenant with zero intermediary. Once there's volume, a gateway can be layered on top.
->
-> **How it works:** Landlord sets their UPI ID in profile → Tenant taps "Pay via UPI" → native UPI chooser opens (GPay, PhonePe, Paytm, BHIM) → Tenant pays → returns to Flatvio → enters optional UTR → payment marked `pending_verification` → Landlord sees "Tenant paid" card and taps "Confirm Receipt" → status becomes `paid`. Cash payments follow same confirm flow.
-
-- [x] Add `upi_id` field to Profile type and landlord profile form
-- [x] Add `pending_verification` to `PaymentStatus` type
-- [x] Add `utr_number`, `payment_method`, `payment_note` fields to `RentPayment` type
-- [x] Create `lib/upi.ts` — `openUPIPayment()` builds UPI intent URL, opens via `Linking.openURL`
-- [x] Rewrite `pay-rent.tsx` — UPI button + cash recording + UTR confirmation on AppState return
-- [x] Landlord property detail — "Confirm Receipt" card for `pending_verification` payments
-- [x] Update `StatusPill` and `formatters.ts` for `pending_verification` status
-- [ ] Run DB migration: add `upi_id` to profiles, add `utr_number`/`payment_method`/`payment_note` to rent_payments, add `pending_verification` to status check constraint
-- [ ] Test UPI intent on Android (standard `upi://` scheme)
-- [ ] Test on iOS — may need `tez://` (Google Pay) or `phonepe://` as fallbacks
-- [ ] Add landlord notification when tenant submits payment (push + WhatsApp)
-- [ ] Add auto-confirm after 48h if landlord doesn't dispute (Edge Function cron)
-
-> **Razorpay (future):** Add as an optional premium tier later — landlords who want instant confirmation and don't want to manually confirm can enable it. By then you have the user base to justify the fee.
-
-**Notes:**
-Shipped 2026-05-01. No payment gateway fees. Money moves via UPI or cash directly between landlord and tenant. Flatvio is the ledger, not the processor.
+### Compliance & Documents
+- [ ] **Leave & License agreement improvements** — Current generation is basic. Add: specific property details, witness fields, stamp duty clause, lock-in period, notice period clause, maintenance terms. Should be court-admissible.
+- [ ] **Annual HRA summary PDF** — Full-year receipt summary for IT filing (April–March). One button, one PDF with all 12 months. This is high value for tenants every January–March.
+- [ ] **Aadhaar/PAN verification badge** — Landlords can upload their PAN and optionally Aadhaar (last 4). Show a "Verified Landlord" badge on the tenant's view of their landlord card. Builds trust.
 
 ---
 
-## 5. Landlord Tax Dashboard
-> **Why:** Every April, landlords scramble for rental income numbers for ITR filing. A one-screen report positions Flatvio as essential during tax season — the highest organic acquisition window of the year.
+## P3 — Month 3–4 (Growth & Retention)
 
-- [ ] New screen `app/(landlord)/tax.tsx` — annual rental income report
-- [ ] Show: total rental income per property, total TDS applicable (rent >₹50k/month), payments received vs pending
-- [ ] Financial year selector (FY 2024–25, FY 2025–26)
-- [ ] Export as CSV (email / share sheet)
-- [ ] Export as PDF for CA submission
-- [ ] TDS guidance: if any property's monthly rent exceeds ₹50k, show TDS deduction reminder with Form 26QC instructions
-- [ ] Add tax report tab to landlord dashboard navigation
-- [ ] ITR deadline reminder push notification (schedule for June 30 each year)
+### Growth Loops
+- [ ] **Referral program** — Tenant invites their next landlord or vice versa. Track in `profiles` table via referral code. Show referral count on profile screen. Consider a small reward (₹50 Amazon voucher or 1 free month of premium).
+- [ ] **Landlord invite via WhatsApp** — After tenant joins, app asks: "Know another landlord? Share Flatvio." Pre-drafted WhatsApp message with referral link.
+- [ ] **Public property profile page** — `/property/[token]` web page showing property name, location, landlord name, rent — publicly shareable. Landlord uses this instead of verbal descriptions when advertising. Not a full marketplace, but helps with discovery.
 
-**Notes:**
-<!-- Add implementation notes here when shipped -->
+### Lease Lifecycle
+- [ ] **Lease renewal workflow** — 60 days before end date, landlord gets a reminder. One-tap to send a renewal offer with new terms to tenant. Tenant accepts or counter-offers in-app.
+- [ ] **Move-out initiation flow** — Currently `pending_moveout` status exists but the UX for initiating it is unclear. Add a clear "Initiate Move-out" button in property detail with date picker and notice period confirmation.
+- [ ] **Security deposit refund tracking** — When rental ends, create a checklist: photos reviewed, deductions agreed, refund amount confirmed, refund paid (with UPI reference). Both parties see the same status.
 
----
-
-## 6. Tenant Rent Score (Retention + Viral Loop)
-> **Why:** Tenants with a 6-month payment track record get a shareable "Flatvio Rent Score." When they look for their next flat, they share it with the new landlord. New landlord signs up. This is the B2C viral flywheel.
-
-- [ ] Design score algorithm: base 500, +50 per on-time payment, -100 per late payment, -200 per overdue, max 1000
-- [ ] Add Rent Score card to tenant dashboard (visible after 2+ payments)
-- [ ] Score breakdown: "6 payments — 5 on time, 1 late"
-- [ ] "Share my Rent Score" button → generates a shareable PNG/PDF card with score, track record, verified badge
-- [ ] Lock score sharing behind email verification (prevents abuse)
-- [ ] Show score history trend (sparkline — month by month)
-- [ ] Score nudge: "Pay before the 3rd to keep your score at 850"
-- [ ] Future: partner with CRIF/Experian for formal credit bureau reporting
-
-**Notes:**
-<!-- Add implementation notes here when shipped -->
+### Platform Improvements
+- [ ] **Offline support** — Cache the last fetched rental data so tenants can see their rent amount and due date without internet. Critical in areas with patchy connectivity.
+- [ ] **Dark mode** — System preference respected. All color tokens already support theming; just map them.
+- [ ] **Accessibility** — Screen reader labels, minimum touch targets, sufficient contrast ratios.
+- [ ] **Error monitoring (Sentry)** — Currently errors are silent in production. Add `sentry-expo` so bugs like the #310 error are caught before users report them.
 
 ---
 
-## 7. Property Manager Role (B2B Unlock)
-> **Why:** Many Indian landlords (NRI, HNI) hire property managers. This role unlocks the B2B story: property management companies managing 50–500 units using Flatvio. Enterprise revenue and acquisition appeal.
+## P4 — Long Term (6+ months)
 
-- [ ] Add `property_manager` to `profiles.role` enum (or use a separate `rental_managers` join table)
-- [ ] Landlord: "Invite Property Manager" flow on property detail screen
-- [ ] Manager permissions: add deposit entries, close repair requests, review proofs, send reminders, view payment history
-- [ ] Manager restrictions: cannot change rental terms, cannot settle deposit, cannot delete rental
-- [ ] Landlord gets read-only view + approval required for deposit deductions above a threshold
-- [ ] Manager sees a multi-property dashboard (all properties they manage, not just one landlord)
-- [ ] Update RLS policies in Supabase to allow manager access per rental
-- [ ] Manager-specific tab layout and navigation
+### Monetization
+- [ ] **Flatvio Pro (₹999/month for landlords)** — Unlimited rentals + advanced analytics + priority support + document storage. Free tier: 1 active rental.
+- [ ] **Premium tenant verification** — Police verification form, references, employment proof upload. Landlord pays ₹199 per tenant verification request.
+- [ ] **Landlord + Tenant Premium Bundle** — Landlord pays, tenant gets premium features (enhanced proof, unlimited photo storage, chat history).
 
-**Notes:**
-<!-- Add implementation notes here when shipped -->
-
----
-
-## 8. Subscription Model (Pro Tier)
-> **Why:** Clear SaaS model is required for any acquirer to assign recurring revenue multiple. Free tier hooks users; Pro converts on second property or first tax season.
-
-- [ ] Design pricing screen `app/(landlord)/upgrade.tsx`
-- [ ] Define Pro feature gates: unlimited properties, agreement PDF, HRA auto-receipts, tax report, WhatsApp reminders, priority support
-- [ ] Integrate RevenueCat (cross-platform in-app purchase management) or Razorpay Subscriptions
-- [ ] Free tier: 1 active property, manual HRA receipt, basic agreement
-- [ ] Pro tier (₹499/month or ₹3999/year): unlimited properties, auto HRA receipts, tax PDF, WhatsApp notifications
-- [ ] Gate Pro features with a `useProAccess()` hook that checks subscription status
-- [ ] Add upgrade prompt on feature-gate touch (non-blocking, dismissable)
-- [ ] Webhook to Supabase when subscription activates/cancels (update `profiles.is_pro`)
-- [ ] 7-day free trial for new landlords
-
-**Notes:**
-<!-- Add implementation notes here when shipped -->
+### Platform Expansion
+- [ ] **Caretaker role** — View assigned properties, manage repairs, update task status. Important for PG operators, apartment complexes, building managers.
+- [ ] **Property marketplace listing** — Public listing with photos, price, amenities. Zero-brokerage. Monetize via featured listings or lead generation.
+- [ ] **Web dashboard for landlords** — Desktop-first view for landlords managing 5+ properties. Mobile is great for tenants; landlords with large portfolios want spreadsheet-like views.
+- [ ] **Hindi language support** — Translated UI for the Hindi-speaking belt (UP, Bihar, Rajasthan, MP). Massive TAM unlock.
+- [ ] **Aadhaar e-sign on agreements** — Legally binding digital signature via Aadhaar OTP. Makes agreements court-admissible without physical stamp paper.
+- [ ] **GST on rent tracking** — For commercial properties where tenant pays GST on rent. Auto-calculate and include in receipts.
+- [ ] **Tenant credit report** — At end of tenancy, landlord rates tenant (payment timeliness, property care). Tenant's rental history becomes a portable credit-like score for future landlord applications.
 
 ---
 
-## 9. WhatsApp-First Notifications
-> **Why:** Indian landlords and tenants live on WhatsApp. A WhatsApp message from your landlord saying "Your rent is due on the 5th — pay here" converts dramatically better than a push notification. Twilio is already wired up but not activated.
+## Infrastructure & DevOps
 
-- [x] Twilio Edge Function `send-whatsapp` exists
-- [ ] Activate Twilio WhatsApp sandbox / production number (Supabase secrets already defined)
-- [ ] Rent due reminder: 5 days before due day → tenant WhatsApp with deep link to pay-rent screen
-- [ ] Rent received confirmation: when payment status → paid → landlord WhatsApp "₹X received from [tenant]"
-- [ ] Repair status update: when landlord changes repair status → tenant WhatsApp
-- [ ] Move-in proof submitted: landlord WhatsApp notification with link to review
-- [ ] Move-out initiated: tenant WhatsApp with checklist
-- [ ] HRA receipt ready: tenant WhatsApp with PDF link
-- [ ] Add opt-out preference to profile settings (WhatsApp notifications on/off)
-- [ ] Implement Twilio message templates for each event type (required for production WhatsApp)
-
-**Notes:**
-<!-- Add implementation notes here when shipped -->
+- [ ] **EAS Build setup** — Configure `eas.json` for Android + iOS production builds. Set up GitHub Actions trigger.
+- [ ] **App Store + Play Store submission** — Bundle IDs, screenshots, store listings.
+- [ ] **Production domain** — `flatvio.in` with proper SSL, redirect all `flatvio://` deep links to HTTPS equivalents.
+- [ ] **PostHog / Mixpanel analytics** — Track key events: rental_created, tenant_joined, payment_submitted, proof_uploaded. Essential for product decisions.
+- [ ] **Database backups** — Supabase auto-backups enabled and tested.
+- [ ] **Rate limiting on Edge Functions** — Prevent abuse of WhatsApp/Razorpay endpoints.
 
 ---
 
-## 10. Onboarding Overhaul
-> **Why:** New landlords land on an empty dashboard with one button and leave. The first 60 seconds determine whether they ever come back. A walkthrough + demo mode + referral hook changes retention dramatically.
+## Competitive Position Summary
 
-- [ ] First-run walkthrough: 3-screen intro ("Here's what Flatvio does") shown once after role selection
-- [ ] Demo mode: "See a sample rental" button on empty landlord dashboard — shows a pre-populated demo rental (read-only, clearly labelled "Demo")
-- [ ] Empty state redesign: landlord empty dashboard shows value props + "Create your first rental" CTA with estimated setup time ("~3 minutes")
-- [ ] Referral code embedded in invite token: when landlord shares invite link, URL includes `ref=LANDLORDID`
-- [ ] Referral tracking: if tenant joins via ref link and their landlord later signs up, record attribution
-- [ ] Referral reward: landlord gets 1 month Pro free when their invited tenant makes first payment
-- [ ] Progress indicator on setup: landlord dashboard shows "Setup checklist" until rental is active (create rental → invite tenant → tenant joins → move-in proof → first payment)
-- [ ] Re-engagement push: if landlord has a rental but no tenant after 48 hours, send "Need help inviting your tenant?" nudge
-
-**Notes:**
-<!-- Add implementation notes here when shipped -->
-
----
-
-## Immediate Ship Blockers
-
-> Nothing works reliably in production without these. Do before anything else.
-
-- [ ] **Automated overdue marking** — Enable `pg_cron` extension in Supabase and add a daily job:
-  ```sql
-  SELECT cron.schedule('mark-overdue', '0 9 * * *', $$
-    UPDATE rent_payments SET status = 'overdue', updated_at = now()
-    WHERE status = 'pending' AND due_date < CURRENT_DATE;
-  $$);
-  ```
-- [ ] **Deploy EAS Build** — `eas build --platform all` then `eas submit` for iOS/Android. `npx expo export --platform web` → Vercel for web preview.
-- [ ] **Deploy all Edge Functions** — `supabase functions deploy` for `send-whatsapp`, `create-payment-order`, `generate-hra-receipt`, `generate-rental-agreement`. Set all Supabase secrets.
-- [ ] **Landlord repairs screen** — `app/(landlord)/repairs/[rentalId].tsx` is referenced in `property/[id].tsx` but doesn't exist. Landlords cannot respond to repair requests. Needs: list view, status update (open → in_progress → resolved), landlord note field. Add `landlord_note TEXT` column to `repair_requests`.
-- [ ] **In-app notification inbox** — `notifications` table is already populated by existing flows. Needs a screen for both roles. Add tab bar icon with unread badge count. Tapping a notification navigates to the relevant screen.
-
----
-
-## Infrastructure & Reliability
-
-### Error Monitoring (Sentry)
-- [ ] `npx expo install @sentry/react-native`
-- [ ] `Sentry.init({ dsn: '...' })` in `app/_layout.tsx`
-- [ ] Wrap root layout in `Sentry.wrap()`
-- [ ] Free tier covers ~5k errors/month — enough for early growth
-- [ ] **Do this before any user touches prod.** You need to know when things break.
-
-### Product Analytics (PostHog)
-- [ ] `npm install posthog-react-native`
-- [ ] Key events to track: `landlord_created_rental`, `tenant_joined_rental`, `payment_submitted`, `proof_uploaded`, `agreement_signed`
-- [ ] Funnel: landlord signup → first rental created → tenant joined → first payment confirmed
-- [ ] Can't improve what you can't measure
-
-### CI/CD (GitHub Actions)
-- [ ] Create `.github/workflows/ci.yml`
-- [ ] On every push: `npm install` → `npx tsc --noEmit` → `npx expo export --platform web`
-- [ ] On merge to main: trigger EAS preview build
-- [ ] Prevents broken TypeScript reaching users
-
-### Database Indices
-Run in Supabase SQL Editor — these queries fire on every screen load:
-```sql
-CREATE INDEX IF NOT EXISTS idx_rent_payments_rental_month   ON rent_payments(rental_id, month);
-CREATE INDEX IF NOT EXISTS idx_rent_payments_tenant_month   ON rent_payments(tenant_id, month);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_read      ON notifications(user_id, read);
-CREATE INDEX IF NOT EXISTS idx_repair_requests_rental       ON repair_requests(rental_id, status);
-CREATE INDEX IF NOT EXISTS idx_rentals_landlord_status      ON rentals(landlord_id, status);
-CREATE INDEX IF NOT EXISTS idx_rentals_tenant               ON rentals(tenant_id);
-```
-
-### Supabase Connection Pooling
-- [ ] Dashboard → Settings → Database → Connection Pooling → Enable PgBouncer (Transaction mode)
-- [ ] Update `EXPO_PUBLIC_SUPABASE_URL` to use the pooler endpoint (port 6543)
-- [ ] Required before ~200 concurrent users — Postgres default connection limit will exhaust
-
----
-
-## India-Specific Trust & Compliance
-
-### Tenant KYC / Aadhaar Verification
-- [ ] Integrate DigiLocker API or a KYC provider (Setu, Karza, Signzy)
-- [ ] Flow: tenant joins rental → "Complete KYC" prompt → Aadhaar + PAN verification → verified badge on tenant profile
-- [ ] Landlords will not trust the app without knowing who their tenant is — this is table-stakes for the Indian market
-
-### Police Verification Form
-- [ ] Generate a pre-filled PDF tenants can take to their local police station
-- [ ] Fields: tenant name, photo, DOB, permanent address, rental address, landlord name + contact
-- [ ] Reuse agreement PDF infrastructure — cost is near zero, trust signal is huge
-
-### TDS Reminders
-- [ ] If `monthly_rent > 50000`, show a banner on `pay-rent.tsx`: "Your rent exceeds ₹50,000/month. You're required to deduct 10% TDS and file Form 26QC. [Learn more →]"
-- [ ] Landlord side: show TDS received amount on tax dashboard
-- [ ] Annual reminder push notification before March 31 (TDS filing deadline)
-
-### Rent Agreement Registration Guidance
-- [ ] Agreements > 11 months legally require registration in most Indian states
-- [ ] After agreement is generated, show checklist: stamp duty amount (state-specific), nearest registration office, required documents
-- [ ] States to handle first: Maharashtra, Telangana, Karnataka, Delhi, Tamil Nadu
-
----
-
-## Quick Wins (under 1 hour each)
-
-| Task | File | What to do |
-|---|---|---|
-| Repair photo upload | `(tenant)/repairs.tsx` | Add `ImagePicker` + `uploadRepairPhoto()` to new repair form |
-| Landlord UPI missing warning | `(landlord)/profile.tsx` | Banner if `upi_id` is empty: "Add your UPI ID so tenants can pay you" |
-| Payment method icon in history | `(tenant)/rent-history.tsx` | Show UPI/cash Ionicons per payment row based on `payment_method` |
-| Tenant "no rental" CTA | `(tenant)/index.tsx` | Empty dashboard → show "Join a rental" button linking to `/(tenant)/join` |
-| Property type icon on dashboard | `(landlord)/index.tsx` | Show `business/home/bed/storefront` Ionicons per rental card |
-| Copy invite from tenant join screen | `(tenant)/join.tsx` | "Copy token" button next to the input so tenants can paste from clipboard |
-| Date picker for rental start date | `(landlord)/create-rental.tsx` | Replace free-text `YYYY-MM-DD` with `@react-native-community/datetimepicker` |
-| Pincode → auto-fill city/state | `(landlord)/create-rental.tsx` | Call India Post API on 6-digit pincode input |
-
----
-
-## Technical Debt
-
-- [ ] Remove all remaining static `className` usage in `components/` — convert to inline styles for consistency with screens
-- [ ] Remove `lib/localRentals.ts` and `lib/devAuth.ts` dev-auth paths before prod — they bypass all real Supabase logic and are a security risk if left in
-- [ ] `isDevAuthUserId()` checks scattered across every screen — gate behind `__DEV__` flag or remove entirely
-- [ ] `lib/confirm.ts` uses `Alert.alert` on native — replace with a proper in-app modal (`BottomSheet` variant) for consistency
-- [ ] `supabase/migrations/001_schema.sql` is monolithic — split into individual migration files as schema evolves
-
----
-
-## Architecture (Non-Feature Work)
-
-### Real-Time Subscriptions
-> Supabase supports `supabase.channel().on('postgres_changes')`. When tenant pays, landlord dashboard updates instantly.
-
-- [ ] Subscribe to `rent_payments` changes on landlord dashboard — invalidate React Query cache on INSERT/UPDATE
-- [ ] Subscribe to `repair_requests` changes on both landlord and tenant views
-- [ ] Subscribe to `notifications` table — badge count updates without pull-to-refresh
-- [ ] Subscribe to `proofs` status changes on landlord proof review screen
-
-### Audit Trail (Legal Moat)
-> Every action should have a timestamped, immutable log. Makes data legally defensible and extremely valuable to acquirers.
-
-- [ ] Add `audit_log` table: `id`, `rental_id`, `actor_id`, `action_type`, `payload_before` (jsonb), `payload_after` (jsonb), `created_at`
-- [ ] Log all deposit transactions (already partially tracked)
-- [ ] Log proof approvals, rejections, disputes
-- [ ] Log agreement signing
-- [ ] Log rental term edits (before + after)
-- [ ] Log repair status transitions
-- [ ] Expose audit log as read-only "History" tab on landlord property detail screen
-
----
-
-## Shipped Log
-
-| Date | Feature | Notes |
-|---|---|---|
-| 2026-05-01 | Google OAuth login | Replaced phone OTP. `devAuth.ts` stubbed. `auth/callback` now routes via AuthGate. |
-| 2026-05-01 | UPI Intent + Cash payments | Zero-commission payment flow. Landlord sets UPI ID, tenant pays via GPay/PhonePe/cash, landlord confirms. No gateway fees. |
-| 2026-05-01 | Leave & License Agreement PDF | 16-clause legally correct Indian L&L agreement. HTML output with print-to-PDF. Covers all standard clauses. Auto-stores URL in rental record. |
-
----
-
-*Last updated: 2026-05-03*
+| Dimension | Flatvio Today | Target State | Rentrovio |
+|---|---|---|---|
+| Tenant UX | ✅ Strong | Best in market | ⚠️ Landlord-centric |
+| Photo proof | ✅ Unique | Side-by-side comparison | ❌ Not present |
+| Deposit protection | ✅ Basic | Full dispute + refund flow | ❌ Not highlighted |
+| HRA receipts | ✅ | Annual PDF summary | ✅ |
+| Rent collection | ✅ UPI + Cash | Automated reminders | ✅ Automated |
+| Analytics | ⚠️ Basic | Per-property health | ✅ Dashboard |
+| Calculators | ❌ | 5 tools | ✅ 9 tools |
+| WhatsApp | ⚠️ Not deployed | Automated triggers | ❌ Not mentioned |
+| Marketplace | ❌ | Public property page | ✅ Full marketplace |
+| Pricing | Free | Freemium (₹999/mo Pro) | Free + ₹10K marketplace |
