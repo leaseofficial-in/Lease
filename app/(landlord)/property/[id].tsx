@@ -534,6 +534,24 @@ export default function PropertyDetailScreen() {
     );
   };
 
+  const handleGenerateAgreement = async (openAfterGenerate = false) => {
+    if (!rental) return;
+    setGeneratingAgreement(true);
+    try {
+      await generateRentalAgreement(rental.id);
+      await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+      await queryClient.invalidateQueries({ queryKey: ['agreement-document', rental.id] });
+      showToast(rental.agreement_url ? 'Agreement regenerated' : 'Agreement ready', 'success');
+      if (openAfterGenerate) {
+        router.push({ pathname: '/agreement/[rentalId]', params: { rentalId: rental.id } });
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not generate agreement', 'error');
+    } finally {
+      setGeneratingAgreement(false);
+    }
+  };
+
   const openAgreementDocument = () => {
     if (!rental) return;
     router.push({
@@ -782,6 +800,23 @@ export default function PropertyDetailScreen() {
             </View>
           </Card>
 
+          <LandlordDocumentCenter
+            rental={rental}
+            payments={payments ?? []}
+            deposits={visibleDepositTransactions}
+            proofs={proofs ?? []}
+            generatingAgreement={generatingAgreement}
+            onViewAgreement={openAgreementDocument}
+            onGenerateAgreement={() => void handleGenerateAgreement(false)}
+            onAddDeposit={() => setShowDepositSheet(true)}
+            onViewReceipt={(paymentId) =>
+              router.push({ pathname: '/receipt/[paymentId]', params: { paymentId } })
+            }
+            onReviewProof={(type) =>
+              router.push({ pathname: '/(landlord)/proof/[rentalId]', params: { rentalId: rental.id, type } })
+            }
+          />
+
           {/* Agreement */}
           <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -821,19 +856,7 @@ export default function PropertyDetailScreen() {
                       variant="ghost"
                       size="sm"
                       loading={generatingAgreement}
-                      onPress={async () => {
-                        setGeneratingAgreement(true);
-                        try {
-                          await generateRentalAgreement(rental.id);
-                          await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
-                          await queryClient.invalidateQueries({ queryKey: ['agreement-document', rental.id] });
-                          showToast('Agreement regenerated', 'success');
-                        } catch (error) {
-                          showToast(error instanceof Error ? error.message : 'Could not generate agreement', 'error');
-                        } finally {
-                          setGeneratingAgreement(false);
-                        }
-                      }}
+                      onPress={() => void handleGenerateAgreement(false)}
                       style={{ flex: 1 }}
                     />
                   )}
@@ -847,20 +870,7 @@ export default function PropertyDetailScreen() {
                 <Button
                   title="Generate Agreement"
                   loading={generatingAgreement}
-                  onPress={async () => {
-                    setGeneratingAgreement(true);
-                    try {
-                      await generateRentalAgreement(rental.id);
-                      await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
-                      await queryClient.invalidateQueries({ queryKey: ['agreement-document', rental.id] });
-                      showToast('Agreement ready', 'success');
-                      openAgreementDocument();
-                    } catch (error) {
-                      showToast(error instanceof Error ? error.message : 'Could not generate agreement', 'error');
-                    } finally {
-                      setGeneratingAgreement(false);
-                    }
-                  }}
+                  onPress={() => void handleGenerateAgreement(true)}
                   fullWidth
                 />
               </View>
@@ -1217,6 +1227,180 @@ function TermRow({ label, value }: { label: string; value: string }) {
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
       <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13 }}>{label}</Text>
       <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, textAlign: 'right', flex: 1, marginLeft: 16 }}>{value}</Text>
+    </View>
+  );
+}
+
+function LandlordDocumentCenter({
+  rental,
+  payments,
+  deposits,
+  proofs,
+  generatingAgreement,
+  onViewAgreement,
+  onGenerateAgreement,
+  onAddDeposit,
+  onViewReceipt,
+  onReviewProof,
+}: {
+  rental: Rental;
+  payments: RentPayment[];
+  deposits: DepositTransaction[];
+  proofs: Proof[];
+  generatingAgreement: boolean;
+  onViewAgreement: () => void;
+  onGenerateAgreement: () => void;
+  onAddDeposit: () => void;
+  onViewReceipt: (paymentId: string) => void;
+  onReviewProof: (type: 'move_in' | 'move_out') => void;
+}) {
+  const paidReceipts = payments.filter((payment) => payment.status === 'paid');
+  const pendingReceipts = payments.filter((payment) => payment.status === 'pending_verification');
+
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <View>
+          <Cap>Document Center</Cap>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 4 }}>
+            Property records
+          </Text>
+        </View>
+        <Chip tone="outline">
+          {Number(!!rental.agreement_url) + paidReceipts.length + deposits.length + proofs.length} docs
+        </Chip>
+      </View>
+
+      <View style={{ gap: 10 }}>
+        <DocumentCenterRow
+          icon="document-text-outline"
+          title="Agreement"
+          subtitle={
+            rental.agreement_signed_at
+              ? `Signed ${formatDate(rental.agreement_signed_at)}`
+              : rental.agreement_url
+              ? 'Generated, awaiting signature'
+              : 'Generate the rental agreement'
+          }
+          badge={rental.agreement_signed_at ? 'Signed' : rental.agreement_url ? 'Pending' : 'Missing'}
+          actionLabel={rental.agreement_url ? 'View' : generatingAgreement ? 'Generating' : 'Generate'}
+          onPress={rental.agreement_url ? onViewAgreement : onGenerateAgreement}
+          disabled={generatingAgreement}
+        />
+
+        <DocumentCenterRow
+          icon="receipt-outline"
+          title="HRA receipts"
+          subtitle={
+            paidReceipts.length
+              ? `${paidReceipts.length} available${pendingReceipts.length ? ` - ${pendingReceipts.length} pending` : ''}`
+              : pendingReceipts.length
+              ? `${pendingReceipts.length} waiting for confirmation`
+              : 'Receipts appear after confirmed rent payments'
+          }
+          badge={paidReceipts.length ? 'Available' : pendingReceipts.length ? 'Pending' : 'None'}
+          actionLabel={paidReceipts[0] ? 'Latest' : undefined}
+          onPress={paidReceipts[0] ? () => onViewReceipt(paidReceipts[0].id) : undefined}
+        />
+
+        <DocumentCenterRow
+          icon="shield-checkmark-outline"
+          title="Deposit ledger"
+          subtitle={`${formatCurrency(rental.security_deposit)} held - ${deposits.length} entries`}
+          badge={deposits.length ? 'Updated' : 'No entries'}
+          actionLabel="Add Entry"
+          onPress={onAddDeposit}
+        />
+
+        {proofs.length ? (
+          proofs.map((proof) => (
+            <DocumentCenterRow
+              key={proof.id}
+              icon="camera-outline"
+              title={proof.type === 'move_out' ? 'Move-out proof' : 'Move-in proof'}
+              subtitle={`Submitted ${formatDate(proof.created_at)}`}
+              badge={proof.status.replace('_', ' ')}
+              actionLabel="Review"
+              onPress={() => onReviewProof(proof.type)}
+            />
+          ))
+        ) : (
+          <DocumentCenterRow
+            icon="camera-outline"
+            title="Proof records"
+            subtitle="Move-in and move-out proof records will appear here"
+            badge="None"
+          />
+        )}
+      </View>
+    </Card>
+  );
+}
+
+function DocumentCenterRow({
+  icon,
+  title,
+  subtitle,
+  badge,
+  actionLabel,
+  onPress,
+  disabled,
+}: {
+  icon: React.ComponentProps<typeof AppIcon>['name'];
+  title: string;
+  subtitle: string;
+  badge: string;
+  actionLabel?: string;
+  onPress?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={!onPress || disabled}
+      activeOpacity={0.78}
+      style={{
+        borderWidth: 1,
+        borderColor: Colors.border,
+        borderRadius: 8,
+        padding: 12,
+        backgroundColor: Colors.surface,
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+        <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}>
+          <AppIcon name={icon} size={17} color={Colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>{title}</Text>
+          <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, lineHeight: 18, marginTop: 3 }}>{subtitle}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 8 }}>
+          <DocumentBadge label={badge} />
+          {actionLabel && <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 12 }}>{actionLabel}</Text>}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function DocumentBadge({ label }: { label: string }) {
+  const normalized = label.toLowerCase();
+  const good = normalized.includes('signed') || normalized.includes('available') || normalized.includes('updated') || normalized.includes('approved');
+  const warn = normalized.includes('pending') || normalized.includes('missing') || normalized.includes('none') || normalized.includes('no ');
+  return (
+    <View
+      style={{
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 999,
+        backgroundColor: good ? Colors.successSoft : warn ? Colors.warningSoft : Colors.fill,
+      }}
+    >
+      <Text style={{ color: good ? Colors.success : warn ? Colors.warning : Colors.ink2, fontFamily: Fonts.sansSemiBold, fontSize: 10, textTransform: 'capitalize' }}>
+        {label}
+      </Text>
     </View>
   );
 }

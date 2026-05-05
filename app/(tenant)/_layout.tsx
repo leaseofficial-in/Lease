@@ -73,10 +73,10 @@ export default function TenantLayout() {
         }}
       />
       <Tabs.Screen
-        name="deposit"
+        name="documents"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="cash-outline" iconActive="cash" label="Deposit" focused={focused} />
+            <TabIcon icon="folder-open-outline" iconActive="folder-open" label="Docs" focused={focused} />
           ),
         }}
       />
@@ -99,6 +99,7 @@ export default function TenantLayout() {
       <Tabs.Screen name="join" options={{ href: null }} />
       <Tabs.Screen name="proof/upload" options={{ href: null }} />
       <Tabs.Screen name="agreement" options={{ href: null }} />
+      <Tabs.Screen name="deposit" options={{ href: null }} />
       <Tabs.Screen name="pay-rent" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="receipt/[paymentId]" options={{ href: null }} />

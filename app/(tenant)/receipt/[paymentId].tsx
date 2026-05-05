@@ -19,6 +19,10 @@ import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { RentPayment } from '../../../types';
 
+type PaymentReceiptMeta = RentPayment & {
+  rental?: { landlord_id: string; tenant_id: string | null } | null;
+};
+
 type ReceiptFrame = {
   contentWindow?: {
     focus: () => void;
@@ -43,12 +47,14 @@ export default function HraReceiptScreen() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_payments')
-        .select('*')
+        .select('*, rental:rentals(landlord_id, tenant_id)')
         .eq('id', paymentId!)
-        .eq('tenant_id', profile!.id)
         .single();
       if (error) throw error;
-      return data as RentPayment;
+      const payment = data as PaymentReceiptMeta;
+      const canView = payment.tenant_id === profile!.id || payment.rental?.landlord_id === profile!.id;
+      if (!canView) throw new Error('You do not have access to this receipt');
+      return payment;
     },
     enabled: !!paymentId && !!profile?.id,
   });

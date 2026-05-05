@@ -37,7 +37,7 @@ export default function RentHistoryScreen() {
 
   const handleGetReceipt = async (payment: RentPayment) => {
     router.push({
-      pathname: '/(tenant)/receipt/[paymentId]',
+      pathname: '/receipt/[paymentId]',
       params: { paymentId: payment.id },
     });
   };

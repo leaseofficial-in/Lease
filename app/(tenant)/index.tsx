@@ -281,7 +281,7 @@ export default function TenantDashboard() {
 
             <View className="flex-row gap-3">
               <ActionTile label="Proof" icon="camera-outline" onPress={() => router.push('/(tenant)/proof/upload')} />
-              <ActionTile label="Agreement" icon="document-text-outline" onPress={() => router.push('/(tenant)/agreement')} />
+              <ActionTile label="Docs" icon="folder-open-outline" onPress={() => router.push('/(tenant)/documents')} />
               <ActionTile label="Rent" icon="receipt-outline" onPress={() => router.push('/(tenant)/rent-history')} />
               <ActionTile label="Repairs" icon="construct-outline" onPress={() => router.push('/(tenant)/repairs')} />
             </View>

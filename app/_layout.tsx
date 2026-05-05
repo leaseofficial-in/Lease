@@ -106,6 +106,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tenant)" />
             <Stack.Screen name="auth/callback" />
             <Stack.Screen name="agreement/[rentalId]" />
+            <Stack.Screen name="receipt/[paymentId]" />
             <Stack.Screen name="join/[token]" />
           </Stack>
           <ConfirmHost />
