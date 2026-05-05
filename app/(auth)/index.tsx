@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -24,46 +24,78 @@ type FeatureItem = {
 const FEATURES: FeatureItem[] = [
   {
     icon: 'receipt-outline',
-    title: 'Rent collection & HRA receipts',
-    body: 'Track every payment, mark it paid or overdue, and generate tax-ready HRA receipts in one tap.',
+    title: 'Rent & HRA receipts',
+    body: 'Track payments, mark paid or overdue, get tax-ready HRA receipts.',
     color: Colors.action,
     bg: Colors.actionSoft,
   },
   {
     icon: 'document-text-outline',
     title: 'Leave & License agreement',
-    body: 'Auto-generate a signed rental agreement with all terms — rent, deposit, dates, and clauses.',
+    body: 'Auto-generate a signed agreement with all terms in one tap.',
     color: Colors.success,
     bg: Colors.successSoft,
   },
   {
     icon: 'camera-outline',
     title: 'Move-in & move-out proof',
-    body: 'Tenants upload room photos at check-in and check-out. Both sides keep a time-stamped record.',
+    body: 'Time-stamped room photos at check-in and check-out. No disputes.',
     color: '#7C3AED',
     bg: '#EDE9FE',
   },
   {
     icon: 'construct-outline',
     title: 'Repairs & maintenance',
-    body: 'Tenants raise requests with photos. Landlords track, update, and close them — no more lost WhatsApp threads.',
+    body: 'Photo-backed requests. Track and close — no lost WhatsApp threads.',
     color: Colors.warning,
     bg: Colors.warningSoft,
+  },
+];
+
+const ROLE_CARDS = [
+  {
+    role: 'landlord' as const,
+    label: 'I\'m a Landlord',
+    sub: 'Manage properties, rent & tenants',
+    icon: 'business-outline' as const,
+    color: Colors.action,
+    bg: Colors.actionSoft,
+    border: Colors.action,
+  },
+  {
+    role: 'tenant' as const,
+    label: 'I\'m a Tenant',
+    sub: 'Pay rent, view agreement & raise requests',
+    icon: 'home-outline' as const,
+    color: Colors.success,
+    bg: Colors.successSoft,
+    border: Colors.success,
   },
 ];
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const { role, ref } = useLocalSearchParams<{ role?: string; ref?: string }>();
+  const [selectedRole, setSelectedRole] = useState<'landlord' | 'tenant' | null>(null);
 
   useEffect(() => {
     if (role === 'landlord' || role === 'tenant') {
+      setSelectedRole(role);
       void AsyncStorage.setItem('flatvio.pending_role', role);
     }
     if (typeof ref === 'string' && ref.trim()) {
       void AsyncStorage.setItem('flatvio.pending_referrer_tenant', ref.trim());
     }
   }, [ref, role]);
+
+  const handleRoleSelect = async (r: 'landlord' | 'tenant') => {
+    setSelectedRole(r);
+    await AsyncStorage.setItem('flatvio.pending_role', r);
+  };
+
+  const handleGetStarted = () => {
+    router.push('/(auth)/login');
+  };
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -89,15 +121,15 @@ export default function WelcomeScreen() {
             onPress={() => router.push('/(auth)/login')}
             activeOpacity={0.8}
             style={{
-              paddingHorizontal: 16,
-              paddingVertical: 8,
+              paddingHorizontal: 20,
+              paddingVertical: 10,
               borderRadius: 20,
               borderWidth: 1.5,
               borderColor: Colors.primary,
               backgroundColor: Colors.surface,
             }}
           >
-            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
               Sign in
             </Text>
           </TouchableOpacity>
@@ -123,7 +155,7 @@ export default function WelcomeScreen() {
             }}
           >
             <Text style={{ color: 'rgba(255,255,255,0.75)', fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-              For landlords & tenants in India
+              Built for Indian rentals
             </Text>
           </View>
 
@@ -131,13 +163,13 @@ export default function WelcomeScreen() {
             style={{
               color: Colors.surface,
               fontFamily: Fonts.sansSemiBold,
-              fontSize: 34,
-              lineHeight: 40,
-              letterSpacing: -0.5,
+              fontSize: 36,
+              lineHeight: 42,
+              letterSpacing: -0.8,
               marginBottom: 14,
             }}
           >
-            Manage your rental{'\n'}without the chaos.
+            Your rental.{'\n'}On record.
           </Text>
 
           <Text
@@ -145,82 +177,183 @@ export default function WelcomeScreen() {
               color: 'rgba(255,255,255,0.65)',
               fontFamily: Fonts.sans,
               fontSize: 15,
-              lineHeight: 23,
+              lineHeight: 24,
               marginBottom: 32,
             }}
           >
-            Flatvio gives landlords and tenants a shared workspace for rent tracking, agreements, proof photos, deposit records, and repair requests — all in one place.
+            Flatvio connects landlords and tenants — rent tracking, HRA receipts, agreements, deposit records, and repair requests in one shared workspace.
           </Text>
 
           {/* Primary CTA */}
           <TouchableOpacity
-            onPress={() => router.push('/(auth)/login')}
+            onPress={handleGetStarted}
             activeOpacity={0.85}
             style={{
-              height: 54,
+              height: 60,
               borderRadius: 16,
               backgroundColor: Colors.surface,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              marginBottom: 12,
+              marginBottom: 10,
             }}
           >
-            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
-              Get Started — it's free
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17 }}>
+              Get Started
             </Text>
-            <Ionicons name="arrow-forward" size={18} color={Colors.primary} />
+            <Ionicons name="arrow-forward" size={19} color={Colors.primary} />
           </TouchableOpacity>
 
           <Text
             style={{
-              color: 'rgba(255,255,255,0.45)',
+              color: 'rgba(255,255,255,0.4)',
               fontFamily: Fonts.sans,
               fontSize: 12,
               textAlign: 'center',
             }}
           >
-            Sign in with Google · No credit card needed
+            Sign in with Google · Free to use · Takes 2 minutes
           </Text>
         </View>
 
-        {/* Stats row */}
+        {/* Trust bar */}
         <View
           style={{
-            flexDirection: 'row',
             backgroundColor: Colors.surface,
             borderBottomWidth: 1,
             borderBottomColor: Colors.border,
+            paddingHorizontal: 20,
+            paddingVertical: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
           }}
         >
-          {[
-            { value: '2 sides', label: 'Landlord & Tenant portals' },
-            { value: 'HRA ready', label: 'Tax-compliant receipts' },
-            { value: 'India-first', label: 'INR, L&L, PAN support' },
-          ].map((stat, i, arr) => (
-            <View
-              key={stat.value}
+          <Ionicons name="location-outline" size={14} color={Colors.muted} />
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, flex: 1 }}>
+            Used by landlords and tenants across Bangalore, Hyderabad, Mumbai, Pune, and more
+          </Text>
+        </View>
+
+        {/* Role selector */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
+          <Text
+            style={{
+              color: Colors.muted,
+              fontFamily: Fonts.sansSemiBold,
+              fontSize: 11,
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+              marginBottom: 4,
+            }}
+          >
+            Who are you?
+          </Text>
+          <Text
+            style={{
+              color: Colors.primary,
+              fontFamily: Fonts.sansSemiBold,
+              fontSize: 20,
+              lineHeight: 26,
+              marginBottom: 16,
+            }}
+          >
+            Pick your portal
+          </Text>
+
+          <View style={{ gap: 12 }}>
+            {ROLE_CARDS.map((card) => {
+              const isSelected = selectedRole === card.role;
+              return (
+                <TouchableOpacity
+                  key={card.role}
+                  onPress={() => handleRoleSelect(card.role)}
+                  activeOpacity={0.85}
+                  style={{
+                    backgroundColor: isSelected ? card.bg : Colors.surface,
+                    borderRadius: 18,
+                    borderWidth: isSelected ? 2 : 1,
+                    borderColor: isSelected ? card.border : Colors.border,
+                    padding: 18,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 14,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 14,
+                      backgroundColor: isSelected ? card.color : card.bg,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Ionicons
+                      name={card.icon}
+                      size={22}
+                      color={isSelected ? Colors.surface : card.color}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        color: Colors.primary,
+                        fontFamily: Fonts.sansSemiBold,
+                        fontSize: 16,
+                        lineHeight: 22,
+                        marginBottom: 2,
+                      }}
+                    >
+                      {card.label}
+                    </Text>
+                    <Text
+                      style={{
+                        color: Colors.muted,
+                        fontFamily: Fonts.sans,
+                        fontSize: 13,
+                        lineHeight: 18,
+                      }}
+                    >
+                      {card.sub}
+                    </Text>
+                  </View>
+                  {isSelected && (
+                    <Ionicons name="checkmark-circle" size={22} color={card.color} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {selectedRole && (
+            <TouchableOpacity
+              onPress={handleGetStarted}
+              activeOpacity={0.85}
               style={{
-                flex: 1,
+                marginTop: 16,
+                height: 56,
+                borderRadius: 16,
+                backgroundColor: Colors.primary,
+                flexDirection: 'row',
                 alignItems: 'center',
-                paddingVertical: 16,
-                borderRightWidth: i < arr.length - 1 ? 1 : 0,
-                borderRightColor: Colors.border,
+                justifyContent: 'center',
+                gap: 8,
               }}
             >
-              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 13, marginBottom: 2 }}>
-                {stat.value}
+              <Text style={{ color: Colors.surface, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
+                Continue as {selectedRole === 'landlord' ? 'Landlord' : 'Tenant'}
               </Text>
-              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 10, textAlign: 'center', paddingHorizontal: 4 }}>
-                {stat.label}
-              </Text>
-            </View>
-          ))}
+              <Ionicons name="arrow-forward" size={18} color={Colors.surface} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Features */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 28, paddingBottom: 8 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 32, paddingBottom: 8 }}>
           <Text
             style={{
               color: Colors.muted,
@@ -237,27 +370,28 @@ export default function WelcomeScreen() {
             style={{
               color: Colors.primary,
               fontFamily: Fonts.sansSemiBold,
-              fontSize: 22,
-              lineHeight: 28,
-              marginBottom: 20,
+              fontSize: 20,
+              lineHeight: 26,
+              marginBottom: 16,
             }}
           >
-            Everything a rental needs,{'\n'}nothing it doesn't.
+            Everything a rental needs.
           </Text>
 
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: 10 }}>
             {FEATURES.map((f) => (
               <View
                 key={f.title}
                 style={{
                   backgroundColor: Colors.surface,
-                  borderRadius: 18,
+                  borderRadius: 16,
                   borderWidth: 1,
                   borderColor: Colors.border,
-                  padding: 18,
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
                   flexDirection: 'row',
                   gap: 14,
-                  alignItems: 'flex-start',
+                  alignItems: 'center',
                 }}
               >
                 <View
@@ -280,17 +414,17 @@ export default function WelcomeScreen() {
                       fontFamily: Fonts.sansSemiBold,
                       fontSize: 14,
                       lineHeight: 20,
-                      marginBottom: 4,
+                      marginBottom: 2,
                     }}
                   >
                     {f.title}
                   </Text>
                   <Text
                     style={{
-                      color: Colors.ink3,
+                      color: Colors.muted,
                       fontFamily: Fonts.sans,
-                      fontSize: 13,
-                      lineHeight: 19,
+                      fontSize: 12,
+                      lineHeight: 17,
                     }}
                   >
                     {f.body}
@@ -301,106 +435,63 @@ export default function WelcomeScreen() {
           </View>
         </View>
 
-        {/* Who it's for */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 28, gap: 12 }}>
-          <Text
+        {/* Testimonial */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
+          <View
             style={{
-              color: Colors.muted,
-              fontFamily: Fonts.sansSemiBold,
-              fontSize: 11,
-              textTransform: 'uppercase',
-              letterSpacing: 1,
-              marginBottom: 4,
+              backgroundColor: Colors.surface,
+              borderRadius: 18,
+              borderWidth: 1,
+              borderColor: Colors.border,
+              padding: 20,
             }}
           >
-            Two portals, one app
-          </Text>
-
-          {[
-            {
-              role: 'Landlord',
-              icon: 'business-outline' as const,
-              color: Colors.action,
-              bg: Colors.actionSoft,
-              points: [
-                'Track rent across all properties',
-                'Generate agreements & receipts',
-                'Review move-in/out proof photos',
-                'Manage deposit deductions',
-              ],
-            },
-            {
-              role: 'Tenant',
-              icon: 'home-outline' as const,
-              color: Colors.success,
-              bg: Colors.successSoft,
-              points: [
-                'Pay rent and download HRA receipts',
-                'Sign your agreement digitally',
-                'Upload move-in photos on day one',
-                'Raise repair requests with photos',
-              ],
-            },
-          ].map((card) => (
-            <View
-              key={card.role}
+            <View style={{ flexDirection: 'row', gap: 4, marginBottom: 12 }}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Ionicons key={i} name="star" size={14} color="#F59E0B" />
+              ))}
+            </View>
+            <Text
               style={{
-                backgroundColor: Colors.surface,
-                borderRadius: 18,
-                borderWidth: 1,
-                borderColor: Colors.border,
-                padding: 18,
+                color: Colors.primary,
+                fontFamily: Fonts.sans,
+                fontSize: 14,
+                lineHeight: 22,
+                marginBottom: 14,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 11,
-                    backgroundColor: card.bg,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Ionicons name={card.icon} size={18} color={card.color} />
-                </View>
-                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
-                  {card.role}
+              "Finally, my tenant and I are on the same page. Rent receipts for HRA, move-in photos, everything is in one place. No more WhatsApp back-and-forth."
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: Colors.actionSoft,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>R</Text>
+              </View>
+              <View>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>
+                  Ravi K.
+                </Text>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+                  Landlord, Bangalore
                 </Text>
               </View>
-              <View style={{ gap: 8 }}>
-                {card.points.map((p) => (
-                  <View key={p} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-                    <View
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: 9,
-                        backgroundColor: card.bg,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginTop: 1,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Ionicons name="checkmark" size={11} color={card.color} />
-                    </View>
-                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, flex: 1 }}>
-                      {p}
-                    </Text>
-                  </View>
-                ))}
-              </View>
             </View>
-          ))}
+          </View>
         </View>
 
         {/* Bottom CTA */}
         <View
           style={{
             marginHorizontal: 20,
-            marginTop: 32,
+            marginTop: 28,
             backgroundColor: Colors.primary,
             borderRadius: 20,
             padding: 24,
@@ -411,17 +502,17 @@ export default function WelcomeScreen() {
             style={{
               color: Colors.surface,
               fontFamily: Fonts.sansSemiBold,
-              fontSize: 20,
-              lineHeight: 26,
+              fontSize: 22,
+              lineHeight: 28,
               textAlign: 'center',
               marginBottom: 8,
             }}
           >
-            Ready to simplify your rental?
+            Set up your rental{'\n'}in 2 minutes.
           </Text>
           <Text
             style={{
-              color: 'rgba(255,255,255,0.6)',
+              color: 'rgba(255,255,255,0.55)',
               fontFamily: Fonts.sans,
               fontSize: 14,
               textAlign: 'center',
@@ -429,14 +520,14 @@ export default function WelcomeScreen() {
               lineHeight: 21,
             }}
           >
-            Set up your first property in under 5 minutes.
+            Add your property, invite your tenant, and start tracking rent from day one.
           </Text>
           <TouchableOpacity
-            onPress={() => router.push('/(auth)/login')}
+            onPress={handleGetStarted}
             activeOpacity={0.85}
             style={{
               width: '100%',
-              height: 52,
+              height: 56,
               borderRadius: 14,
               backgroundColor: Colors.surface,
               flexDirection: 'row',
@@ -445,11 +536,20 @@ export default function WelcomeScreen() {
               gap: 8,
             }}
           >
-            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
-              Get Started
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
+              Get Started — Sign in with Google
             </Text>
-            <Ionicons name="arrow-forward" size={17} color={Colors.primary} />
           </TouchableOpacity>
+          <Text
+            style={{
+              color: 'rgba(255,255,255,0.35)',
+              fontFamily: Fonts.sans,
+              fontSize: 11,
+              marginTop: 10,
+            }}
+          >
+            Free · No credit card · Works on Android, iOS & web
+          </Text>
         </View>
 
         {/* Footer */}
@@ -458,6 +558,14 @@ export default function WelcomeScreen() {
           <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
             flatvio.in · Made for Indian rentals
           </Text>
+          <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
+              Privacy Policy
+            </Text>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
+              Terms of Use
+            </Text>
+          </View>
           {Platform.OS === 'web' && (
             <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
               © {new Date().getFullYear()} Flatvio
