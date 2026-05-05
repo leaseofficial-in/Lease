@@ -7,7 +7,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "expo export -p web"
+    "build:web": "expo export -p web",
+    "supabase": "supabase",
+    "db:push": "supabase db push",
+    "functions:deploy:hrap": "supabase functions deploy generate-hra-receipt"
   },
   "dependencies": {
     "@expo-google-fonts/geist": "^0.4.1",
@@ -52,6 +55,7 @@
     "@types/react": "~19.1.0",
     "autoprefixer": "^10.5.0",
     "babel-preset-expo": "~54.0.10",
+    "supabase": "^2.98.1",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.2"
   },
