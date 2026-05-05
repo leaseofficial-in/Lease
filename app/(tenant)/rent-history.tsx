@@ -1,13 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Platform } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
-import { useUIStore } from '../../stores/uiStore';
 import { RentPayment } from '../../types';
 import { formatCurrency, formatDate, formatMonth } from '../../lib/formatters';
 import { Card } from '../../components/ui/Card';
@@ -18,14 +15,11 @@ import { AppIcon, BackButton } from '../../components/ui/Icon';
 import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
-import { generateHraReceiptHtml } from '../../lib/receipts';
 
 export default function RentHistoryScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
-  const { showToast } = useUIStore();
   const isLocalDevUser = isDevAuthUserId(profile?.id);
-  const [generatingReceipt, setGeneratingReceipt] = useState<Record<string, boolean>>({});
 
   const { data: payments, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['tenant-payments', profile?.id],
@@ -42,59 +36,10 @@ export default function RentHistoryScreen() {
   });
 
   const handleGetReceipt = async (payment: RentPayment) => {
-    const receiptWindow =
-      Platform.OS === 'web' && typeof window !== 'undefined'
-        ? window.open('', '_blank')
-        : null;
-
-    if (Platform.OS === 'web') {
-      if (!receiptWindow) {
-        showToast('Please allow pop-ups to open the HRA receipt.', 'error');
-        return;
-      }
-
-      receiptWindow.document.write(
-        '<!doctype html><title>Preparing receipt</title><p style="font-family:Arial;padding:24px">Preparing HRA receipt...</p>',
-      );
-      receiptWindow.document.close();
-    }
-
-    setGeneratingReceipt((prev) => ({ ...prev, [payment.id]: true }));
-    try {
-      const html = await generateHraReceiptHtml(payment.id);
-      void refetch();
-
-      if (Platform.OS === 'web') {
-        receiptWindow?.document.open();
-        receiptWindow?.document.write(html);
-        receiptWindow?.document.close();
-        receiptWindow?.focus();
-        return;
-      }
-
-      const { uri } = await Print.printToFileAsync({ html, base64: false });
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Save HRA Receipt',
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        showToast('Sharing not available on this device', 'error');
-      }
-    } catch (err) {
-      if (Platform.OS === 'web') {
-        receiptWindow?.document.open();
-        receiptWindow?.document.write(
-          '<!doctype html><title>Receipt unavailable</title><p style="font-family:Arial;padding:24px">Receipt could not be generated. Please return to Flatvio and try again.</p>',
-        );
-        receiptWindow?.document.close();
-      }
-      showToast(err instanceof Error ? err.message : 'Could not generate receipt', 'error');
-    } finally {
-      setGeneratingReceipt((prev) => ({ ...prev, [payment.id]: false }));
-    }
+    router.push({
+      pathname: '/(tenant)/receipt/[paymentId]',
+      params: { paymentId: payment.id },
+    });
   };
 
   const totalPaid = payments
@@ -193,16 +138,15 @@ export default function RentHistoryScreen() {
                   {payment.status === 'paid' && (
                     <TouchableOpacity
                       onPress={() => void handleGetReceipt(payment)}
-                      disabled={generatingReceipt[payment.id]}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}
                     >
                       <AppIcon
-                        name={generatingReceipt[payment.id] ? 'hourglass-outline' : 'document-text-outline'}
+                        name="document-text-outline"
                         size={13}
                         color={Colors.action}
                       />
                       <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-                        {generatingReceipt[payment.id] ? 'Generating PDF...' : 'HRA Receipt (PDF)'}
+                        View HRA Receipt
                       </Text>
                     </TouchableOpacity>
                   )}
