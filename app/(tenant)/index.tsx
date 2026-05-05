@@ -22,6 +22,7 @@ import { Cap, Chip, CollectionRing, InkCard, Sparkline } from '../../components/
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { buildRentalActivity } from '../../lib/rentalActivity';
+import { scheduleRentReminder } from '../../lib/notifications';
 
 export default function TenantDashboard() {
   const router = useRouter();
@@ -151,6 +152,11 @@ export default function TenantDashboard() {
     if (!recentPayments?.length) return null;
     return [...recentPayments].reverse().map((p) => p.amount);
   }, [recentPayments]);
+
+  useEffect(() => {
+    if (!rental || rental.status !== 'active' || isLocalDevUser) return;
+    void scheduleRentReminder(rental.id, rental.rent_due_day, rental.monthly_rent);
+  }, [rental?.id, rental?.status, isLocalDevUser]);
 
   useEffect(() => {
     if (isLoading || isLocalDevUser) return;

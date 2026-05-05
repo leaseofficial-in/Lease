@@ -40,6 +40,29 @@ export const useUpdateRepairStatus = () => {
     },
     onSuccess: (rentalId) => {
       queryClient.invalidateQueries({ queryKey: ['repairs', rentalId] });
+      queryClient.invalidateQueries({ queryKey: ['all-landlord-repairs'] });
+    },
+  });
+};
+
+export const useUpdateRepairNote = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ repairId, note, rentalId }: {
+      repairId: string;
+      note: string;
+      rentalId: string;
+    }) => {
+      const { error } = await supabase
+        .from('repair_requests')
+        .update({ landlord_note: note.trim() || null, updated_at: new Date().toISOString() })
+        .eq('id', repairId);
+      if (error) throw error;
+      return rentalId;
+    },
+    onSuccess: (rentalId) => {
+      queryClient.invalidateQueries({ queryKey: ['repairs', rentalId] });
     },
   });
 };

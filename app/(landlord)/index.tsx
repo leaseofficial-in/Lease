@@ -446,6 +446,19 @@ export default function LandlordDashboard() {
                 <Chip tone="good">{activeRentals.length} active</Chip>
                 {archivedPropertyCount > 0 && <Chip tone="outline">{archivedPropertyCount} archived</Chip>}
               </View>
+              {currentPropertyCount > 0 && (
+                <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 10 }}>
+                    OCCUPANCY
+                  </Text>
+                  <Text style={{
+                    color: activePropertyCount / currentPropertyCount >= 0.8 ? Colors.success : Colors.warning,
+                    fontFamily: Fonts.sansSemiBold, fontSize: 13,
+                  }}>
+                    {Math.round((activePropertyCount / currentPropertyCount) * 100)}%
+                  </Text>
+                </View>
+              )}
             </MiniPanel>
             <MiniPanel label="YTD income" value={formatCurrency(ytdTotal, true)}>
               <Sparkline points={ytdSparkline.length ? ytdSparkline : [0, 0, 0, 0, 0, 0]} height={32} />

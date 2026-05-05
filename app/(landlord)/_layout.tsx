@@ -87,6 +87,21 @@ export default function LandlordLayout() {
     refetchInterval: 30_000,
   });
 
+  const { data: openRepairCount = 0 } = useQuery({
+    queryKey: ['landlord-open-repairs-count', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('repair_requests')
+        .select('id, rental:rentals!inner(landlord_id)')
+        .eq('rental.landlord_id', profile!.id)
+        .eq('status', 'open');
+      if (error) return 0;
+      return data?.length ?? 0;
+    },
+    enabled: !!profile?.id,
+    refetchInterval: 60_000,
+  });
+
   return (
     <Tabs
       screenOptions={{
@@ -125,6 +140,16 @@ export default function LandlordLayout() {
         name="create-rental"
         options={{
           tabBarIcon: () => <AddTabIcon />,
+        }}
+      />
+      <Tabs.Screen
+        name="repairs"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="construct-outline" iconActive="construct" label="Repairs" focused={focused} />
+          ),
+          tabBarBadge: openRepairCount > 0 ? openRepairCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: Colors.danger, fontSize: 10, minWidth: 16, height: 16, lineHeight: 16 },
         }}
       />
       <Tabs.Screen

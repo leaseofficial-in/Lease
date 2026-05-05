@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRepairs, useUpdateRepairStatus } from '../../../hooks/useRepairs';
+import { useRepairs, useUpdateRepairNote, useUpdateRepairStatus } from '../../../hooks/useRepairs';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { supabase } from '../../../lib/supabase';
@@ -43,6 +43,7 @@ export default function LandlordRepairsScreen() {
   const isLocalDevUser = isDevAuthUserId(profile?.id);
   const { data, isLoading, refetch, isRefetching } = useRepairs(isLocalDevUser ? undefined : rentalId);
   const updateStatus = useUpdateRepairStatus();
+  const updateNote = useUpdateRepairNote();
   const repairs = isLocalDevUser ? [] : data ?? [];
 
   useEffect(() => {
@@ -73,6 +74,22 @@ export default function LandlordRepairsScreen() {
         });
       });
   }, [profile?.id, queryClient, rentalId]);
+
+  const handleSaveNote = async (repair: RepairRequest, note: string) => {
+    try {
+      await updateNote.mutateAsync({ repairId: repair.id, note, rentalId });
+      void notifyUser({
+        recipientId: repair.raised_by,
+        title: 'Landlord left a note',
+        body: `Update on "${repair.title}": ${note.trim()}`,
+        type: 'repair_update',
+        data: { rental_id: rentalId },
+      });
+      showToast('Note saved', 'success');
+    } catch {
+      showToast('Failed to save note', 'error');
+    }
+  };
 
   const handleAdvance = async (repair: RepairRequest) => {
     const next = NEXT_STATUS[repair.status];
@@ -155,6 +172,7 @@ export default function LandlordRepairsScreen() {
                     repair={r}
                     onAdvance={handleAdvance}
                     advancing={actioningId === r.id}
+                    onSaveNote={handleSaveNote}
                   />
                 ))}
               </>
@@ -171,6 +189,7 @@ export default function LandlordRepairsScreen() {
                     repair={r}
                     onAdvance={handleAdvance}
                     advancing={actioningId === r.id}
+                    onSaveNote={handleSaveNote}
                   />
                 ))}
               </>
@@ -185,6 +204,7 @@ export default function LandlordRepairsScreen() {
                     repair={r}
                     onAdvance={handleAdvance}
                     advancing={actioningId === r.id}
+                    onSaveNote={handleSaveNote}
                   />
                 ))}
               </>
@@ -211,17 +231,29 @@ function RepairCard({
   repair,
   onAdvance,
   advancing,
+  onSaveNote,
 }: {
   repair: RepairRequest;
   onAdvance: (r: RepairRequest) => void;
   advancing: boolean;
+  onSaveNote: (r: RepairRequest, note: string) => Promise<void>;
 }) {
+  const [note, setNote] = React.useState(repair.landlord_note ?? '');
+  const [savingNote, setSavingNote] = React.useState(false);
+  const [noteExpanded, setNoteExpanded] = React.useState(false);
   const isClosed = repair.status === 'closed';
   const priorityTone = repair.priority === 'urgent' || repair.priority === 'high'
     ? 'bad'
     : repair.priority === 'medium'
     ? 'warn'
     : 'default';
+
+  const handleSave = async () => {
+    setSavingNote(true);
+    await onSaveNote(repair, note);
+    setSavingNote(false);
+    setNoteExpanded(false);
+  };
 
   return (
     <Card style={{ marginBottom: 12, opacity: isClosed ? 0.6 : 1 }}>
@@ -243,6 +275,70 @@ function RepairCard({
           Reported {formatRelativeTime(repair.created_at)}
         </Text>
       </View>
+
+      {/* Landlord note section */}
+      {!isClosed && (
+        noteExpanded ? (
+          <View style={{ marginBottom: 12, backgroundColor: Colors.fill, borderRadius: 12, padding: 12 }}>
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12, marginBottom: 6 }}>
+              Your note to tenant
+            </Text>
+            <TextInput
+              value={note}
+              onChangeText={setNote}
+              placeholder="e.g. Plumber visiting Thursday 3–5pm"
+              placeholderTextColor={Colors.muted}
+              multiline
+              numberOfLines={3}
+              style={{
+                borderWidth: 1, borderColor: Colors.border, borderRadius: 10,
+                padding: 10, fontFamily: Fonts.sans, fontSize: 13,
+                color: Colors.primary, backgroundColor: Colors.surface,
+                minHeight: 72, textAlignVertical: 'top', marginBottom: 10,
+              }}
+            />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={savingNote}
+                style={{ flex: 1, backgroundColor: Colors.action, borderRadius: 10, paddingVertical: 9, alignItems: 'center' }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>
+                  {savingNote ? 'Saving…' : 'Save & Notify Tenant'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => { setNote(repair.landlord_note ?? ''); setNoteExpanded(false); }}
+                style={{ paddingHorizontal: 14, borderRadius: 10, paddingVertical: 9, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => setNoteExpanded(true)}
+            activeOpacity={0.78}
+            style={{
+              marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8,
+              backgroundColor: repair.landlord_note ? Colors.actionSoft : Colors.fill,
+              borderRadius: 10, padding: 10,
+            }}
+          >
+            <Ionicons
+              name={repair.landlord_note ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
+              size={15}
+              color={repair.landlord_note ? Colors.action : Colors.muted}
+            />
+            <Text style={{ color: repair.landlord_note ? Colors.action : Colors.muted, fontFamily: Fonts.sans, fontSize: 12, flex: 1 }} numberOfLines={1}>
+              {repair.landlord_note || 'Add a note for your tenant…'}
+            </Text>
+            <Ionicons name="pencil-outline" size={12} color={Colors.muted} />
+          </TouchableOpacity>
+        )
+      )}
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.border }}>
         <View style={{ flex: 1, paddingRight: 12 }}>
