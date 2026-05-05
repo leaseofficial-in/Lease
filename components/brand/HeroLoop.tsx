@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Text, View } from 'react-native';
+import { Animated, Easing, Platform, Text, View } from 'react-native';
 import Svg, {
   Circle,
   Defs,
@@ -35,7 +35,7 @@ export function HeroLoop() {
         toValue: i === frame ? 1 : 0,
         duration: 600,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }).start();
     });
   }, [frame, opacities]);
