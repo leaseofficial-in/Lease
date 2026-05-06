@@ -68,6 +68,8 @@ export interface Rental {
   maintenance_charges: number;
   invite_token: string;
   invite_expires_at: string;
+  room_number: string | null;
+  room_label: string | null;
   agreement_url: string | null;
   agreement_signed_at: string | null;
   created_at: string;

@@ -28,7 +28,8 @@
       "package": "in.flatvio.app",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_CONTACTS"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
