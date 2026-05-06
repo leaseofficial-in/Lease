@@ -307,6 +307,10 @@ export default function LandlordDashboard() {
   const pendingVerification = (currentMonthPayments ?? [])
     .filter((p) => p.status === 'pending_verification')
     .reduce((sum, p) => sum + Number(p.amount), 0);
+  const overdueCount = (currentMonthPayments ?? []).filter((p) => p.status === 'overdue').length;
+  const overdueAmount = (currentMonthPayments ?? [])
+    .filter((p) => p.status === 'overdue')
+    .reduce((sum, p) => sum + Number(p.amount), 0);
   const collectionRate = totalExpected > 0 ? Math.round((collected / totalExpected) * 100) : 0;
   const nextMonthExpected = activeRentals
     .filter((rental) => !rental.end_date || new Date(rental.end_date) >= nextMonthDate)
@@ -460,6 +464,31 @@ export default function LandlordDashboard() {
               </View>
             </Card>
           </TouchableOpacity>
+
+          {overdueCount > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => router.push('/(landlord)/payments')}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 12,
+                backgroundColor: Colors.dangerSoft, borderRadius: 16,
+                padding: 14, borderWidth: 1, borderColor: '#F5B8B5',
+              }}
+            >
+              <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: Colors.danger, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="alert-circle" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: Colors.danger, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
+                  {overdueCount} overdue {overdueCount === 1 ? 'payment' : 'payments'}
+                </Text>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>
+                  {formatCurrency(overdueAmount, true)} unpaid this month · Tap to review
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.danger} />
+            </TouchableOpacity>
+          )}
 
           <View className="flex-row gap-3">
             <MiniPanel label="Properties" value={String(currentPropertyCount)}>

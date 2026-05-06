@@ -23,6 +23,7 @@ import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { buildRentalActivity } from '../../lib/rentalActivity';
 import { scheduleRentReminder } from '../../lib/notifications';
+import { checkAndMarkOverdue } from '../../lib/payments';
 
 export default function TenantDashboard() {
   const router = useRouter();
@@ -155,7 +156,8 @@ export default function TenantDashboard() {
 
   useEffect(() => {
     if (!rental || rental.status !== 'active' || isLocalDevUser) return;
-    void scheduleRentReminder(rental.id, rental.rent_due_day, rental.monthly_rent);
+    void scheduleRentReminder(rental.id, rental.rent_due_day, rental.monthly_rent, rental.late_fee_percent ?? 5);
+    void checkAndMarkOverdue(rental.id, profile!.id, rental.rent_due_day, rental.monthly_rent, rental.late_fee_percent ?? 5);
   }, [rental?.id, rental?.status, isLocalDevUser]);
 
   useEffect(() => {
@@ -179,11 +181,15 @@ export default function TenantDashboard() {
       })
     : [];
   const currentRentMonth = monthKey(new Date());
+  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
   const currentDueDate = rental
     ? new Date(new Date().getFullYear(), new Date().getMonth(), Math.min(rental.rent_due_day, 28))
     : null;
   const nextDueDate = rental
     ? new Date(new Date().getFullYear(), new Date().getMonth() + 1, Math.min(rental.rent_due_day, 28))
+    : null;
+  const daysUntilDue = currentDueDate
+    ? Math.ceil((currentDueDate.getTime() - todayMidnight.getTime()) / 86_400_000)
     : null;
 
   return (
@@ -297,17 +303,41 @@ export default function TenantDashboard() {
                   <StatusPill kind="payment" value={currentPayment.status} />
                 </View>
                 <RentStatusBadge payment={currentPayment} />
-                <View style={{ marginTop: 10, gap: 4 }}>
-                  <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12 }}>
-                    Due date: {currentDueDate ? formatDateShort(currentDueDate.toISOString()) : `day ${rental.rent_due_day}`}
-                  </Text>
-                  {currentPayment.status === 'paid' && nextDueDate && (
-                    <Text style={{ color: Colors.success, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-                      Next rent due {formatDateShort(nextDueDate.toISOString())}
+                {/* Due date urgency row */}
+                {currentPayment.status === 'pending' && daysUntilDue !== null && (
+                  <View style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10,
+                    backgroundColor: daysUntilDue === 0 ? Colors.dangerSoft : daysUntilDue <= 3 ? Colors.warningSoft : Colors.fill,
+                    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7,
+                  }}>
+                    <Ionicons
+                      name={daysUntilDue === 0 ? 'alert-circle-outline' : daysUntilDue <= 3 ? 'time-outline' : 'calendar-outline'}
+                      size={14}
+                      color={daysUntilDue === 0 ? Colors.danger : daysUntilDue <= 3 ? Colors.warning : Colors.muted}
+                    />
+                    <Text style={{
+                      fontFamily: Fonts.sansMedium, fontSize: 13,
+                      color: daysUntilDue === 0 ? Colors.danger : daysUntilDue <= 3 ? Colors.warning : Colors.muted,
+                    }}>
+                      {daysUntilDue === 0
+                        ? 'Due today — pay now to avoid late fees'
+                        : daysUntilDue === 1
+                        ? 'Due tomorrow'
+                        : `Due in ${daysUntilDue} days · ${currentDueDate ? formatDateShort(currentDueDate.toISOString()) : ''}`}
                     </Text>
-                  )}
-                </View>
-                {currentPayment.status !== 'paid' && currentPayment.status !== 'overdue' && (
+                  </View>
+                )}
+                {currentPayment.status === 'paid' && nextDueDate && (
+                  <Text style={{ color: Colors.success, fontFamily: Fonts.sansMedium, fontSize: 12, marginTop: 8 }}>
+                    Next rent due {formatDateShort(nextDueDate.toISOString())}
+                  </Text>
+                )}
+                {currentPayment.status === 'pending_verification' && (
+                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 8 }}>
+                    Submitted — waiting for landlord to confirm
+                  </Text>
+                )}
+                {currentPayment.status !== 'paid' && currentPayment.status !== 'overdue' && currentPayment.status !== 'pending_verification' && (
                   <Button
                     title="Pay Now"
                     onPress={() => router.push('/(tenant)/pay-rent')}
