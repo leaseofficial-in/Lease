@@ -1,3 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Prevent iOS Safari from zooming the page on input focus.
+   Safari zooms when the focused input's font-size is less than 16px.
+   Setting font-size: 16px on all inputs stops the zoom without disabling
+   pinch-to-zoom (which would hurt accessibility). */
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}

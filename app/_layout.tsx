@@ -1,9 +1,17 @@
 import '../global.css';
 import React, { useEffect } from 'react';
+import { Text, TextInput } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+
+// Prevent OS-level accessibility font scaling from breaking layouts.
+// Applied globally so every Text and TextInput in the app inherits this.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(Text as any).defaultProps = { ...((Text as any).defaultProps ?? {}), allowFontScaling: false };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(TextInput as any).defaultProps = { ...((TextInput as any).defaultProps ?? {}), allowFontScaling: false };
 import {
   Geist_400Regular,
   Geist_500Medium,

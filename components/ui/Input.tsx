@@ -53,6 +53,7 @@ export const Input: React.FC<InputProps> = ({
         <TextInput
           className="flex-1 text-base text-primary py-3"
           placeholderTextColor={Colors.muted}
+          allowFontScaling={false}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           style={style}
