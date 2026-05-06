@@ -225,14 +225,35 @@ export default function LandlordDashboard() {
 
   // Group by property — one card per physical property, prefer non-ended rental as representative
   const propertyGroups = React.useMemo(() => {
-    const map = new Map<string, { representative: Rental; count: number }>();
+    const map = new Map<string, {
+      representative: Rental;
+      count: number;
+      totalRent: number;
+      totalDeposit: number;
+      activeBeds: number;
+      totalBeds: number;
+    }>();
     for (const rental of rentals ?? []) {
       const key = rental.property_id;
+      const notEnded = rental.status !== 'ended';
       if (!map.has(key)) {
-        map.set(key, { representative: rental, count: 1 });
+        map.set(key, {
+          representative: rental,
+          count: 1,
+          totalRent: notEnded ? Number(rental.monthly_rent) : 0,
+          totalDeposit: notEnded ? Number(rental.security_deposit) : 0,
+          activeBeds: notEnded && !!rental.tenant_id ? 1 : 0,
+          totalBeds: notEnded ? 1 : 0,
+        });
       } else {
         const entry = map.get(key)!;
         entry.count++;
+        if (notEnded) {
+          entry.totalRent += Number(rental.monthly_rent);
+          entry.totalDeposit += Number(rental.security_deposit);
+          entry.totalBeds++;
+          if (rental.tenant_id) entry.activeBeds++;
+        }
         // Prefer non-ended over ended; if same, prefer more recent updated_at
         const repIsEnded = entry.representative.status === 'ended';
         const curIsEnded = rental.status === 'ended';
@@ -523,8 +544,17 @@ export default function LandlordDashboard() {
                 icon={<Text style={{ fontSize: 42 }}>+</Text>}
               />
             ) : (
-              filteredPropertyGroups.map(({ representative, count }) => (
-                <RentalCard key={representative.property_id} rental={representative} role="landlord" rentalCount={count} />
+              filteredPropertyGroups.map(({ representative, count, totalRent, totalDeposit, activeBeds, totalBeds }) => (
+                <RentalCard
+                  key={representative.property_id}
+                  rental={representative}
+                  role="landlord"
+                  rentalCount={count}
+                  totalRent={totalRent}
+                  totalDeposit={totalDeposit}
+                  activeBeds={activeBeds}
+                  totalBeds={totalBeds}
+                />
               ))
             )}
 

@@ -386,6 +386,7 @@ function RoomCard({
   onRemoveTenant,
   onPickContact,
   onUpdateTenant,
+  showErrors,
 }: {
   room: Room;
   index: number;
@@ -396,8 +397,11 @@ function RoomCard({
   onRemoveTenant: (roomKey: string, tenantKey: string) => void;
   onPickContact: (roomKey: string, tenantKey: string) => void;
   onUpdateTenant: (roomKey: string, tenantKey: string, patch: Partial<RoomTenant>) => void;
+  showErrors: boolean;
 }) {
   const activeTenants = room.tenants.filter((t) => t.name || t.phone).length;
+  const roomNumberError = showErrors && !room.roomNumber.trim() ? 'Room number required' : '';
+  const rentError = showErrors && Number(room.monthlyRent) < 500 ? 'Minimum ₹500 per bed' : '';
 
   return (
     <View style={{
@@ -440,12 +444,19 @@ function RoomCard({
             placeholder="101"
             placeholderTextColor={Colors.muted}
             style={{
-              borderWidth: 1, borderColor: Colors.border, borderRadius: 10,
+              borderWidth: 1,
+              borderColor: roomNumberError ? Colors.danger : Colors.border,
+              borderRadius: 10,
               paddingHorizontal: 12, paddingVertical: 10,
               fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.primary,
-              backgroundColor: Colors.fill,
+              backgroundColor: roomNumberError ? Colors.dangerSoft : Colors.fill,
             }}
           />
+          {!!roomNumberError && (
+            <Text style={{ color: Colors.danger, fontFamily: Fonts.sans, fontSize: 11, marginTop: 4 }}>
+              {roomNumberError}
+            </Text>
+          )}
         </View>
         <View style={{ flex: 2 }}>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12, marginBottom: 5 }}>
@@ -496,7 +507,7 @@ function RoomCard({
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12, marginBottom: 5 }}>
             Rent / bed <Text style={{ color: Colors.danger }}>*</Text>
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.border, borderRadius: 10, backgroundColor: Colors.fill }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: rentError ? Colors.danger : Colors.border, borderRadius: 10, backgroundColor: rentError ? Colors.dangerSoft : Colors.fill }}>
             <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 15, paddingLeft: 10 }}>₹</Text>
             <TextInput
               value={room.monthlyRent}
@@ -507,6 +518,11 @@ function RoomCard({
               style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 10, fontFamily: Fonts.sans, fontSize: 14, color: Colors.primary }}
             />
           </View>
+          {!!rentError && (
+            <Text style={{ color: Colors.danger, fontFamily: Fonts.sans, fontSize: 11, marginTop: 4 }}>
+              {rentError}
+            </Text>
+          )}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12, marginBottom: 5 }}>
@@ -571,6 +587,8 @@ export default function CreateRentalScreen() {
   const [tenantName, setTenantName] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
   const [rooms, setRooms] = useState<Room[]>([makeRoom()]);
+  const [rentError, setRentError] = useState('');
+  const [pgSubmitAttempted, setPgSubmitAttempted] = useState(false);
 
   const { data: existingProperty } = useQuery({
     queryKey: ['property-for-rental', existingPropertyId],
@@ -687,7 +705,7 @@ export default function CreateRentalScreen() {
       const sharedFields: (keyof FormValues)[] = ['startDate', 'rentDueDay', 'noticePeriodDays', 'furnishedStatus', 'lateFeePercent', 'leaseDurationMonths'];
       if (!isPg) {
         if (Number(watchedMonthlyRent) < 500) {
-          showToast('Monthly rent must be at least ₹500', 'error');
+          setRentError('Monthly rent must be at least ₹500');
           return;
         }
         const valid = await trigger([...sharedFields, 'monthlyRent', 'depositMode', 'depositMonths']);
@@ -705,13 +723,13 @@ export default function CreateRentalScreen() {
     if (!profile) return;
 
     if (!isPg && Number(values.monthlyRent) < 500) {
-      showToast('Monthly rent must be at least ₹500', 'error');
+      setRentError('Monthly rent must be at least ₹500');
       return;
     }
     if (isPg) {
       const badRoom = rooms.find((r) => !r.roomNumber.trim() || Number(r.monthlyRent) < 500);
       if (badRoom) {
-        showToast('Each room needs a room number and rent of at least ₹500', 'error');
+        setPgSubmitAttempted(true);
         return;
       }
     }
@@ -1050,9 +1068,9 @@ export default function CreateRentalScreen() {
                             label="Monthly Rent"
                             placeholder="15000"
                             value={value}
-                            onChangeText={onChange}
+                            onChangeText={(v) => { onChange(v); if (rentError) setRentError(''); }}
                             keyboardType="number-pad"
-                            error={errors.monthlyRent?.message}
+                            error={rentError || errors.monthlyRent?.message}
                             required
                             leftIcon={<Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 15 }}>₹</Text>}
                           />
@@ -1321,6 +1339,7 @@ export default function CreateRentalScreen() {
                   onRemoveTenant={removeTenant}
                   onPickContact={handlePickContactForTenant}
                   onUpdateTenant={patchTenant}
+                  showErrors={pgSubmitAttempted}
                 />
               ))}
 
@@ -1343,6 +1362,22 @@ export default function CreateRentalScreen() {
                   </Text>
                 </View>
               </TouchableOpacity>
+
+              {pgSubmitAttempted && rooms.some((r) => !r.roomNumber.trim() || Number(r.monthlyRent) < 500) && (
+                <View style={{
+                  flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+                  backgroundColor: Colors.dangerSoft, borderRadius: 12,
+                  padding: 12, marginBottom: 12,
+                  borderWidth: 1, borderColor: '#F5B8B5',
+                }}>
+                  <Ionicons name="alert-circle-outline" size={17} color={Colors.danger} style={{ marginTop: 1 }} />
+                  <Text style={{ color: Colors.danger, fontFamily: Fonts.sansMedium, fontSize: 13, flex: 1, lineHeight: 19 }}>
+                    {rooms.filter((r) => !r.roomNumber.trim() || Number(r.monthlyRent) < 500).length === 1
+                      ? 'One room is missing a room number or valid rent (min ₹500).'
+                      : `${rooms.filter((r) => !r.roomNumber.trim() || Number(r.monthlyRent) < 500).length} rooms are missing a room number or valid rent (min ₹500).`}
+                  </Text>
+                </View>
+              )}
 
               <Button
                 title={`Create ${rooms.length} Room${rooms.length > 1 ? 's' : ''} (${totalBeds} Beds)`}

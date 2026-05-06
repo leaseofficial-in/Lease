@@ -44,9 +44,10 @@ export default function JoinDeepLinkScreen() {
         setLoading(false);
         return;
       }
+      const prop = data.property as unknown as { name: string; city: string } | null;
       setRental({
-        name: (data.property as { name: string; city: string } | null)?.name ?? 'your rental',
-        city: (data.property as { name: string; city: string } | null)?.city ?? '',
+        name: prop?.name ?? 'your rental',
+        city: prop?.city ?? '',
         rent: data.monthly_rent,
       });
     } catch {
