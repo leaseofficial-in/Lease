@@ -174,6 +174,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS upi_id TEXT;
 ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS payment_method TEXT;
 ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS utr_number TEXT;
 ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS payment_note TEXT;
+ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS payment_proof_url TEXT;
 -- payment_status is a PG enum — add the new value to it:
 ALTER TYPE payment_status ADD VALUE IF NOT EXISTS 'pending_verification';
 ```

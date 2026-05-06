@@ -190,3 +190,22 @@ export const uploadRepairPhoto = async (
   const { data } = supabase.storage.from('repair-photos').getPublicUrl(filename);
   return { storagePath: filename, publicUrl: data.publicUrl };
 };
+
+export const uploadPaymentProof = async (
+  uri: string,
+  rentalId: string,
+  paymentId: string,
+): Promise<UploadResult> => {
+  const compressed = Platform.OS === 'web' ? uri : await compressPhoto(uri);
+  const blob = await uriToBlob(compressed);
+  const filename = `payment-proofs/${rentalId}/${paymentId}_${Date.now()}.jpg`;
+
+  const { error } = await supabase.storage
+    .from('proof-photos')
+    .upload(filename, blob, { contentType: 'image/jpeg', upsert: false });
+
+  if (error) throw new Error(`Receipt upload failed: ${error.message}`);
+
+  const { data } = supabase.storage.from('proof-photos').getPublicUrl(filename);
+  return { storagePath: filename, publicUrl: data.publicUrl };
+};

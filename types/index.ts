@@ -89,9 +89,10 @@ export interface RentPayment {
   amount: number;
   month: string; // ISO date — first day of the rent month
   status: PaymentStatus;
-  payment_method: 'upi' | 'cash' | null;
-  utr_number: string | null;          // UPI transaction reference, entered by tenant
-  payment_note: string | null;        // optional note for cash payments
+  payment_method: 'upi' | 'bank_transfer' | 'cash' | 'cheque' | null;
+  utr_number: string | null;
+  payment_note: string | null;
+  payment_proof_url: string | null;
   razorpay_order_id: string | null;
   razorpay_payment_id: string | null;
   paid_at: string | null;

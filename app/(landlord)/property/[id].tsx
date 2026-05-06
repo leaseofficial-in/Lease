@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Image,
   View,
   Text,
   ScrollView,
@@ -1060,53 +1061,94 @@ export default function PropertyDetailScreen() {
                   <View key={p.id}>
                     <RentStatusBadge payment={p} />
                     {p.status === 'pending_verification' && (
-                      <View
-                        style={{
-                          marginTop: 8,
-                          padding: 12,
-                          borderRadius: 12,
-                          backgroundColor: Colors.actionSoft,
-                          borderWidth: 1,
-                          borderColor: '#C7D7FF',
-                        }}
-                      >
-                        <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 13, marginBottom: 2 }}>
-                          Tenant says they paid {p.payment_method === 'cash' ? 'cash' : 'via UPI'}
-                        </Text>
-                        {p.utr_number ? (
-                          <Text style={{ color: Colors.ink3, fontFamily: Fonts.mono, fontSize: 12, marginBottom: 8 }}>
-                            UTR: {p.utr_number}
-                          </Text>
-                        ) : null}
-                        {p.payment_note ? (
-                          <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, marginBottom: 8 }}>
-                            Note: {p.payment_note}
-                          </Text>
-                        ) : null}
-                        <Button
-                          title="Confirm Receipt"
-                          size="sm"
-                          onPress={async () => {
-                            try {
-                              await confirmRentPayment(p.id);
-                              await Promise.all([
-                                refetchPayments(),
-                                queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] }),
-                                queryClient.invalidateQueries({ queryKey: ['landlord-payment-actions'] }),
-                              ]);
-                              void notifyUser({
-                                recipientId: p.tenant_id,
-                                title: 'Payment confirmed',
-                                body: `Your landlord confirmed receipt of your rent payment for ${rental.property?.name ?? 'your property'}.`,
-                                type: 'payment_received',
-                                data: { rental_id: rental.id },
-                              });
-                              showToast('Payment confirmed', 'success');
-                            } catch (e) {
-                              showToast(e instanceof Error ? e.message : 'Could not confirm payment', 'error');
-                            }
-                          }}
-                        />
+                      <View style={{ marginTop: 8, borderRadius: 14, backgroundColor: Colors.actionSoft, borderWidth: 1, borderColor: '#C7D7FF', overflow: 'hidden' }}>
+                        {/* Header row */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, paddingBottom: 8 }}>
+                          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.action, alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="time-outline" size={18} color="#fff" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
+                              Tenant marked as paid
+                            </Text>
+                            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>
+                              Confirm once you've received the money
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Details */}
+                        <View style={{ backgroundColor: Colors.surface, marginHorizontal: 12, borderRadius: 10, padding: 10, gap: 6, marginBottom: 10 }}>
+                          {p.payment_method && (
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, width: 80 }}>Method</Text>
+                              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>
+                                {p.payment_method === 'upi' ? 'UPI'
+                                  : p.payment_method === 'bank_transfer' ? 'Bank Transfer'
+                                  : p.payment_method === 'cheque' ? 'Cheque'
+                                  : 'Cash'}
+                              </Text>
+                            </View>
+                          )}
+                          {p.utr_number && (
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, width: 80 }}>Reference</Text>
+                              <Text style={{ color: Colors.primary, fontFamily: Fonts.mono, fontSize: 13, flex: 1 }}>{p.utr_number}</Text>
+                            </View>
+                          )}
+                          {p.payment_note && (
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, width: 80 }}>Note</Text>
+                              <Text style={{ color: Colors.primary, fontFamily: Fonts.sans, fontSize: 13, flex: 1 }}>{p.payment_note}</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Receipt screenshot */}
+                        {(p as RentPayment & { payment_proof_url?: string | null }).payment_proof_url && (
+                          <TouchableOpacity
+                            onPress={() => Linking.openURL((p as RentPayment & { payment_proof_url?: string | null }).payment_proof_url!)}
+                            activeOpacity={0.85}
+                            style={{ marginHorizontal: 12, marginBottom: 10, borderRadius: 10, overflow: 'hidden' }}
+                          >
+                            <Image
+                              source={{ uri: (p as RentPayment & { payment_proof_url?: string | null }).payment_proof_url! }}
+                              style={{ width: '100%', height: 160 }}
+                              resizeMode="cover"
+                            />
+                            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', paddingVertical: 6, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Ionicons name="receipt-outline" size={14} color="#fff" />
+                              <Text style={{ color: '#fff', fontFamily: Fonts.sansMedium, fontSize: 12 }}>Payment screenshot — tap to enlarge</Text>
+                            </View>
+                          </TouchableOpacity>
+                        )}
+
+                        <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
+                          <Button
+                            title="Confirm Receipt"
+                            size="sm"
+                            onPress={async () => {
+                              try {
+                                await confirmRentPayment(p.id);
+                                await Promise.all([
+                                  refetchPayments(),
+                                  queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] }),
+                                  queryClient.invalidateQueries({ queryKey: ['landlord-payment-actions'] }),
+                                ]);
+                                void notifyUser({
+                                  recipientId: p.tenant_id,
+                                  title: 'Payment confirmed',
+                                  body: `Your landlord confirmed receipt of your rent payment for ${rental.property?.name ?? 'your property'}.`,
+                                  type: 'payment_received',
+                                  data: { rental_id: rental.id },
+                                });
+                                showToast('Payment confirmed', 'success');
+                              } catch (e) {
+                                showToast(e instanceof Error ? e.message : 'Could not confirm payment', 'error');
+                              }
+                            }}
+                          />
+                        </View>
                       </View>
                     )}
                   </View>
