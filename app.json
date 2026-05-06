@@ -17,7 +17,8 @@
       "bundleIdentifier": "in.flatvio.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Flatvio uses your camera to capture move-in and repair photos.",
-        "NSPhotoLibraryUsageDescription": "Flatvio accesses your photos to upload property proof images."
+        "NSPhotoLibraryUsageDescription": "Flatvio accesses your photos to upload property proof images.",
+        "NSContactsUsageDescription": "Flatvio uses your contacts to help you quickly invite tenants by phone number."
       }
     },
     "android": {

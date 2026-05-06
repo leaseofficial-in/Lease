@@ -307,68 +307,69 @@ function ContactPicker({
 }
 
 // ─── TenantRow — one row inside a room's tenant list ──────────────────────────
+// Always shows name + phone inputs so web and iOS work without contacts access.
+// On native, also shows a "Pick from Contacts" button that pre-fills the inputs.
 
 function TenantRow({
   tenant,
   index,
   canRemove,
   onPick,
-  onClear,
   onRemove,
+  onNameChange,
+  onPhoneChange,
 }: {
   tenant: RoomTenant;
   index: number;
   canRemove: boolean;
   onPick: () => void;
-  onClear: () => void;
   onRemove: () => void;
+  onNameChange: (v: string) => void;
+  onPhoneChange: (v: string) => void;
 }) {
-  const hasContact = tenant.name || tenant.phone;
-
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.fill, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <Text style={{ color: Colors.muted, fontFamily: Fonts.sansSemiBold, fontSize: 10 }}>{index + 1}</Text>
+    <View style={{ marginBottom: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.fill, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.sansSemiBold, fontSize: 10 }}>{index + 1}</Text>
+        </View>
+        {/* Contacts picker only available on native */}
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity
+            onPress={onPick}
+            activeOpacity={0.8}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: Colors.fill }}
+          >
+            <Ionicons name="person-add-outline" size={14} color={Colors.action} />
+            <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12, flex: 1 }}>Pick from Contacts</Text>
+          </TouchableOpacity>
+        )}
+        {canRemove && (
+          <TouchableOpacity onPress={onRemove} style={{ padding: 4 }}>
+            <Ionicons name="remove-circle-outline" size={18} color={Colors.danger} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {hasContact ? (
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.actionSoft, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 }}>
-          <Ionicons name="person-circle-outline" size={20} color={Colors.action} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 13 }} numberOfLines={1}>
-              {tenant.name || 'Contact'}
-            </Text>
-            {tenant.phone ? (
-              <Text style={{ color: Colors.ink3, fontFamily: Fonts.mono, fontSize: 11 }}>+{tenant.phone}</Text>
-            ) : null}
-          </View>
-          <TouchableOpacity onPress={onClear} style={{ padding: 2 }}>
-            <Ionicons name="close-circle" size={16} color={Colors.muted} />
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <TouchableOpacity
-          onPress={onPick}
-          activeOpacity={0.8}
-          style={{
-            flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-            borderWidth: 1, borderColor: Colors.border, borderRadius: 10,
-            paddingHorizontal: 10, paddingVertical: 8, backgroundColor: Colors.fill,
-          }}
-        >
-          <Ionicons name="person-add-outline" size={16} color={Colors.action} />
-          <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, flex: 1 }}>
-            Pick from Contacts
-          </Text>
-          <Ionicons name="chevron-forward" size={13} color={Colors.muted} />
-        </TouchableOpacity>
-      )}
-
-      {canRemove && (
-        <TouchableOpacity onPress={onRemove} style={{ padding: 4 }}>
-          <Ionicons name="remove-circle-outline" size={18} color={Colors.danger} />
-        </TouchableOpacity>
-      )}
+      {/* Manual inputs — always visible, filled by contacts picker or typed directly */}
+      <View style={{ flexDirection: 'row', gap: 8, paddingLeft: 30 }}>
+        <TextInput
+          value={tenant.name}
+          onChangeText={onNameChange}
+          placeholder="Name (optional)"
+          placeholderTextColor={Colors.muted}
+          style={{ flex: 3, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontFamily: Fonts.sans, fontSize: 13, color: Colors.primary, backgroundColor: Colors.fill }}
+        />
+        <TextInput
+          value={tenant.phone}
+          onChangeText={onPhoneChange}
+          placeholder="Phone"
+          placeholderTextColor={Colors.muted}
+          keyboardType="phone-pad"
+          maxLength={12}
+          style={{ flex: 2, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontFamily: Fonts.mono, fontSize: 13, color: Colors.primary, backgroundColor: Colors.fill }}
+        />
+      </View>
     </View>
   );
 }
@@ -384,7 +385,7 @@ function RoomCard({
   onAddTenant,
   onRemoveTenant,
   onPickContact,
-  onClearContact,
+  onUpdateTenant,
 }: {
   room: Room;
   index: number;
@@ -394,7 +395,7 @@ function RoomCard({
   onAddTenant: (roomKey: string) => void;
   onRemoveTenant: (roomKey: string, tenantKey: string) => void;
   onPickContact: (roomKey: string, tenantKey: string) => void;
-  onClearContact: (roomKey: string, tenantKey: string) => void;
+  onUpdateTenant: (roomKey: string, tenantKey: string, patch: Partial<RoomTenant>) => void;
 }) {
   const activeTenants = room.tenants.filter((t) => t.name || t.phone).length;
 
@@ -546,7 +547,8 @@ function RoomCard({
             index={i}
             canRemove={room.tenants.length > 1}
             onPick={() => onPickContact(room.key, tenant.key)}
-            onClear={() => onClearContact(room.key, tenant.key)}
+            onNameChange={(name) => onUpdateTenant(room.key, tenant.key, { name })}
+            onPhoneChange={(phone) => onUpdateTenant(room.key, tenant.key, { phone })}
             onRemove={() => onRemoveTenant(room.key, tenant.key)}
           />
         ))}
@@ -667,9 +669,6 @@ export default function CreateRentalScreen() {
     if (!result) { showToast('Allow contacts access to pick a tenant', 'error'); return; }
     patchTenant(roomKey, tenantKey, { name: result.name, phone: result.phone });
   };
-
-  const handleClearContact = (roomKey: string, tenantKey: string) =>
-    patchTenant(roomKey, tenantKey, { name: '', phone: '' });
 
   const handlePickContact = async () => {
     const result = await openContactPicker();
@@ -1321,7 +1320,7 @@ export default function CreateRentalScreen() {
                   onAddTenant={addTenant}
                   onRemoveTenant={removeTenant}
                   onPickContact={handlePickContactForTenant}
-                  onClearContact={handleClearContact}
+                  onUpdateTenant={patchTenant}
                 />
               ))}
 

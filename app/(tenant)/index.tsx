@@ -239,6 +239,22 @@ export default function TenantDashboard() {
                   >
                     {rental.property?.name ?? 'Your home'}
                   </Text>
+                  {(rental.room_number || rental.room_label) && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                      <View style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 5,
+                        backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8,
+                        paddingHorizontal: 9, paddingVertical: 4,
+                      }}>
+                        <Ionicons name="bed-outline" size={13} color="rgba(255,255,255,0.8)" />
+                        <Text style={{ color: 'rgba(255,255,255,0.9)', fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+                          {rental.room_number ? `Room ${rental.room_number}` : ''}
+                          {rental.room_number && rental.room_label ? ' · ' : ''}
+                          {rental.room_label ?? ''}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                   <Text
                     numberOfLines={2}
                     style={{ color: 'rgba(255,255,255,0.68)', fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 10 }}

@@ -234,6 +234,7 @@ export default function PropertyDetailScreen() {
       ? window.location.origin
       : Config.publicAppUrl;
   const webInviteLink = `${appOrigin}/join/${rental?.invite_token}`;
+  const buildInviteLink = (token: string) => `${appOrigin}/join/${token}`;
 
   const handleCopyInvite = async () => {
     await Clipboard.setStringAsync(webInviteLink);
@@ -261,6 +262,29 @@ export default function PropertyDetailScreen() {
       message: `Hi, I've added you as a tenant on Flatvio. Join here: ${webInviteLink}`,
       url: webInviteLink,
     });
+  };
+
+  const handleCopyRoomInvite = async (token: string) => {
+    await Clipboard.setStringAsync(buildInviteLink(token));
+    showToast('Invite link copied', 'success');
+  };
+
+  const handleShareRoomInvite = async (token: string, roomLabel?: string | null) => {
+    const link = buildInviteLink(token);
+    const room = roomLabel ? ` for ${roomLabel}` : '';
+    if (Platform.OS === 'web') {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        try {
+          await navigator.share({ title: 'Join my rental on Flatvio', url: link });
+        } catch {
+          handleCopyRoomInvite(token);
+        }
+      } else {
+        handleCopyRoomInvite(token);
+      }
+      return;
+    }
+    await Share.share({ message: `Join my rental${room} on Flatvio: ${link}`, url: link });
   };
 
   const openTermsEditor = () => {
@@ -563,6 +587,10 @@ export default function PropertyDetailScreen() {
 
   if (isLoading) return <LoadingScreen />;
   if (!rental) return null;
+
+  const isPgProperty = rental.property?.property_type === 'pg';
+  const activeRentals = allPropertyRentals?.filter((r) => r.status !== 'ended') ?? [];
+
   const activity = buildRentalActivity({
     rental,
     payments: payments ?? [],
@@ -608,19 +636,41 @@ export default function PropertyDetailScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 16, gap: 14 }}>
           <InkCard>
             <Cap style={{ color: 'rgba(255,255,255,0.58)' }}>Property Ledger</Cap>
-            <Text style={{ color: Colors.surface, fontFamily: Fonts.serif, fontSize: 38, lineHeight: 39, marginTop: 8 }}>
-              {formatCurrency(rental.monthly_rent, true)}
-              <Text style={{ fontFamily: Fonts.sans, fontSize: 15 }}> / month</Text>
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.68)', fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 8 }}>
-              Deposit held: {formatCurrency(rental.security_deposit, true)}. Rent due on day {rental.rent_due_day}.
-            </Text>
+            {isPgProperty ? (() => {
+              const totalRent = activeRentals.reduce((s, r) => s + r.monthly_rent, 0);
+              const totalDeposit = activeRentals.reduce((s, r) => s + r.security_deposit, 0);
+              const occupiedBeds = activeRentals.filter((r) => r.tenant_id).length;
+              return (
+                <>
+                  <Text style={{ color: Colors.surface, fontFamily: Fonts.serif, fontSize: 38, lineHeight: 39, marginTop: 8 }}>
+                    {formatCurrency(totalRent, true)}
+                    <Text style={{ fontFamily: Fonts.sans, fontSize: 15 }}> / month</Text>
+                  </Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.68)', fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 8 }}>
+                    {activeRentals.length} bed{activeRentals.length !== 1 ? 's' : ''} · {occupiedBeds} occupied · Deposit: {formatCurrency(totalDeposit, true)}
+                  </Text>
+                </>
+              );
+            })() : (
+              <>
+                <Text style={{ color: Colors.surface, fontFamily: Fonts.serif, fontSize: 38, lineHeight: 39, marginTop: 8 }}>
+                  {formatCurrency(rental.monthly_rent, true)}
+                  <Text style={{ fontFamily: Fonts.sans, fontSize: 15 }}> / month</Text>
+                </Text>
+                <Text style={{ color: 'rgba(255,255,255,0.68)', fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 8 }}>
+                  Deposit held: {formatCurrency(rental.security_deposit, true)}. Rent due on day {rental.rent_due_day}.
+                </Text>
+              </>
+            )}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
               {isArchivedPlace && <Chip tone="outline" inverse>Archived</Chip>}
-              <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
-                {rental.status === 'active' ? 'Active rental' : 'Setup pending'}
-              </Chip>
+              {!isPgProperty && (
+                <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
+                  {rental.status === 'active' ? 'Active rental' : 'Setup pending'}
+                </Chip>
+              )}
               <Chip tone="outline" inverse>{rental.property?.property_type ?? 'property'}</Chip>
+              {isPgProperty && <Chip tone="good">{activeRentals.filter((r) => r.tenant_id).length}/{activeRentals.length} beds filled</Chip>}
             </View>
           </InkCard>
 
@@ -651,7 +701,83 @@ export default function PropertyDetailScreen() {
             );
           })()}
 
-          {rental.status === 'pending_tenant' && (
+          {isPgProperty && activeRentals.length > 0 && (
+            <Card padded={false}>
+              <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Cap>Rooms &amp; Beds ({activeRentals.length})</Cap>
+                <TouchableOpacity
+                  onPress={() => router.push({ pathname: '/(landlord)/create-rental', params: { propertyId: rental.property_id } })}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="add-circle-outline" size={15} color={Colors.action} />
+                  <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>Add beds</Text>
+                </TouchableOpacity>
+              </View>
+              {activeRentals.map((r, i) => {
+                const isPending = r.status === 'pending_tenant';
+                const hasTenant = !!r.tenant_id;
+                return (
+                  <View
+                    key={r.id}
+                    style={{
+                      paddingHorizontal: 16, paddingVertical: 12,
+                      borderTopWidth: i === 0 ? 0 : 1, borderTopColor: Colors.border,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: isPending ? 10 : 0 }}>
+                      <View style={{
+                        width: 34, height: 34, borderRadius: 10,
+                        backgroundColor: hasTenant ? Colors.successSoft : Colors.fill,
+                        alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <Ionicons
+                          name={hasTenant ? 'person-outline' : 'bed-outline'}
+                          size={17}
+                          color={hasTenant ? Colors.success : Colors.muted}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
+                          {r.room_number ? `Room ${r.room_number}` : 'Unnumbered'}
+                          {r.room_label ? ` · ${r.room_label}` : ''}
+                        </Text>
+                        <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>
+                          {hasTenant ? (r.tenant?.full_name ?? 'Tenant') : 'No tenant yet'} · {formatCurrency(r.monthly_rent, true)}/mo
+                        </Text>
+                      </View>
+                      <StatusPill kind="rental" value={r.status} />
+                    </View>
+                    {isPending && (
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                        <View style={{ flex: 1, backgroundColor: Colors.fill, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 }}>
+                          <Text style={{ color: Colors.ink3, fontFamily: Fonts.mono, fontSize: 10 }} numberOfLines={1}>
+                            {buildInviteLink(r.invite_token)}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleCopyRoomInvite(r.invite_token)}
+                          style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons name="copy-outline" size={17} color={Colors.ink3} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleShareRoomInvite(r.invite_token, r.room_label ?? (r.room_number ? `Room ${r.room_number}` : null))}
+                          style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.action, alignItems: 'center', justifyContent: 'center' }}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons name="share-outline" size={17} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </Card>
+          )}
+
+          {!isPgProperty && rental.status === 'pending_tenant' && (
             <Card>
               <Cap style={{ marginBottom: 10 }}>Invite Tenant</Cap>
               <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
@@ -1015,7 +1141,7 @@ export default function PropertyDetailScreen() {
             </Card>
           )}
 
-          {rentalHistory.length > 0 && (
+          {!isPgProperty && rentalHistory.length > 0 && (
             <Card>
               <Cap style={{ marginBottom: 12 }}>Rental History</Cap>
               <View style={{ gap: 0 }}>
