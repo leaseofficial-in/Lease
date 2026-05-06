@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Rental } from '../../types';
 import { formatCurrency, formatDate } from '../../lib/formatters';
+import { getUnitVocab } from '../../lib/unitVocab';
 import { Card } from '../ui/Card';
 import { StatusPill } from '../ui/StatusPill';
 import { Avatar } from '../ui/Avatar';
@@ -28,6 +29,7 @@ export const RentalCard: React.FC<RentalCardProps> = ({
   const personLabel = role === 'landlord' ? 'Tenant' : 'Landlord';
   const archived = !!rental.property?.archived_at;
   const isPgMultiBed = role === 'landlord' && (totalBeds ?? 0) > 1;
+  const unitVocab = getUnitVocab(rental.property?.property_type);
 
   return (
     <TouchableOpacity
@@ -64,7 +66,7 @@ export const RentalCard: React.FC<RentalCardProps> = ({
           {archived ? (
             <Chip tone="outline">Archived</Chip>
           ) : isPgMultiBed ? (
-            <Chip tone="outline">PG</Chip>
+            <Chip tone="outline">{rental.property?.property_type?.toUpperCase() ?? 'Multi'}</Chip>
           ) : (
             <StatusPill kind="rental" value={rental.status} />
           )}
@@ -80,7 +82,7 @@ export const RentalCard: React.FC<RentalCardProps> = ({
             value={formatCurrency(isPgMultiBed ? (totalDeposit ?? 0) : rental.security_deposit, true)}
           />
           {isPgMultiBed ? (
-            <Metric label="Beds" value={`${activeBeds ?? 0}/${totalBeds ?? 0} filled`} align="right" />
+            <Metric label={unitVocab.units} value={`${activeBeds ?? 0}/${totalBeds ?? 0} filled`} align="right" />
           ) : (
             <Metric label="Since" value={formatDate(rental.start_date)} align="right" />
           )}
@@ -96,7 +98,7 @@ export const RentalCard: React.FC<RentalCardProps> = ({
                 <View>
                   <Cap>Occupancy</Cap>
                   <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>
-                    {activeBeds ?? 0} of {totalBeds ?? 0} beds occupied
+                    {activeBeds ?? 0} of {totalBeds ?? 0} {unitVocab.units.toLowerCase()} occupied
                   </Text>
                 </View>
               </View>

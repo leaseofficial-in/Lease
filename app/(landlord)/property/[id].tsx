@@ -37,6 +37,7 @@ import { Config } from '../../../constants/config';
 import { isDevAuthUserId } from '../../../lib/devAuth';
 import { activateLocalRental, archiveLocalProperty, listLocalRentalsByPropertyId, restoreLocalProperty, updateLocalRentalTerms } from '../../../lib/localRentals';
 import { confirmAction } from '../../../lib/confirm';
+import { getUnitVocab } from '../../../lib/unitVocab';
 import { buildRentalActivity } from '../../../lib/rentalActivity';
 import { generateRentalAgreement } from '../../../lib/agreement';
 import { confirmRentPayment } from '../../../lib/payments';
@@ -595,8 +596,9 @@ export default function PropertyDetailScreen() {
   if (isLoading) return <LoadingScreen />;
   if (!rental) return null;
 
-  const isPgProperty = rental.property?.property_type === 'pg';
   const activeRentals = allPropertyRentals?.filter((r) => r.status !== 'ended') ?? [];
+  const isMultiUnit = activeRentals.length > 1 || activeRentals.some((r) => r.room_number !== null);
+  const propertyVocab = getUnitVocab(rental.property?.property_type);
 
   const activity = buildRentalActivity({
     rental,
@@ -643,7 +645,7 @@ export default function PropertyDetailScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 16, gap: 14 }}>
           <InkCard>
             <Cap style={{ color: 'rgba(255,255,255,0.58)' }}>Property Ledger</Cap>
-            {isPgProperty ? (() => {
+            {isMultiUnit ? (() => {
               const totalRent = activeRentals.reduce((s, r) => s + r.monthly_rent, 0);
               const totalDeposit = activeRentals.reduce((s, r) => s + r.security_deposit, 0);
               const occupiedBeds = activeRentals.filter((r) => r.tenant_id).length;
@@ -671,13 +673,13 @@ export default function PropertyDetailScreen() {
             )}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
               {isArchivedPlace && <Chip tone="outline" inverse>Archived</Chip>}
-              {!isPgProperty && (
+              {!isMultiUnit && (
                 <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
                   {rental.status === 'active' ? 'Active rental' : 'Setup pending'}
                 </Chip>
               )}
               <Chip tone="outline" inverse>{rental.property?.property_type ?? 'property'}</Chip>
-              {isPgProperty && <Chip tone="good">{activeRentals.filter((r) => r.tenant_id).length}/{activeRentals.length} beds filled</Chip>}
+              {isMultiUnit && <Chip tone="good">{activeRentals.filter((r) => r.tenant_id).length}/{activeRentals.length} {propertyVocab.units.toLowerCase()} filled</Chip>}
             </View>
           </InkCard>
 
@@ -708,17 +710,17 @@ export default function PropertyDetailScreen() {
             );
           })()}
 
-          {isPgProperty && activeRentals.length > 0 && (
+          {isMultiUnit && activeRentals.length > 0 && (
             <Card padded={false}>
               <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Cap>Rooms &amp; Beds ({activeRentals.length})</Cap>
+                <Cap>{propertyVocab.units} ({activeRentals.length})</Cap>
                 <TouchableOpacity
                   onPress={() => router.push({ pathname: '/(landlord)/create-rental', params: { propertyId: rental.property_id } })}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                   activeOpacity={0.75}
                 >
                   <Ionicons name="add-circle-outline" size={15} color={Colors.action} />
-                  <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>Add beds</Text>
+                  <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>Add {propertyVocab.unit.toLowerCase()}</Text>
                 </TouchableOpacity>
               </View>
               {activeRentals.map((r, i) => {
@@ -746,7 +748,7 @@ export default function PropertyDetailScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
-                          {r.room_number ? `Room ${r.room_number}` : 'Unnumbered'}
+                          {r.room_number ? `${propertyVocab.unit} ${r.room_number}` : 'Unnumbered'}
                           {r.room_label ? ` · ${r.room_label}` : ''}
                         </Text>
                         <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>
@@ -770,7 +772,7 @@ export default function PropertyDetailScreen() {
                           <Ionicons name="copy-outline" size={17} color={Colors.ink3} />
                         </TouchableOpacity>
                         <TouchableOpacity
-                          onPress={() => handleShareRoomInvite(r.invite_token, r.room_label ?? (r.room_number ? `Room ${r.room_number}` : null))}
+                          onPress={() => handleShareRoomInvite(r.invite_token, r.room_label ?? (r.room_number ? `${propertyVocab.unit} ${r.room_number}` : null))}
                           style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.action, alignItems: 'center', justifyContent: 'center' }}
                           activeOpacity={0.75}
                         >
@@ -784,7 +786,7 @@ export default function PropertyDetailScreen() {
             </Card>
           )}
 
-          {!isPgProperty && rental.status === 'pending_tenant' && (
+          {!isMultiUnit && rental.status === 'pending_tenant' && (
             <Card>
               <Cap style={{ marginBottom: 10 }}>Invite Tenant</Cap>
               <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
@@ -885,7 +887,7 @@ export default function PropertyDetailScreen() {
             </Card>
           )}
 
-          {isPgProperty ? (
+          {isMultiUnit ? (
             <PgDepositOverview
               rentals={activeRentals}
               transactions={isLocalDevUser ? localDepositTransactions : depositTransactions ?? []}
@@ -913,7 +915,7 @@ export default function PropertyDetailScreen() {
             </>
           )}
 
-          {isPgProperty && (
+          {isMultiUnit && (
             <Button
               title="Repairs"
               variant="secondary"
@@ -1161,7 +1163,7 @@ export default function PropertyDetailScreen() {
             </Card>
           )}
 
-          {!isPgProperty && rentalHistory.length > 0 && (
+          {!isMultiUnit && rentalHistory.length > 0 && (
             <Card>
               <Cap style={{ marginBottom: 12 }}>Rental History</Cap>
               <View style={{ gap: 0 }}>
@@ -1240,7 +1242,7 @@ export default function PropertyDetailScreen() {
 
       <BottomSheet visible={!!depositRentalId} onClose={() => { setDepositRentalId(null); resetTransactionForm(); }} scrollable>
         {(() => {
-          const dr = isPgProperty && depositRentalId
+          const dr = isMultiUnit && depositRentalId
             ? activeRentals.find((r) => r.id === depositRentalId)
             : null;
           return (

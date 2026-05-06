@@ -25,6 +25,7 @@ import { Button } from '../../components/ui/Button';
 import { Cap } from '../../components/ui/V2';
 import { Property } from '../../types';
 import { formatCurrency } from '../../lib/formatters';
+import { getUnitVocab } from '../../lib/unitVocab';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { createLocalRental } from '../../lib/localRentals';
@@ -155,7 +156,7 @@ const furnishedOptions: { value: FormValues['furnishedStatus']; label: string; i
   { value: 'furnished', label: 'Furnished', icon: 'bed-outline' },
 ];
 
-const ROOM_TYPE_CHIPS = ['Single', 'Double', 'Triple', 'Dorm'];
+// ROOM_TYPE_CHIPS replaced by per-type vocab from lib/unitVocab
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -380,6 +381,7 @@ function RoomCard({
   room,
   index,
   canRemove,
+  propertyType,
   onUpdate,
   onRemove,
   onAddTenant,
@@ -391,6 +393,7 @@ function RoomCard({
   room: Room;
   index: number;
   canRemove: boolean;
+  propertyType: string;
   onUpdate: (key: string, patch: Partial<Omit<Room, 'tenants'>>) => void;
   onRemove: (key: string) => void;
   onAddTenant: (roomKey: string) => void;
@@ -399,9 +402,10 @@ function RoomCard({
   onUpdateTenant: (roomKey: string, tenantKey: string, patch: Partial<RoomTenant>) => void;
   showErrors: boolean;
 }) {
+  const vocab = getUnitVocab(propertyType);
   const activeTenants = room.tenants.filter((t) => t.name || t.phone).length;
-  const roomNumberError = showErrors && !room.roomNumber.trim() ? 'Room number required' : '';
-  const rentError = showErrors && Number(room.monthlyRent) < 500 ? 'Minimum ₹500 per bed' : '';
+  const roomNumberError = showErrors && !room.roomNumber.trim() ? `${vocab.unit} number required` : '';
+  const rentError = showErrors && Number(room.monthlyRent) < 500 ? `Minimum ₹500 per ${vocab.unit.toLowerCase()}` : '';
 
   return (
     <View style={{
@@ -416,7 +420,7 @@ function RoomCard({
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
-            {room.roomNumber ? `Room ${room.roomNumber}` : `Room ${index + 1}`}
+            {room.roomNumber ? `${vocab.unit} ${room.roomNumber}` : `${vocab.unit} ${index + 1}`}
             {room.label ? ` · ${room.label}` : ''}
           </Text>
           {activeTenants > 0 && (
@@ -436,12 +440,12 @@ function RoomCard({
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12, marginBottom: 5 }}>
-            Room No. <Text style={{ color: Colors.danger }}>*</Text>
+            {vocab.numberLabel} <Text style={{ color: Colors.danger }}>*</Text>
           </Text>
           <TextInput
             value={room.roomNumber}
             onChangeText={(v) => onUpdate(room.key, { roomNumber: v })}
-            placeholder="101"
+            placeholder={vocab.numberPlaceholder}
             placeholderTextColor={Colors.muted}
             style={{
               borderWidth: 1,
@@ -460,12 +464,12 @@ function RoomCard({
         </View>
         <View style={{ flex: 2 }}>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12, marginBottom: 5 }}>
-            Room Type
+            {vocab.typeLabel}
           </Text>
           <TextInput
             value={room.label}
             onChangeText={(v) => onUpdate(room.key, { label: v })}
-            placeholder="e.g. Double Sharing"
+            placeholder={vocab.typePlaceholder}
             placeholderTextColor={Colors.muted}
             style={{
               borderWidth: 1, borderColor: Colors.border, borderRadius: 10,
@@ -479,7 +483,7 @@ function RoomCard({
 
       {/* Quick room-type chips */}
       <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }}>
-        {ROOM_TYPE_CHIPS.map((chip) => {
+        {vocab.chips.map((chip) => {
           const active = room.label === chip;
           return (
             <TouchableOpacity
@@ -505,7 +509,7 @@ function RoomCard({
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12, marginBottom: 5 }}>
-            Rent / bed <Text style={{ color: Colors.danger }}>*</Text>
+            {vocab.rentLabel} <Text style={{ color: Colors.danger }}>*</Text>
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: rentError ? Colors.danger : Colors.border, borderRadius: 10, backgroundColor: rentError ? Colors.dangerSoft : Colors.fill }}>
             <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 15, paddingLeft: 10 }}>₹</Text>
@@ -526,7 +530,7 @@ function RoomCard({
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12, marginBottom: 5 }}>
-            Deposit / bed
+            Deposit / {vocab.unit.toLowerCase()}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.border, borderRadius: 10, backgroundColor: Colors.fill }}>
             <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 15, paddingLeft: 10 }}>₹</Text>
@@ -589,6 +593,7 @@ export default function CreateRentalScreen() {
   const [rooms, setRooms] = useState<Room[]>([makeRoom()]);
   const [rentError, setRentError] = useState('');
   const [pgSubmitAttempted, setPgSubmitAttempted] = useState(false);
+  const [multiUnit, setMultiUnit] = useState(false);
 
   const { data: existingProperty } = useQuery({
     queryKey: ['property-for-rental', existingPropertyId],
@@ -640,8 +645,13 @@ export default function CreateRentalScreen() {
   const watchedLeaseDuration = useWatch({ control, name: 'leaseDurationMonths' });
   const watchedPropertyType = useWatch({ control, name: 'propertyType' });
 
-  const isPg = watchedPropertyType === 'pg'
+  const isMultiUnitType = watchedPropertyType === 'pg'
     || (!!existingPropertyId && existingProperty?.property_type === 'pg');
+  const isMultiUnit = isMultiUnitType || multiUnit;
+  const propertyTypeForVocab = existingPropertyId
+    ? (existingProperty?.property_type ?? watchedPropertyType)
+    : watchedPropertyType;
+  const vocab = getUnitVocab(propertyTypeForVocab);
 
   const computedDeposit =
     watchedDepositMode === 'months' && Number(watchedDepositMonths) > 0 && Number(watchedMonthlyRent) >= 500
@@ -703,7 +713,7 @@ export default function CreateRentalScreen() {
       if (valid) setStep(1);
     } else if (step === 1) {
       const sharedFields: (keyof FormValues)[] = ['startDate', 'rentDueDay', 'noticePeriodDays', 'furnishedStatus', 'lateFeePercent', 'leaseDurationMonths'];
-      if (!isPg) {
+      if (!isMultiUnit) {
         if (Number(watchedMonthlyRent) < 500) {
           setRentError('Monthly rent must be at least ₹500');
           return;
@@ -722,11 +732,11 @@ export default function CreateRentalScreen() {
   const onSubmit = async (values: FormValues) => {
     if (!profile) return;
 
-    if (!isPg && Number(values.monthlyRent) < 500) {
+    if (!isMultiUnit && Number(values.monthlyRent) < 500) {
       setRentError('Monthly rent must be at least ₹500');
       return;
     }
-    if (isPg) {
+    if (isMultiUnit) {
       const badRoom = rooms.find((r) => !r.roomNumber.trim() || Number(r.monthlyRent) < 500);
       if (badRoom) {
         setPgSubmitAttempted(true);
@@ -743,7 +753,7 @@ export default function CreateRentalScreen() {
 
       if (isDevAuthUserId(profile.id)) {
         const firstRoom = rooms[0];
-        const securityDeposit = isPg
+        const securityDeposit = isMultiUnit
           ? (firstRoom?.securityDeposit || '0')
           : values.depositMode === 'months'
           ? String(Number(values.depositMonths) * Number(values.monthlyRent))
@@ -752,7 +762,7 @@ export default function CreateRentalScreen() {
         const rental = await createLocalRental(
           {
             ...values,
-            monthlyRent: isPg ? (firstRoom?.monthlyRent || '0') : values.monthlyRent,
+            monthlyRent: isMultiUnit ? (firstRoom?.monthlyRent || '0') : values.monthlyRent,
             securityDeposit,
             endDate,
             noticePeriodDays: values.noticePeriodDays,
@@ -804,7 +814,7 @@ export default function CreateRentalScreen() {
 
       let totalRentalsCreated = 0;
 
-      if (isPg) {
+      if (isMultiUnit) {
         // Each tenant slot = one rental row (one invite link / one agreement)
         for (const room of rooms) {
           for (const tenant of room.tenants) {
@@ -849,8 +859,8 @@ export default function CreateRentalScreen() {
       await queryClient.invalidateQueries({ queryKey: ['landlord-rentals'] });
       await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
 
-      const msg = isPg
-        ? `${rooms.length} room${rooms.length > 1 ? 's' : ''}, ${totalRentalsCreated} beds created. Share invite links from the property page.`
+      const msg = isMultiUnit
+        ? `${rooms.length} ${rooms.length > 1 ? vocab.units.toLowerCase() : vocab.unit.toLowerCase()}, ${totalRentalsCreated} beds created. Share invite links from the property page.`
         : tenantPhone
         ? 'Rental created! Invite sent via WhatsApp.'
         : 'Rental created! Share the invite link with your tenant.';
@@ -919,15 +929,15 @@ export default function CreateRentalScreen() {
               {step === 0
                 ? 'Property'
                 : step === 1
-                ? (isPg ? 'Shared Terms' : 'Rental Terms')
-                : (isPg ? 'Rooms & Tenants' : 'Invite Tenant')}
+                ? (isMultiUnit ? 'Shared Terms' : 'Rental Terms')
+                : (isMultiUnit ? `${vocab.units} & Tenants` : 'Invite Tenant')}
             </Text>
             <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>
               {step === 0
                 ? 'Step 1 of 3'
                 : step === 1
-                ? isPg ? 'Step 2 of 3 — Applies to all rooms' : existingPropertyId ? 'Step 1 of 2' : 'Step 2 of 3'
-                : isPg ? `Step 3 of 3 — ${rooms.length} room${rooms.length > 1 ? 's' : ''}, ${totalBeds} bed${totalBeds > 1 ? 's' : ''}` : existingPropertyId ? 'Step 2 of 2 — Optional' : 'Step 3 of 3 — Optional'}
+                ? isMultiUnit ? `Step 2 of 3 — Applies to all ${vocab.units.toLowerCase()}` : existingPropertyId ? 'Step 1 of 2' : 'Step 2 of 3'
+                : isMultiUnit ? `Step 3 of 3 — ${rooms.length} ${rooms.length > 1 ? vocab.units.toLowerCase() : vocab.unit.toLowerCase()}, ${totalBeds} bed${totalBeds > 1 ? 's' : ''}` : existingPropertyId ? 'Step 2 of 2 — Optional' : 'Step 3 of 3 — Optional'}
             </Text>
           </View>
 
@@ -956,9 +966,42 @@ export default function CreateRentalScreen() {
                 control={control}
                 name="propertyType"
                 render={({ field: { onChange, value } }) => (
-                  <ChipSelect value={value} options={propertyTypes} onChange={onChange} />
+                  <ChipSelect value={value} options={propertyTypes} onChange={(v) => { onChange(v); if (v === 'pg') setMultiUnit(false); }} />
                 )}
               />
+
+              {watchedPropertyType !== 'pg' && (
+                <TouchableOpacity
+                  onPress={() => setMultiUnit((v) => !v)}
+                  activeOpacity={0.8}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                    backgroundColor: multiUnit ? Colors.actionSoft : Colors.fill,
+                    borderRadius: 14, padding: 14, marginTop: 10,
+                    borderWidth: 1, borderColor: multiUnit ? Colors.action : Colors.border,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
+                      Multiple {vocab.units}
+                    </Text>
+                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 2 }}>
+                      Set separate rent & deposit per {vocab.unit.toLowerCase()}
+                    </Text>
+                  </View>
+                  <View style={{
+                    width: 44, height: 26, borderRadius: 13,
+                    backgroundColor: multiUnit ? Colors.action : Colors.border,
+                    alignItems: 'center', justifyContent: 'center',
+                    paddingHorizontal: 3,
+                  }}>
+                    <View style={{
+                      width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff',
+                      alignSelf: multiUnit ? 'flex-end' : 'flex-start',
+                    }} />
+                  </View>
+                </TouchableOpacity>
+              )}
 
               <View style={{ height: 8 }} />
 
@@ -1046,16 +1089,16 @@ export default function CreateRentalScreen() {
           {/* ─── Step 1: Rental Terms ─────────────────────────────────────── */}
           {step === 1 && (
             <>
-              {isPg && (
+              {isMultiUnit && (
                 <View style={{ backgroundColor: Colors.actionSoft, borderRadius: 14, padding: 14, marginBottom: 4, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
                   <Ionicons name="information-circle-outline" size={18} color={Colors.action} style={{ marginTop: 1 }} />
                   <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, flex: 1 }}>
-                    PG mode: rent and deposit are set per room in the next step. These shared terms apply to all rooms.
+                    Multi-unit mode: rent and deposit are set per {vocab.unit.toLowerCase()} in the next step. These shared terms apply to all {vocab.units.toLowerCase()}.
                   </Text>
                 </View>
               )}
 
-              {!isPg && (
+              {!isMultiUnit && (
                 <>
                   <Section title="Rent" />
                   <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -1315,7 +1358,7 @@ export default function CreateRentalScreen() {
               />
 
               <Button
-                title={isPg ? 'Next: Set Up Rooms' : 'Next: Invite Tenant'}
+                title={isMultiUnit ? `Next: Set Up ${vocab.units}` : 'Next: Invite Tenant'}
                 onPress={goNext}
                 fullWidth
                 size="lg"
@@ -1325,7 +1368,7 @@ export default function CreateRentalScreen() {
           )}
 
           {/* ─── Step 2: Rooms (PG) ───────────────────────────────────────── */}
-          {step === 2 && isPg && (
+          {step === 2 && isMultiUnit && (
             <>
               {rooms.map((room, i) => (
                 <RoomCard
@@ -1333,6 +1376,7 @@ export default function CreateRentalScreen() {
                   room={room}
                   index={i}
                   canRemove={rooms.length > 1}
+                  propertyType={propertyTypeForVocab}
                   onUpdate={updateRoom}
                   onRemove={removeRoom}
                   onAddTenant={addTenant}
@@ -1356,9 +1400,9 @@ export default function CreateRentalScreen() {
                   <Ionicons name="add" size={22} color={Colors.action} />
                 </View>
                 <View>
-                  <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>Add another room</Text>
+                  <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>Add another {vocab.unit.toLowerCase()}</Text>
                   <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
-                    {rooms.length} room{rooms.length > 1 ? 's' : ''} · {totalBeds} bed{totalBeds > 1 ? 's' : ''} total
+                    {rooms.length} {rooms.length > 1 ? vocab.units.toLowerCase() : vocab.unit.toLowerCase()} · {totalBeds} bed{totalBeds > 1 ? 's' : ''} total
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -1373,14 +1417,14 @@ export default function CreateRentalScreen() {
                   <Ionicons name="alert-circle-outline" size={17} color={Colors.danger} style={{ marginTop: 1 }} />
                   <Text style={{ color: Colors.danger, fontFamily: Fonts.sansMedium, fontSize: 13, flex: 1, lineHeight: 19 }}>
                     {rooms.filter((r) => !r.roomNumber.trim() || Number(r.monthlyRent) < 500).length === 1
-                      ? 'One room is missing a room number or valid rent (min ₹500).'
-                      : `${rooms.filter((r) => !r.roomNumber.trim() || Number(r.monthlyRent) < 500).length} rooms are missing a room number or valid rent (min ₹500).`}
+                      ? `One ${vocab.unit.toLowerCase()} is missing a number or valid rent (min ₹500).`
+                      : `${rooms.filter((r) => !r.roomNumber.trim() || Number(r.monthlyRent) < 500).length} ${vocab.units.toLowerCase()} are missing a number or valid rent (min ₹500).`}
                   </Text>
                 </View>
               )}
 
               <Button
-                title={`Create ${rooms.length} Room${rooms.length > 1 ? 's' : ''} (${totalBeds} Beds)`}
+                title={`Create ${rooms.length} ${rooms.length > 1 ? vocab.units : vocab.unit} (${totalBeds} Beds)`}
                 onPress={handleSubmit(onSubmit)}
                 loading={loading}
                 fullWidth
@@ -1390,7 +1434,7 @@ export default function CreateRentalScreen() {
           )}
 
           {/* ─── Step 2: Invite Tenant (non-PG) ──────────────────────────── */}
-          {step === 2 && !isPg && (
+          {step === 2 && !isMultiUnit && (
             <View style={{ gap: 16 }}>
               <View style={{ backgroundColor: Colors.fill, borderRadius: 14, padding: 14 }}>
                 <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 6 }}>
