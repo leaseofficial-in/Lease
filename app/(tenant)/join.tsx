@@ -188,7 +188,7 @@ export default function JoinRentalScreen() {
             </Text>
             <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 14, lineHeight: 21 }}>
               Paste the invite link or token your landlord sent you. The link looks like{' '}
-              <Text style={{ fontFamily: Fonts.sansMedium }}>flatvio.vercel.app/join/…</Text>
+              <Text style={{ fontFamily: Fonts.sansMedium }}>rentybase.com/join/…</Text>
             </Text>
           </View>
 
@@ -200,7 +200,7 @@ export default function JoinRentalScreen() {
             <TextInput
               value={token}
               onChangeText={(v) => { setToken(v); setPreview(null); }}
-              placeholder="https://flatvio.vercel.app/join/abc123"
+              placeholder="https://rentybase.com/join/abc123"
               placeholderTextColor={Colors.muted}
               autoCapitalize="none"
               autoCorrect={false}
@@ -342,7 +342,7 @@ export default function JoinRentalScreen() {
                     Don't have an invite yet?
                   </Text>
                   <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19 }}>
-                    Ask your landlord to open Flatvio and share the invite link from their property screen. Links expire after 72 hours.
+                    Ask your landlord to open RentyBase and share the invite link from their property screen. Links expire after 72 hours.
                   </Text>
                 </View>
               </View>

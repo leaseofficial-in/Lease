@@ -62,7 +62,7 @@ serve(async (req) => {
 
     // Create Razorpay order (amount in paise)
     const amountPaise = Math.round(amount * 100);
-    const receipt = `flatvio_${paymentId.slice(0, 16)}`;
+    const receipt = `rentybase_${paymentId.slice(0, 16)}`;
 
     const orderBody = {
       amount: amountPaise,

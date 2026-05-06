@@ -99,7 +99,7 @@ export default function RootLayout() {
   }, [initialize]);
 
   if (!isInitialized || !geistLoaded || !serifLoaded) {
-    return <LoadingScreen message="Starting Flatvio..." />;
+    return <LoadingScreen message="Starting RentyBase..." />;
   }
 
   return (

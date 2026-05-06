@@ -9,11 +9,11 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <meta name="theme-color" content="#1A56FF" />
-        <meta name="description" content="Flatvio — Renting made trustworthy. Manage rent, deposits, move-in proof, and repairs in one place." />
-        <meta property="og:title" content="Flatvio" />
+        <meta name="description" content="RentyBase — Renting made trustworthy. Manage rent, deposits, move-in proof, and repairs in one place." />
+        <meta property="og:title" content="RentyBase" />
         <meta property="og:description" content="The all-in-one app for landlords and tenants." />
         <meta property="og:type" content="website" />
-        <title>Flatvio — Renting made trustworthy</title>
+        <title>RentyBase — Renting made trustworthy</title>
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{
           __html: `

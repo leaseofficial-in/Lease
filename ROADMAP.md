@@ -1,4 +1,4 @@
-# Flatvio — Product Roadmap
+# RentyBase — Product Roadmap
 
 > **Goal:** Be the best rental management app in India by winning on three pillars:
 > 1. **Best tenant experience** — tenants are the growth vector. Each landlord brings 1 tenant. Each happy tenant might become tomorrow's landlord.
@@ -16,7 +16,7 @@
 - [ ] **Deploy Razorpay Edge Function** — `supabase/functions/create-payment-order/` needs `supabase functions deploy create-payment-order` and `RAZORPAY_KEY_SECRET` secret set.
 - [ ] **Enable pg_cron for overdue marking** — Migration `007` marks payments overdue automatically. Enable pg_cron in Supabase dashboard → Extensions, then run the migration SQL.
 - [ ] **HRA receipt Edge Function** — Deploy `supabase/functions/generate-hra-receipt/` so tenants can generate PDF receipts. Currently the button exists but the function isn't live.
-- [ ] **Fix join deep-link on web** — `flatvio://` scheme doesn't work on web. Detect platform and use `https://flatvio.in/join/[token]` as the share URL for web users.
+- [ ] **Fix join deep-link on web** — `rentybase://` scheme doesn't work on web. Detect platform and use `https://rentybase.in/join/[token]` as the share URL for web users.
 
 ---
 
@@ -76,7 +76,7 @@
 
 ### Growth Loops
 - [ ] **Referral program** — Tenant invites their next landlord or vice versa. Track in `profiles` table via referral code. Show referral count on profile screen. Consider a small reward (₹50 Amazon voucher or 1 free month of premium).
-- [ ] **Landlord invite via WhatsApp** — After tenant joins, app asks: "Know another landlord? Share Flatvio." Pre-drafted WhatsApp message with referral link.
+- [ ] **Landlord invite via WhatsApp** — After tenant joins, app asks: "Know another landlord? Share RentyBase." Pre-drafted WhatsApp message with referral link.
 - [ ] **Public property profile page** — `/property/[token]` web page showing property name, location, landlord name, rent — publicly shareable. Landlord uses this instead of verbal descriptions when advertising. Not a full marketplace, but helps with discovery.
 
 ### Lease Lifecycle
@@ -95,7 +95,7 @@
 ## P4 — Long Term (6+ months)
 
 ### Monetization
-- [ ] **Flatvio Pro (₹999/month for landlords)** — Unlimited rentals + advanced analytics + priority support + document storage. Free tier: 1 active rental.
+- [ ] **RentyBase Pro (₹999/month for landlords)** — Unlimited rentals + advanced analytics + priority support + document storage. Free tier: 1 active rental.
 - [ ] **Premium tenant verification** — Police verification form, references, employment proof upload. Landlord pays ₹199 per tenant verification request.
 - [ ] **Landlord + Tenant Premium Bundle** — Landlord pays, tenant gets premium features (enhanced proof, unlimited photo storage, chat history).
 
@@ -114,7 +114,7 @@
 
 - [ ] **EAS Build setup** — Configure `eas.json` for Android + iOS production builds. Set up GitHub Actions trigger.
 - [ ] **App Store + Play Store submission** — Bundle IDs, screenshots, store listings.
-- [ ] **Production domain** — `flatvio.in` with proper SSL, redirect all `flatvio://` deep links to HTTPS equivalents.
+- [ ] **Production domain** — `rentybase.in` with proper SSL, redirect all `rentybase://` deep links to HTTPS equivalents.
 - [ ] **PostHog / Mixpanel analytics** — Track key events: rental_created, tenant_joined, payment_submitted, proof_uploaded. Essential for product decisions.
 - [ ] **Database backups** — Supabase auto-backups enabled and tested.
 - [ ] **Rate limiting on Edge Functions** — Prevent abuse of WhatsApp/Razorpay endpoints.
@@ -123,7 +123,7 @@
 
 ## Competitive Position Summary
 
-| Dimension | Flatvio Today | Target State | Rentrovio |
+| Dimension | RentyBase Today | Target State | Rentrovio |
 |---|---|---|---|
 | Tenant UX | ✅ Strong | Best in market | ⚠️ Landlord-centric |
 | Photo proof | ✅ Unique | Side-by-side comparison | ❌ Not present |

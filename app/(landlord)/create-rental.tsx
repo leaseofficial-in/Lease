@@ -848,10 +848,10 @@ export default function CreateRentalScreen() {
         totalRentalsCreated = 1;
 
         if (tenantPhone && rental?.invite_token) {
-          const inviteUrl = `flatvio://join/${rental.invite_token}`;
+          const inviteUrl = `https://rentybase.com/join/${rental.invite_token}`;
           const firstName = (tenantName || 'there').split(' ')[0];
           const propName = values.propertyName || existingProperty?.name || 'the property';
-          const msg = `Hi ${firstName}! You've been invited to join ${propName} on Flatvio. Tap to set up your rental: ${inviteUrl}`;
+          const msg = `Hi ${firstName}! You've been invited to join ${propName} on RentyBase. Tap to set up your rental: ${inviteUrl}`;
           await Linking.openURL(`https://wa.me/${tenantPhone}?text=${encodeURIComponent(msg)}`);
         }
       }

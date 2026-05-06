@@ -10,7 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { Colors, Fonts } from '../../constants/theme';
 import { formatCurrency } from '../../lib/formatters';
 
-const PENDING_JOIN_KEY = 'flatvio.pending_join_token';
+const PENDING_JOIN_KEY = 'rentybase.pending_join_token';
 
 export default function JoinDeepLinkScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
@@ -136,7 +136,7 @@ export default function JoinDeepLinkScreen() {
               textAlign: 'center', lineHeight: 20, marginBottom: 32,
             }}>
               {session
-                ? 'Your landlord has invited you to join this rental on Flatvio.'
+                ? 'Your landlord has invited you to join this rental on RentyBase.'
                 : 'Sign in to join this rental. It takes under a minute.'}
             </Text>
 

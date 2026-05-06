@@ -107,7 +107,7 @@ export default function LoginScreen() {
               color: 'rgba(255,255,255,0.55)', fontFamily: Fonts.serifItalic,
               fontSize: 36, lineHeight: 42, letterSpacing: -0.5,
             }}>
-              to Flatvio.
+              to RentyBase.
             </Text>
           </View>
         </View>
@@ -118,7 +118,7 @@ export default function LoginScreen() {
             color: Colors.ink3, fontFamily: Fonts.sans,
             fontSize: 15, lineHeight: 23, marginBottom: 28,
           }}>
-            Use your Google account to sign in or create a Flatvio account instantly.
+            Use your Google account to sign in or create a RentyBase account instantly.
           </Text>
 
           {/* Trust badges */}

@@ -34,7 +34,7 @@ export function buildRentalActivity({
       id: `rental-created-${rental.id}`,
       title: 'Rental created',
       subtitle: rental.property?.name
-        ? `${rental.property.name} was added to Flatvio.`
+        ? `${rental.property.name} was added to RentyBase.`
         : 'The rental record was created.',
       timestamp: rental.created_at,
       type: 'invite',

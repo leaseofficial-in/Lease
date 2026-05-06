@@ -154,7 +154,7 @@ export default function TenantProfileScreen() {
                   Moving to another rental?
                 </Text>
                 <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 4 }}>
-                  Share Flatvio with the owner so your next rent, proof, agreement, and receipts stay in one place.
+                  Share RentyBase with the owner so your next rent, proof, agreement, and receipts stay in one place.
                 </Text>
               </View>
             </View>
@@ -162,7 +162,7 @@ export default function TenantProfileScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <Chip tone="good">{invitedOwnerCount} owner{invitedOwnerCount === 1 ? '' : 's'} joined</Chip>
                 <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
-                  Thanks for helping Flatvio grow.
+                  Thanks for helping RentyBase grow.
                 </Text>
               </View>
             )}
@@ -230,7 +230,7 @@ export default function TenantProfileScreen() {
           <Card>
             <Cap>Session</Cap>
             <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 8, marginBottom: 14 }}>
-              Sign out of this browser when you are done using Flatvio.
+              Sign out of this browser when you are done using RentyBase.
             </Text>
             <Button
               title="Sign Out"

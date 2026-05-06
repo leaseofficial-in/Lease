@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Flatvio",
-    "slug": "flatvio",
+    "name": "RentyBase",
+    "slug": "rentybase",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,11 +14,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "in.flatvio.app",
+      "bundleIdentifier": "com.rentybase.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Flatvio uses your camera to capture move-in and repair photos.",
-        "NSPhotoLibraryUsageDescription": "Flatvio accesses your photos to upload property proof images.",
-        "NSContactsUsageDescription": "Flatvio uses your contacts to help you quickly invite tenants by phone number."
+        "NSCameraUsageDescription": "RentyBase uses your camera to capture move-in and repair photos.",
+        "NSPhotoLibraryUsageDescription": "RentyBase accesses your photos to upload property proof images.",
+        "NSContactsUsageDescription": "RentyBase uses your contacts to help you quickly invite tenants by phone number."
       }
     },
     "android": {
@@ -26,7 +26,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0A0A"
       },
-      "package": "in.flatvio.app",
+      "package": "com.rentybase.app",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -46,7 +46,7 @@
       "android",
       "web"
     ],
-    "scheme": "flatvio",
+    "scheme": "rentybase",
     "plugins": [
       "expo-router",
       "expo-secure-store",

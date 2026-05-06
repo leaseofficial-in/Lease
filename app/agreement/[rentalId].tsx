@@ -168,7 +168,7 @@ export default function AgreementDocumentScreen() {
                 </Text>
               </View>
             )}
-          <Cap>Flatvio Agreement</Cap>
+          <Cap>RentyBase Agreement</Cap>
           <DisplayText style={{ fontSize: 32, lineHeight: 34, marginTop: 8 }}>
             Leave & License Agreement
           </DisplayText>
@@ -207,7 +207,7 @@ export default function AgreementDocumentScreen() {
             <Clause>Rent is payable monthly on or before the due date stated in this agreement.</Clause>
             <Clause>The security deposit is held against unpaid dues, damages, or other agreed deductions.</Clause>
             <Clause>The tenant is responsible for ordinary care of the property and prompt reporting of repair needs.</Clause>
-            <Clause>The landlord is responsible for reviewing rent, deposit, proof, and repair records inside Flatvio.</Clause>
+            <Clause>The landlord is responsible for reviewing rent, deposit, proof, and repair records inside RentyBase.</Clause>
             <Clause>Any change to rent, deposit, or duration must be recorded before the tenant signs this agreement.</Clause>
           </Section>
 

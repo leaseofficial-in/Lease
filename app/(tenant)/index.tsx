@@ -162,9 +162,9 @@ export default function TenantDashboard() {
 
   useEffect(() => {
     if (isLoading || isLocalDevUser) return;
-    AsyncStorage.getItem('flatvio.pending_join_token').then((pendingToken) => {
+    AsyncStorage.getItem('rentybase.pending_join_token').then((pendingToken) => {
       if (!pendingToken) return;
-      AsyncStorage.removeItem('flatvio.pending_join_token');
+      AsyncStorage.removeItem('rentybase.pending_join_token');
       if (!rental) {
         router.push({ pathname: '/(tenant)/join', params: { prefillToken: pendingToken } });
       }
@@ -203,7 +203,7 @@ export default function TenantDashboard() {
           <View>
             <Cap>Tenant Home</Cap>
             <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 22, marginTop: 4 }}>
-              {profile?.full_name?.split(' ')[0] || 'Flatvio'}
+              {profile?.full_name?.split(' ')[0] || 'RentyBase'}
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

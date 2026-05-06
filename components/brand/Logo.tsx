@@ -88,7 +88,7 @@ function Wordmark({
         style,
       ]}
     >
-      Flatvio
+      RentyBase
       <Text style={{ color: dotColor, fontFamily: Fonts.serifItalic }}>.</Text>
     </Text>
   );

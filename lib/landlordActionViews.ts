@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export type LandlordActionKind = 'repairs' | 'payments';
 
 const keyFor = (landlordId: string, kind: LandlordActionKind) =>
-  `flatvio.landlord.viewed-actions.${landlordId}.${kind}`;
+  `rentybase.landlord.viewed-actions.${landlordId}.${kind}`;
 
 export const getViewedLandlordActionIds = async (
   landlordId: string,

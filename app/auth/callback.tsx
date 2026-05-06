@@ -24,7 +24,7 @@ export default function AuthCallbackScreen() {
       if (typeof value === 'string') query.set(key, value);
       if (Array.isArray(value) && typeof value[0] === 'string') query.set(key, value[0]);
     });
-    return `flatvio://auth/callback?${query.toString()}`;
+    return `rentybase://auth/callback?${query.toString()}`;
   }, [params]);
 
   useEffect(() => {

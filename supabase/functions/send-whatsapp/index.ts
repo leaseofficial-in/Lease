@@ -27,13 +27,13 @@ interface WhatsAppPayload {
 
 const templates: Record<WhatsAppPayload['templateName'], (v: Record<string, string>) => string> = {
   rent_reminder: (v) =>
-    `Hi ${v.name}! 👋\n\nYour rent of *₹${v.amount}* for *${v.month}* is due on the *${v.dueDay}th*.\n\nPay now on Flatvio to avoid late fees: ${v.link}`,
+    `Hi ${v.name}! 👋\n\nYour rent of *₹${v.amount}* for *${v.month}* is due on the *${v.dueDay}th*.\n\nPay now on RentyBase to avoid late fees: ${v.link}`,
   payment_received: (v) =>
     `✅ Payment received!\n\nHi ${v.name}, we've received *₹${v.amount}* for *${v.month}*.\n\nYour rent is now marked as paid.`,
   proof_submitted: (v) =>
-    `📷 Move-in proof submitted!\n\nHi ${v.landlordName}, your tenant *${v.tenantName}* has uploaded move-in photos.\n\nReview them on Flatvio: ${v.link}`,
+    `📷 Move-in proof submitted!\n\nHi ${v.landlordName}, your tenant *${v.tenantName}* has uploaded move-in photos.\n\nReview them on RentyBase: ${v.link}`,
   invite: (v) =>
-    `🏠 You've been invited to join a rental on Flatvio!\n\nProperty: *${v.propertyName}*\nRent: *₹${v.rent}/month*\n\nJoin here: ${v.link}\n\n_Link expires in 72 hours._`,
+    `🏠 You've been invited to join a rental on RentyBase!\n\nProperty: *${v.propertyName}*\nRent: *₹${v.rent}/month*\n\nJoin here: ${v.link}\n\n_Link expires in 72 hours._`,
 };
 
 serve(async (req) => {

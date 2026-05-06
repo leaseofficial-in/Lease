@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Flatvio · Wireframes v2</title>
+<link rel="stylesheet" href="wireframes-v2.css" />
+<style>body{margin:0;background:#F2F0EB;font-family:"Geist", sans-serif;}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="v2/primitives2.jsx"></script>
+<script type="text/babel" src="v2/v2-tenant.jsx"></script>
+<script type="text/babel" src="v2/v2-landlord.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const W = 400, H = 820;
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="readme" title="Flatvio · Wireframes v2" subtitle="Editorial fintech · big serif display, ink hero cards, status-led color, generous whitespace.">
+        <DCArtboard id="legend" label="Read me first" width={540} height={760} background="#FFFFFF">
+          <div style={{padding:36, fontFamily:'Geist, sans-serif', overflow:'auto', height:'100%', color:'#08090A'}}>
+            <div style={{fontFamily:'Geist Mono, monospace', fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', color:'#9097A0'}}>v2 · handoff</div>
+            <h1 style={{fontFamily:'Instrument Serif, serif', fontWeight:400, fontSize:52, lineHeight:1, letterSpacing:'-0.025em', margin:'10px 0 14px'}}>
+              Built to feel <span style={{fontStyle:'italic'}}>premium.</span>
+            </h1>
+            <p style={{fontSize:14, color:'#5C6068', lineHeight:1.55, margin:0, maxWidth:420}}>
+              v2 keeps the same screen list and flow as v1, but reskins the entire vocabulary: editorial serif display type, ink-black hero cards with massive numbers, generous whitespace, and a single signature "smart card" that morphs based on what needs attention.
+            </p>
+
+            <h3 style={{fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', color:'#9097A0', marginTop:32, marginBottom:8, fontFamily:'Geist Mono, monospace'}}>What changed from v1</h3>
+            <ul style={{fontSize:13, color:'#2A2D31', lineHeight:1.7, paddingLeft:18, margin:0}}>
+              <li><strong>Type system</strong> — Instrument Serif (display) + Geist (body). Numbers are massive — they ARE the design.</li>
+              <li><strong>Hero card</strong> — black ink card carries every primary CTA. One per screen. No competing visual weight.</li>
+              <li><strong>Smart hero on Home</strong> — same card morphs: pending rent / overdue / all-clear / move-in pending. State-led.</li>
+              <li><strong>Data viz</strong> — landlord home gets a collection ring + sparkline + by-property bars. Replaces flat number stack.</li>
+              <li><strong>Action queue</strong> — landlord's overdue/proof/repairs items consolidate into one "3 actions for you" card.</li>
+              <li><strong>Editorial copy</strong> — short serif italics carry tone ("Waiting for your invite.", "Six digits and you're in.").</li>
+              <li><strong>Soft fills</strong> over harsh borders — radius 22px cards, F5F6F8 surfaces.</li>
+              <li><strong>Status colors</strong> are muted/desaturated — closer to print than web defaults.</li>
+            </ul>
+
+            <h3 style={{fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', color:'#9097A0', marginTop:28, marginBottom:8, fontFamily:'Geist Mono, monospace'}}>Build instructions for Claude Code</h3>
+            <ul style={{fontSize:13, color:'#2A2D31', lineHeight:1.7, paddingLeft:18, margin:0}}>
+              <li>Add Instrument Serif via <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4, fontSize:11}}>expo-google-fonts/instrument-serif</code> + Geist via <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4, fontSize:11}}>@expo-google-fonts/geist</code>.</li>
+              <li>Update <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4, fontSize:11}}>constants/theme.ts</code> with the v2 token table (see Token card).</li>
+              <li>Re-skin <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4, fontSize:11}}>components/ui/Card.tsx</code> with a new <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4, fontSize:11}}>variant="ink"</code> prop.</li>
+              <li>Build new <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4, fontSize:11}}>SmartHeroCard</code> component for tenant/landlord home — driven by single state machine.</li>
+              <li>Replace flat lists with editorial dividers (1px line-soft, no card chrome).</li>
+              <li>Tab bar: ink pill behind active tab, FAB stays for landlord create-rental.</li>
+            </ul>
+          </div>
+        </DCArtboard>
+
+        <DCArtboard id="tokens" label="Design tokens" width={420} height={760} background="#FFFFFF">
+          <div style={{padding:28, fontFamily:'Geist, sans-serif', height:'100%', overflow:'auto'}}>
+            <div className="cap">Color</div>
+            <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:10}}>
+              {[
+                ["ink","#08090A","Primary text + hero cards"],
+                ["ink-3","#5C6068","Body text"],
+                ["muted","#9097A0","Captions"],
+                ["fill","#F5F6F8","Card fill / inputs"],
+                ["canvas","#F2F0EB","App background (warm)"],
+                ["accent","#2E5BFF","Links only"],
+                ["good","#0E8E63","Paid · success"],
+                ["warn","#B8740F","Pending · review"],
+                ["bad","#C2362F","Overdue · urgent"],
+              ].map(([n,h,d],i)=>(
+                <div key={i} style={{display:'flex', alignItems:'center', gap:12, padding:'8px 0'}}>
+                  <div style={{width:36, height:36, borderRadius:10, background:h, border:'1px solid rgba(0,0,0,0.06)'}}></div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13, fontWeight:600}}>{n}</div>
+                    <div style={{fontSize:11, color:'#9097A0'}}>{d}</div>
+                  </div>
+                  <div style={{fontFamily:'Geist Mono, monospace', fontSize:11, color:'#5C6068'}}>{h}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="cap" style={{marginTop:24}}>Type scale</div>
+            <div style={{marginTop:10, display:'flex', flexDirection:'column', gap:14}}>
+              <div>
+                <div className="display" style={{fontSize:44}}>₹32,000</div>
+                <div className="cap" style={{marginTop:2}}>DISPLAY · INSTRUMENT SERIF · 44–72PX</div>
+              </div>
+              <div>
+                <div className="serif-i" style={{fontSize:18}}>"Renting, finally trustworthy."</div>
+                <div className="cap" style={{marginTop:2}}>SERIF ITALIC · TONE</div>
+              </div>
+              <div>
+                <div className="h1-2">26 — Section heads</div>
+                <div className="h2-2">19 — Card titles</div>
+                <div className="h3-2">14 — List rows</div>
+                <div className="body-2">13 — Body text</div>
+                <div className="cap">11 · CAPS · MONO LABELS</div>
+              </div>
+            </div>
+
+            <div className="cap" style={{marginTop:24}}>Radius</div>
+            <div style={{display:'flex', gap:10, marginTop:10, alignItems:'flex-end'}}>
+              {[[28,'hero'],[22,'card'],[14,'input'],[12,'chip']].map(([r,n],i)=>(
+                <div key={i} style={{textAlign:'center'}}>
+                  <div style={{width:48, height:48, borderRadius:r, background:'#08090A'}}></div>
+                  <div style={{fontFamily:'Geist Mono, monospace', fontSize:10, marginTop:6}}>{r}px {n}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="hero" title="Tenant — the love-at-first-tap screens" subtitle="Where users will fall in love. Pay-rent path is sub-3 taps from launch.">
+        <DCArtboard id="t-home" label="T1 · Home (smart hero · pending)" width={W} height={H}><V2_TenantHome/></DCArtboard>
+        <DCArtboard id="t-overdue" label="T1 · Home (smart hero · OVERDUE state)" width={W} height={H}><V2_TenantOverdue/></DCArtboard>
+        <DCArtboard id="t-pay" label="T2 · Pay rent" width={W} height={H}><V2_PayRent/></DCArtboard>
+        <DCArtboard id="t-success" label="T3 · Success moment" width={W} height={H}><V2_PaySuccess/></DCArtboard>
+        <DCArtboard id="t-history" label="T4 · Rent history (with ring)" width={W} height={H}><V2_RentHistory/></DCArtboard>
+        <DCArtboard id="t-deposit" label="T5 · Deposit (editorial policy)" width={W} height={H}><V2_Deposit/></DCArtboard>
+        <DCArtboard id="t-proof" label="T6 · Proof upload" width={W} height={H}><V2_ProofUpload/></DCArtboard>
+        <DCArtboard id="t-repairs" label="T7 · Repairs" width={W} height={H}><V2_Repairs/></DCArtboard>
+        <DCArtboard id="t-empty" label="T0 · Empty (no rental)" width={W} height={H}><V2_EmptyTenant/></DCArtboard>
+
+        <DCPostIt width={360}>
+          <strong>SMART HERO CARD — single component, multiple states</strong><br/>
+          One <code>SmartHero</code> component on tenant home that renders one of:<br/>
+          ① <code>pending</code> — ink card · big ₹32k · pay CTA<br/>
+          ② <code>due-soon</code> — same as pending + countdown<br/>
+          ③ <code>overdue</code> — dark wine background · late fee surfaced<br/>
+          ④ <code>all-clear</code> — softer card · "Next rent in 28 days"<br/>
+          ⑤ <code>move-in-pending</code> — swap CTA to "Upload move-in proof"<br/>
+          State driver: derived from <code>active rental</code> + <code>current month rent_payment</code>.
+        </DCPostIt>
+
+        <DCPostIt width={340}>
+          <strong>WHY THIS WORKS</strong><br/>
+          · Pay Rent is one tap from app open. The hero IS the action.<br/>
+          · Big serif numbers feel premium — like a private bank statement, not a utility bill.<br/>
+          · Editorial italics ("rupees, to Akhil K.") humanize the transaction.<br/>
+          · On-time streak tile builds emotional investment — gamified without being childish.<br/>
+          · Deposit chip ("0 deductions") provides constant trust signal.
+        </DCPostIt>
+      </DCSection>
+
+      <DCSection id="landlord" title="Landlord — the showpiece" subtitle="Premium fintech dashboard. Numbers + ring + queue.">
+        <DCArtboard id="ll-home" label="L1 · Dashboard (ring + action queue)" width={W} height={H}><V2_LandlordHome/></DCArtboard>
+        <DCArtboard id="ll-money" label="L2 · Money (collection drilldown)" width={W} height={H}><V2_LandlordMoney/></DCArtboard>
+        <DCArtboard id="ll-proof" label="L3 · Proof review (delight moment)" width={W} height={H}><V2_ProofReview/></DCArtboard>
+        <DCArtboard id="ll-empty" label="L0 · Empty (0 rentals)" width={W} height={H}><V2_EmptyLandlord/></DCArtboard>
+
+        <DCPostIt width={380}>
+          <strong>HERO RING CARD — landlord home</strong><br/>
+          Replaces v1's flat 3-stat row with:<br/>
+          · <strong>SVG ring</strong> showing % collected this month (big, white-on-ink)<br/>
+          · Total expected (₹84k) as serif display<br/>
+          · Two pivots: PAID (₹56k) + OVERDUE (₹10k, amber)<br/>
+          · Day counter (Day 30/30) reinforces urgency<br/><br/>
+          Render with two SVG circles · stroke-dashoffset for fill · transform rotate -90.
+        </DCPostIt>
+
+        <DCPostIt width={360}>
+          <strong>ACTION QUEUE — the killer feature</strong><br/>
+          A single amber-bordered card lists everything blocking the landlord:<br/>
+          · Pending proof reviews<br/>
+          · Overdue rents<br/>
+          · Open repairs (priority high+)<br/><br/>
+          Tap → routes to the relevant screen. Empty state shows a soft <span className="serif-i">"Nothing to do — go enjoy your day."</span>
+          <br/><br/>
+          Backend: derive from joins on <code>proofs</code>, <code>rent_payments</code>, <code>repair_requests</code>.
+        </DCPostIt>
+
+        <DCPostIt width={340}>
+          <strong>UX UPGRADES vs v1</strong><br/>
+          1. Bottom nav drops to 4 tabs + center FAB (was 5).<br/>
+          2. "Money" tab unifies payments + analytics (was just list).<br/>
+          3. Per-property collection bars give instant visual diagnosis.<br/>
+          4. 6-month sparkline shows trend without leaving home.<br/>
+          5. Property cards: status pill + 1-row tenant/rent meta. No clutter.
+        </DCPostIt>
+      </DCSection>
+
+      <DCSection id="auth" title="Auth & onboarding" subtitle="Google-led sign-in. Phone OTP parked behind a flag.">
+        <DCArtboard id="welcome" label="01 · Welcome (Google primary)" width={W} height={H}><V2_Welcome/></DCArtboard>
+        <DCArtboard id="signin" label="02 · Sign in (Google + parked phone)" width={W} height={H}><V2_SignIn/></DCArtboard>
+        <DCArtboard id="profile" label="03 · Complete profile (post-Google)" width={W} height={H}><V2_GoogleProfile/></DCArtboard>
+        <DCArtboard id="role" label="04 · Role select" width={W} height={H}><V2_Role/></DCArtboard>
+        <DCArtboard id="otp" label="(parked) · Phone OTP — kept for later" width={W} height={H}><V2_OTP/></DCArtboard>
+
+        <DCPostIt width={360}>
+          <strong>EDITORIAL COPY</strong><br/>
+          Italic serif fragments carry the brand voice across the app:<br/>
+          · "Renting, finally <span className="serif-i">trustworthy.</span>"<br/>
+          · "Six digits <span className="serif-i">and you're in.</span>"<br/>
+          · "How will you <span className="serif-i">use the app?</span>"<br/>
+          · "Waiting for <span className="serif-i">your invite.</span>"<br/>
+          · "Paid <span className="serif-i">in full.</span>"<br/><br/>
+          This is the single most important visual signature. Don't drop it.
+        </DCPostIt>
+      </DCSection>
+
+      <DCSection id="ship" title="Ship list — for Claude Code" subtitle="What needs new code, what gets re-skinned, what gets deleted.">
+        <DCArtboard id="ship" label="Implementation plan" width={560} height={760} background="#FFFFFF">
+          <div style={{padding:32, fontFamily:'Geist, sans-serif', overflow:'auto', height:'100%'}}>
+            <div className="cap">Phase 1 · Foundation</div>
+            <ul style={{fontSize:13, color:'#2A2D31', lineHeight:1.7, paddingLeft:18, marginTop:6}}>
+              <li>Install <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>@expo-google-fonts/instrument-serif</code> + <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>geist</code></li>
+              <li>Update <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>constants/theme.ts</code> with v2 tokens (replace existing palette)</li>
+              <li>Update <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>tailwind.config.js</code> custom colors</li>
+              <li>Add typography utility classes / Text variants</li>
+            </ul>
+
+            <div className="cap" style={{marginTop:18}}>Phase 2 · New components</div>
+            <ul style={{fontSize:13, color:'#2A2D31', lineHeight:1.7, paddingLeft:18, marginTop:6}}>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>SmartHeroCard</code> — state-driven, used on tenant home</li>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>InkCard</code> — black hero card variant</li>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>CollectionRing</code> — SVG ring with center label (landlord)</li>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>ActionQueueCard</code> — landlord's "3 actions for you" widget</li>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>Sparkline</code> — react-native-svg, used on history + landlord</li>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>EditorialHeading</code> — display + italic helper</li>
+            </ul>
+
+            <div className="cap" style={{marginTop:18}}>Phase 3 · Re-skin existing</div>
+            <ul style={{fontSize:13, color:'#2A2D31', lineHeight:1.7, paddingLeft:18, marginTop:6}}>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>Card.tsx</code> — add <code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>variant="ink"</code></li>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>Button.tsx</code> — pill radius (999), 50px height, mono arrow suffix</li>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>Input.tsx</code> — fill background, 14px radius, monospace label</li>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>StatusPill.tsx</code> — soft fill colors (good-soft / warn-soft / bad-soft)</li>
+              <li><code style={{background:'#F5F6F8', padding:'1px 5px', borderRadius:4}}>RentalCard.tsx</code> — split header / divider / footer pattern</li>
+            </ul>
+
+            <div className="cap" style={{marginTop:18}}>Phase 4 · Layout changes</div>
+            <ul style={{fontSize:13, color:'#2A2D31', lineHeight:1.7, paddingLeft:18, marginTop:6}}>
+              <li>Tenant home: full re-layout to smart-hero pattern</li>
+              <li>Landlord home: ring + action queue + bento + property list</li>
+              <li>Landlord tab bar: drop to 4 tabs + center FAB</li>
+              <li>Add Tenant Rent History as own tab (was buried)</li>
+              <li>Repairs becomes chat-like in detail view (deferred)</li>
+            </ul>
+
+            <div className="cap" style={{marginTop:18}}>Phase 5 · Don't change</div>
+            <ul style={{fontSize:13, color:'#2A2D31', lineHeight:1.7, paddingLeft:18, marginTop:6}}>
+              <li>Database schema (already good)</li>
+              <li>Auth flow logic (only screens reskin)</li>
+              <li>Razorpay integration plan</li>
+              <li>Zustand stores</li>
+              <li>RLS policies</li>
+            </ul>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

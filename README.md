@@ -1,6 +1,6 @@
-# Flatvio
+# RentyBase
 
-Flatvio is a landlord-tenant rental management app that makes renting trustworthy — handling rent collection, move-in proof, deposit tracking, repair requests, and digital agreements in one place.
+RentyBase is a landlord-tenant rental management app that makes renting trustworthy — handling rent collection, move-in proof, deposit tracking, repair requests, and digital agreements in one place.
 
 ## Prerequisites
 

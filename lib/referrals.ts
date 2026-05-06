@@ -18,8 +18,8 @@ export const buildLandlordReferralLink = (tenantId?: string | null) => {
 
 export const shareLandlordReferral = async (tenantId?: string | null) => {
   const url = buildLandlordReferralLink(tenantId);
-  const title = 'Manage rentals on Flatvio';
-  const text = 'I use Flatvio for rent, proof, payments, and agreements. You can set up your rental here.';
+  const title = 'Manage rentals on RentyBase';
+  const text = 'I use RentyBase for rent, proof, payments, and agreements. You can set up your rental here.';
 
   if (Platform.OS === 'web') {
     if (typeof navigator !== 'undefined' && navigator.share) {

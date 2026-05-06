@@ -1,4 +1,4 @@
-// ─── Core domain types for Flatvio ───────────────────────────────────────────
+// ─── Core domain types for RentyBase ─────────────────────────────────────────
 
 export type UserRole = 'landlord' | 'tenant';
 

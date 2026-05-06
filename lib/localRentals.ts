@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Profile, Property, Rental } from '../types';
 
-const LOCAL_RENTALS_KEY = 'flatvio.local.rentals';
+const LOCAL_RENTALS_KEY = 'rentybase.local.rentals';
 
 type CreateLocalRentalInput = {
   propertyName: string;

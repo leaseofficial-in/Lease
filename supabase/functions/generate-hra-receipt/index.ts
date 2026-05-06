@@ -49,7 +49,7 @@ const formatInr = (amount: number): string =>
 const formatPaymentMethod = (method?: string | null): string => {
   if (method === 'upi') return 'UPI';
   if (method === 'cash') return 'Cash';
-  return 'Recorded in Flatvio';
+  return 'Recorded in RentyBase';
 };
 
 const detailRow = (label: string, value?: string | null, subValue?: string | null): string => {
@@ -294,12 +294,12 @@ const buildReceiptHtml = (data: {
   </section>
 
   <section class="notes">
-    This is a computer-generated rent receipt from Flatvio based on the payment confirmation recorded by the landlord.
+    This is a computer-generated rent receipt from RentyBase based on the payment confirmation recorded by the landlord.
     Please retain it with your rent records for HRA or reimbursement claims, subject to your employer or tax advisor's requirements.
   </section>
 
   <footer class="footer">
-    <div><strong>flatvio.in</strong></div>
+    <div><strong>rentybase.com</strong></div>
     <div>Receipt ID: ${escapeHtml(data.receiptNo)}</div>
   </footer>
 </main>

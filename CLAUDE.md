@@ -1,4 +1,4 @@
-# Flatvio — Project Handoff Document
+# RentyBase — Project Handoff Document
 
 > This file is the single source of truth for any AI assistant or developer continuing work on this project. Read it fully before making changes.
 
@@ -6,7 +6,7 @@
 
 ## What This App Is
 
-**Flatvio** is a React Native / Expo mobile app (also runs on web) for managing rental properties in India. It connects **landlords** and **tenants** in a shared rental workflow.
+**RentyBase** is a React Native / Expo mobile app (also runs on web) for managing rental properties in India. It connects **landlords** and **tenants** in a shared rental workflow.
 
 **Core features:**
 - Google OAuth login (Supabase Auth — works identically in local dev and production)
@@ -144,7 +144,7 @@ c:\GitHub\Lease\
 ├── metro.config.js      # withNativeWind(config, { input: './global.css' })
 ├── babel.config.js      # jsxImportSource: "nativewind" + nativewind/babel preset
 ├── postcss.config.js    # tailwindcss + autoprefixer (needed for web CSS compilation)
-├── app.json             # Expo config — app name "Flatvio", scheme "flatvio"
+├── app.json             # Expo config — app name "RentyBase", scheme "rentybase"
 ├── tsconfig.json        # strict: true, excludes supabase/functions (Deno)
 └── .env                 # GITIGNORED — holds real Supabase + Razorpay keys
 ```
@@ -212,7 +212,7 @@ App opens
 
 Setup required in Supabase Dashboard:
 - Authentication → Providers → Google → enable, add Client ID + Secret
-- Add `flatvio://auth/callback` to "Redirect URLs" (for native/Expo Go)
+- Add `rentybase://auth/callback` to "Redirect URLs" (for native/Expo Go)
 - Add `http://localhost:8081/auth/callback` to "Redirect URLs" (for web dev)
 - Add your production domain callback URL when deploying
 
@@ -238,7 +238,7 @@ For local testing, sign in with any real Google account — no test credentials 
 ## Known Issues & Current Status
 
 ### ✅ Resolved
-1. **App stuck on "Starting Flatvio…"** — `initialize()` was inside `AuthGate` which only rendered after `isInitialized` was true. Fixed by moving `initialize()` to `RootLayout`.
+1. **App stuck on "Starting RentyBase…"** — `initialize()` was inside `AuthGate` which only rendered after `isInitialized` was true. Fixed by moving `initialize()` to `RootLayout`.
 2. **TypeScript errors** — `paymentId` non-null assertion in `pay-rent.tsx`, `useState<string>` type in `proof/upload.tsx`, spread to satisfy `string[]`.
 3. **Supabase schema ordering error** — `profiles` RLS policies referenced `rentals` before it existed. Fixed by ordering: tables first, then policies.
 4. **NativeWind / TailwindCSS version mismatch** — downgraded to `tailwindcss@3.4.19` (NativeWind v4 requires v3, not v4).
@@ -248,7 +248,7 @@ For local testing, sign in with any real Google account — no test credentials 
 
 ### ⚠️ In Progress / Not Yet Verified
 1. **NativeWind styling on web** — App renders unstyled (no className processing). `postcss.config.js` + `autoprefixer` were added. Needs restart with `--clear` to verify.
-2. **Google OAuth Supabase config** — Google provider must be enabled in Supabase Dashboard (Authentication → Providers → Google) with redirect URLs for `flatvio://auth/callback` and `http://localhost:8081/auth/callback`.
+2. **Google OAuth Supabase config** — Google provider must be enabled in Supabase Dashboard (Authentication → Providers → Google) with redirect URLs for `rentybase://auth/callback` and `http://localhost:8081/auth/callback`.
 3. **Expo Go QR code on mobile** — Not yet confirmed working on device.
 
 ### 🔲 Not yet done
@@ -288,10 +288,10 @@ cd c:\GitHub\Lease
 git init
 git add -A
 # Note: .env is gitignored — secrets will NOT be committed
-git commit -m "Initial commit: Flatvio rental management app"
+git commit -m "Initial commit: RentyBase rental management app"
 
 # Create repo on github.com first, then:
-git remote add origin https://github.com/Akhilchintu93/flatvio.git
+git remote add origin https://github.com/Akhilchintu93/rentybase.git
 git branch -M main
 git push -u origin main
 ```

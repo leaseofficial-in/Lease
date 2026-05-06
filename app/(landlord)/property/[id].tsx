@@ -255,8 +255,8 @@ export default function PropertyDetailScreen() {
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {
           await navigator.share({
-            title: 'Join my rental on Flatvio',
-            text: "Hi, I've added you as a tenant on Flatvio.",
+            title: 'Join my rental on RentyBase',
+            text: "Hi, I've added you as a tenant on RentyBase.",
             url: webInviteLink,
           });
         } catch {
@@ -268,7 +268,7 @@ export default function PropertyDetailScreen() {
       return;
     }
     await Share.share({
-      message: `Hi, I've added you as a tenant on Flatvio. Join here: ${webInviteLink}`,
+      message: `Hi, I've added you as a tenant on RentyBase. Join here: ${webInviteLink}`,
       url: webInviteLink,
     });
   };
@@ -284,7 +284,7 @@ export default function PropertyDetailScreen() {
     if (Platform.OS === 'web') {
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {
-          await navigator.share({ title: 'Join my rental on Flatvio', url: link });
+          await navigator.share({ title: 'Join my rental on RentyBase', url: link });
         } catch {
           handleCopyRoomInvite(token);
         }
@@ -293,7 +293,7 @@ export default function PropertyDetailScreen() {
       }
       return;
     }
-    await Share.share({ message: `Join my rental${room} on Flatvio: ${link}`, url: link });
+    await Share.share({ message: `Join my rental${room} on RentyBase: ${link}`, url: link });
   };
 
   const openTermsEditor = () => {
@@ -864,7 +864,7 @@ export default function PropertyDetailScreen() {
                   onPress={() => {
                     const digits = rental.tenant!.phone!.replace(/\D/g, '');
                     const firstName = (rental.tenant!.full_name || 'there').split(' ')[0];
-                    const msg = `Hi ${firstName}, your rent of ₹${rental.monthly_rent.toLocaleString('en-IN')} for ${rental.property?.name ?? 'the property'} is due on the ${rental.rent_due_day}th. Please pay at your earliest convenience. — via Flatvio`;
+                    const msg = `Hi ${firstName}, your rent of ₹${rental.monthly_rent.toLocaleString('en-IN')} for ${rental.property?.name ?? 'the property'} is due on the ${rental.rent_due_day}th. Please pay at your earliest convenience. — via RentyBase`;
                     void Linking.openURL(`https://wa.me/${digits}?text=${encodeURIComponent(msg)}`);
                   }}
                   activeOpacity={0.82}

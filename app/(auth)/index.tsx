@@ -92,16 +92,16 @@ export default function WelcomeScreen() {
   useEffect(() => {
     if (role === 'landlord' || role === 'tenant') {
       setSelectedRole(role);
-      void AsyncStorage.setItem('flatvio.pending_role', role);
+      void AsyncStorage.setItem('rentybase.pending_role', role);
     }
     if (typeof ref === 'string' && ref.trim()) {
-      void AsyncStorage.setItem('flatvio.pending_referrer_tenant', ref.trim());
+      void AsyncStorage.setItem('rentybase.pending_referrer_tenant', ref.trim());
     }
   }, [ref, role]);
 
   const handleRoleSelect = async (r: 'landlord' | 'tenant') => {
     setSelectedRole(r);
-    await AsyncStorage.setItem('flatvio.pending_role', r);
+    await AsyncStorage.setItem('rentybase.pending_role', r);
   };
 
   const handleGetStarted = () => router.push('/(auth)/login');
@@ -219,7 +219,7 @@ export default function WelcomeScreen() {
               color: 'rgba(255,255,255,0.6)', fontFamily: Fonts.sans,
               fontSize: 14, lineHeight: 22, marginBottom: 32, maxWidth: 285,
             }}>
-              Flatvio connects landlords and tenants — rent tracking, HRA receipts, agreements, proof photos and repair requests in one shared workspace.
+              RentyBase connects landlords and tenants — rent tracking, HRA receipts, agreements, proof photos and repair requests in one shared workspace.
             </Text>
 
             <TouchableOpacity
@@ -506,7 +506,7 @@ export default function WelcomeScreen() {
         <View style={{ paddingTop: 32, paddingBottom: 8, alignItems: 'center', gap: 6 }}>
           <Logo variant="full" size={22} />
           <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
-            flatvio.in · Made for Indian rentals
+            rentybase.com · Made for Indian rentals
           </Text>
           <View style={{ flexDirection: 'row', gap: 20, marginTop: 4 }}>
             <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>Privacy Policy</Text>
@@ -514,7 +514,7 @@ export default function WelcomeScreen() {
           </View>
           {Platform.OS === 'web' && (
             <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
-              © {new Date().getFullYear()} Flatvio
+              © {new Date().getFullYear()} RentyBase
             </Text>
           )}
         </View>

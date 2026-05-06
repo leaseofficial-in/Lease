@@ -63,15 +63,15 @@ export default function RoleSelectScreen() {
   useEffect(() => {
     if (role === 'landlord' || role === 'tenant') {
       setSelected(role);
-      void AsyncStorage.setItem('flatvio.pending_role', role);
+      void AsyncStorage.setItem('rentybase.pending_role', role);
     }
     if (typeof ref === 'string' && ref.trim()) {
-      void AsyncStorage.setItem('flatvio.pending_referrer_tenant', ref.trim());
+      void AsyncStorage.setItem('rentybase.pending_referrer_tenant', ref.trim());
     }
 
     if (role === 'landlord' || role === 'tenant') return;
 
-    AsyncStorage.getItem('flatvio.pending_role').then((pendingRole) => {
+    AsyncStorage.getItem('rentybase.pending_role').then((pendingRole) => {
       if (pendingRole === 'landlord' || pendingRole === 'tenant') {
         setSelected(pendingRole);
       }
@@ -82,15 +82,15 @@ export default function RoleSelectScreen() {
     if (!selected) return;
     setLoading(true);
     try {
-      const pendingReferrer = await AsyncStorage.getItem('flatvio.pending_referrer_tenant');
+      const pendingReferrer = await AsyncStorage.getItem('rentybase.pending_referrer_tenant');
       await setRole(selected);
-      await AsyncStorage.removeItem('flatvio.pending_role');
+      await AsyncStorage.removeItem('rentybase.pending_role');
       if (selected === 'landlord') {
         const session = useAuthStore.getState().session;
         await recordTenantReferral(pendingReferrer, session?.user.id);
-        await AsyncStorage.removeItem('flatvio.pending_referrer_tenant');
+        await AsyncStorage.removeItem('rentybase.pending_referrer_tenant');
       } else {
-        await AsyncStorage.removeItem('flatvio.pending_referrer_tenant');
+        await AsyncStorage.removeItem('rentybase.pending_referrer_tenant');
       }
       if (selected === 'landlord') router.replace('/(landlord)');
       else router.replace('/(tenant)');
@@ -130,7 +130,7 @@ export default function RoleSelectScreen() {
           color: Colors.ink3, fontFamily: Fonts.sans,
           fontSize: 15, lineHeight: 23, marginBottom: 32,
         }}>
-          Flatvio sets up different tools for each role. This cannot be changed later.
+          RentyBase sets up different tools for each role. This cannot be changed later.
         </Text>
 
         {/* Role cards */}
