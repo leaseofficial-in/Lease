@@ -196,6 +196,27 @@ export default function LandlordDashboard() {
     enabled: !!profile?.id,
   });
 
+  // Ended rentals with unsettled deposits
+  const endedRentalsWithDeposit = React.useMemo(() =>
+    (rentals ?? []).filter((r) => r.status === 'ended' && (r.security_deposit ?? 0) > 0 && !r.property?.archived_at),
+    [rentals],
+  );
+
+  const { data: settledDepositRentalIds = [] } = useQuery({
+    queryKey: ['settled-deposits', endedRentalsWithDeposit.map((r) => r.id)],
+    queryFn: async () => {
+      if (!endedRentalsWithDeposit.length) return [] as string[];
+      const { data, error } = await supabase
+        .from('deposit_transactions')
+        .select('rental_id')
+        .in('rental_id', endedRentalsWithDeposit.map((r) => r.id))
+        .eq('type', 'refund');
+      if (error) return [] as string[];
+      return (data ?? []).map((d: { rental_id: string }) => d.rental_id);
+    },
+    enabled: endedRentalsWithDeposit.length > 0 && !isLocalDevUser,
+  });
+
   useFocusEffect(
     React.useCallback(() => {
       void refetchViewedRepairIds();
@@ -352,6 +373,8 @@ export default function LandlordDashboard() {
     ? 'Rental setup needs review'
     : 'No landlord tasks need attention.';
 
+  const unsettledEndedRentals = endedRentalsWithDeposit.filter((r) => !settledDepositRentalIds.includes(r.id));
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']} style={{ flex: 1, backgroundColor: Colors.surface }}>
       <ScrollView
@@ -488,6 +511,49 @@ export default function LandlordDashboard() {
               </View>
               <Ionicons name="chevron-forward" size={16} color={Colors.danger} />
             </TouchableOpacity>
+          )}
+
+          {unsettledEndedRentals.length > 0 && (
+            <View style={{
+              backgroundColor: '#FFF7ED', borderRadius: 16,
+              borderWidth: 1, borderColor: '#FED7AA',
+              padding: 16,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Ionicons name="wallet-outline" size={18} color={Colors.warning} />
+                <Text style={{ color: Colors.warning, fontFamily: Fonts.sansSemiBold, fontSize: 15, flex: 1 }}>
+                  {unsettledEndedRentals.length === 1 ? 'Deposit refund pending' : `${unsettledEndedRentals.length} deposit refunds pending`}
+                </Text>
+              </View>
+              <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 10 }}>
+                {unsettledEndedRentals.length === 1
+                  ? 'One ended rental still has an unsettled deposit. Settle it to close your books.'
+                  : `${unsettledEndedRentals.length} ended rentals still have unsettled deposits. Settle them to close your books.`}
+              </Text>
+              {unsettledEndedRentals.slice(0, 3).map((r, i) => (
+                <TouchableOpacity
+                  key={r.id}
+                  onPress={() => router.push(`/(landlord)/property/${r.property_id}`)}
+                  activeOpacity={0.78}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                    paddingVertical: 10,
+                    borderTopWidth: 1, borderTopColor: '#FED7AA',
+                  }}
+                >
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 14, flex: 1 }}>
+                    {r.property?.name ?? 'Property'}
+                    {r.tenant?.full_name ? ` · ${r.tenant.full_name.split(' ')[0]}` : ''}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={{ color: Colors.warning, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>
+                      {formatCurrency(r.security_deposit, true)}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={14} color={Colors.warning} />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
 
           <View className="flex-row gap-3">

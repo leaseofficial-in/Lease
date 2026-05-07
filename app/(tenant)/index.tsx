@@ -354,6 +354,26 @@ export default function TenantDashboard() {
               </Card>
             )}
 
+            {/* Agreement sign nudge */}
+            {rental.agreement_url && !rental.agreement_signed_at && (
+              <Card style={{ backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <Ionicons name="document-text-outline" size={20} color={Colors.warning} />
+                  <Text style={{ color: Colors.warning, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
+                    Agreement Ready to Sign
+                  </Text>
+                </View>
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
+                  Your landlord has prepared the rental agreement. Review and sign it to finalise your tenancy.
+                </Text>
+                <Button
+                  title="Review & Sign Agreement"
+                  onPress={() => router.push('/(tenant)/agreement')}
+                  fullWidth
+                />
+              </Card>
+            )}
+
             {rental.status === 'pending_moveout' && (
               <Card style={{ backgroundColor: '#EDE9FE', borderColor: '#C4B5FD' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -406,6 +426,35 @@ export default function TenantDashboard() {
                 <InfoItem label="Due Day" value={`${rental.rent_due_day}`} align="right" />
               </View>
             </Card>
+
+            {/* Deposit quick-view */}
+            {(rental.security_deposit ?? 0) > 0 && (
+              <TouchableOpacity
+                onPress={() => router.push('/(tenant)/deposit')}
+                activeOpacity={0.82}
+                style={{
+                  backgroundColor: Colors.surface, borderRadius: 18,
+                  borderWidth: 1, borderColor: Colors.border,
+                  padding: 16, flexDirection: 'row', alignItems: 'center',
+                }}
+              >
+                <View style={{
+                  width: 42, height: 42, borderRadius: 13,
+                  backgroundColor: Colors.actionSoft, alignItems: 'center', justifyContent: 'center', marginRight: 14,
+                }}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color={Colors.action} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
+                    {formatCurrency(rental.security_deposit)} Deposit
+                  </Text>
+                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, marginTop: 1 }}>
+                    Held by landlord · Tap to view breakdown
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.muted} />
+              </TouchableOpacity>
+            )}
 
             {rental.landlord && (
               <Card>

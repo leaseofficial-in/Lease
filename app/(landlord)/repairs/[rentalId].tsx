@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -265,10 +265,27 @@ function RepairCard({
       </View>
       <Text
         numberOfLines={3}
-        style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 12 }}
+        style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: repair.photos?.length ? 10 : 12 }}
       >
         {repair.description}
       </Text>
+
+      {/* Tenant-attached photos */}
+      {(repair.photos?.length ?? 0) > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          {repair.photos.map((path, i) => {
+            const { data } = supabase.storage.from('repair-photos').getPublicUrl(path);
+            return (
+              <Image
+                key={i}
+                source={{ uri: data.publicUrl }}
+                style={{ width: 86, height: 86, borderRadius: 10, marginRight: 8, backgroundColor: Colors.fill }}
+              />
+            );
+          })}
+        </ScrollView>
+      )}
+
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <Chip tone={priorityTone}>{repairPriorityLabel[repair.priority]}</Chip>
         <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>

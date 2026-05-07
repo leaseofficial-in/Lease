@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   TextInput,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +26,7 @@ import { BottomSheet } from '../../components/ui/BottomSheet';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
+import { pickMultiplePhotos, takePhoto, uploadRepairPhoto } from '../../lib/storage';
 import { notifyUser } from '../../lib/sendPush';
 import { writeRentalEvent } from '../../lib/events';
 import { sendEmail } from '../../lib/email';
@@ -66,6 +68,7 @@ export default function RepairsScreen() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<RepairFilter>('all');
+  const [repairPhotos, setRepairPhotos] = useState<string[]>([]);
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
   const { data: rental, isLoading: isRentalLoading, error: rentalError, refetch: refetchRental } = useQuery({
@@ -138,8 +141,23 @@ export default function RepairsScreen() {
         description: values.description,
         priority: values.priority,
         status: 'open',
+        photos: [],
       }).select('id').single();
       if (error) throw error;
+
+      // Upload any attached photos and patch the record
+      if (repairPhotos.length > 0 && newRepair?.id) {
+        const results = await Promise.allSettled(
+          repairPhotos.map((uri) => uploadRepairPhoto(uri, rental.id, newRepair.id)),
+        );
+        const storagePaths = results
+          .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadRepairPhoto>>> => r.status === 'fulfilled')
+          .map((r) => r.value.storagePath);
+        if (storagePaths.length > 0) {
+          await supabase.from('repair_requests').update({ photos: storagePaths }).eq('id', newRepair.id);
+        }
+      }
+
       void writeRentalEvent({
         rentalId: rental.id,
         actorType: 'tenant',
@@ -164,10 +182,11 @@ export default function RepairsScreen() {
       }
       void queryClient.invalidateQueries({ queryKey: ['repairs', rental.id] });
       if (rental.landlord_id) {
+        const photoNote = repairPhotos.length > 0 ? ` (${repairPhotos.length} photo${repairPhotos.length > 1 ? 's' : ''} attached)` : '';
         void notifyUser({
           recipientId: rental.landlord_id,
           title: 'New repair request',
-          body: `"${values.title}" — ${values.priority} priority. Your tenant needs maintenance help.`,
+          body: `"${values.title}" — ${values.priority} priority.${photoNote}`,
           type: 'repair_update',
           data: { rental_id: rental.id },
         });
@@ -175,6 +194,7 @@ export default function RepairsScreen() {
       showToast('Repair request sent to your landlord', 'success');
       setShowForm(false);
       reset();
+      setRepairPhotos([]);
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Failed to submit request', 'error');
     } finally {
@@ -321,7 +341,7 @@ export default function RepairsScreen() {
       </ScrollView>
 
       {/* ── New Request Sheet ── */}
-      <BottomSheet visible={showForm} onClose={() => { setShowForm(false); reset(); }} scrollable>
+      <BottomSheet visible={showForm} onClose={() => { setShowForm(false); reset(); setRepairPhotos([]); }} scrollable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           <View style={{
             width: 44, height: 44, borderRadius: 14,
@@ -429,11 +449,74 @@ export default function RepairsScreen() {
           />
         </View>
 
+        {/* Photo attachment */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 10 }}>
+            Photos <Text style={{ color: Colors.muted, fontFamily: Fonts.sans }}>(optional, max 5)</Text>
+          </Text>
+          {repairPhotos.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+              {repairPhotos.map((uri, i) => (
+                <View key={i} style={{ marginRight: 8, position: 'relative' }}>
+                  <Image source={{ uri }} style={{ width: 72, height: 72, borderRadius: 10, backgroundColor: Colors.fill }} />
+                  <TouchableOpacity
+                    onPress={() => setRepairPhotos((prev) => prev.filter((_, idx) => idx !== i))}
+                    style={{
+                      position: 'absolute', top: -6, right: -6,
+                      width: 20, height: 20, borderRadius: 10,
+                      backgroundColor: Colors.danger, alignItems: 'center', justifyContent: 'center',
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="close" size={11} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+          {repairPhotos.length < 5 && (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                onPress={async () => {
+                  const uri = await takePhoto();
+                  if (uri) setRepairPhotos((prev) => [...prev, uri].slice(0, 5));
+                }}
+                style={{
+                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 6, paddingVertical: 11, borderRadius: 12,
+                  borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed',
+                  backgroundColor: Colors.fill,
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="camera-outline" size={16} color={Colors.ink3} />
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 13 }}>Camera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  const uris = await pickMultiplePhotos();
+                  if (uris.length) setRepairPhotos((prev) => [...prev, ...uris].slice(0, 5));
+                }}
+                style={{
+                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 6, paddingVertical: 11, borderRadius: 12,
+                  borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed',
+                  backgroundColor: Colors.fill,
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="images-outline" size={16} color={Colors.ink3} />
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 13 }}>Gallery</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         <Button
           title="Submit to Landlord"
           onPress={handleSubmit(onSubmit)}
           loading={submitting}
-          loadingText="Submitting…"
+          loadingText={repairPhotos.length > 0 ? 'Uploading & Submitting…' : 'Submitting…'}
           fullWidth
           size="lg"
         />
