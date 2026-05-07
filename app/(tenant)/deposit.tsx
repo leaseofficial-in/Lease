@@ -13,6 +13,7 @@ import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
 import { formatCurrency, formatDate } from '../../lib/formatters';
 import { isDevAuthUserId } from '../../lib/devAuth';
+import { CATEGORY_COLORS, categoryLabel } from '../../components/rental/DepositActionSheet';
 
 const TXN_CONFIG: Record<DepositTransaction['type'], {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -66,6 +67,7 @@ export default function TenantDepositScreen() {
   const balance        = held - totalDeducted - totalRefunded;
   const retainedPct    = held > 0 ? Math.max(0, Math.min(100, Math.round((balance / held) * 100))) : 100;
   const isHealthy      = retainedPct >= 80;
+  const isSettled      = (transactions?.some((t) => t.type === 'refund')) ?? false;
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -145,8 +147,33 @@ export default function TenantDepositScreen() {
                 </View>
               </View>
 
+              {/* ── Settled banner ── */}
+              {isSettled && (
+                <View style={{
+                  backgroundColor: Colors.successSoft, borderRadius: 18,
+                  borderWidth: 1, borderColor: '#A7F3D0',
+                  padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center',
+                }}>
+                  <View style={{
+                    width: 38, height: 38, borderRadius: 12,
+                    backgroundColor: 'rgba(0,200,150,0.12)', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <Ionicons name="checkmark-circle-outline" size={22} color={Colors.success} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: Colors.success, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginBottom: 2 }}>
+                      Deposit Settled
+                    </Text>
+                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19 }}>
+                      Your landlord has processed the final refund. Check the activity below for details.
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               {/* ── Rental ended notice ── */}
-              {rental.status === 'ended' && balance > 0 && (
+              {!isSettled && rental.status === 'ended' && balance > 0 && (
                 <View style={{
                   backgroundColor: Colors.actionSoft, borderRadius: 18,
                   borderWidth: 1, borderColor: '#C7D7FF',
@@ -217,18 +244,30 @@ export default function TenantDepositScreen() {
 
                           {/* Details */}
                           <View style={{ flex: 1, minWidth: 0 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
                               <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: cfg.bg }}>
                                 <Text style={{ color: cfg.color, fontFamily: Fonts.sansSemiBold, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.4 }}>
                                   {cfg.label}
                                 </Text>
                               </View>
+                              {txn.type === 'deduction' && txn.category && (() => {
+                                const cc = CATEGORY_COLORS[txn.category];
+                                return (
+                                  <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: cc.bg }}>
+                                    <Text style={{ color: cc.text, fontFamily: Fonts.sansSemiBold, fontSize: 10 }}>
+                                      {categoryLabel(txn.category)}
+                                    </Text>
+                                  </View>
+                                );
+                              })()}
                             </View>
                             <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 14 }} numberOfLines={1}>
                               {txn.note}
                             </Text>
                             <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>
                               {formatDate(txn.created_at)}
+                              {txn.payment_method ? ` · ${txn.payment_method === 'upi' ? 'UPI' : txn.payment_method === 'bank_transfer' ? 'Bank' : 'Cash'}` : ''}
+                              {txn.reference ? ` · ${txn.reference}` : ''}
                             </Text>
                           </View>
 

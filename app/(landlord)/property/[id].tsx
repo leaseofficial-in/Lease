@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Share,
   Platform,
-  TextInput,
   RefreshControl,
   Linking,
 } from 'react-native';
@@ -29,6 +28,7 @@ import { Input } from '../../../components/ui/Input';
 import { AppIcon } from '../../../components/ui/Icon';
 import { RentStatusBadge } from '../../../components/rental/RentStatusBadge';
 import { DepositCard } from '../../../components/rental/DepositCard';
+import { DepositActionSheet, DepositMode } from '../../../components/rental/DepositActionSheet';
 import { ActivityFeed } from '../../../components/rental/ActivityFeed';
 import { BottomSheet } from '../../../components/ui/BottomSheet';
 import { LoadingScreen } from '../../../components/ui/LoadingScreen';
@@ -44,8 +44,6 @@ import { generateRentalAgreement } from '../../../lib/agreement';
 import { confirmRentPayment, canLandlordConfirm } from '../../../lib/payments';
 import { notifyUser } from '../../../lib/sendPush';
 
-type TxnType = 'deduction' | 'refund' | 'received';
-
 export default function PropertyDetailScreen() {
   const { id: propertyId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -53,11 +51,8 @@ export default function PropertyDetailScreen() {
   const { showToast } = useUIStore();
   const queryClient = useQueryClient();
   const [activatingRental, setActivatingRental] = useState(false);
-  const [depositRentalId, setDepositRentalId] = useState<string | null>(null);
-  const [txnType, setTxnType] = useState<TxnType>('deduction');
-  const [txnAmount, setTxnAmount] = useState('');
-  const [txnNote, setTxnNote] = useState('');
-  const [savingTxn, setSavingTxn] = useState(false);
+  const [depositSheetMode, setDepositSheetMode] = useState<DepositMode | null>(null);
+  const [depositSheetRentalId, setDepositSheetRentalId] = useState<string | null>(null);
   const [localDepositTransactions, setLocalDepositTransactions] = useState<DepositTransaction[]>([]);
   const [showTermsSheet, setShowTermsSheet] = useState(false);
   const [savingTerms, setSavingTerms] = useState(false);
@@ -167,6 +162,15 @@ export default function PropertyDetailScreen() {
   const visibleDepositTransactions = isLocalDevUser
     ? localDepositTransactions
     : (depositTransactions ?? []).filter((t) => t.rental_id === rental?.id);
+
+  // Deposit lifecycle flags
+  const hasDepositReceived  = visibleDepositTransactions.some((t) => t.type === 'received');
+  const isDepositSettled    = visibleDepositTransactions.some((t) => t.type === 'refund');
+  const _depositDeducted    = visibleDepositTransactions.filter((t) => t.type === 'deduction').reduce((s, t) => s + t.amount, 0);
+  const _depositRefunded    = visibleDepositTransactions.filter((t) => t.type === 'refund').reduce((s, t) => s + t.amount, 0);
+  const depositBalance      = (rental?.security_deposit ?? 0) - _depositDeducted - _depositRefunded;
+  const isRentalEnding      = rental?.status === 'pending_moveout' || rental?.status === 'ended';
+
   const blockingArchiveRental = allPropertyRentals?.find((item) =>
     item.status === 'active' || item.status === 'pending_proof' || item.status === 'pending_moveout',
   );
@@ -183,61 +187,6 @@ export default function PropertyDetailScreen() {
     ]);
   };
 
-  const resetTransactionForm = () => {
-    setTxnAmount('');
-    setTxnNote('');
-    setTxnType('deduction');
-  };
-
-  const handleAddTransaction = async () => {
-    if (!depositRentalId || !profile) return;
-    const amount = Number(txnAmount);
-    if (!amount || amount <= 0) {
-      showToast('Enter a valid amount', 'error');
-      return;
-    }
-    if (!txnNote.trim()) {
-      showToast('Add a note describing this transaction', 'error');
-      return;
-    }
-
-    setSavingTxn(true);
-    try {
-      if (isLocalDevUser) {
-        const now = new Date().toISOString();
-        setLocalDepositTransactions((current) => [
-          {
-            id: `local-deposit-${Date.now()}`,
-            rental_id: depositRentalId,
-            type: txnType,
-            amount,
-            note: txnNote.trim(),
-            created_by: profile.id,
-            created_at: now,
-          },
-          ...current,
-        ]);
-      } else {
-        const { error } = await supabase.from('deposit_transactions').insert({
-          rental_id: depositRentalId,
-          type: txnType,
-          amount,
-          note: txnNote.trim(),
-          created_by: profile.id,
-        });
-        if (error) throw error;
-        await refetchDeposit();
-      }
-
-      setDepositRentalId(null);
-      resetTransactionForm();
-      showToast('Transaction added', 'success');
-    } catch {
-      showToast('Failed to save transaction', 'error');
-    } finally {
-      setSavingTxn(false);
-    }
-  };
 
   const appOrigin =
     Platform.OS === 'web' && typeof window !== 'undefined'
@@ -964,27 +913,84 @@ export default function PropertyDetailScreen() {
             <PgDepositOverview
               rentals={activeRentals}
               transactions={isLocalDevUser ? localDepositTransactions : depositTransactions ?? []}
-              onAddEntry={setDepositRentalId}
+              onAddEntry={(rentalId) => { setDepositSheetRentalId(rentalId); setDepositSheetMode('deduction'); }}
             />
           ) : (
             <>
+              {/* Prompt to record deposit if not yet received */}
+              {!hasDepositReceived && (rental.security_deposit ?? 0) > 0 && (
+                <TouchableOpacity
+                  onPress={() => { setDepositSheetRentalId(rental.id); setDepositSheetMode('received'); }}
+                  activeOpacity={0.82}
+                  style={{
+                    backgroundColor: Colors.successSoft, borderRadius: 18,
+                    borderWidth: 1, borderColor: '#A7F3D0',
+                    padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center',
+                  }}
+                >
+                  <View style={{
+                    width: 40, height: 40, borderRadius: 13,
+                    backgroundColor: 'rgba(0,200,150,0.15)', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <Ionicons name="cash-outline" size={20} color={Colors.success} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: Colors.success, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginBottom: 2 }}>
+                      Record Deposit Received
+                    </Text>
+                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19 }}>
+                      Tap to confirm you received the security deposit from your tenant.
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.success} />
+                </TouchableOpacity>
+              )}
+
               <DepositCard
                 totalDeposit={rental.security_deposit}
                 transactions={visibleDepositTransactions}
               />
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Button
-                  title="Add Deposit Entry"
-                  onPress={() => setDepositRentalId(rental.id)}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  title="Repairs"
-                  variant="secondary"
-                  onPress={() => router.push({ pathname: '/(landlord)/repairs/[rentalId]', params: { rentalId: rental.id } })}
-                  style={{ flex: 1 }}
-                />
-              </View>
+
+              {/* Settled badge or action row */}
+              {isDepositSettled ? (
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                  backgroundColor: Colors.successSoft, borderRadius: 16,
+                  paddingHorizontal: 16, paddingVertical: 12,
+                  borderWidth: 1, borderColor: '#A7F3D0',
+                }}>
+                  <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+                  <Text style={{ color: Colors.success, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
+                    Deposit settled
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {hasDepositReceived && (
+                    <Button
+                      title="Add Deduction"
+                      variant="secondary"
+                      onPress={() => { setDepositSheetRentalId(rental.id); setDepositSheetMode('deduction'); }}
+                      style={{ flex: 1 }}
+                    />
+                  )}
+                  {isRentalEnding && hasDepositReceived ? (
+                    <Button
+                      title="Settle & Refund"
+                      onPress={() => { setDepositSheetRentalId(rental.id); setDepositSheetMode('settle'); }}
+                      style={{ flex: 1 }}
+                    />
+                  ) : (
+                    <Button
+                      title="Repairs"
+                      variant="secondary"
+                      onPress={() => router.push({ pathname: '/(landlord)/repairs/[rentalId]', params: { rentalId: rental.id } })}
+                      style={{ flex: hasDepositReceived ? 1 : undefined }}
+                      fullWidth={!hasDepositReceived}
+                    />
+                  )}
+                </View>
+              )}
             </>
           )}
 
@@ -1056,7 +1062,7 @@ export default function PropertyDetailScreen() {
             generatingAgreement={generatingAgreement}
             onViewAgreement={openAgreementDocument}
             onGenerateAgreement={() => void handleGenerateAgreement(false)}
-            onAddDeposit={() => setDepositRentalId(rental.id)}
+            onAddDeposit={() => { setDepositSheetRentalId(rental.id); setDepositSheetMode('deduction'); }}
             onViewReceipt={(paymentId) =>
               router.push({ pathname: '/receipt/[paymentId]', params: { paymentId } })
             }
@@ -1354,97 +1360,31 @@ export default function PropertyDetailScreen() {
         </View>
       </ScrollView>
 
-      <BottomSheet visible={!!depositRentalId} onClose={() => { setDepositRentalId(null); resetTransactionForm(); }} scrollable>
-        {(() => {
-          const dr = isMultiUnit && depositRentalId
-            ? activeRentals.find((r) => r.id === depositRentalId)
-            : null;
-          return (
-            <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
-                Add deposit entry
-              </Text>
-              {dr && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                  <View style={{ backgroundColor: Colors.fill, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-                      {dr.room_number ? `Room ${dr.room_number}` : 'Room'}
-                      {dr.room_label ? ` · ${dr.room_label}` : ''}
-                    </Text>
-                  </View>
-                  {dr.tenant?.full_name && (
-                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
-                      {dr.tenant.full_name}
-                    </Text>
-                  )}
-                </View>
-              )}
-            </View>
-          );
+      <DepositActionSheet
+        visible={!!depositSheetMode}
+        mode={depositSheetMode ?? 'deduction'}
+        rentalId={depositSheetRentalId ?? rental?.id ?? ''}
+        securityDeposit={(() => {
+          if (isMultiUnit && depositSheetRentalId) {
+            return activeRentals.find((r) => r.id === depositSheetRentalId)?.security_deposit ?? 0;
+          }
+          return rental?.security_deposit ?? 0;
         })()}
-        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-          {(['deduction', 'refund', 'received'] as TxnType[]).map((type) => (
-            <TouchableOpacity
-              key={type}
-              onPress={() => setTxnType(type)}
-              style={{
-                borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1.5,
-                backgroundColor: txnType === type ? Colors.primary : Colors.surface,
-                borderColor: txnType === type ? Colors.primary : Colors.border,
-              }}
-              activeOpacity={0.75}
-            >
-              <Text
-                style={{
-                  color: txnType === type ? Colors.surface : Colors.primary,
-                  fontFamily: Fonts.sansSemiBold,
-                  fontSize: 12,
-                  textTransform: 'capitalize',
-                }}
-              >
-                {type}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Input
-          label="Amount"
-          placeholder="2500"
-          value={txnAmount}
-          onChangeText={setTxnAmount}
-          keyboardType="numeric"
-          required
-        />
-
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 8 }}>
-            Note <Text style={{ color: Colors.danger }}>*</Text>
-          </Text>
-          <TextInput
-            value={txnNote}
-            onChangeText={setTxnNote}
-            placeholder="Cleaning deduction, refund issued, deposit received..."
-            placeholderTextColor={Colors.muted}
-            multiline
-            numberOfLines={4}
-            style={{
-              borderWidth: 1, borderColor: Colors.border, borderRadius: 14,
-              padding: 12, minHeight: 96, textAlignVertical: 'top',
-              fontFamily: Fonts.sans, fontSize: 14, color: Colors.primary,
-              backgroundColor: Colors.fill,
-            }}
-          />
-        </View>
-
-        <Button
-          title="Save Entry"
-          onPress={handleAddTransaction}
-          loading={savingTxn}
-          fullWidth
-          size="lg"
-        />
-      </BottomSheet>
+        currentBalance={depositBalance}
+        profileId={profile?.id ?? ''}
+        roomLabel={(() => {
+          const dr = isMultiUnit && depositSheetRentalId ? activeRentals.find((r) => r.id === depositSheetRentalId) : null;
+          return dr ? (dr.room_number ? `Room ${dr.room_number}${dr.room_label ? ` · ${dr.room_label}` : ''}` : dr.room_label) : (rental?.room_label ?? null);
+        })()}
+        tenantName={(() => {
+          const dr = isMultiUnit && depositSheetRentalId ? activeRentals.find((r) => r.id === depositSheetRentalId) : null;
+          return dr ? (dr.tenant?.full_name ?? null) : (rental?.tenant?.full_name ?? null);
+        })()}
+        isLocalDevUser={isLocalDevUser}
+        onLocalTransaction={(txn) => setLocalDepositTransactions((prev) => [txn, ...prev])}
+        onClose={() => { setDepositSheetMode(null); setDepositSheetRentalId(null); }}
+        onSuccess={() => void refetchDeposit()}
+      />
 
       <BottomSheet visible={showTermsSheet} onClose={() => setShowTermsSheet(false)} scrollable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>

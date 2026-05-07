@@ -111,6 +111,9 @@ export interface DepositTransaction {
   note: string;
   created_by: string;
   created_at: string;
+  category: 'damage' | 'cleaning' | 'unpaid_rent' | 'other' | null;
+  payment_method: 'upi' | 'bank_transfer' | 'cash' | null;
+  reference: string | null;
 }
 
 // ─── Move-in / Move-out Proof ─────────────────────────────────────────────────

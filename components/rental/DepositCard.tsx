@@ -5,6 +5,7 @@ import { formatCurrency, formatDate } from '../../lib/formatters';
 import { Card } from '../ui/Card';
 import { Cap } from '../ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { CATEGORY_COLORS, categoryLabel } from './DepositActionSheet';
 
 interface DepositSummaryProps {
   totalDeposit: number;
@@ -69,16 +70,29 @@ const DepositRow: React.FC<{ txn: DepositTransaction }> = ({ txn }) => {
   const isDeduction = txn.type === 'deduction';
   const isRefund = txn.type === 'refund';
   const amountColor = isDeduction ? Colors.danger : isRefund ? Colors.ink3 : Colors.success;
-  const prefix = isDeduction ? '-' : isRefund ? 'Refund ' : '+';
+  const prefix = isDeduction ? '−' : isRefund ? '↩ ' : '+';
+  const catColors = isDeduction && txn.category ? CATEGORY_COLORS[txn.category] : null;
+  const methodLabel = txn.payment_method === 'upi' ? 'UPI' : txn.payment_method === 'bank_transfer' ? 'Bank' : txn.payment_method === 'cash' ? 'Cash' : null;
 
   return (
-    <View className="flex-row items-center py-2 border-b border-border">
+    <View className="flex-row items-start py-2 border-b border-border">
       <View className="flex-1 pr-3">
-        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>
-          {txn.note || txn.type}
-        </Text>
-        <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11, marginTop: 2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>
+            {txn.note || txn.type}
+          </Text>
+          {catColors && (
+            <View style={{ backgroundColor: catColors.bg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+              <Text style={{ color: catColors.text, fontFamily: Fonts.sansSemiBold, fontSize: 10 }}>
+                {categoryLabel(txn.category)}
+              </Text>
+            </View>
+          )}
+        </View>
+        <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11, marginTop: 1 }}>
           {formatDate(txn.created_at)}
+          {methodLabel ? ` · ${methodLabel}` : ''}
+          {txn.reference ? ` · ${txn.reference}` : ''}
         </Text>
       </View>
       <Text style={{ color: amountColor, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>

@@ -1458,6 +1458,17 @@
       if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     });
   });
+
+  /* ── iOS PWA: open app.rentybase.com links in Safari, not SFSafariViewController ──
+     When this page is added to the home screen as a PWA, external-domain links would
+     normally open in a modal browser sheet (SFSafariViewController) with visible chrome.
+     target="_blank" sends them to the full Safari app instead, which is a better UX. */
+  if (window.navigator.standalone) {
+    document.querySelectorAll('a[href*="app.rentybase.com"]').forEach(function(a) {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener');
+    });
+  }
 </script>
 </body>
 </html>
