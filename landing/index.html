@@ -78,6 +78,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <!-- Animation: GSAP + ScrollTrigger + Lenis smooth scroll -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/bundled/lenis.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1467,6 +1471,151 @@
     document.querySelectorAll('a[href*="app.rentybase.com"]').forEach(function(a) {
       a.setAttribute('target', '_blank');
       a.setAttribute('rel', 'noopener');
+    });
+  }
+
+  /* ─────────────────────────────────────────────────────
+     CINEMATIC ANIMATIONS (GSAP + ScrollTrigger + Lenis)
+  ───────────────────────────────────────────────────── */
+  if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+    gsap.registerPlugin(ScrollTrigger);
+
+    /* ── Lenis smooth scroll ── */
+    if (typeof Lenis !== 'undefined') {
+      const lenis = new Lenis({
+        duration: 1.2,
+        easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        smoothWheel: true,
+      });
+      lenis.on('scroll', ScrollTrigger.update);
+      gsap.ticker.add(time => lenis.raf(time * 1000));
+      gsap.ticker.lagSmoothing(0);
+
+      /* Replace native anchor scroll with Lenis */
+      document.querySelectorAll('a[href^="#"]').forEach(a => {
+        a.addEventListener('click', e => {
+          const id = a.getAttribute('href').slice(1);
+          if (!id) return;
+          const el = document.getElementById(id);
+          if (el) { e.preventDefault(); lenis.scrollTo(el, { offset: -70, duration: 1.4 }); }
+        });
+      });
+    }
+
+    /* ── Hero entrance timeline ── */
+    const heroTl = gsap.timeline({ defaults: { ease: 'power4.out' } });
+    heroTl
+      .from('.hero-eyebrow',            { opacity: 0, y: 24, duration: 0.7 })
+      .from('.hero h1',                 { opacity: 0, y: 52, duration: 1.05 }, '-=0.4')
+      .from('.hero-sub',                { opacity: 0, y: 32, duration: 0.85 }, '-=0.6')
+      .from('.hero-actions .btn',       { opacity: 0, y: 22, stagger: 0.13, duration: 0.65 }, '-=0.55')
+      .from('.hero-stats .stat-item',   { opacity: 0, y: 18, stagger: 0.09, duration: 0.55 }, '-=0.45')
+      .from('.app-frame',               { opacity: 0, y: 56, scale: 0.94, duration: 1.15, ease: 'power4.out' }, '-=0.9')
+      .from('.float-badge-1',           { opacity: 0, x: 28, y: -12, duration: 0.75, ease: 'back.out(1.6)' }, '-=0.5')
+      .from('.float-badge-2',           { opacity: 0, x: -28, y: 12, duration: 0.75, ease: 'back.out(1.6)' }, '-=0.6');
+
+    /* ── Hero visual parallax on scroll ── */
+    gsap.to('.hero-visual', {
+      scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: 1.2 },
+      y: -72, ease: 'none'
+    });
+
+    /* ── Suppress existing IntersectionObserver for elements GSAP will handle ── */
+    const gsapHandled = new Set();
+
+    /* ── Section header reveals (staggered children) ── */
+    gsap.utils.toArray('.section-header').forEach(el => {
+      gsapHandled.add(el);
+      el.classList.remove('reveal');
+      gsap.from(Array.from(el.children), {
+        scrollTrigger: { trigger: el, start: 'top 82%' },
+        opacity: 0, y: 36, stagger: 0.13, duration: 0.9, ease: 'power3.out'
+      });
+    });
+
+    /* ── Card grids ── */
+    ['.core-card', '.pain-card', '.feature-row', '.pricing-card'].forEach(sel => {
+      gsap.utils.toArray(sel).forEach((el, i) => {
+        gsapHandled.add(el);
+        el.classList.remove('reveal', 'reveal-d1', 'reveal-d2', 'reveal-d3', 'reveal-d4', 'reveal-d5', 'reveal-d6');
+        gsap.from(el, {
+          scrollTrigger: { trigger: el, start: 'top 88%' },
+          opacity: 0, y: 40, duration: 0.75, delay: (i % 3) * 0.1, ease: 'power3.out'
+        });
+      });
+    });
+
+    /* ── How-it-works steps ── */
+    gsap.utils.toArray('.hiw-step').forEach((el, i) => {
+      gsap.from(el, {
+        scrollTrigger: { trigger: el, start: 'top 88%' },
+        opacity: 0, x: -28, duration: 0.7, delay: i * 0.1, ease: 'power3.out'
+      });
+    });
+
+    /* ── Compare table rows ── */
+    gsap.utils.toArray('.compare-table tbody tr').forEach((row, i) => {
+      gsap.from(row, {
+        scrollTrigger: { trigger: row, start: 'top 90%' },
+        opacity: 0, x: -16, duration: 0.5, delay: i * 0.05, ease: 'power2.out'
+      });
+    });
+
+    /* ── Testimonials ── */
+    gsap.utils.toArray('.testimonial-card, .testimonial-item').forEach((el, i) => {
+      gsap.from(el, {
+        scrollTrigger: { trigger: el, start: 'top 86%' },
+        opacity: 0, y: 32, scale: 0.97, duration: 0.75, delay: i * 0.12, ease: 'power3.out'
+      });
+    });
+
+    /* ── Feature rows (horizontal slide) ── */
+    gsap.utils.toArray('.feature-list-grid .feature-row').forEach((el, i) => {
+      gsap.from(el, {
+        scrollTrigger: { trigger: el, start: 'top 90%' },
+        opacity: 0, x: i % 2 === 0 ? -24 : 24, duration: 0.65, ease: 'power3.out'
+      });
+    });
+
+    /* ── Stat counter animation ── */
+    document.querySelectorAll('.stat-num').forEach(el => {
+      const raw = el.textContent.trim();
+      const m = raw.match(/^([₹<>\s]*)(\d[\d,]*)(\s*[%k]?)(.*)$/);
+      if (!m) return;
+      const pre = m[1], numStr = m[2].replace(/,/g, ''), suf = (m[3] + m[4]).trim();
+      const target = parseInt(numStr, 10);
+      if (isNaN(target) || target === 0) return;
+      const orig = raw;
+      ScrollTrigger.create({
+        trigger: el, start: 'top 88%', once: true,
+        onEnter: () => {
+          const obj = { n: 0 };
+          gsap.to(obj, {
+            n: target, duration: 1.8, ease: 'power2.out',
+            onUpdate() {
+              const v = Math.round(obj.n);
+              el.textContent = pre + (v >= 1000 ? v.toLocaleString('en-IN') : v) + (suf ? ' ' + suf : '');
+            },
+            onComplete() { el.textContent = orig; }
+          });
+        }
+      });
+    });
+
+    /* ── CTA section ── */
+    gsap.utils.toArray('.cta-section-inner, .final-cta, .cta-wrap').forEach(el => {
+      gsap.from(el, {
+        scrollTrigger: { trigger: el, start: 'top 80%' },
+        opacity: 0, y: 40, scale: 0.98, duration: 0.9, ease: 'power3.out'
+      });
+    });
+
+    /* ── FAQ items ── */
+    gsap.utils.toArray('.faq-item').forEach((el, i) => {
+      gsap.from(el, {
+        scrollTrigger: { trigger: el, start: 'top 92%' },
+        opacity: 0, y: 20, duration: 0.55, delay: i * 0.06, ease: 'power2.out'
+      });
     });
   }
 </script>

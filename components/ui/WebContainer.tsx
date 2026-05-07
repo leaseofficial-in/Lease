@@ -9,6 +9,10 @@ export function WebContainer({ children }: PropsWithChildren) {
   const pathname = usePathname();
   if (Platform.OS !== 'web') return <>{children}</>;
 
+  // Landing page uses full-width DOM layout — bypass the phone-frame container entirely
+  const isLandingPage = pathname === '/' || pathname === '' || pathname === '/index';
+  if (isLandingPage) return <>{children}</>;
+
   const isDocumentView = pathname?.startsWith('/agreement/');
 
   return (

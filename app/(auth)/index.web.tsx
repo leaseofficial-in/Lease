@@ -107,8 +107,41 @@ function GlobalStyles() {
 
 // ─── NAV ────────────────────────────────────────────────────────────────────
 
+const NAV_LINKS = [
+  { label: 'Features', href: '#features' },
+  { label: 'How it works', href: '#how-it-works' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'FAQ', href: '#faq' },
+];
+
+function NavLink({ label, href }: { label: string; href: string }) {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const id = href.slice(1);
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  return (
+    <a
+      href={href}
+      onClick={handleClick}
+      style={{
+        fontFamily: F.sansMedium, fontSize: 14, color: 'rgba(255,255,255,0.55)',
+        transition: 'color 0.15s', cursor: 'pointer',
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = C.surface; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.55)'; }}
+    >
+      {label}
+    </a>
+  );
+}
+
 function Nav({ onCta }: { onCta: () => void }) {
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const w = useWindowWidth();
+  const isMobile = w < 820;
 
   useEffect(() => {
     const handle = () => setScrolled(window.scrollY > 40);
@@ -117,69 +150,84 @@ function Nav({ onCta }: { onCta: () => void }) {
   }, []);
 
   return (
-    <motion.nav
-      initial={{ opacity: 0, y: -16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease }}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 5%',
-        height: 60,
-        background: scrolled ? 'rgba(8,9,10,0.88)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(16px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.06)' : 'none',
-        transition: 'background 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease',
-      }}
-    >
-      {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{
-          width: 28, height: 28, borderRadius: 8,
-          background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <span style={{ fontFamily: F.sansBold, fontSize: 13, color: C.bg, letterSpacing: -0.5 }}>
-            R
-          </span>
-        </div>
-        <span style={{ fontFamily: F.sansSemiBold, fontSize: 15, color: C.surface, letterSpacing: -0.3 }}>
-          RentyBase
-        </span>
-      </div>
-
-      {/* CTA */}
-      <button
-        onClick={onCta}
+    <>
+      <motion.nav
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease }}
         style={{
-          height: 34,
-          paddingInline: 18,
-          borderRadius: 9999,
-          border: '1px solid rgba(255,255,255,0.18)',
-          background: 'transparent',
-          color: C.surface,
-          fontFamily: F.sansMedium,
-          fontSize: 13,
-          cursor: 'pointer',
-          transition: 'background 0.2s, border-color 0.2s',
-        }}
-        onMouseEnter={e => {
-          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
-          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.3)';
-        }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.18)';
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 5%', height: 60,
+          background: scrolled ? 'rgba(8,9,10,0.92)' : 'transparent',
+          backdropFilter: scrolled ? 'blur(16px)' : 'none',
+          borderBottom: scrolled ? '1px solid rgba(255,255,255,0.06)' : 'none',
+          transition: 'background 0.3s ease, backdrop-filter 0.3s ease',
         }}
       >
-        Sign in
-      </button>
-    </motion.nav>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontFamily: F.sansBold, fontSize: 13, color: C.bg, letterSpacing: -0.5 }}>R</span>
+          </div>
+          <span style={{ fontFamily: F.sansSemiBold, fontSize: 15, color: C.surface, letterSpacing: -0.3 }}>RentyBase</span>
+        </div>
+
+        {/* Desktop links */}
+        {!isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+            {NAV_LINKS.map(l => <NavLink key={l.label} {...l} />)}
+          </div>
+        )}
+
+        {/* Right actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {!isMobile && (
+            <button
+              onClick={onCta}
+              style={{ height: 34, paddingInline: 18, borderRadius: 9999, border: '1px solid rgba(255,255,255,0.18)', background: 'transparent', color: C.surface, fontFamily: F.sansMedium, fontSize: 13, cursor: 'pointer', transition: 'background 0.2s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+            >Sign in</button>
+          )}
+          <button
+            onClick={onCta}
+            style={{ height: 34, paddingInline: 18, borderRadius: 9999, background: C.surface, color: C.bg, fontFamily: F.sansSemiBold, fontSize: 13, border: 'none', cursor: 'pointer', transition: 'transform 0.15s, opacity 0.15s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+          >Get Started</button>
+          {isMobile && (
+            <button
+              onClick={() => setMenuOpen(true)}
+              style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer' }}
+            >
+              {[0,1,2].map(i => <span key={i} style={{ width: 16, height: 1.5, background: 'rgba(255,255,255,0.7)', borderRadius: 1 }} />)}
+            </button>
+          )}
+        </div>
+      </motion.nav>
+
+      {/* Mobile menu overlay */}
+      {menuOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#08090A', display: 'flex', flexDirection: 'column', padding: '20px 6%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
+            <span style={{ fontFamily: F.sansSemiBold, fontSize: 18, color: C.surface }}>RentyBase</span>
+            <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 28, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+            {NAV_LINKS.map(l => (
+              <a key={l.label} href={l.href} onClick={e => { e.preventDefault(); setMenuOpen(false); const el = document.getElementById(l.href.slice(1)); if (el) el.scrollIntoView({ behavior: 'smooth' }); }}
+                style={{ fontFamily: F.sansSemiBold, fontSize: 22, color: C.surface, padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+              >{l.label}</a>
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 32 }}>
+            <button onClick={() => { setMenuOpen(false); onCta(); }} style={{ height: 54, borderRadius: 14, background: C.surface, color: C.bg, fontFamily: F.sansSemiBold, fontSize: 16, border: 'none', cursor: 'pointer' }}>Get Started Free</button>
+            <button onClick={() => { setMenuOpen(false); onCta(); }} style={{ height: 54, borderRadius: 14, background: 'transparent', color: C.surface, fontFamily: F.sansMedium, fontSize: 16, border: '1px solid rgba(255,255,255,0.18)', cursor: 'pointer' }}>Sign In</button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1202,39 +1250,228 @@ function CtaSection({ onGetStarted }: { onGetStarted: () => void }) {
 // ─── FOOTER ──────────────────────────────────────────────────────────────────
 
 function Footer() {
+  const footerLinks: Record<string, { label: string; href: string }[]> = {
+    Product: [
+      { label: 'Features', href: '#features' },
+      { label: 'Pricing', href: '#pricing' },
+      { label: 'For Landlords', href: 'https://rentybase.com/for/landlords' },
+      { label: 'For Tenants', href: 'https://rentybase.com/for/tenants' },
+    ],
+    Resources: [
+      { label: 'Blog', href: 'https://rentybase.com/blog' },
+      { label: 'HRA Receipt Guide', href: 'https://rentybase.com/blog/how-to-claim-hra-when-landlord-wont-give-rent-receipts' },
+      { label: 'HRA Calculator', href: 'https://rentybase.com/tools/hra-receipt-generator' },
+      { label: 'FAQ', href: '#faq' },
+    ],
+    Company: [
+      { label: 'Contact', href: '#contact' },
+      { label: 'Privacy Policy', href: '#' },
+      { label: 'Terms of Use', href: '#' },
+    ],
+  };
+  const scrollTo = (href: string) => {
+    if (!href.startsWith('#')) return true;
+    const el = document.getElementById(href.slice(1));
+    if (el) { el.scrollIntoView({ behavior: 'smooth' }); return false; }
+    return true;
+  };
   return (
-    <footer style={{
-      background: C.bg,
-      borderTop: '1px solid rgba(255,255,255,0.06)',
-      padding: '28px 6%',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      flexWrap: 'wrap', gap: 12,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{
-          width: 22, height: 22, borderRadius: 6,
-          background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <span style={{ fontFamily: F.sansBold, fontSize: 10, color: C.bg }}>R</span>
+    <footer style={{ background: C.bg, borderTop: '1px solid rgba(255,255,255,0.06)', padding: '64px 6% 40px' }}>
+      <div style={{ maxWidth: 1160, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(3, 1fr)', gap: '40px 48px', marginBottom: 56, flexWrap: 'wrap' as const }}>
+          {/* Brand */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <div style={{ width: 26, height: 26, borderRadius: 7, background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontFamily: F.sansBold, fontSize: 12, color: C.bg }}>R</span>
+              </div>
+              <span style={{ fontFamily: F.sansSemiBold, fontSize: 15, color: C.surface }}>RentyBase</span>
+            </div>
+            <p style={{ fontFamily: F.sans, fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.7, maxWidth: 200 }}>
+              Rent tracking, HRA receipts, and dispute-free move-outs for Indian landlords and tenants.
+            </p>
+            <a href="mailto:support@rentybase.com" style={{ display: 'inline-block', marginTop: 16, fontFamily: F.sans, fontSize: 13, color: 'rgba(255,255,255,0.35)', transition: 'color 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.7)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.35)'; }}
+            >support@rentybase.com</a>
+          </div>
+          {/* Link columns */}
+          {Object.entries(footerLinks).map(([group, links]) => (
+            <div key={group}>
+              <div style={{ fontFamily: F.sansSemiBold, fontSize: 12, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 18 }}>{group}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {links.map(l => (
+                  <a key={l.label} href={l.href} onClick={e => { if (!scrollTo(l.href)) e.preventDefault(); }}
+                    style={{ fontFamily: F.sans, fontSize: 14, color: 'rgba(255,255,255,0.45)', transition: 'color 0.15s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = C.surface; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.45)'; }}
+                  >{l.label}</a>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-        <span style={{ fontFamily: F.sansMedium, fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
-          RentyBase · Made for Indian rentals
-        </span>
-      </div>
-      <div style={{ display: 'flex', gap: 24 }}>
-        {['Privacy Policy', 'Terms of Use'].map(link => (
-          <a key={link} href="#" style={{
-            fontFamily: F.sans, fontSize: 12, color: 'rgba(255,255,255,0.3)',
-            transition: 'color 0.15s',
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.6)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.3)'; }}
-          >
-            {link}
-          </a>
-        ))}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12 }}>
+          <span style={{ fontFamily: F.sans, fontSize: 13, color: 'rgba(255,255,255,0.25)' }}>
+            © {new Date().getFullYear()} RentyBase. Made in India 🇮🇳
+          </span>
+          <span style={{ fontFamily: F.sans, fontSize: 13, color: 'rgba(255,255,255,0.25)' }}>
+            Free during beta · All features included
+          </span>
+        </div>
       </div>
     </footer>
+  );
+}
+
+// ─── PRICING ─────────────────────────────────────────────────────────────────
+
+const PRICING_FEATURES = [
+  'Unlimited rent payments & history',
+  'HRA receipts — PDF in one tap',
+  'Room-by-room move-in photo proof',
+  'Security deposit ledger',
+  'Repair request tracking',
+  'Push + WhatsApp notifications',
+  'Digital Leave & License agreement',
+  'Landlord + tenant dashboards',
+];
+
+function PricingSection({ onGetStarted }: { onGetStarted: () => void }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-80px' });
+  return (
+    <section id="pricing" ref={ref} style={{ background: C.surface, padding: '100px 6%' }}>
+      <div style={{ maxWidth: 860, margin: '0 auto', textAlign: 'center' }}>
+        <motion.div initial={{ opacity: 0, y: 28 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.7, ease }}>
+          <div style={{ display: 'inline-block', fontSize: 11, fontFamily: F.sansSemiBold, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: C.action, marginBottom: 14 }}>
+            Pricing
+          </div>
+          <h2 style={{ fontFamily: F.sansSemiBold, fontSize: 'clamp(32px,5vw,52px)', color: C.bg, letterSpacing: -1, marginBottom: 16, lineHeight: 1.08 }}>
+            Free during beta.
+          </h2>
+          <p style={{ fontFamily: F.sans, fontSize: 17, color: C.ink3, maxWidth: 500, margin: '0 auto 52px', lineHeight: 1.7 }}>
+            Every feature, no limits, no credit card. When paid tiers launch, beta users get 30 days notice and a better rate.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 32 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.75, ease, delay: 0.15 }}
+          style={{ background: C.bg, borderRadius: 28, padding: '44px 48px', textAlign: 'left', position: 'relative', overflow: 'hidden' }}
+        >
+          {/* Glow */}
+          <div style={{ position: 'absolute', top: -80, right: -80, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${C.action}33 0%, transparent 70%)`, pointerEvents: 'none' }} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 32 }}>
+            <div>
+              <div style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.35)', marginBottom: 12 }}>Beta price</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontFamily: F.sansBold, fontSize: 64, color: C.surface, letterSpacing: -2, lineHeight: 1 }}>₹0</span>
+                <span style={{ fontFamily: F.sans, fontSize: 16, color: 'rgba(255,255,255,0.35)' }}>/month</span>
+              </div>
+              <div style={{ marginTop: 8, fontFamily: F.sans, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>No credit card required</div>
+            </div>
+            <button
+              onClick={onGetStarted}
+              style={{ height: 52, paddingInline: 32, borderRadius: 14, background: C.surface, color: C.bg, fontFamily: F.sansSemiBold, fontSize: 15, border: 'none', cursor: 'pointer', alignSelf: 'center', transition: 'opacity 0.15s, transform 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.03)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+            >
+              Start for free →
+            </button>
+          </div>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '32px 0' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px 24px' }}>
+            {PRICING_FEATURES.map(f => (
+              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(14,142,99,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 10, color: '#0E8E63' }}>✓</span>
+                <span style={{ fontFamily: F.sans, fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>{f}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ─── FAQ ─────────────────────────────────────────────────────────────────────
+
+const FAQS = [
+  { q: 'Is RentyBase really free?', a: 'Yes — completely free during beta. All features, no limits, no credit card required. When paid tiers launch, beta users get 30 days notice and a better rate.' },
+  { q: 'Does my tenant need to download an app?', a: 'No. The invite link opens in any browser. Your tenant can sign in with Google and access everything from the web without installing anything.' },
+  { q: 'Are the HRA receipts valid for tax filing in India?', a: 'Yes. Every receipt includes landlord name, PAN, tenant name, property address, period, amount, and payment method — all required for HRA exemption under Section 10(13A).' },
+  { q: 'Can I manage a PG or hostel?', a: 'Yes. Choose PG/Hostel as your property type and add multiple rooms — each with its own tenant, rent amount, and proof photos — all under one landlord dashboard.' },
+  { q: 'What happens to move-in photos? Can they be deleted?', a: 'Once submitted, move-in photos are locked and cannot be edited or deleted by either party. They stay permanently attached to the rental record.' },
+  { q: 'Which cities does RentyBase support?', a: 'All cities in India. RentyBase is built for Indian rentals — INR currency, PAN-linked receipts, L&L agreements, and rent laws as per Indian tenancy norms.' },
+];
+
+function FaqSection() {
+  const [open, setOpen] = useState<number | null>(null);
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-60px' });
+  return (
+    <section id="faq" ref={ref} style={{ background: C.fill, padding: '100px 6%', borderTop: `1px solid ${C.border}` }}>
+      <div style={{ maxWidth: 760, margin: '0 auto' }}>
+        <motion.div initial={{ opacity: 0, y: 28 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.7, ease }} style={{ textAlign: 'center', marginBottom: 52 }}>
+          <div style={{ fontSize: 11, fontFamily: F.sansSemiBold, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: C.action, marginBottom: 14 }}>FAQ</div>
+          <h2 style={{ fontFamily: F.sansSemiBold, fontSize: 'clamp(30px,4.5vw,48px)', color: C.bg, letterSpacing: -1, lineHeight: 1.1 }}>Common questions</h2>
+        </motion.div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {FAQS.map((item, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.55, ease, delay: i * 0.06 }}
+              style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.border}`, overflow: 'hidden' }}
+            >
+              <button
+                onClick={() => setOpen(open === i ? null : i)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', background: 'none', border: 'none', cursor: 'pointer', gap: 16 }}
+              >
+                <span style={{ fontFamily: F.sansSemiBold, fontSize: 15, color: C.bg, textAlign: 'left' as const }}>{item.q}</span>
+                <span style={{ fontFamily: F.sansSemiBold, fontSize: 20, color: C.muted, lineHeight: 1, flexShrink: 0, transform: open === i ? 'rotate(45deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>+</span>
+              </button>
+              {open === i && (
+                <div style={{ padding: '0 24px 20px', fontFamily: F.sans, fontSize: 14, color: C.ink3, lineHeight: 1.75 }}>
+                  {item.a}
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── CONTACT ─────────────────────────────────────────────────────────────────
+
+function ContactSection() {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-60px' });
+  return (
+    <section id="contact" ref={ref} style={{ background: C.surface, padding: '88px 6%', borderTop: `1px solid ${C.border}` }}>
+      <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
+        <motion.div initial={{ opacity: 0, y: 28 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.7, ease }}>
+          <div style={{ fontSize: 11, fontFamily: F.sansSemiBold, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: C.action, marginBottom: 14 }}>Contact</div>
+          <h2 style={{ fontFamily: F.sansSemiBold, fontSize: 'clamp(28px,4vw,44px)', color: C.bg, letterSpacing: -1, marginBottom: 16, lineHeight: 1.1 }}>Got a question?</h2>
+          <p style={{ fontFamily: F.sans, fontSize: 17, color: C.ink3, marginBottom: 36, lineHeight: 1.7 }}>
+            We read every email. Whether you're a landlord managing 30 units or a tenant trying to claim HRA — reach out.
+          </p>
+          <a
+            href="mailto:support@rentybase.com"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 10, height: 54, paddingInline: 32, borderRadius: 14, background: C.bg, color: C.surface, fontFamily: F.sansSemiBold, fontSize: 15, transition: 'transform 0.15s, box-shadow 0.15s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 12px 40px rgba(0,0,0,0.18)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.transform = 'none'; (e.currentTarget as HTMLAnchorElement).style.boxShadow = 'none'; }}
+          >
+            <span>✉</span> support@rentybase.com
+          </a>
+          <p style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, marginTop: 20 }}>
+            We typically reply within 24 hours on business days.
+          </p>
+        </motion.div>
+      </div>
+    </section>
   );
 }
 
@@ -1278,6 +1515,7 @@ export default function WelcomeWebScreen() {
         <Hero onCta={handleGetStarted} />
         <MetricStrip />
 
+        <div id="features" />
         <FeatureSection
           eyebrow="Rent collection"
           title="Stop chasing"
@@ -1321,6 +1559,7 @@ export default function WelcomeWebScreen() {
           flip
         />
 
+        <div id="how-it-works" />
         <RolePicker
           onGetStarted={handleGetStarted}
           selectedRole={selectedRole}
@@ -1328,6 +1567,10 @@ export default function WelcomeWebScreen() {
         />
 
         <Testimonial />
+
+        <PricingSection onGetStarted={handleGetStarted} />
+        <FaqSection />
+        <ContactSection />
         <CtaSection onGetStarted={handleGetStarted} />
         <Footer />
       </div>
