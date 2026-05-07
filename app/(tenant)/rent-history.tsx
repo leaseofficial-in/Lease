@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { RentPayment } from '../../types';
@@ -35,30 +36,33 @@ export default function RentHistoryScreen() {
     enabled: !!profile?.id && !isLocalDevUser,
   });
 
-  const handleGetReceipt = async (payment: RentPayment) => {
-    router.push({
-      pathname: '/receipt/[paymentId]',
-      params: { paymentId: payment.id },
-    });
-  };
+  const totalPaid = payments?.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0) ?? 0;
+  const paidCount = payments?.filter((p) => p.status === 'paid').length ?? 0;
+  const onTimeCount = payments?.filter((p) => p.status === 'paid' && (p.late_fee ?? 0) === 0).length ?? 0;
+  const onTimePct = paidCount > 0 ? Math.round((onTimeCount / paidCount) * 100) : null;
 
-  const totalPaid = payments
-    ?.filter((p) => p.status === 'paid')
-    .reduce((sum, payment) => sum + payment.amount, 0) ?? 0;
+  // Group by year, descending
+  const paymentsByYear = useMemo(() => {
+    if (!payments?.length) return [];
+    const map = new Map<number, RentPayment[]>();
+    for (const p of payments) {
+      const yr = new Date(p.month).getFullYear();
+      const list = map.get(yr) ?? [];
+      list.push(p);
+      map.set(yr, list);
+    }
+    return [...map.entries()].sort(([a], [b]) => b - a);
+  }, [payments]);
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          backgroundColor: Colors.surface,
-          borderBottomWidth: 1,
-          borderBottomColor: Colors.border,
-        }}
-      >
+      {/* ── Header ── */}
+      <View style={{
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 16, paddingVertical: 12,
+        backgroundColor: Colors.surface,
+        borderBottomWidth: 1, borderBottomColor: Colors.border,
+      }}>
         <BackButton onPress={() => router.back()} style={{ marginRight: 12 }} />
         <View>
           <Cap>Tenant</Cap>
@@ -70,26 +74,60 @@ export default function RentHistoryScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.action} />}
+        contentContainerStyle={{ paddingBottom: 48 }}
       >
-        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
-          <Card style={{ backgroundColor: Colors.primary }}>
-            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, marginBottom: 4, fontFamily: Fonts.sans }}>
-              Total Paid
-            </Text>
-            <Text style={{ color: '#fff', fontSize: 32, fontFamily: Fonts.sansSemiBold, lineHeight: 36 }}>
-              {formatCurrency(totalPaid, true)}
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, marginTop: 4, fontFamily: Fonts.sans }}>
-              {payments?.filter((payment) => payment.status === 'paid').length ?? 0} payments made
-            </Text>
-          </Card>
-        </View>
+        {/* ── Summary stats ── */}
+        {(isLoading || (payments && payments.length > 0)) && (
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, gap: 10 }}>
+            {/* Total paid hero */}
+            <View style={{
+              backgroundColor: Colors.primary, borderRadius: 20, padding: 20,
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <View>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>
+                  Total Paid
+                </Text>
+                <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 34, lineHeight: 38 }}>
+                  {isLoading ? '—' : formatCurrency(totalPaid, true)}
+                </Text>
+                {!isLoading && paidCount > 0 && (
+                  <Text style={{ color: 'rgba(255,255,255,0.45)', fontFamily: Fonts.sans, fontSize: 12, marginTop: 4 }}>
+                    {paidCount} payment{paidCount !== 1 ? 's' : ''} confirmed
+                  </Text>
+                )}
+              </View>
+              {onTimePct !== null && (
+                <View style={{ alignItems: 'center', gap: 4 }}>
+                  <View style={{
+                    width: 56, height: 56, borderRadius: 28,
+                    borderWidth: 3,
+                    borderColor: onTimePct >= 80 ? Colors.success : Colors.warning,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Text style={{
+                      color: onTimePct >= 80 ? '#7AEFC0' : '#F6C47F',
+                      fontFamily: Fonts.sansBold, fontSize: 15,
+                    }}>
+                      {onTimePct}%
+                    </Text>
+                  </View>
+                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontFamily: Fonts.sans, fontSize: 10 }}>
+                    on time
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
-        <View style={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 8 }}>
+        {/* ── Payment list ── */}
+        <View style={{ paddingHorizontal: 20, paddingBottom: 8, paddingTop: 4 }}>
           {isLoading ? (
             <Card padded={false}>
               <View style={{ paddingHorizontal: 16 }}>
+                <PaymentRowSkeleton />
                 <PaymentRowSkeleton />
                 <PaymentRowSkeleton />
               </View>
@@ -100,70 +138,135 @@ export default function RentHistoryScreen() {
               subtitle={
                 isLocalDevUser
                   ? 'Local demo mode skips live payment records.'
-                  : 'Your rent payment history will appear here.'
+                  : 'Your rent payment history will appear here once you start paying.'
               }
               icon={<AppIcon name="receipt-outline" size={48} color={Colors.muted} />}
             />
           ) : (
-            <Card padded={false}>
-              {payments.map((payment, index) => (
-                <View
-                  key={payment.id}
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                    borderBottomWidth: index < payments.length - 1 ? 1 : 0,
-                    borderBottomColor: Colors.border,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
-                      {formatMonth(payment.month)}
+            <View style={{ gap: 24 }}>
+              {paymentsByYear.map(([year, yearPayments]) => (
+                <View key={year}>
+                  {/* Year header */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <Text style={{
+                      color: Colors.ink2, fontFamily: Fonts.sansSemiBold, fontSize: 14,
+                    }}>
+                      {year}
                     </Text>
-                    <StatusPill kind="payment" value={payment.status} />
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>
-                      {payment.paid_at ? `Paid ${formatDate(payment.paid_at)}` : 'Not paid yet'}
-                    </Text>
-                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
-                      {formatCurrency(payment.amount)}
+                    <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
+                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+                      {yearPayments.length} months
                     </Text>
                   </View>
-                  {payment.late_fee > 0 && (
-                    <Text style={{ color: Colors.danger, fontFamily: Fonts.sans, fontSize: 12, marginTop: 3 }}>
-                      Late fee: {formatCurrency(payment.late_fee)}
-                    </Text>
-                  )}
-                  {payment.status === 'paid' && (
-                    <TouchableOpacity
-                      onPress={() => void handleGetReceipt(payment)}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}
-                    >
-                      <AppIcon
-                        name="document-text-outline"
-                        size={13}
-                        color={Colors.action}
+
+                  {/* Payment rows */}
+                  <Card padded={false}>
+                    {yearPayments.map((payment, index) => (
+                      <PaymentRow
+                        key={payment.id}
+                        payment={payment}
+                        isLast={index === yearPayments.length - 1}
+                        onReceipt={() => router.push({ pathname: '/receipt/[paymentId]', params: { paymentId: payment.id } })}
                       />
-                      <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-                        View HRA Receipt
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  {payment.status === 'pending_verification' && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
-                      <AppIcon name="time-outline" size={13} color={Colors.muted} />
-                      <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
-                        Receipt will be available after landlord confirmation
-                      </Text>
-                    </View>
-                  )}
+                    ))}
+                  </Card>
                 </View>
               ))}
-            </Card>
+            </View>
           )}
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function PaymentRow({
+  payment,
+  isLast,
+  onReceipt,
+}: {
+  payment: RentPayment;
+  isLast: boolean;
+  onReceipt: () => void;
+}) {
+  const isOverdue = payment.status === 'overdue';
+  const isPending = payment.status === 'pending_verification';
+  const isPaid = payment.status === 'paid';
+  const hasLateFee = (payment.late_fee ?? 0) > 0;
+
+  return (
+    <View style={{
+      paddingHorizontal: 16, paddingVertical: 14,
+      borderBottomWidth: isLast ? 0 : 1,
+      borderBottomColor: Colors.border,
+      backgroundColor: isOverdue ? Colors.dangerSoft : Colors.surface,
+    }}>
+      {/* Main row */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        {/* Left: month + paid date */}
+        <View style={{ flex: 1, marginRight: 12 }}>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginBottom: 2 }}>
+            {formatMonth(payment.month)}
+          </Text>
+          {payment.paid_at && isPaid && (
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+              Paid {formatDate(payment.paid_at)}
+            </Text>
+          )}
+          {isPending && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="time-outline" size={12} color={Colors.muted} />
+              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+                Awaiting landlord confirmation
+              </Text>
+            </View>
+          )}
+          {!payment.paid_at && !isPending && (
+            <Text style={{ color: isOverdue ? Colors.danger : Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+              {isOverdue ? 'Payment overdue' : 'Not paid yet'}
+            </Text>
+          )}
+        </View>
+
+        {/* Right: amount + status */}
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
+            {formatCurrency(payment.amount)}
+          </Text>
+          <StatusPill kind="payment" value={payment.status} />
+        </View>
+      </View>
+
+      {/* Secondary row: late fee + receipt */}
+      {(hasLateFee || isPaid) && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+          {hasLateFee ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="alert-circle" size={13} color={Colors.danger} />
+              <Text style={{ color: Colors.danger, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+                Late fee: {formatCurrency(payment.late_fee)}
+              </Text>
+            </View>
+          ) : <View />}
+
+          {isPaid && (
+            <TouchableOpacity
+              onPress={onReceipt}
+              activeOpacity={0.75}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 5,
+                paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16,
+                backgroundColor: Colors.actionSoft, borderWidth: 1, borderColor: '#C7D7FF',
+              }}
+            >
+              <AppIcon name="document-text-outline" size={13} color={Colors.action} />
+              <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 12 }}>
+                HRA Receipt
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    </View>
   );
 }

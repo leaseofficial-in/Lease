@@ -25,6 +25,14 @@ const uriToBlob = async (uri: string): Promise<Blob> => {
   return response.blob();
 };
 
+// Track object URLs created for web file pickers so callers can revoke them.
+// Call revokeWebPhotoUrl(uri) once you're done displaying the image.
+export const revokeWebPhotoUrl = (uri: string): void => {
+  if (typeof URL !== 'undefined' && uri.startsWith('blob:')) {
+    URL.revokeObjectURL(uri);
+  }
+};
+
 const pickWebFile = async (capture = false): Promise<string | null> => {
   if (typeof document === 'undefined') return null;
 
@@ -36,13 +44,17 @@ const pickWebFile = async (capture = false): Promise<string | null> => {
     input.style.display = 'none';
     document.body.appendChild(input);
 
+    const cleanup = () => {
+      if (document.body.contains(input)) document.body.removeChild(input);
+    };
+
     input.onchange = () => {
       const file = input.files?.[0];
-      document.body.removeChild(input);
+      cleanup();
       resolve(file ? URL.createObjectURL(file) : null);
     };
     input.oncancel = () => {
-      document.body.removeChild(input);
+      cleanup();
       resolve(null);
     };
     input.click();
@@ -60,13 +72,17 @@ const pickWebFiles = async (): Promise<string[]> => {
     input.style.display = 'none';
     document.body.appendChild(input);
 
+    const cleanup = () => {
+      if (document.body.contains(input)) document.body.removeChild(input);
+    };
+
     input.onchange = () => {
       const files = Array.from(input.files ?? []);
-      document.body.removeChild(input);
+      cleanup();
       resolve(files.map((f) => URL.createObjectURL(f)));
     };
     input.oncancel = () => {
-      document.body.removeChild(input);
+      cleanup();
       resolve([]);
     };
     input.click();

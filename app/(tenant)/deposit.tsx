@@ -21,9 +21,9 @@ const TXN_CONFIG: Record<DepositTransaction['type'], {
   label: string;
   prefix: string;
 }> = {
-  deduction: { icon: 'remove-circle-outline', color: Colors.danger, bg: Colors.dangerSoft, label: 'Deduction', prefix: '−' },
-  refund: { icon: 'arrow-undo-circle-outline', color: Colors.action, bg: Colors.actionSoft, label: 'Refund', prefix: '↩' },
-  received: { icon: 'checkmark-circle-outline', color: Colors.success, bg: Colors.successSoft, label: 'Received', prefix: '+' },
+  received: { icon: 'checkmark-circle-outline', color: Colors.success,  bg: Colors.successSoft, label: 'Received',  prefix: '+' },
+  deduction: { icon: 'remove-circle-outline',   color: Colors.danger,   bg: Colors.dangerSoft,  label: 'Deduction', prefix: '−' },
+  refund:    { icon: 'arrow-undo-circle-outline', color: Colors.action,  bg: Colors.actionSoft,  label: 'Refund',    prefix: '↩' },
 };
 
 export default function TenantDepositScreen() {
@@ -60,28 +60,29 @@ export default function TenantDepositScreen() {
 
   if (isLoading) return <LoadingScreen />;
 
-  const totalDeducted = transactions?.filter((t) => t.type === 'deduction').reduce((s, t) => s + t.amount, 0) ?? 0;
-  const totalRefunded = transactions?.filter((t) => t.type === 'refund').reduce((s, t) => s + t.amount, 0) ?? 0;
-  const balance = (rental?.security_deposit ?? 0) - totalDeducted - totalRefunded;
-  const occupancyRate = rental?.security_deposit
-    ? Math.round((balance / rental.security_deposit) * 100)
-    : 100;
+  const totalDeducted  = transactions?.filter((t) => t.type === 'deduction').reduce((s, t) => s + t.amount, 0) ?? 0;
+  const totalRefunded  = transactions?.filter((t) => t.type === 'refund').reduce((s, t) => s + t.amount, 0) ?? 0;
+  const held           = rental?.security_deposit ?? 0;
+  const balance        = held - totalDeducted - totalRefunded;
+  const retainedPct    = held > 0 ? Math.max(0, Math.min(100, Math.round((balance / held) * 100))) : 100;
+  const isHealthy      = retainedPct >= 80;
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.action} />}
+        contentContainerStyle={{ paddingBottom: 48 }}
       >
+        {/* ── Header ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
           <Cap>Security</Cap>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 24, marginTop: 4 }}>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 26, marginTop: 4 }}>
             Deposit
           </Text>
         </View>
 
-        <View style={{ paddingHorizontal: 20, gap: 16 }}>
+        <View style={{ paddingHorizontal: 20, gap: 14 }}>
           {!rental ? (
             <EmptyState
               title="No rental found"
@@ -94,73 +95,103 @@ export default function TenantDepositScreen() {
             />
           ) : (
             <>
-              {/* Hero balance */}
-              <Card style={{ backgroundColor: Colors.primary }}>
-                <Text style={{ color: 'rgba(255,255,255,0.55)', fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>
-                  Balance held by landlord
-                </Text>
-                <Text style={{ color: Colors.surface, fontFamily: Fonts.sansSemiBold, fontSize: 40, lineHeight: 44, marginBottom: 16 }}>
-                  {formatCurrency(balance)}
-                </Text>
+              {/* ── Balance hero ── */}
+              <View style={{ backgroundColor: Colors.primary, borderRadius: 22, padding: 22, overflow: 'hidden' }}>
+                {/* Retained percentage ring hint */}
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <View>
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>
+                      Balance held by landlord
+                    </Text>
+                    <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 40, lineHeight: 44 }}>
+                      {formatCurrency(balance)}
+                    </Text>
+                  </View>
+                  {/* Status chip */}
+                  <View style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 5,
+                    backgroundColor: isHealthy ? 'rgba(110,235,162,0.18)' : 'rgba(255,107,87,0.18)',
+                    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginTop: 4,
+                  }}>
+                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: isHealthy ? '#7AEFC0' : '#FF8A7A' }} />
+                    <Text style={{ color: isHealthy ? '#7AEFC0' : '#FF8A7A', fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+                      {retainedPct}% intact
+                    </Text>
+                  </View>
+                </View>
 
-                {/* Breakdown row */}
-                <View style={{ flexDirection: 'row', gap: 0 }}>
-                  <BalanceStat label="Total Held" value={rental.security_deposit} />
-                  <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginHorizontal: 16 }} />
+                {/* Stat row */}
+                <View style={{ flexDirection: 'row', gap: 0, marginBottom: 16 }}>
+                  <BalanceStat label="Total Held" value={held} />
+                  <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.12)', marginHorizontal: 16 }} />
                   <BalanceStat label="Deducted" value={totalDeducted} danger={totalDeducted > 0} />
                   {totalRefunded > 0 && (
                     <>
-                      <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginHorizontal: 16 }} />
+                      <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.12)', marginHorizontal: 16 }} />
                       <BalanceStat label="Refunded" value={totalRefunded} success />
                     </>
                   )}
                 </View>
 
                 {/* Retention bar */}
-                <View style={{ marginTop: 16 }}>
-                  <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 2 }}>
+                <View>
+                  <View style={{ height: 5, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 3 }}>
                     <View style={{
-                      height: 4, borderRadius: 2,
-                      backgroundColor: totalDeducted > 0 ? '#FF8A7A' : '#7AEFC0',
-                      width: `${Math.max(0, Math.min(100, occupancyRate))}%`,
+                      height: 5, borderRadius: 3,
+                      backgroundColor: isHealthy ? '#7AEFC0' : '#FF8A7A',
+                      width: `${retainedPct}%`,
                     }} />
                   </View>
-                  <Text style={{ color: 'rgba(255,255,255,0.45)', fontFamily: Fonts.sans, fontSize: 11, marginTop: 6 }}>
-                    {occupancyRate}% of deposit intact
-                  </Text>
                 </View>
-              </Card>
+              </View>
 
-              {/* Refund info if rental ended */}
-              {rental.status === 'ended' && (
-                <Card style={{ backgroundColor: Colors.actionSoft, borderColor: '#C7D7FF' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {/* ── Rental ended notice ── */}
+              {rental.status === 'ended' && balance > 0 && (
+                <View style={{
+                  backgroundColor: Colors.actionSoft, borderRadius: 18,
+                  borderWidth: 1, borderColor: '#C7D7FF',
+                  padding: 16, flexDirection: 'row', gap: 12,
+                }}>
+                  <View style={{
+                    width: 38, height: 38, borderRadius: 12,
+                    backgroundColor: 'rgba(80,70,228,0.12)', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
                     <Ionicons name="information-circle-outline" size={20} color={Colors.action} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
-                        Rental has ended
-                      </Text>
-                      <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 18, marginTop: 3 }}>
-                        Your landlord should refund {formatCurrency(balance)} after finalising any deductions. Follow up if you haven't received it.
-                      </Text>
-                    </View>
                   </View>
-                </Card>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginBottom: 3 }}>
+                      Rental has ended
+                    </Text>
+                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19 }}>
+                      Your landlord should refund {formatCurrency(balance)} after finalising deductions. Follow up if needed.
+                    </Text>
+                  </View>
+                </View>
               )}
 
-              {/* Transaction list */}
+              {/* ── Transaction list ── */}
               <View>
-                <Cap style={{ marginBottom: 12 }}>Activity ({transactions?.length ?? 0})</Cap>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <Cap>Activity</Cap>
+                  {(transactions?.length ?? 0) > 0 && (
+                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+                      {transactions!.length} transaction{transactions!.length !== 1 ? 's' : ''}
+                    </Text>
+                  )}
+                </View>
 
                 {!transactions?.length ? (
-                  <Card style={{ backgroundColor: Colors.fill }}>
-                    <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                      <Ionicons name="shield-checkmark-outline" size={22} color={Colors.muted} />
-                      <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, flex: 1 }}>
-                        No deposit activity yet. Deductions or refunds your landlord records will appear here.
-                      </Text>
-                    </View>
-                  </Card>
+                  <View style={{
+                    backgroundColor: Colors.surface, borderRadius: 18,
+                    borderWidth: 1, borderColor: Colors.border,
+                    padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center',
+                  }}>
+                    <Ionicons name="shield-checkmark-outline" size={22} color={Colors.muted} />
+                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, flex: 1 }}>
+                      No deposit activity yet. Any deductions or refunds recorded by your landlord will appear here.
+                    </Text>
+                  </View>
                 ) : (
                   <Card padded={false}>
                     {transactions.map((txn, i) => {
@@ -169,32 +200,40 @@ export default function TenantDepositScreen() {
                         <View
                           key={txn.id}
                           style={{
-                            flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14,
+                            flexDirection: 'row', alignItems: 'center',
+                            paddingHorizontal: 16, paddingVertical: 14,
                             borderBottomWidth: i < transactions.length - 1 ? 1 : 0,
                             borderBottomColor: Colors.border,
                           }}
                         >
+                          {/* Icon */}
                           <View style={{
-                            width: 38, height: 38, borderRadius: 19,
+                            width: 40, height: 40, borderRadius: 13,
                             backgroundColor: cfg.bg,
-                            alignItems: 'center', justifyContent: 'center', marginRight: 12, flexShrink: 0,
+                            alignItems: 'center', justifyContent: 'center', marginRight: 13, flexShrink: 0,
                           }}>
-                            <Ionicons name={cfg.icon} size={19} color={cfg.color} />
+                            <Ionicons name={cfg.icon} size={20} color={cfg.color} />
                           </View>
-                          <View style={{ flex: 1 }}>
+
+                          {/* Details */}
+                          <View style={{ flex: 1, minWidth: 0 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                              <Text style={{ color: cfg.color, fontFamily: Fonts.sansSemiBold, fontSize: 11, textTransform: 'uppercase' }}>
-                                {cfg.label}
-                              </Text>
+                              <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: cfg.bg }}>
+                                <Text style={{ color: cfg.color, fontFamily: Fonts.sansSemiBold, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                                  {cfg.label}
+                                </Text>
+                              </View>
                             </View>
-                            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 14 }}>
+                            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 14 }} numberOfLines={1}>
                               {txn.note}
                             </Text>
-                            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 2 }}>
+                            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>
                               {formatDate(txn.created_at)}
                             </Text>
                           </View>
-                          <Text style={{ color: cfg.color, fontFamily: Fonts.sansSemiBold, fontSize: 15, marginLeft: 10 }}>
+
+                          {/* Amount */}
+                          <Text style={{ color: cfg.color, fontFamily: Fonts.sansSemiBold, fontSize: 15, marginLeft: 12 }}>
                             {cfg.prefix}{formatCurrency(txn.amount, true)}
                           </Text>
                         </View>
@@ -211,13 +250,15 @@ export default function TenantDepositScreen() {
   );
 }
 
-function BalanceStat({ label, value, danger = false, success = false }: {
+function BalanceStat({
+  label, value, danger = false, success = false,
+}: {
   label: string; value: number; danger?: boolean; success?: boolean;
 }) {
   const color = danger ? '#FF8A7A' : success ? '#7AEFC0' : 'rgba(255,255,255,0.55)';
   return (
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text style={{ color: 'rgba(255,255,255,0.45)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 3 }}>
+      <Text style={{ color: 'rgba(255,255,255,0.4)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 3 }}>
         {label}
       </Text>
       <Text style={{ color, fontFamily: Fonts.sansSemiBold, fontSize: 14 }} numberOfLines={1}>

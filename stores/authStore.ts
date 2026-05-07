@@ -10,6 +10,7 @@ interface AuthState {
   isLoading: boolean;
   isProfileLoading: boolean;
   isInitialized: boolean;
+  _authSubscription: { unsubscribe: () => void } | null;
 
   setSession: (session: Session | null) => void;
   setProfile: (profile: Profile | null) => void;
@@ -34,6 +35,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   isProfileLoading: false,
   isInitialized: false,
+  _authSubscription: null,
 
   setSession: (session) => set({ session }),
   setProfile: (profile) => set({ profile }),
@@ -114,7 +116,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await get().fetchProfile(session.user.id);
       }
 
-      supabase.auth.onAuthStateChange((event, newSession) => {
+      // Tear down any existing listener before registering a new one.
+      // Guards against React strict-mode double-invocation of the effect.
+      get()._authSubscription?.unsubscribe();
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
         set({ session: newSession });
         if (newSession) {
           loadProfileSoon(() => get().fetchProfile(newSession.user.id));
@@ -123,6 +129,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           set({ profile: null, isProfileLoading: false });
         }
       });
+      set({ _authSubscription: subscription });
     } finally {
       set({ isLoading: false, isInitialized: true });
     }

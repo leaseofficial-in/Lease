@@ -11,6 +11,6 @@ export const Config = {
   photoQuality: 0.8,
   otpResendCooldownSeconds: 30,
   inviteExpiryHours: 72,
-  lateFeePercentage: 0.02, // 2% per day
+  lateFeePercentage: 2, // 2% of monthly rent (one-time flat fee when overdue)
   defaultRooms: ['Living Room', 'Bedroom 1', 'Bedroom 2', 'Kitchen', 'Bathroom', 'Balcony'],
 } as const;

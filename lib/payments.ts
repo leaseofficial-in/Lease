@@ -73,7 +73,7 @@ export async function checkAndMarkOverdue(
     .maybeSingle();
 
   if (!payment) {
-    await supabase.from('rent_payments').insert({
+    const { error: insertError } = await supabase.from('rent_payments').insert({
       rental_id: rentalId,
       tenant_id: tenantId,
       amount: monthlyRent,
@@ -81,6 +81,10 @@ export async function checkAndMarkOverdue(
       status: today > dueDay ? 'overdue' : 'pending',
       late_fee: today > dueDay ? Math.round(monthlyRent * lateFeePercent / 100) : 0,
     });
+    // Ignore unique-constraint violations — concurrent call already inserted the record
+    if (insertError && !insertError.message.includes('duplicate') && !insertError.message.includes('unique')) {
+      throw insertError;
+    }
     return;
   }
 

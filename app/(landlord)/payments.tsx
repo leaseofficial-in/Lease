@@ -27,6 +27,13 @@ interface PaymentWithRental extends RentPayment {
 
 type Filter = 'all' | 'pending_verification' | 'paid';
 
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  upi: 'UPI',
+  bank_transfer: 'Bank Transfer',
+  cash: 'Cash',
+  cheque: 'Cheque',
+};
+
 export default function LandlordPaymentsScreen() {
   const { profile } = useAuthStore();
   const { showToast } = useUIStore();
@@ -325,7 +332,7 @@ export default function LandlordPaymentsScreen() {
                       </Text>
                       {isPendingVerification && payment.payment_method && (
                         <Text style={{ color: Colors.warning, fontFamily: Fonts.sansMedium, fontSize: 12, marginTop: 2 }}>
-                          {payment.payment_method === 'upi' ? 'UPI' : 'Cash'}
+                          {PAYMENT_METHOD_LABEL[payment.payment_method] ?? payment.payment_method}
                           {payment.utr_number ? ` · UTR: ${payment.utr_number}` : ''}
                         </Text>
                       )}
@@ -380,9 +387,13 @@ export default function LandlordPaymentsScreen() {
             <View style={{ backgroundColor: Colors.fill, borderRadius: 14, padding: 16, gap: 10, marginBottom: 20 }}>
               <ConfirmRow label="Month" value={formatMonth(confirmingPayment.month)} />
               <ConfirmRow label="Amount" value={formatCurrency(confirmingPayment.amount)} highlight />
-              <ConfirmRow label="Method" value={confirmingPayment.payment_method === 'upi' ? 'UPI' : confirmingPayment.payment_method === 'cash' ? 'Cash' : '—'} />
+              <ConfirmRow label="Method" value={PAYMENT_METHOD_LABEL[confirmingPayment.payment_method ?? ''] ?? '—'} />
               {confirmingPayment.utr_number && (
-                <ConfirmRow label="UTR" value={confirmingPayment.utr_number} mono />
+                <ConfirmRow
+                  label={confirmingPayment.payment_method === 'cheque' ? 'Cheque No.' : confirmingPayment.payment_method === 'bank_transfer' ? 'Reference' : 'UTR'}
+                  value={confirmingPayment.utr_number}
+                  mono
+                />
               )}
               {confirmingPayment.payment_note && (
                 <ConfirmRow label="Note" value={confirmingPayment.payment_note} />

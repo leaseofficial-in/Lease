@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,14 +17,12 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { RepairRequest, RepairPriority } from '../../types';
-import { formatRelativeTime, repairPriorityLabel, repairStatusLabel } from '../../lib/formatters';
-import { Card } from '../../components/ui/Card';
+import { formatRelativeTime, repairPriorityLabel } from '../../lib/formatters';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { notifyUser } from '../../lib/sendPush';
@@ -36,12 +34,27 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
+type RepairFilter = 'all' | 'open' | 'in_progress' | 'done';
 
-const priorities: { value: RepairPriority; label: string; activeColor: string; activeBg: string }[] = [
-  { value: 'low',    label: 'Low',    activeColor: Colors.ink3,    activeBg: Colors.fill },
-  { value: 'medium', label: 'Medium', activeColor: Colors.warning, activeBg: Colors.warningSoft },
-  { value: 'high',   label: 'High',   activeColor: Colors.danger,  activeBg: Colors.dangerSoft },
-  { value: 'urgent', label: 'Urgent', activeColor: '#C2362F',      activeBg: '#FBE2E0' },
+const PRIORITY_BORDER: Record<RepairPriority, string> = {
+  low:    Colors.border,
+  medium: Colors.warning,
+  high:   Colors.danger,
+  urgent: '#C2362F',
+};
+
+const PRIORITY_CONFIG: Record<RepairPriority, { color: string; bg: string }> = {
+  low:    { color: Colors.ink3,    bg: Colors.fill },
+  medium: { color: Colors.warning, bg: Colors.warningSoft },
+  high:   { color: Colors.danger,  bg: Colors.dangerSoft },
+  urgent: { color: '#C2362F',      bg: '#FBE2E0' },
+};
+
+const PRIORITIES: { value: RepairPriority; label: string }[] = [
+  { value: 'low',    label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high',   label: 'High' },
+  { value: 'urgent', label: 'Urgent' },
 ];
 
 export default function RepairsScreen() {
@@ -50,6 +63,7 @@ export default function RepairsScreen() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [filter, setFilter] = useState<RepairFilter>('all');
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
   const { data: rental, isLoading: isRentalLoading, error: rentalError, refetch: refetchRental } = useQuery({
@@ -87,6 +101,27 @@ export default function RepairsScreen() {
     defaultValues: { priority: 'medium' },
   });
 
+  const counts = useMemo(() => ({
+    all:         repairs?.length ?? 0,
+    open:        repairs?.filter((r) => r.status === 'open').length ?? 0,
+    in_progress: repairs?.filter((r) => r.status === 'in_progress').length ?? 0,
+    done:        repairs?.filter((r) => r.status === 'resolved' || r.status === 'closed').length ?? 0,
+  }), [repairs]);
+
+  const filtered = useMemo(() => {
+    if (!repairs) return [];
+    if (filter === 'done') return repairs.filter((r) => r.status === 'resolved' || r.status === 'closed');
+    if (filter === 'all') return repairs;
+    return repairs.filter((r) => r.status === filter);
+  }, [repairs, filter]);
+
+  const FILTERS: { key: RepairFilter; label: string }[] = [
+    { key: 'all',         label: 'All' },
+    { key: 'open',        label: 'Open' },
+    { key: 'in_progress', label: 'In Progress' },
+    { key: 'done',        label: 'Done' },
+  ];
+
   const onSubmit = async (values: FormValues) => {
     if (!rental || !profile) {
       showToast('Join a rental before creating a repair request', 'error');
@@ -123,38 +158,113 @@ export default function RepairsScreen() {
     }
   };
 
+  const isPageLoading = isRentalLoading || isLoading;
+  const pageError = rentalError ?? repairsError;
+
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.action} />}
+        contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
+        {/* ── Header ── */}
+        <View style={{
+          paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        }}>
           <View>
-            <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase' }}>Tenant</Text>
-            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 24, marginTop: 2 }}>Repairs</Text>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 3 }}>
+              Tenant
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 26 }}>
+                Repairs
+              </Text>
+              {counts.all > 0 && (
+                <View style={{ backgroundColor: counts.open > 0 ? Colors.dangerSoft : Colors.fill, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}>
+                  <Text style={{ color: counts.open > 0 ? Colors.danger : Colors.muted, fontFamily: Fonts.sansSemiBold, fontSize: 12 }}>
+                    {counts.all}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
           <TouchableOpacity
             onPress={() => setShowForm(true)}
-            activeOpacity={0.8}
+            activeOpacity={0.82}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 6,
-              paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20,
+              paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22,
               backgroundColor: Colors.action,
             }}
           >
-            <Ionicons name="add" size={16} color="#fff" />
-            <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>Request</Text>
+            <Ionicons name="add" size={17} color="#fff" />
+            <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>New Request</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={{ paddingHorizontal: 20, paddingBottom: 32 }}>
-          {isRentalLoading || isLoading ? (
-            <LoadingScreen />
-          ) : rentalError || repairsError ? (
+        {/* ── Filter tabs ── */}
+        {!isPageLoading && !pageError && (repairs?.length ?? 0) > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 12 }}
+          >
+            {FILTERS.map((f) => {
+              const active = filter === f.key;
+              const count = counts[f.key];
+              return (
+                <TouchableOpacity
+                  key={f.key}
+                  onPress={() => setFilter(f.key)}
+                  activeOpacity={0.75}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 5,
+                    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+                    borderWidth: 1.5,
+                    borderColor: active ? Colors.primary : Colors.border,
+                    backgroundColor: active ? Colors.primary : Colors.surface,
+                  }}
+                >
+                  <Text style={{
+                    color: active ? Colors.surface : Colors.ink2,
+                    fontFamily: Fonts.sansMedium, fontSize: 13,
+                  }}>
+                    {f.label}
+                  </Text>
+                  {count > 0 && (
+                    <View style={{
+                      backgroundColor: active ? 'rgba(255,255,255,0.2)' : Colors.fill2,
+                      borderRadius: 10, paddingHorizontal: 5, paddingVertical: 1,
+                      minWidth: 18, alignItems: 'center',
+                    }}>
+                      <Text style={{
+                        color: active ? Colors.surface : Colors.ink3,
+                        fontFamily: Fonts.sansBold, fontSize: 11,
+                      }}>
+                        {count}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* ── Content ── */}
+        <View style={{ paddingHorizontal: 20, gap: 12 }}>
+          {isPageLoading ? (
+            <View style={{ gap: 12 }}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={{ height: 120, backgroundColor: Colors.surface, borderRadius: 18, borderWidth: 1, borderColor: Colors.border }} />
+              ))}
+            </View>
+          ) : pageError ? (
             <EmptyState
               title="Could not load repairs"
-              subtitle={(rentalError ?? repairsError) instanceof Error ? (rentalError ?? repairsError)!.message : 'Please try again.'}
+              subtitle={(pageError) instanceof Error ? pageError.message : 'Please try again.'}
               actionLabel="Retry"
               onAction={() => {
                 void refetchRental();
@@ -162,60 +272,48 @@ export default function RepairsScreen() {
               }}
               icon={<Ionicons name="alert-circle-outline" size={48} color={Colors.danger} />}
             />
-          ) : !rental || repairs?.length === 0 ? (
+          ) : !rental ? (
             <EmptyState
-              title="No repair requests"
+              title="No rental yet"
+              subtitle="Join a rental before raising repair requests."
+              icon={<Ionicons name="home-outline" size={48} color={Colors.muted} />}
+            />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              title={filter === 'all' ? 'No repairs yet' : `No ${filter === 'in_progress' ? 'in-progress' : filter} repairs`}
               subtitle={
-                isLocalDevUser
-                  ? 'Local demo mode skips live repair records.'
-                  : 'Tap Request to log a maintenance issue for your landlord.'
+                filter === 'all'
+                  ? (isLocalDevUser ? 'Local demo mode.' : 'Tap New Request to log a maintenance issue for your landlord.')
+                  : 'No repairs match this filter.'
               }
+              actionLabel={filter === 'all' ? 'New Request' : undefined}
+              onAction={filter === 'all' ? () => setShowForm(true) : undefined}
               icon={<Ionicons name="construct-outline" size={48} color={Colors.muted} />}
             />
           ) : (
-            repairs?.map((r) => (
-              <Card key={r.id} style={{ marginBottom: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15, flex: 1, marginRight: 12 }}>
-                    {r.title}
-                  </Text>
-                  <StatusPill kind="repair" value={r.status} />
-                </View>
-                <Text numberOfLines={2} style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 10 }}>
-                  {r.description}
-                </Text>
-                {r.landlord_note ? (
-                  <View style={{
-                    backgroundColor: Colors.fill, borderRadius: 10,
-                    paddingHorizontal: 12, paddingVertical: 10,
-                    marginBottom: 10,
-                    borderLeftWidth: 3, borderLeftColor: Colors.action,
-                  }}>
-                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>
-                      Landlord's update
-                    </Text>
-                    <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 18 }}>
-                      {r.landlord_note}
-                    </Text>
-                  </View>
-                ) : null}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <PriorityBadge priority={r.priority} />
-                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
-                    {formatRelativeTime(r.created_at)}
-                  </Text>
-                </View>
-              </Card>
-            ))
+            filtered.map((r) => <RepairCard key={r.id} repair={r} />)
           )}
         </View>
       </ScrollView>
 
-      {/* New request bottom sheet */}
-      <BottomSheet visible={showForm} onClose={() => setShowForm(false)} scrollable>
-        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20, marginBottom: 16, paddingTop: 4 }}>
-          New Repair Request
-        </Text>
+      {/* ── New Request Sheet ── */}
+      <BottomSheet visible={showForm} onClose={() => { setShowForm(false); reset(); }} scrollable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <View style={{
+            width: 44, height: 44, borderRadius: 14,
+            backgroundColor: Colors.actionSoft, alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Ionicons name="construct-outline" size={22} color={Colors.action} />
+          </View>
+          <View>
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
+              New Repair Request
+            </Text>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, marginTop: 1 }}>
+              Your landlord will be notified
+            </Text>
+          </View>
+        </View>
 
         <Controller
           control={control}
@@ -243,15 +341,16 @@ export default function RepairsScreen() {
               <TextInput
                 value={value}
                 onChangeText={onChange}
-                placeholder="Describe the problem in detail..."
+                placeholder="Describe the problem in detail — when did it start, how bad is it?"
                 placeholderTextColor={Colors.muted}
                 multiline
                 numberOfLines={4}
                 style={{
-                  borderWidth: 1, borderColor: Colors.border, borderRadius: 14,
-                  padding: 12, fontFamily: Fonts.sans, fontSize: 14,
+                  borderWidth: 1, borderColor: errors.description ? Colors.danger : Colors.border,
+                  borderRadius: 14, padding: 12,
+                  fontFamily: Fonts.sans, fontSize: 14,
                   color: Colors.primary, backgroundColor: Colors.fill,
-                  textAlignVertical: 'top', minHeight: 96,
+                  textAlignVertical: 'top', minHeight: 100,
                 }}
               />
               {errors.description && (
@@ -263,62 +362,137 @@ export default function RepairsScreen() {
           )}
         />
 
-        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 8 }}>Priority</Text>
-        <Controller
-          control={control}
-          name="priority"
-          render={({ field: { onChange, value } }) => (
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-              {priorities.map((p) => (
-                <TouchableOpacity
-                  key={p.value}
-                  onPress={() => onChange(p.value)}
-                  style={{
-                    paddingHorizontal: 14,
-                    paddingVertical: 8,
-                    borderRadius: 999,
-                    borderWidth: 2,
-                    borderColor: value === p.value ? p.activeColor : Colors.border,
-                    backgroundColor: value === p.value ? p.activeBg : Colors.surface,
-                  }}
-                >
-                  <Text style={{
-                    fontFamily: Fonts.sansMedium,
-                    fontSize: 13,
-                    color: value === p.value ? p.activeColor : Colors.ink3,
-                  }}>
-                    {p.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        />
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 10 }}>
+            Priority
+          </Text>
+          <Controller
+            control={control}
+            name="priority"
+            render={({ field: { onChange, value } }) => (
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {PRIORITIES.map((p) => {
+                  const { color, bg } = PRIORITY_CONFIG[p.value];
+                  const active = value === p.value;
+                  return (
+                    <TouchableOpacity
+                      key={p.value}
+                      onPress={() => onChange(p.value)}
+                      activeOpacity={0.8}
+                      style={{
+                        paddingHorizontal: 16, paddingVertical: 9, borderRadius: 22,
+                        borderWidth: 1.5,
+                        borderColor: active ? color : Colors.border,
+                        backgroundColor: active ? bg : Colors.surface,
+                        flexDirection: 'row', alignItems: 'center', gap: 5,
+                      }}
+                    >
+                      {active && (
+                        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }} />
+                      )}
+                      <Text style={{
+                        fontFamily: active ? Fonts.sansSemiBold : Fonts.sans,
+                        fontSize: 13,
+                        color: active ? color : Colors.ink3,
+                      }}>
+                        {p.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          />
+        </View>
 
         <Button
-          title="Submit Request"
+          title="Submit to Landlord"
           onPress={handleSubmit(onSubmit)}
           loading={submitting}
+          loadingText="Submitting…"
           fullWidth
+          size="lg"
         />
       </BottomSheet>
     </SafeAreaView>
   );
 }
 
-function PriorityBadge({ priority }: { priority: RepairPriority }) {
-  const map: Record<RepairPriority, { color: string; bg: string }> = {
-    low:    { color: Colors.ink3,    bg: Colors.fill },
-    medium: { color: Colors.warning, bg: Colors.warningSoft },
-    high:   { color: Colors.danger,  bg: Colors.dangerSoft },
-    urgent: { color: '#C2362F',      bg: '#FBE2E0' },
-  };
-  const { color, bg } = map[priority];
+function RepairCard({ repair: r }: { repair: RepairRequest }) {
+  const priorityColor = PRIORITY_BORDER[r.priority];
+  const { color: pColor, bg: pBg } = PRIORITY_CONFIG[r.priority];
+  const isDone = r.status === 'resolved' || r.status === 'closed';
+
   return (
-    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: bg }}>
-      <Text style={{ color, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
-        {repairPriorityLabel[priority]}
-      </Text>
+    <View style={{
+      backgroundColor: Colors.surface,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      overflow: 'hidden',
+      opacity: isDone ? 0.72 : 1,
+    }}>
+      {/* Priority accent stripe */}
+      <View style={{ height: 3, backgroundColor: priorityColor }} />
+
+      <View style={{ padding: 16 }}>
+        {/* Title row */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+          <Text style={{
+            color: Colors.primary, fontFamily: Fonts.sansSemiBold,
+            fontSize: 15, lineHeight: 21, flex: 1,
+          }}>
+            {r.title}
+          </Text>
+          <StatusPill kind="repair" value={r.status} />
+        </View>
+
+        {/* Description */}
+        <Text
+          numberOfLines={2}
+          style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 10 }}
+        >
+          {r.description}
+        </Text>
+
+        {/* Landlord note */}
+        {r.landlord_note ? (
+          <View style={{
+            backgroundColor: Colors.actionSoft,
+            borderRadius: 10,
+            paddingHorizontal: 12, paddingVertical: 10,
+            marginBottom: 10,
+            borderLeftWidth: 3, borderLeftColor: Colors.action,
+          }}>
+            <Text style={{
+              color: Colors.action, fontFamily: Fonts.sansMedium,
+              fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 3,
+            }}>
+              Landlord's Update
+            </Text>
+            <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 18 }}>
+              {r.landlord_note}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Footer */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', gap: 5,
+            paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20,
+            backgroundColor: pBg,
+          }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: pColor }} />
+            <Text style={{ color: pColor, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
+              {repairPriorityLabel[r.priority]}
+            </Text>
+          </View>
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+            {formatRelativeTime(r.created_at)}
+          </Text>
+        </View>
+      </View>
     </View>
   );
 }

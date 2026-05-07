@@ -26,7 +26,7 @@ import { BottomSheet } from '../../components/ui/BottomSheet';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { Colors, Fonts } from '../../constants/theme';
 import { openUPIPayment } from '../../lib/upi';
-import { pickPhoto, takePhoto, uploadPaymentProof } from '../../lib/storage';
+import { pickPhoto, takePhoto, uploadPaymentProof, revokeWebPhotoUrl } from '../../lib/storage';
 import { notifyUser } from '../../lib/sendPush';
 
 type PayMethod = 'upi' | 'bank_transfer' | 'cash' | 'cheque';
@@ -139,13 +139,30 @@ export default function PayRentScreen() {
 
   const ensurePaymentRecord = async (): Promise<string> => {
     if (currentPayment?.id) return currentPayment.id;
-    const { data, error } = await supabase
+
+    const month = monthKey();
+
+    // Try insert; if it conflicts (concurrent call), fall through to fetch.
+    const { data: inserted, error: insertError } = await supabase
       .from('rent_payments')
-      .insert({ rental_id: rental!.id, tenant_id: profile!.id, amount: rental!.monthly_rent, month: monthKey(), status: 'pending' })
-      .select()
+      .insert({ rental_id: rental!.id, tenant_id: profile!.id, amount: rental!.monthly_rent, month, status: 'pending' })
+      .select('id')
       .single();
-    if (error) throw error;
-    return data.id;
+
+    if (inserted?.id) return inserted.id;
+
+    const isConflict = insertError?.message?.includes('duplicate') || insertError?.message?.includes('unique');
+    if (insertError && !isConflict) throw insertError;
+
+    // Conflict — record was created by a concurrent call or the DB trigger.
+    const { data: existing, error: fetchError } = await supabase
+      .from('rent_payments')
+      .select('id')
+      .eq('rental_id', rental!.id)
+      .eq('month', month)
+      .single();
+    if (fetchError) throw fetchError;
+    return existing.id;
   };
 
   const handleUPILaunch = async () => {
@@ -180,6 +197,7 @@ export default function PayRentScreen() {
         setStage('uploading');
         const result = await uploadPaymentProof(proofUri, rental.id, paymentId);
         proofUrl = result.publicUrl;
+        revokeWebPhotoUrl(proofUri);
         setStage('saving');
       }
 
@@ -469,7 +487,7 @@ export default function PayRentScreen() {
             <View style={{ position: 'relative' }}>
               <Image source={{ uri: proofUri }} style={{ width: '100%', height: 180, borderRadius: 14 }} resizeMode="cover" />
               <TouchableOpacity
-                onPress={() => setProofUri(null)}
+                onPress={() => { revokeWebPhotoUrl(proofUri); setProofUri(null); }}
                 style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}
                 activeOpacity={0.8}
               >

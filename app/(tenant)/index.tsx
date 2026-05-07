@@ -291,7 +291,9 @@ export default function TenantDashboard() {
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: Colors.danger, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>Rent Overdue</Text>
                     <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, marginTop: 2 }}>
-                      Payment was due on the {rental.rent_due_day}th. Pay now to avoid late fees.
+                      {(currentPayment?.late_fee ?? 0) > 0
+                        ? `Includes ${formatCurrency(currentPayment!.late_fee)} late fee. Pay now to clear your dues.`
+                        : `Payment was due on the ${rental.rent_due_day}th. Pay now to avoid late fees.`}
                     </Text>
                   </View>
                 </View>
@@ -323,7 +325,7 @@ export default function TenantDashboard() {
                       color: daysUntilDue === 0 ? Colors.danger : daysUntilDue <= 3 ? Colors.warning : Colors.muted,
                     }}>
                       {daysUntilDue === 0
-                        ? 'Due today — pay now to avoid late fees'
+                        ? `Due today — pay before midnight to avoid late fees`
                         : daysUntilDue === 1
                         ? 'Due tomorrow'
                         : `Due in ${daysUntilDue} days · ${currentDueDate ? formatDateShort(currentDueDate.toISOString()) : ''}`}

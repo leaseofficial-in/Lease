@@ -36,43 +36,33 @@ export default function LoginScreen() {
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: Colors.surface }}>
       <View style={{ flex: 1 }}>
 
-        {/* ── Dark header section ───────────────────── */}
-        <View style={{ backgroundColor: Colors.primary, paddingTop: 16, paddingBottom: 40, overflow: 'hidden' }}>
-          {/* Dot grid decoration */}
+        {/* ── Dark header ── */}
+        <View style={{ backgroundColor: Colors.primary, paddingTop: 16, paddingBottom: 44, overflow: 'hidden' }}>
           <Svg
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-            width="100%"
-            height="100%"
+            width="100%" height="100%"
             viewBox="0 0 360 200"
             preserveAspectRatio="xMidYMid slice"
           >
             {Array.from({ length: 7 }, (_, row) =>
               Array.from({ length: 10 }, (_, col) => (
-                <Circle
-                  key={`${row}-${col}`}
-                  cx={col * 40 + 10}
-                  cy={row * 32 + 16}
-                  r={1.6}
-                  fill="rgba(255,255,255,0.18)"
-                />
+                <Circle key={`${row}-${col}`} cx={col * 40 + 10} cy={row * 32 + 16} r={1.6} fill="rgba(255,255,255,0.14)" />
               ))
             )}
           </Svg>
-
-          {/* Decorative circles */}
           <View pointerEvents="none" style={{
             position: 'absolute', top: -50, right: -50,
             width: 160, height: 160, borderRadius: 80,
-            backgroundColor: 'rgba(255,255,255,0.05)',
+            backgroundColor: 'rgba(255,255,255,0.04)',
           }} />
 
           {/* Back button */}
           <TouchableOpacity
             onPress={() => router.back()}
             style={{
-              marginLeft: 20, marginBottom: 28,
-              width: 40, height: 40, borderRadius: 20,
-              backgroundColor: 'rgba(255,255,255,0.12)',
+              marginLeft: 20, marginBottom: 32,
+              width: 38, height: 38, borderRadius: 19,
+              backgroundColor: 'rgba(255,255,255,0.1)',
               alignItems: 'center', justifyContent: 'center',
             }}
             activeOpacity={0.75}
@@ -83,42 +73,38 @@ export default function LoginScreen() {
           {/* Logo + headline */}
           <View style={{ paddingHorizontal: 28 }}>
             <View style={{
-              width: 56, height: 56, borderRadius: 18,
-              backgroundColor: 'rgba(255,255,255,0.12)',
-              alignItems: 'center', justifyContent: 'center',
-              marginBottom: 20,
+              width: 52, height: 52, borderRadius: 16,
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              alignItems: 'center', justifyContent: 'center', marginBottom: 22,
             }}>
-              <Logo variant="symbol" inverse size={32} />
+              <Logo variant="symbol" inverse size={30} />
             </View>
 
             <Text style={{
-              color: 'rgba(255,255,255,0.55)', fontFamily: Fonts.mono,
-              fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8,
+              color: 'rgba(255,255,255,0.45)', fontFamily: Fonts.mono,
+              fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 10,
             }}>
-              Welcome back
+              Welcome to RentyBase
             </Text>
             <Text style={{
               color: Colors.surface, fontFamily: Fonts.sansSemiBold,
-              fontSize: 36, lineHeight: 42, letterSpacing: -1, marginBottom: 4,
+              fontSize: 34, lineHeight: 40, letterSpacing: -0.8,
             }}>
-              Sign in
-            </Text>
-            <Text style={{
-              color: 'rgba(255,255,255,0.55)', fontFamily: Fonts.serifItalic,
-              fontSize: 36, lineHeight: 42, letterSpacing: -0.5,
-            }}>
-              to RentyBase.
+              Sign in to{'\n'}
+              <Text style={{ fontFamily: Fonts.serifItalic, color: 'rgba(255,255,255,0.65)', fontSize: 34 }}>
+                your workspace.
+              </Text>
             </Text>
           </View>
         </View>
 
-        {/* ── Form section ─────────────────────────── */}
-        <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 24 }}>
+        {/* ── Form section ── */}
+        <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 28 }}>
           <Text style={{
             color: Colors.ink3, fontFamily: Fonts.sans,
-            fontSize: 15, lineHeight: 23, marginBottom: 28,
+            fontSize: 15, lineHeight: 23, marginBottom: 24,
           }}>
-            Use your Google account to sign in or create a RentyBase account instantly.
+            Sign in or create an account instantly using your Google account — no passwords needed.
           </Text>
 
           {/* Trust badges */}
@@ -146,11 +132,11 @@ export default function LoginScreen() {
             disabled={loading}
             activeOpacity={0.88}
             style={{
-              height: 60, borderRadius: 18,
+              height: 58, borderRadius: 18,
               borderWidth: 1.5, borderColor: Colors.border,
               backgroundColor: Colors.surface,
               flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14,
-              marginBottom: 16,
+              marginBottom: 14,
               ...Shadow.card,
             }}
           >
@@ -158,7 +144,6 @@ export default function LoginScreen() {
               <ActivityIndicator color={Colors.action} />
             ) : (
               <>
-                {/* Google G */}
                 <View style={{
                   width: 34, height: 34, borderRadius: 17,
                   backgroundColor: Colors.fill,
@@ -179,11 +164,17 @@ export default function LoginScreen() {
               padding: 14, backgroundColor: Colors.dangerSoft,
               borderRadius: 14, borderWidth: 1, borderColor: '#F5B8B5',
               flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+              marginBottom: 16,
             }}>
-              <Ionicons name="alert-circle" size={18} color={Colors.danger} />
-              <Text style={{ color: Colors.danger, fontFamily: Fonts.sans, fontSize: 14, lineHeight: 20, flex: 1 }}>
-                {error}
-              </Text>
+              <Ionicons name="alert-circle" size={18} color={Colors.danger} style={{ marginTop: 1 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: Colors.danger, fontFamily: Fonts.sansSemiBold, fontSize: 13, marginBottom: 2 }}>
+                  Sign-in failed
+                </Text>
+                <Text style={{ color: Colors.danger, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, opacity: 0.8 }}>
+                  {error}
+                </Text>
+              </View>
             </View>
           ) : null}
 
@@ -193,7 +184,10 @@ export default function LoginScreen() {
             fontSize: 12, textAlign: 'center',
             marginTop: 'auto', lineHeight: 18,
           }}>
-            By continuing you agree to our Terms of Service and Privacy Policy.
+            By continuing you agree to our{' '}
+            <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium }}>Terms of Service</Text>
+            {' '}and{' '}
+            <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium }}>Privacy Policy</Text>.
           </Text>
         </View>
       </View>

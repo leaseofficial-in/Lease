@@ -128,7 +128,7 @@ export default function TenantProfileScreen() {
                   {profile?.full_name || 'Your Name'}
                 </DisplayText>
                 <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, marginTop: 4 }}>
-                  {profile?.email || formatPhone(profile?.phone ?? '') || 'No contact added'}
+                  {profile?.email || (profile?.phone ? formatPhone(profile.phone) : null) || 'No contact added'}
                 </Text>
               </View>
             </View>

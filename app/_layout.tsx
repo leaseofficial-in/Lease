@@ -73,7 +73,14 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 2,
-      retry: 2,
+      // Only retry on network failures; skip retries on 4xx RLS/auth/permission errors.
+      retry: (failureCount, error) => {
+        if (failureCount >= 2) return false;
+        const msg = error instanceof Error ? error.message : '';
+        if (msg.includes('PGRST') || msg.includes('JWT') || msg.includes('permission')) return false;
+        return true;
+      },
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
     },
   },
 });
