@@ -25,6 +25,7 @@ import { Colors, Fonts } from '../../../constants/theme';
 import { confirmAction } from '../../../lib/confirm';
 import { notifyUser } from '../../../lib/sendPush';
 import { writeRentalEvent } from '../../../lib/events';
+import { sendEmail } from '../../../lib/email';
 
 export default function UploadProofScreen() {
   const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
@@ -228,6 +229,20 @@ export default function UploadProofScreen() {
             payload: { proof_id: proof.id, total_photos: totalPhotos, rooms_covered: roomsCovered },
             idempotencyKey: `proof_submitted_${proof.id}`,
           });
+          if (rental.landlord_id) {
+            sendEmail({
+              type: 'proof_submitted',
+              recipientId: rental.landlord_id,
+              referenceId: proof.id,
+              variables: {
+                tenantName: profile!.full_name || 'Your tenant',
+                propertyName: rental.property?.name ?? 'your property',
+                proofType,
+                totalPhotos: String(totalPhotos),
+                roomsCovered: String(roomsCovered),
+              },
+            });
+          }
           if (rental.landlord_id) {
             const label = proofType === 'move_out' ? 'move-out' : 'move-in';
             void notifyUser({

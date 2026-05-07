@@ -20,6 +20,7 @@ import { markNotificationsRead } from '../../lib/notificationActions';
 import { notifyUser } from '../../lib/sendPush';
 import { confirmRentPayment } from '../../lib/payments';
 import { writeRentalEvent } from '../../lib/events';
+import { sendEmail } from '../../lib/email';
 import { EmptyState } from '../../components/ui/EmptyState';
 
 interface PaymentWithRental extends RentPayment {
@@ -97,6 +98,19 @@ export default function LandlordPaymentsScreen() {
         payload: { payment_id: confirmingPayment.id, amount: confirmingPayment.amount, month: confirmingPayment.month, method: confirmingPayment.payment_method },
         idempotencyKey: `rent_confirmed_${confirmingPayment.id}`,
       });
+      if (confirmingPayment.rental.tenant_id) {
+        sendEmail({
+          type: 'rent_confirmed',
+          recipientId: confirmingPayment.rental.tenant_id,
+          referenceId: confirmingPayment.id,
+          variables: {
+            landlordName: profile?.full_name || 'Your landlord',
+            propertyName: confirmingPayment.rental.property?.name ?? 'your property',
+            month: formatMonth(confirmingPayment.month),
+            amount: String(confirmingPayment.amount),
+          },
+        });
+      }
 
       if (confirmingPayment.rental.tenant_id) {
         notifyUser({

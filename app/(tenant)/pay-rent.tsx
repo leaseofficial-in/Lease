@@ -29,6 +29,7 @@ import { openUPIPayment } from '../../lib/upi';
 import { pickPhoto, takePhoto, uploadPaymentProof, revokeWebPhotoUrl } from '../../lib/storage';
 import { notifyUser } from '../../lib/sendPush';
 import { writeRentalEvent } from '../../lib/events';
+import { sendEmail } from '../../lib/email';
 
 type PayMethod = 'upi' | 'bank_transfer' | 'cash' | 'cheque';
 
@@ -230,6 +231,18 @@ export default function PayRentScreen() {
         eventType: 'rent_payment_submitted',
         payload: { payment_id: paymentId, method, month: currentPayment?.month ?? monthKey(), amount: totalAmount, has_proof: !!proofUrl },
         idempotencyKey: `rent_submitted_${paymentId}`,
+      });
+      sendEmail({
+        type: 'rent_submitted',
+        recipientId: rental.landlord_id,
+        referenceId: paymentId,
+        variables: {
+          tenantName: profile.full_name || 'Your tenant',
+          propertyName: rental.property?.name ?? 'your property',
+          month: formatMonth(currentPayment?.month ?? monthKey()),
+          amount: String(totalAmount),
+          method: METHOD_LABEL[method],
+        },
       });
       void notifyUser({
         recipientId: rental.landlord_id,

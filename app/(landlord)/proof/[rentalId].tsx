@@ -22,6 +22,7 @@ import { Colors, Fonts } from '../../../constants/theme';
 import { confirmAction } from '../../../lib/confirm';
 import { markNotificationsRead } from '../../../lib/notificationActions';
 import { notifyUser } from '../../../lib/sendPush';
+import { sendEmail } from '../../../lib/email';
 
 export default function ReviewProofScreen() {
   const { rentalId, type: typeParam } = useLocalSearchParams<{ rentalId: string; type?: string }>();
@@ -122,6 +123,17 @@ export default function ReviewProofScreen() {
               ? { title: 'Proof rejected', body: `Your ${label} photos were rejected. Contact your landlord.` }
               : { title: 'Landlord raised a dispute', body: disputeNote.trim() };
           void notifyUser({ recipientId: proof.submitted_by, ...pushMsg, type: 'proof_submitted', data: { rental_id: rentalId } });
+          sendEmail({
+            type: 'proof_reviewed',
+            recipientId: proof.submitted_by,
+            referenceId: `${proof.id}_${action}`,
+            variables: {
+              proofType,
+              propertyName: '',
+              status: action,
+              disputeNote: action === 'dispute' ? disputeNote.trim() : '',
+            },
+          });
 
           showToast(
             action === 'approved' ? 'Proof approved!' : action === 'rejected' ? 'Proof rejected' : 'Dispute raised',

@@ -27,6 +27,7 @@ import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { notifyUser } from '../../lib/sendPush';
 import { writeRentalEvent } from '../../lib/events';
+import { sendEmail } from '../../lib/email';
 
 const schema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
@@ -147,6 +148,20 @@ export default function RepairsScreen() {
         payload: { repair_id: newRepair?.id, title: values.title, priority: values.priority },
         idempotencyKey: newRepair?.id ? `repair_created_${newRepair.id}` : undefined,
       });
+      if (rental.landlord_id && newRepair?.id) {
+        sendEmail({
+          type: 'repair_created',
+          recipientId: rental.landlord_id,
+          referenceId: newRepair.id,
+          variables: {
+            tenantName: profile.full_name || 'Your tenant',
+            propertyName: '',
+            title: values.title,
+            priority: values.priority,
+            description: values.description,
+          },
+        });
+      }
       void queryClient.invalidateQueries({ queryKey: ['repairs', rental.id] });
       if (rental.landlord_id) {
         void notifyUser({

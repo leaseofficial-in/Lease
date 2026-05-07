@@ -3,6 +3,7 @@ import { Session } from '@supabase/supabase-js';
 import { Profile, UserRole } from '../types';
 import { supabase } from '../lib/supabase';
 import { signInWithGoogle } from '../lib/oauth';
+import { sendEmail } from '../lib/email';
 
 interface AuthState {
   session: Session | null;
@@ -86,8 +87,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .single();
 
     if (error) throw error;
-    if (data) {
-      set({ profile: data as Profile });
+    const saved = data as Profile | null;
+    if (saved) {
+      set({ profile: saved });
+      // Welcome email — sent once per user, deduplicated by profile ID
+      sendEmail({
+        type: 'welcome',
+        recipientId: saved.id,
+        referenceId: saved.id,
+        variables: { name: saved.full_name || 'there', role },
+      });
     } else {
       // UPDATE succeeded but SELECT returned nothing (RLS edge case) — re-fetch
       await get().fetchProfile(session.user.id);
