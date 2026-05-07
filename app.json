@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#08090A"
+      "backgroundColor": "#0E1413"
     },
     "ios": {
       "supportsTablet": false,
@@ -24,7 +24,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0A0A0A"
+        "backgroundColor": "#0E1413"
       },
       "package": "com.rentybase.app",
       "permissions": [
@@ -39,7 +39,15 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "themeColor": "#0E1413",
+      "backgroundColor": "#0E1413",
+      "name": "RentyBase",
+      "shortName": "RentyBase",
+      "description": "Rent tracking, HRA receipts, move-in photo proof and deposit ledger for Indian landlords and tenants.",
+      "lang": "en-IN",
+      "scope": "/",
+      "startUrl": "/"
     },
     "platforms": [
       "ios",
@@ -54,7 +62,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#08090A"
+          "color": "#0E1413"
         }
       ],
       "expo-web-browser"
