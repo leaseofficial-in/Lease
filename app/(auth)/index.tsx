@@ -86,18 +86,24 @@ const ROLE_CARDS = [
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { role, ref } = useLocalSearchParams<{ role?: string; ref?: string }>();
+  const { role, ref, signin } = useLocalSearchParams<{ role?: string; ref?: string; signin?: string }>();
   const [selectedRole, setSelectedRole] = useState<'landlord' | 'tenant' | null>(null);
 
   useEffect(() => {
-    if (role === 'landlord' || role === 'tenant') {
-      setSelectedRole(role);
-      void AsyncStorage.setItem('rentybase.pending_role', role);
+    const validRole = role === 'landlord' || role === 'tenant' ? role : null;
+    if (validRole) {
+      void AsyncStorage.setItem('rentybase.pending_role', validRole);
     }
     if (typeof ref === 'string' && ref.trim()) {
       void AsyncStorage.setItem('rentybase.pending_referrer_tenant', ref.trim());
     }
-  }, [ref, role]);
+    // Skip welcome screen — go straight to Google sign-in when role or signin param present
+    if (validRole || signin === '1') {
+      router.replace('/(auth)/login');
+      return;
+    }
+    if (validRole) setSelectedRole(validRole);
+  }, [ref, role, signin, router]);
 
   const handleRoleSelect = async (r: 'landlord' | 'tenant') => {
     setSelectedRole(r);
