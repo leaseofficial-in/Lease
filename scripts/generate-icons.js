@@ -23,7 +23,13 @@ const BG = { r: 14, g: 20, b: 19, alpha: 1 };
 
 // ── Save helper ───────────────────────────────────────────────────────────────
 async function save(filePath, pipeline) {
-  await pipeline.toFile(filePath);
+  const buf = await pipeline.png().toBuffer();
+  fs.writeFileSync(filePath, buf);
+  // Mirror to landing/assets/ so the landing site (Vercel) can serve them
+  const landingDest = path.join(LAND, path.basename(filePath));
+  if (fs.existsSync(LAND) && path.extname(filePath) === '.png') {
+    fs.writeFileSync(landingDest, buf);
+  }
   console.log(`  ✓  ${path.relative(path.resolve(__dirname, '..'), filePath)}`);
 }
 
