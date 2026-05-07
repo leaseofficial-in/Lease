@@ -10,7 +10,7 @@ export const Config = {
   maxPhotoSizeBytes: 5 * 1024 * 1024, // 5 MB
   photoQuality: 0.8,
   otpResendCooldownSeconds: 30,
-  inviteExpiryHours: 72,
+  inviteExpiryHours: 168, // 7 days
   lateFeePercentage: 2, // 2% of monthly rent (one-time flat fee when overdue)
   defaultRooms: ['Living Room', 'Bedroom 1', 'Bedroom 2', 'Kitchen', 'Bathroom', 'Balcony'],
 } as const;

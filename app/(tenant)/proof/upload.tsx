@@ -82,6 +82,8 @@ export default function UploadProofScreen() {
 
   const activeRoomPhotos = proof?.photos?.filter((p) => p.room_label === activeRoom) ?? [];
   const totalPhotos = Object.values(photoCounts).reduce((a, b) => a + b, 0);
+  const roomsCovered = Object.keys(photoCounts).length;
+  const MIN_ROOMS = 2;
   const isReviewed = proof?.status !== undefined && proof.status !== 'pending';
   const uploading = uploadingCount > 0;
 
@@ -195,6 +197,10 @@ export default function UploadProofScreen() {
   const handleSubmitProof = async () => {
     if (totalPhotos < 3) {
       showToast('Add at least 3 photos before submitting.', 'error');
+      return;
+    }
+    if (roomsCovered < MIN_ROOMS) {
+      showToast(`Cover at least ${MIN_ROOMS} rooms — add photos to another room first.`, 'error');
       return;
     }
     if (!proof?.id) {
@@ -430,16 +436,24 @@ export default function UploadProofScreen() {
               gap: 6,
             }}
           >
-            {totalPhotos > 0 && totalPhotos < 3 && (
+            {totalPhotos > 0 && (totalPhotos < 3 || roomsCovered < MIN_ROOMS) && (
               <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, textAlign: 'center' }}>
-                Add at least {3 - totalPhotos} more photo{3 - totalPhotos === 1 ? '' : 's'} to submit
+                {totalPhotos < 3
+                  ? `Add ${3 - totalPhotos} more photo${3 - totalPhotos === 1 ? '' : 's'}`
+                  : `Add photos to ${MIN_ROOMS - roomsCovered} more room${MIN_ROOMS - roomsCovered === 1 ? '' : 's'}`}
+                {' '}to submit
+              </Text>
+            )}
+            {totalPhotos > 0 && totalPhotos >= 3 && roomsCovered >= MIN_ROOMS && (
+              <Text style={{ color: Colors.success, fontFamily: Fonts.sans, fontSize: 12, textAlign: 'center' }}>
+                {roomsCovered} room{roomsCovered === 1 ? '' : 's'} covered · {totalPhotos} photo{totalPhotos === 1 ? '' : 's'} ready
               </Text>
             )}
             <Button
               title={totalPhotos === 0 ? 'Add photos to submit' : `Submit ${totalPhotos} Photo${totalPhotos === 1 ? '' : 's'}`}
               onPress={handleSubmitProof}
               loading={submitting}
-              disabled={totalPhotos === 0}
+              disabled={totalPhotos === 0 || totalPhotos < 3 || roomsCovered < MIN_ROOMS}
               fullWidth
               size="lg"
             />
