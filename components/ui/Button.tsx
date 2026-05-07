@@ -20,8 +20,10 @@ interface ButtonProps extends TouchableOpacityProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  loadingText?: string;
   fullWidth?: boolean;
   leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
 }
 
 const variantStyles: Record<ButtonVariant, { container: string; text: string }> = {
@@ -54,8 +56,10 @@ export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'md',
   loading = false,
+  loadingText,
   fullWidth = false,
   leftIcon,
+  rightIcon,
   disabled,
   style,
   ...props
@@ -92,14 +96,20 @@ export const Button: React.FC<ButtonProps> = ({
         {...props}
       >
         {loading ? (
-          <ActivityIndicator
-            size="small"
-            color={variant === 'primary' || variant === 'danger' ? '#fff' : Colors.action}
-          />
+          <>
+            <ActivityIndicator
+              size="small"
+              color={variant === 'primary' || variant === 'danger' ? '#fff' : Colors.action}
+            />
+            {loadingText && (
+              <Text className={`${text} ${sizeText} ml-2`}>{loadingText}</Text>
+            )}
+          </>
         ) : (
           <>
             {leftIcon && <>{leftIcon}</>}
             <Text className={`${text} ${sizeText} ${leftIcon ? 'ml-2' : ''}`}>{title}</Text>
+            {rightIcon && <View className="ml-2">{rightIcon}</View>}
           </>
         )}
       </TouchableOpacity>

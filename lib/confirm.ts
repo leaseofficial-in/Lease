@@ -6,6 +6,7 @@ export const confirmAction = (
   onConfirm: () => void | Promise<void>,
   confirmText = 'Confirm',
   destructive = false,
+  onCancel?: () => void,
 ) => {
   useUIStore.getState().openConfirm({
     title,
@@ -13,5 +14,6 @@ export const confirmAction = (
     confirmText,
     destructive,
     onConfirm,
+    onCancel,
   });
 };

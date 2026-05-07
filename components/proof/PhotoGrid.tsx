@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FlatList, useWindowDimensions } from 'react-native';
 import { ProofPhoto } from '../../types';
 import { PhotoTile } from './PhotoTile';
@@ -35,11 +35,11 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({
 
   const showAdd = canAdd && photos.length < maxPhotos && !uploading;
 
-  const items: GridItem[] = [
+  const items = useMemo<GridItem[]>(() => [
     ...photos,
     ...(uploading ? [{ id: '_uploading_' as const }] : []),
     ...(showAdd ? [{ id: '_add_' as const }] : []),
-  ];
+  ], [photos, uploading, showAdd]);
 
   return (
     <FlatList

@@ -20,6 +20,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { Profile, Rental, RentPayment } from '../../types';
 import { formatCurrency, formatMonth, monthKey } from '../../lib/formatters';
+import { canTenantPay, isPaymentSettled, isPaymentPendingVerification } from '../../lib/payments';
 import { Button } from '../../components/ui/Button';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
@@ -224,9 +225,9 @@ export default function PayRentScreen() {
 
   if (loadingRental || loadingPayment) return <LoadingScreen />;
 
-  const isPaid = currentPayment?.status === 'paid';
-  const isPending = currentPayment?.status === 'pending_verification';
-  const canPay = !isPaid && !isPending;
+  const isPaid = isPaymentSettled(currentPayment);
+  const isPending = isPaymentPendingVerification(currentPayment);
+  const canPay = canTenantPay(currentPayment);
   const methodConfig = METHODS.find((m) => m.id === method)!;
 
   return (
@@ -500,7 +501,8 @@ export default function PayRentScreen() {
         </View>
 
         <Button
-          title={stage === 'uploading' ? 'Uploading receipt…' : stage === 'saving' ? 'Saving…' : `Submit as ${METHOD_LABEL[method]}`}
+          title={`Submit as ${METHOD_LABEL[method]}`}
+          loadingText={stage === 'uploading' ? 'Uploading…' : 'Saving…'}
           onPress={handleSubmit}
           loading={stage !== null}
           disabled={stage !== null}

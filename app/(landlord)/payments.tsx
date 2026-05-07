@@ -18,6 +18,7 @@ import { Cap } from '../../components/ui/V2';
 import { markLandlordActionsViewed } from '../../lib/landlordActionViews';
 import { markNotificationsRead } from '../../lib/notificationActions';
 import { notifyUser } from '../../lib/sendPush';
+import { confirmRentPayment } from '../../lib/payments';
 import { EmptyState } from '../../components/ui/EmptyState';
 
 interface PaymentWithRental extends RentPayment {
@@ -79,24 +80,22 @@ export default function LandlordPaymentsScreen() {
     if (!confirmingPayment) return;
     setConfirming(true);
     try {
-      const { error } = await supabase
-        .from('rent_payments')
-        .update({ status: 'paid', paid_at: new Date().toISOString() })
-        .eq('id', confirmingPayment.id);
-      if (error) throw error;
+      await confirmRentPayment(confirmingPayment.id);
 
       if (confirmingPayment.rental.tenant_id) {
-        void notifyUser({
+        notifyUser({
           recipientId: confirmingPayment.rental.tenant_id,
           title: 'Rent confirmed',
           body: `Your landlord confirmed receipt of ${formatCurrency(confirmingPayment.amount)} for ${formatMonth(confirmingPayment.month)}.`,
-          type: 'payment_confirmed' as never,
+          type: 'payment_confirmed',
           data: { rental_id: confirmingPayment.rental_id },
         });
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['landlord-payments'] });
-      await queryClient.invalidateQueries({ queryKey: ['landlord-payment-actions'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['landlord-payments'] }),
+        queryClient.invalidateQueries({ queryKey: ['landlord-payment-actions'] }),
+      ]);
       setConfirmingPayment(null);
       showToast('Payment confirmed', 'success');
     } catch (e) {
@@ -106,50 +105,52 @@ export default function LandlordPaymentsScreen() {
     }
   };
 
+  // Side-effects consolidated: mark viewed + mark overdue + mark notifications read.
+  // Runs once when payments data loads.
   useEffect(() => {
-    const paidIds = payments?.filter((p) => p.status === 'paid').map((p) => p.id) ?? [];
-    if (!profile?.id || !paidIds.length) return;
-    markLandlordActionsViewed(profile.id, 'payments', paidIds).then(() => {
-      void queryClient.invalidateQueries({ queryKey: ['landlord-viewed-actions', profile.id, 'payments'] });
-    });
-  }, [payments, profile?.id, queryClient]);
+    if (!payments?.length || !profile?.id) return;
 
-  // Mark pending payments overdue client-side when due date has passed (replaces pg_cron)
-  useEffect(() => {
-    if (!payments?.length) return;
+    // Mark paid payments as "viewed" so action badges clear
+    const paidIds = payments.filter((p) => p.status === 'paid').map((p) => p.id);
+    if (paidIds.length) {
+      void markLandlordActionsViewed(profile.id, 'payments', paidIds).then(() =>
+        queryClient.invalidateQueries({ queryKey: ['landlord-viewed-actions', profile.id, 'payments'] }),
+      );
+    }
+
+    // Mark pending-past-due payments overdue (client-side fallback for pg_cron)
     const today = new Date();
     const overdueIds = payments
       .filter((p) => {
         if (p.status !== 'pending') return false;
-        const monthDate = new Date(p.month);
-        const due = new Date(monthDate.getFullYear(), monthDate.getMonth(), p.rental.rent_due_day);
+        const d = new Date(p.month);
+        const due = new Date(d.getFullYear(), d.getMonth(), p.rental.rent_due_day);
         return due < today;
       })
       .map((p) => p.id);
-    if (!overdueIds.length) return;
-    void supabase
-      .from('rent_payments')
-      .update({ status: 'overdue' })
-      .in('id', overdueIds)
-      .then(() => queryClient.invalidateQueries({ queryKey: ['landlord-payments'] }));
-  }, [payments, queryClient]);
+    if (overdueIds.length) {
+      void supabase
+        .from('rent_payments')
+        .update({ status: 'overdue' })
+        .in('id', overdueIds)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['landlord-payments'] }));
+    }
 
-  useEffect(() => {
-    if (!profile?.id) return;
-    supabase
+    // Auto-clear unread payment_received notifications when this screen is viewed
+    void supabase
       .from('notifications')
       .select('id')
       .eq('user_id', profile.id)
       .eq('read', false)
       .eq('type', 'payment_received')
       .then(({ data }) => {
-        const ids = data?.map((item) => item.id) ?? [];
+        const ids = data?.map((n) => n.id) ?? [];
         if (!ids.length) return;
-        markNotificationsRead(ids).then(() => {
-          void queryClient.invalidateQueries({ queryKey: ['landlord-unread-notifications', profile.id] });
-        });
+        void markNotificationsRead(ids).then(() =>
+          queryClient.invalidateQueries({ queryKey: ['landlord-unread-notifications', profile.id] }),
+        );
       });
-  }, [profile?.id, queryClient]);
+  }, [payments, profile?.id, queryClient]);
 
   const FILTERS: { key: Filter; label: string; count?: number }[] = [
     { key: 'all', label: 'All' },

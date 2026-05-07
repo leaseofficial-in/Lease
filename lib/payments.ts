@@ -1,5 +1,23 @@
 import { supabase } from './supabase';
 import { monthKey } from './formatters';
+import { RentPayment } from '../types';
+
+// ─── Payment state predicates ─────────────────────────────────────────────────
+// Single source of truth for payment status logic used across multiple screens.
+
+export const isPaymentSettled = (payment: RentPayment | null | undefined): boolean =>
+  payment?.status === 'paid';
+
+export const isPaymentPendingVerification = (payment: RentPayment | null | undefined): boolean =>
+  payment?.status === 'pending_verification';
+
+/** Tenant can initiate payment — not already paid or awaiting landlord confirmation. */
+export const canTenantPay = (payment: RentPayment | null | undefined): boolean =>
+  !isPaymentSettled(payment) && !isPaymentPendingVerification(payment);
+
+/** Landlord can confirm this payment. */
+export const canLandlordConfirm = (payment: RentPayment): boolean =>
+  payment.status === 'pending_verification';
 
 type SupabaseRpcError = {
   code?: string;
@@ -16,15 +34,21 @@ export async function confirmRentPayment(paymentId: string) {
 
   if (error) {
     if (isMissingConfirmPaymentRpc(error)) {
-      throw new Error('Payment confirmation is not ready yet. Apply Supabase migration 006, then try again.');
+      // RPC not yet deployed — fall back to direct update with status guard
+      const { data: rows, error: updateError } = await supabase
+        .from('rent_payments')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('id', paymentId)
+        .eq('status', 'pending_verification') // idempotency guard
+        .select('id');
+      if (updateError) throw updateError;
+      if (!rows?.length) throw new Error('Payment was already confirmed or not found.');
+      return rows[0];
     }
     throw error;
   }
 
-  if (!data) {
-    throw new Error('Payment was not confirmed.');
-  }
-
+  if (!data) throw new Error('Payment was not confirmed.');
   return data;
 }
 

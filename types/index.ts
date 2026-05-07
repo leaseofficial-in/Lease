@@ -168,7 +168,7 @@ export interface AppNotification {
   user_id: string;
   title: string;
   body: string;
-  type: 'rent_due' | 'payment_received' | 'proof_submitted' | 'repair_update' | 'general';
+  type: 'rent_due' | 'payment_received' | 'payment_confirmed' | 'proof_submitted' | 'repair_update' | 'general';
   read: boolean;
   data: Record<string, string | number | boolean | null> | null;
   created_at: string;

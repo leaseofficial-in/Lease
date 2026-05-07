@@ -41,7 +41,7 @@ import { confirmAction } from '../../../lib/confirm';
 import { getUnitVocab } from '../../../lib/unitVocab';
 import { buildRentalActivity } from '../../../lib/rentalActivity';
 import { generateRentalAgreement } from '../../../lib/agreement';
-import { confirmRentPayment } from '../../../lib/payments';
+import { confirmRentPayment, canLandlordConfirm } from '../../../lib/payments';
 import { notifyUser } from '../../../lib/sendPush';
 
 type TxnType = 'deduction' | 'refund' | 'received';
@@ -1496,7 +1496,7 @@ function LandlordDocumentCenter({
   onReviewProof: (type: 'move_in' | 'move_out') => void;
 }) {
   const paidReceipts = payments.filter((payment) => payment.status === 'paid');
-  const pendingReceipts = payments.filter((payment) => payment.status === 'pending_verification');
+  const pendingReceipts = payments.filter(canLandlordConfirm);
 
   return (
     <Card>
