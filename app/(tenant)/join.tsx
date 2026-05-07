@@ -48,6 +48,7 @@ export default function JoinRentalScreen() {
     if (text) {
       setToken(text);
       setPreview(null);
+      void handleLookup(text);
     }
   };
 
@@ -361,7 +362,7 @@ export default function JoinRentalScreen() {
                   Don't have an invite yet?
                 </Text>
                 <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19 }}>
-                  Ask your landlord to open RentyBase and share the invite link from their property screen. Invite links expire after 72 hours.
+                  Ask your landlord to open RentyBase and share the invite link from their property screen. Invite links expire after 7 days.
                 </Text>
               </View>
             </View>

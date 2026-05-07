@@ -37,8 +37,8 @@ const schema = z.object({
   addressLine1: z.string().min(5, 'Address required'),
   addressLine2: z.string().optional(),
   city: z.string().min(2, 'City required'),
-  state: z.string().min(2, 'State required'),
-  pincode: z.string().length(6, 'Enter valid 6-digit pincode'),
+  state: z.string().optional(),
+  pincode: z.string().optional(),
   propertyType: z.enum(['apartment', 'house', 'pg', 'commercial']),
   // monthlyRent validated manually so PG (per-room rents) can skip schema check
   monthlyRent: z.string(),
@@ -594,6 +594,7 @@ export default function CreateRentalScreen() {
   const [rentError, setRentError] = useState('');
   const [pgSubmitAttempted, setPgSubmitAttempted] = useState(false);
   const [multiUnit, setMultiUnit] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const { data: existingProperty } = useQuery({
     queryKey: ['property-for-rental', existingPropertyId],
@@ -709,7 +710,7 @@ export default function CreateRentalScreen() {
 
   const goNext = async () => {
     if (step === 0) {
-      const valid = await trigger(['propertyName', 'addressLine1', 'city', 'state', 'pincode', 'propertyType']);
+      const valid = await trigger(['propertyName', 'addressLine1', 'city', 'propertyType']);
       if (valid) setStep(1);
     } else if (step === 1) {
       const sharedFields: (keyof FormValues)[] = ['startDate', 'rentDueDay', 'noticePeriodDays', 'furnishedStatus', 'lateFeePercent', 'leaseDurationMonths'];
@@ -762,6 +763,8 @@ export default function CreateRentalScreen() {
         const rental = await createLocalRental(
           {
             ...values,
+            state: values.state ?? '',
+            pincode: values.pincode ?? '',
             monthlyRent: isMultiUnit ? (firstRoom?.monthlyRent || '0') : values.monthlyRent,
             securityDeposit,
             endDate,
@@ -1303,59 +1306,81 @@ export default function CreateRentalScreen() {
                 />
               </View>
 
-              <Section title="Additional Terms" />
+              <TouchableOpacity
+                onPress={() => setShowAdvanced((v) => !v)}
+                activeOpacity={0.8}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  marginTop: 20, marginBottom: showAdvanced ? 12 : 4,
+                  paddingVertical: 4,
+                }}
+              >
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sansSemiBold, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Additional Terms
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+                    {showAdvanced ? 'Hide' : 'Expand'}
+                  </Text>
+                  <Ionicons name={showAdvanced ? 'chevron-up' : 'chevron-down'} size={14} color={Colors.action} />
+                </View>
+              </TouchableOpacity>
 
-              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 8 }}>
-                Notice Period
-              </Text>
-              <Controller
-                control={control}
-                name="noticePeriodDays"
-                render={({ field: { onChange, value } }) => (
-                  <ChipSelect
-                    value={value}
-                    options={[
-                      { value: '30', label: '1 month', hint: 'Standard' },
-                      { value: '60', label: '2 months' },
-                      { value: '90', label: '3 months' },
-                    ]}
-                    onChange={onChange}
+              {showAdvanced && (
+                <>
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 8 }}>
+                    Notice Period
+                  </Text>
+                  <Controller
+                    control={control}
+                    name="noticePeriodDays"
+                    render={({ field: { onChange, value } }) => (
+                      <ChipSelect
+                        value={value}
+                        options={[
+                          { value: '30', label: '1 month', hint: 'Standard' },
+                          { value: '60', label: '2 months' },
+                          { value: '90', label: '3 months' },
+                        ]}
+                        onChange={onChange}
+                      />
+                    )}
                   />
-                )}
-              />
 
-              <View style={{ height: 12 }} />
+                  <View style={{ height: 12 }} />
 
-              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 8 }}>
-                Furnished Status
-              </Text>
-              <Controller
-                control={control}
-                name="furnishedStatus"
-                render={({ field: { onChange, value } }) => (
-                  <ChipSelect value={value} options={furnishedOptions} onChange={onChange} />
-                )}
-              />
-
-              <View style={{ height: 12 }} />
-
-              <Controller
-                control={control}
-                name="lateFeePercent"
-                render={({ field: { onChange, value } }) => (
-                  <Input
-                    label="Late Fee (%)"
-                    placeholder="5"
-                    value={value}
-                    onChangeText={onChange}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                    error={errors.lateFeePercent?.message}
-                    hint="Applied on unpaid rent after due date (0 to disable)"
-                    rightIcon={<Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 15 }}>%</Text>}
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 8 }}>
+                    Furnished Status
+                  </Text>
+                  <Controller
+                    control={control}
+                    name="furnishedStatus"
+                    render={({ field: { onChange, value } }) => (
+                      <ChipSelect value={value} options={furnishedOptions} onChange={onChange} />
+                    )}
                   />
-                )}
-              />
+
+                  <View style={{ height: 12 }} />
+
+                  <Controller
+                    control={control}
+                    name="lateFeePercent"
+                    render={({ field: { onChange, value } }) => (
+                      <Input
+                        label="Late Fee (%)"
+                        placeholder="5"
+                        value={value}
+                        onChangeText={onChange}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                        error={errors.lateFeePercent?.message}
+                        hint="Applied on unpaid rent after due date (0 to disable)"
+                        rightIcon={<Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 15 }}>%</Text>}
+                      />
+                    )}
+                  />
+                </>
+              )}
 
               <Button
                 title={isMultiUnit ? `Next: Set Up ${vocab.units}` : 'Next: Invite Tenant'}
@@ -1465,18 +1490,23 @@ export default function CreateRentalScreen() {
                 size="lg"
               />
 
-              {!tenantPhone && (
-                <TouchableOpacity
-                  onPress={handleSubmit(onSubmit)}
-                  style={{ alignItems: 'center', paddingVertical: 6 }}
-                  activeOpacity={0.7}
-                  disabled={loading}
-                >
-                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>
-                    Skip — I'll share the invite link later
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                onPress={handleSubmit(onSubmit)}
+                style={{
+                  alignItems: 'center', paddingVertical: 12,
+                  borderRadius: 14, borderWidth: 1, borderColor: Colors.border,
+                  backgroundColor: Colors.fill,
+                }}
+                activeOpacity={0.7}
+                disabled={loading}
+              >
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 14 }}>
+                  I'll add the tenant later
+                </Text>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 2 }}>
+                  You can share the invite link from the property screen
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </ScrollView>
