@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect x="0" y="0" width="32" height="32" rx="6" fill="#0E1413"></rect>
+  <path d="M16 4.5 L27.5 14.5 V25 a2 2 0 0 1 -2 2 H6.5 a2 2 0 0 1 -2 -2 V14.5 Z" fill="#F6F4EE"></path>
+  <path d="M10.5 27 V20.5 a5.5 5.5 0 0 1 11 0 V27 Z" fill="#0E1413"></path>
+  <text x="16" y="25.6" text-anchor="middle" font-family="Bricolage Grotesque, system-ui, sans-serif" font-size="7.2" font-weight="800" letter-spacing="-0.5" fill="#F6F4EE">RB</text>
+  <rect x="10" y="26" width="12" height="1" rx="0.3" fill="#C97A3A"></rect>
+</svg>

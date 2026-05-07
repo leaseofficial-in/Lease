@@ -14,7 +14,7 @@
   <meta name="twitter:title" content="RentyBase — Rent Tracking, HRA Receipts &amp; Move-In Proof for India" />
   <meta name="twitter:description" content="HRA receipts, rent tracking, move-in photo proof &amp; deposit ledger. Free rental management for Indian landlords and tenants." />
   <link rel="canonical" href="https://rentybase.com/" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231A56FF'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='18' fill='white'>R</text></svg>" />
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -63,7 +63,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600;1,9..144,700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -83,6 +83,8 @@
       --success-soft: #E3F5EF;
       --warning: #B8740F;
       --danger: #C2362F;
+      --accent: #C97A3A;
+      --accent-soft: #F4E5D4;
     }
 
     html { scroll-behavior: smooth; }
@@ -141,14 +143,17 @@
     .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 62px; }
 
     .nav-logo {
-      font-family: 'Fraunces', serif; font-size: 21px; color: var(--primary); font-weight: 700;
-      display: flex; align-items: center; gap: 9px; flex-shrink: 0; letter-spacing: -0.02em;
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none;
     }
-    .nav-logo-icon {
-      width: 30px; height: 30px; background: var(--action);
-      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    .nav-wordmark {
+      font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+      font-size: 22px; font-weight: 800; letter-spacing: -0.05em;
+      color: var(--primary); line-height: 1; display: flex; align-items: center; gap: 3px;
     }
-    .nav-logo-icon svg { width: 17px; height: 17px; }
+    .nav-wordmark-sq {
+      display: inline-block; width: 7px; height: 7px; border-radius: 2px;
+      background: #C97A3A; margin-left: 2px; margin-bottom: 1px; flex-shrink: 0;
+    }
 
     .nav-links { display: flex; align-items: center; gap: 28px; list-style: none; }
     .nav-links a {
@@ -252,7 +257,7 @@
     }
 
     .hero h1 {
-      font-family: 'Fraunces', serif;
+      font-family: 'Instrument Serif', Georgia, serif;
       font-size: clamp(44px, 6vw, 72px);
       line-height: 1.04; letter-spacing: -0.035em; margin-bottom: 24px;
       color: #FFFFFF;
@@ -266,7 +271,7 @@
       display: flex; gap: 32px; flex-wrap: wrap;
       padding-top: 28px; border-top: 1px solid rgba(255,255,255,.1);
     }
-    .stat-num { font-size: 26px; font-weight: 700; font-family: 'Fraunces', serif; color: #FFFFFF; line-height: 1.1; }
+    .stat-num { font-size: 26px; font-weight: 700; font-family: 'Instrument Serif', Georgia, serif; color: #FFFFFF; line-height: 1.1; }
     .stat-label { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 3px; }
 
     /* ── HERO APP MOCKUP ─────────────────────── */
@@ -284,8 +289,8 @@
 
     .app-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
     .app-topbar-left { display: flex; align-items: center; gap: 8px; }
-    .app-topbar-icon { width: 26px; height: 26px; background: var(--action); border-radius: 7px; display: flex; align-items: center; justify-content: center; }
-    .app-topbar-icon svg { width: 14px; height: 14px; }
+    .app-topbar-icon { width: 26px; height: 26px; border-radius: 7px; overflow: hidden; flex-shrink: 0; }
+    .app-topbar-icon svg { width: 26px; height: 26px; display: block; }
     .app-topbar-name { font-size: 13px; font-weight: 700; }
     .app-topbar-sub { font-size: 10px; color: var(--muted); }
     .app-notif-btn { width: 28px; height: 28px; border-radius: 8px; background: var(--fill); display: flex; align-items: center; justify-content: center; font-size: 14px; position: relative; }
@@ -296,7 +301,7 @@
       border-radius: 14px; padding: 16px; color: white; margin-bottom: 10px;
     }
     .app-rent-label { font-size: 10px; opacity: .55; margin-bottom: 4px; font-weight: 500; }
-    .app-rent-amount { font-size: 24px; font-weight: 700; font-family: 'Fraunces', serif; margin-bottom: 10px; }
+    .app-rent-amount { font-size: 24px; font-weight: 700; font-family: 'Instrument Serif', Georgia, serif; margin-bottom: 10px; }
     .app-rent-footer { display: flex; align-items: center; justify-content: space-between; }
     .app-rent-due { font-size: 11px; opacity: .5; }
     .app-rent-pill { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 99px; }
@@ -352,7 +357,7 @@
 
     /* ── SECTION LABELS ──────────────────────── */
     .section-label { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--action); display: inline-block; margin-bottom: 12px; }
-    .section-title { font-family: 'Fraunces', serif; font-size: clamp(32px, 4.5vw, 52px); line-height: 1.06; letter-spacing: -0.03em; margin-bottom: 16px; }
+    .section-title { font-family: 'Instrument Serif', Georgia, serif; font-size: clamp(32px, 4.5vw, 52px); line-height: 1.06; letter-spacing: -0.03em; margin-bottom: 16px; }
     .section-sub { font-size: 17px; line-height: 1.75; color: var(--ink3); max-width: 540px; letter-spacing: -0.005em; }
     .section-header { margin-bottom: 52px; }
     .section-header.center { text-align: center; }
@@ -422,7 +427,7 @@
     .compare-table th { padding: 18px 22px; background: var(--fill); text-align: left; font-size: 13px; border-bottom: 2px solid var(--border); }
     .compare-table th:first-child { width: 36%; color: var(--ink3); font-weight: 500; }
     .compare-table th.col-us { background: var(--action); color: white; }
-    .compare-table th.col-us .th-name { font-family: 'Fraunces', serif; font-size: 17px; display: block; }
+    .compare-table th.col-us .th-name { font-family: 'Instrument Serif', Georgia, serif; font-size: 17px; display: block; }
     .compare-table th.col-us .th-sub { font-size: 11px; font-weight: 400; opacity: .75; display: block; margin-top: 2px; }
     .compare-table td { padding: 13px 22px; font-size: 14px; border-bottom: 1px solid var(--border); transition: background .12s; }
     .compare-table tr:last-child td { border-bottom: none; }
@@ -452,7 +457,7 @@
     .price-card.featured:hover { box-shadow: 0 16px 56px rgba(0,0,0,.35); }
     .price-tier { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 14px; }
     .price-card.featured .price-tier { color: rgba(255,255,255,.45); }
-    .price-amount { font-family: 'Fraunces', serif; font-size: 52px; line-height: 1; margin-bottom: 4px; letter-spacing: -0.03em; }
+    .price-amount { font-family: 'Instrument Serif', Georgia, serif; font-size: 52px; line-height: 1; margin-bottom: 4px; letter-spacing: -0.03em; }
     .price-period { font-size: 14px; color: var(--ink3); margin-bottom: 18px; }
     .price-card.featured .price-period { color: rgba(255,255,255,.5); }
     .price-tagline { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
@@ -528,7 +533,7 @@
     }
     .cta-banner::before { content: ''; position: absolute; top: -120px; right: -120px; width: 540px; height: 540px; background: radial-gradient(circle, rgba(80,70,228,.25) 0%, transparent 65%); pointer-events: none; }
     .cta-banner::after { content: ''; position: absolute; bottom: -80px; left: -80px; width: 360px; height: 360px; background: radial-gradient(circle, rgba(14,142,99,.14) 0%, transparent 65%); pointer-events: none; }
-    .cta-banner h2 { font-family: 'Fraunces', serif; font-size: clamp(30px, 4vw, 48px); margin-bottom: 16px; position: relative; letter-spacing: -0.03em; line-height: 1.06; }
+    .cta-banner h2 { font-family: 'Instrument Serif', Georgia, serif; font-size: clamp(30px, 4vw, 48px); margin-bottom: 16px; position: relative; letter-spacing: -0.03em; line-height: 1.06; }
     .cta-banner h2 em { font-style: italic; color: #A89AF8; }
     .cta-banner p { font-size: 17px; color: rgba(255,255,255,.55); max-width: 460px; margin: 0 auto 36px; line-height: 1.75; position: relative; }
     .cta-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; position: relative; }
@@ -536,7 +541,7 @@
     /* ── FOOTER ──────────────────────────────── */
     footer { background: #0A0A0A; color: white; padding: 56px 0 32px; }
     .footer-top { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
-    .footer-logo { font-family: 'Fraunces', serif; font-size: 21px; margin-bottom: 12px; }
+    .footer-logo { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.05em; margin-bottom: 12px; display: flex; align-items: center; gap: 2px; }
     .footer-desc { font-size: 13px; line-height: 1.7; color: rgba(255,255,255,.4); max-width: 230px; margin-bottom: 20px; }
     .made-in { display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 5px 12px; font-size: 12px; color: rgba(255,255,255,.45); }
     .footer-col h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.35); margin-bottom: 14px; }
@@ -606,7 +611,7 @@
 <!-- ── MOBILE MENU ───────────────────────────────────── -->
 <div class="mobile-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-label="Navigation menu">
   <div class="mobile-menu-header">
-    <span style="font-family:'Fraunces',serif;font-size:21px;font-weight:700;letter-spacing:-0.02em;">RentyBase</span>
+    <span style="font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.05em;display:flex;align-items:center;gap:2px;">Renty<span style="color:#C97A3A;">Base</span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#C97A3A;margin-left:2px;margin-bottom:1px;"></span></span>
     <button onclick="closeMenu()" aria-label="Close menu" style="background:none;border:none;cursor:pointer;padding:8px;">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
     </button>
@@ -637,10 +642,15 @@
   <div class="container">
     <div class="nav-inner">
       <a href="/" class="nav-logo">
-        <div class="nav-logo-icon">
-          <svg viewBox="0 0 72 72" fill="none"><path d="M14 62V30L36 12L58 30V62" stroke="white" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/><path d="M28 62V44a8 8 0 0116 0V62" stroke="white" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></svg>
-        </div>
-        RentyBase
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="36" height="36" style="flex-shrink:0;border-radius:8px;">
+          <rect x="0" y="0" width="200" height="200" rx="40" fill="#0E1413"/>
+          <path d="M100 22 L176 88 V162 a14 14 0 0 1 -14 14 H38 a14 14 0 0 1 -14 -14 V88 Z" fill="#F6F4EE"/>
+          <path d="M62 178 V128 a38 38 0 0 1 76 0 V178 Z" fill="#0E1413"/>
+          <text x="100" y="170" text-anchor="middle" font-family="Bricolage Grotesque, system-ui, sans-serif" font-size="46" font-weight="800" letter-spacing="-3" fill="#F6F4EE">RB</text>
+          <rect x="60" y="172" width="80" height="6" rx="1" fill="#C97A3A"/>
+          <circle cx="100" cy="46" r="3.2" fill="#C97A3A"/>
+        </svg>
+        <span class="nav-wordmark">Renty<span style="color:#C97A3A;">Base</span><span class="nav-wordmark-sq"></span></span>
       </a>
       <ul class="nav-links" id="navLinks">
         <li><a href="#problem">Why</a></li>
@@ -713,7 +723,14 @@
           <div class="app-topbar">
             <div class="app-topbar-left">
               <div class="app-topbar-icon">
-                <svg viewBox="0 0 72 72" fill="none"><path d="M14 62V30L36 12L58 30V62" stroke="white" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/><path d="M28 62V44a8 8 0 0116 0V62" stroke="white" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="26" height="26">
+                  <rect x="0" y="0" width="200" height="200" rx="40" fill="#0E1413"/>
+                  <path d="M100 22 L176 88 V162 a14 14 0 0 1 -14 14 H38 a14 14 0 0 1 -14 -14 V88 Z" fill="#F6F4EE"/>
+                  <path d="M62 178 V128 a38 38 0 0 1 76 0 V178 Z" fill="#0E1413"/>
+                  <text x="100" y="170" text-anchor="middle" font-family="Bricolage Grotesque, system-ui, sans-serif" font-size="46" font-weight="800" letter-spacing="-3" fill="#F6F4EE">RB</text>
+                  <rect x="60" y="172" width="80" height="6" rx="1" fill="#C97A3A"/>
+                  <circle cx="100" cy="46" r="3.2" fill="#C97A3A"/>
+                </svg>
               </div>
               <div>
                 <div class="app-topbar-name">RentyBase</div>
@@ -1192,7 +1209,17 @@
   <div class="container">
     <div class="footer-top">
       <div>
-        <div class="footer-logo">RentyBase.</div>
+        <div class="footer-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="28" height="28" style="flex-shrink:0;border-radius:6px;">
+            <rect x="0" y="0" width="200" height="200" rx="40" fill="#F6F4EE"/>
+            <path d="M100 22 L176 88 V162 a14 14 0 0 1 -14 14 H38 a14 14 0 0 1 -14 -14 V88 Z" fill="#0E1413"/>
+            <path d="M62 178 V128 a38 38 0 0 1 76 0 V178 Z" fill="#F6F4EE"/>
+            <text x="100" y="170" text-anchor="middle" font-family="Bricolage Grotesque, system-ui, sans-serif" font-size="46" font-weight="800" letter-spacing="-3" fill="#0E1413">RB</text>
+            <rect x="60" y="172" width="80" height="6" rx="1" fill="#C97A3A"/>
+            <circle cx="100" cy="46" r="3.2" fill="#C97A3A"/>
+          </svg>
+          <span style="color:#fff;">Renty<span style="color:#C97A3A;">Base</span><span style="display:inline-block;width:6px;height:6px;border-radius:1.5px;background:#C97A3A;margin-left:2px;margin-bottom:1px;"></span></span>
+        </div>
         <div class="footer-desc">The rental management workspace for Indian landlords and tenants. Photo proof, receipts, deposits, repairs — all in one place.</div>
         <div class="made-in">🇮🇳 Made in India</div>
       </div>
