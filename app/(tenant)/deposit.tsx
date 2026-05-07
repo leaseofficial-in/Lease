@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
@@ -28,6 +29,7 @@ const TXN_CONFIG: Record<DepositTransaction['type'], {
 };
 
 export default function TenantDepositScreen() {
+  const router = useRouter();
   const { profile } = useAuthStore();
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
@@ -71,20 +73,28 @@ export default function TenantDepositScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
+      <View style={{ paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}
+          activeOpacity={0.75}
+        >
+          <Ionicons name="chevron-back" size={20} color={Colors.primary} />
+        </TouchableOpacity>
+        <View>
+          <Cap>Security</Cap>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18, marginTop: 2 }}>
+            Deposit
+          </Text>
+        </View>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.action} />}
         contentContainerStyle={{ paddingBottom: 48 }}
       >
-        {/* ── Header ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
-          <Cap>Security</Cap>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 26, marginTop: 4 }}>
-            Deposit
-          </Text>
-        </View>
-
-        <View style={{ paddingHorizontal: 20, gap: 14 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, gap: 14 }}>
           {!rental ? (
             <EmptyState
               title="No rental found"
