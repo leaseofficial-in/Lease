@@ -89,18 +89,24 @@ function useWindowWidth() {
 function GlobalStyles() {
   useEffect(() => {
     const el = document.createElement('style');
+    el.id = 'rentybase-landing-styles';
     el.textContent = `
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
-      body { background: ${C.bg}; overflow-x: hidden; }
-      ::selection { background: ${C.action}33; color: ${C.surface}; }
+      /* Override Expo's overflow:hidden on root — landing page must scroll */
+      html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased;
+             height: auto !important; overflow-y: auto !important; overflow-x: hidden !important; }
+      body { background: ${C.bg}; height: auto !important;
+             overflow-y: auto !important; overflow-x: hidden !important; }
+      #root { height: auto !important; flex: none !important;
+              overflow: visible !important; display: block !important; }
+      ::selection { background: ${C.action}33; }
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: ${C.bg}; }
       ::-webkit-scrollbar-thumb { background: #2a2d31; border-radius: 3px; }
       a { color: inherit; text-decoration: none; }
     `;
     document.head.appendChild(el);
-    return () => { document.head.removeChild(el); };
+    return () => { document.getElementById('rentybase-landing-styles')?.remove(); };
   }, []);
   return null;
 }
@@ -166,10 +172,15 @@ function Nav({ onCta }: { onCta: () => void }) {
         }}
       >
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontFamily: F.sansBold, fontSize: 13, color: C.bg, letterSpacing: -0.5 }}>R</span>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="30" height="30" style={{ borderRadius: 8, flexShrink: 0 }}>
+            <rect x="0" y="0" width="200" height="200" rx="40" fill="#0E1413"/>
+            <path d="M100 22 L176 88 V162 a14 14 0 0 1 -14 14 H38 a14 14 0 0 1 -14 -14 V88 Z" fill="#F6F4EE"/>
+            <path d="M62 178 V128 a38 38 0 0 1 76 0 V178 Z" fill="#0E1413"/>
+            <text x="100" y="170" textAnchor="middle" fontFamily="system-ui,sans-serif" fontSize="46" fontWeight="800" letterSpacing="-3" fill="#F6F4EE">RB</text>
+            <rect x="60" y="172" width="80" height="6" rx="1" fill="#C97A3A"/>
+            <circle cx="100" cy="46" r="3.2" fill="#C97A3A"/>
+          </svg>
           <span style={{ fontFamily: F.sansSemiBold, fontSize: 15, color: C.surface, letterSpacing: -0.3 }}>RentyBase</span>
         </div>
 
@@ -211,7 +222,17 @@ function Nav({ onCta }: { onCta: () => void }) {
       {menuOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#08090A', display: 'flex', flexDirection: 'column', padding: '20px 6%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
-            <span style={{ fontFamily: F.sansSemiBold, fontSize: 18, color: C.surface }}>RentyBase</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="28" height="28" style={{ borderRadius: 7 }}>
+                <rect x="0" y="0" width="200" height="200" rx="40" fill="#0E1413"/>
+                <path d="M100 22 L176 88 V162 a14 14 0 0 1 -14 14 H38 a14 14 0 0 1 -14 -14 V88 Z" fill="#F6F4EE"/>
+                <path d="M62 178 V128 a38 38 0 0 1 76 0 V178 Z" fill="#0E1413"/>
+                <text x="100" y="170" textAnchor="middle" fontFamily="system-ui,sans-serif" fontSize="46" fontWeight="800" letterSpacing="-3" fill="#F6F4EE">RB</text>
+                <rect x="60" y="172" width="80" height="6" rx="1" fill="#C97A3A"/>
+                <circle cx="100" cy="46" r="3.2" fill="#C97A3A"/>
+              </svg>
+              <span style={{ fontFamily: F.sansSemiBold, fontSize: 18, color: C.surface }}>RentyBase</span>
+            </div>
             <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 28, cursor: 'pointer', lineHeight: 1 }}>×</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
@@ -1281,10 +1302,15 @@ function Footer() {
         <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(3, 1fr)', gap: '40px 48px', marginBottom: 56, flexWrap: 'wrap' as const }}>
           {/* Brand */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <div style={{ width: 26, height: 26, borderRadius: 7, background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontFamily: F.sansBold, fontSize: 12, color: C.bg }}>R</span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 16 }}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="28" height="28" style={{ borderRadius: 7, flexShrink: 0 }}>
+                <rect x="0" y="0" width="200" height="200" rx="40" fill="#0E1413"/>
+                <path d="M100 22 L176 88 V162 a14 14 0 0 1 -14 14 H38 a14 14 0 0 1 -14 -14 V88 Z" fill="#F6F4EE"/>
+                <path d="M62 178 V128 a38 38 0 0 1 76 0 V178 Z" fill="#0E1413"/>
+                <text x="100" y="170" textAnchor="middle" fontFamily="system-ui,sans-serif" fontSize="46" fontWeight="800" letterSpacing="-3" fill="#F6F4EE">RB</text>
+                <rect x="60" y="172" width="80" height="6" rx="1" fill="#C97A3A"/>
+                <circle cx="100" cy="46" r="3.2" fill="#C97A3A"/>
+              </svg>
               <span style={{ fontFamily: F.sansSemiBold, fontSize: 15, color: C.surface }}>RentyBase</span>
             </div>
             <p style={{ fontFamily: F.sans, fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.7, maxWidth: 200 }}>
