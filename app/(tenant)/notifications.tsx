@@ -15,11 +15,12 @@ import { Colors, Fonts } from '../../constants/theme';
 import { markNotificationRead, markNotificationsRead } from '../../lib/notificationActions';
 
 const notifIcon: Record<AppNotification['type'], { name: React.ComponentProps<typeof Ionicons>['name']; color: string; bg: string }> = {
-  rent_due:         { name: 'calendar-outline',     color: Colors.warning, bg: Colors.warningSoft },
-  payment_received: { name: 'checkmark-circle-outline', color: Colors.success, bg: Colors.successSoft },
-  proof_submitted:  { name: 'camera-outline',        color: Colors.action,  bg: Colors.actionSoft },
-  repair_update:    { name: 'construct-outline',     color: '#7C3AED',     bg: '#EDE9FE' },
-  general:          { name: 'notifications-outline', color: Colors.muted,  bg: Colors.fill },
+  rent_due:          { name: 'calendar-outline',          color: Colors.warning, bg: Colors.warningSoft },
+  payment_received:  { name: 'checkmark-circle-outline',  color: Colors.success, bg: Colors.successSoft },
+  payment_confirmed: { name: 'checkmark-done-outline',    color: Colors.success, bg: Colors.successSoft },
+  proof_submitted:   { name: 'camera-outline',            color: Colors.action,  bg: Colors.actionSoft },
+  repair_update:     { name: 'construct-outline',         color: '#7C3AED',      bg: '#EDE9FE' },
+  general:           { name: 'notifications-outline',     color: Colors.muted,   bg: Colors.fill },
 };
 
 export default function TenantNotificationsScreen() {
