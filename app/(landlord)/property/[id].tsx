@@ -65,6 +65,7 @@ export default function PropertyDetailScreen() {
   const [initiatingMoveout, setInitiatingMoveout] = useState(false);
   const [closingRental, setClosingRental] = useState(false);
   const [archivingPlace, setArchivingPlace] = useState(false);
+  const [refreshingInvite, setRefreshingInvite] = useState(false);
   const [termsForm, setTermsForm] = useState({
     monthlyRent: '',
     securityDeposit: '',
@@ -248,6 +249,26 @@ export default function PropertyDetailScreen() {
   const handleCopyInvite = async () => {
     await Clipboard.setStringAsync(webInviteLink);
     showToast('Invite link copied', 'success');
+  };
+
+  const handleRefreshInvite = async () => {
+    if (!rental || refreshingInvite || isLocalDevUser) return;
+    setRefreshingInvite(true);
+    try {
+      const newToken = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { error } = await supabase
+        .from('rentals')
+        .update({ invite_token: newToken, invite_expires_at: newExpiry })
+        .eq('id', rental.id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ['rental-by-property', propertyId] });
+      showToast('New invite link generated — valid for 7 days', 'success');
+    } catch {
+      showToast('Could not refresh link', 'error');
+    } finally {
+      setRefreshingInvite(false);
+    }
   };
 
   const handleShareInvite = async () => {
@@ -787,23 +808,74 @@ export default function PropertyDetailScreen() {
             </Card>
           )}
 
-          {!isMultiUnit && rental.status === 'pending_tenant' && (
-            <Card>
-              <Cap style={{ marginBottom: 10 }}>Invite Tenant</Cap>
-              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
-                Share this private join link
-              </Text>
-              <View style={{ backgroundColor: Colors.fill, borderRadius: 14, padding: 12, marginVertical: 12 }}>
-                <Text style={{ color: Colors.ink3, fontFamily: Fonts.mono, fontSize: 11 }} numberOfLines={1}>
-                  {webInviteLink}
+          {!isMultiUnit && rental.status === 'pending_tenant' && (() => {
+            const expiresAt = rental.invite_expires_at ? new Date(rental.invite_expires_at) : null;
+            const now = new Date();
+            const isExpired = expiresAt ? expiresAt <= now : false;
+            const hoursLeft = expiresAt ? Math.max(0, Math.round((expiresAt.getTime() - now.getTime()) / 3_600_000)) : null;
+            const expiryLabel = isExpired
+              ? 'Link expired'
+              : hoursLeft !== null && hoursLeft < 24
+              ? `Expires in ${hoursLeft}h`
+              : hoursLeft !== null
+              ? `Expires in ${Math.round(hoursLeft / 24)}d`
+              : null;
+
+            return (
+              <Card>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <Cap>Invite Tenant</Cap>
+                  {expiryLabel && (
+                    <View style={{
+                      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+                      backgroundColor: isExpired ? Colors.dangerSoft : hoursLeft !== null && hoursLeft < 24 ? Colors.warningSoft : Colors.successSoft,
+                    }}>
+                      <Text style={{
+                        fontFamily: Fonts.sansMedium, fontSize: 11,
+                        color: isExpired ? Colors.danger : hoursLeft !== null && hoursLeft < 24 ? Colors.warning : Colors.success,
+                      }}>
+                        {expiryLabel}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
+                  {isExpired ? 'Link expired — generate a new one' : 'Share this private join link'}
                 </Text>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Button title="Copy Link" variant="secondary" onPress={handleCopyInvite} style={{ flex: 1 }} />
-                <Button title="Share" onPress={handleShareInvite} style={{ flex: 1 }} />
-              </View>
-            </Card>
-          )}
+                {!isExpired && (
+                  <View style={{ backgroundColor: Colors.fill, borderRadius: 14, padding: 12, marginVertical: 12 }}>
+                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.mono, fontSize: 11 }} numberOfLines={1}>
+                      {webInviteLink}
+                    </Text>
+                  </View>
+                )}
+                {isExpired ? (
+                  <Button
+                    title="Generate New Link"
+                    onPress={handleRefreshInvite}
+                    loading={refreshingInvite}
+                    fullWidth
+                    style={{ marginTop: 12 }}
+                  />
+                ) : (
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Button title="Copy" variant="secondary" onPress={handleCopyInvite} style={{ flex: 1 }} />
+                    <Button title="Share" onPress={handleShareInvite} style={{ flex: 1 }} />
+                    <TouchableOpacity
+                      onPress={handleRefreshInvite}
+                      activeOpacity={0.7}
+                      style={{
+                        width: 44, height: 44, borderRadius: 12,
+                        backgroundColor: Colors.fill2, alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <Ionicons name={refreshingInvite ? 'hourglass-outline' : 'refresh-outline'} size={18} color={Colors.muted} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </Card>
+            );
+          })()}
 
           {rental.status === 'pending_proof' && (
             <Card style={{ backgroundColor: Colors.warningSoft, borderColor: '#F1D39B' }}>

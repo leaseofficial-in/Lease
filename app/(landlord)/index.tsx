@@ -560,6 +560,8 @@ export default function LandlordDashboard() {
                 <RentalCardSkeleton />
                 <RentalCardSkeleton />
               </>
+            ) : rentals?.length === 0 && portfolioFilter === 'current' ? (
+              <LandlordOnboardingCard onStart={() => router.push('/(landlord)/create-rental')} />
             ) : filteredPropertyGroups.length === 0 ? (
               <EmptyState
                 title={portfolioFilter === 'archived' ? 'No archived places' : 'No places here'}
@@ -643,6 +645,128 @@ function MiniPanel({ label, value, children }: { label: string; value: string; c
       <DisplayText style={{ fontSize: 34, lineHeight: 38, marginTop: 6 }}>{value}</DisplayText>
       {children}
     </Card>
+  );
+}
+
+const ONBOARDING_STEPS = [
+  {
+    icon: '🏠',
+    title: 'Add your property',
+    desc: 'Name, address, and rent details — 2 minutes.',
+  },
+  {
+    icon: '🔗',
+    title: 'Share the invite link',
+    desc: 'Your tenant gets a private link — no sign-up friction.',
+  },
+  {
+    icon: '✅',
+    title: 'Rent tracks itself',
+    desc: 'Payments, receipts, and photo proof — fully automatic.',
+  },
+];
+
+function LandlordOnboardingCard({ onStart }: { onStart: () => void }) {
+  return (
+    <View style={{ marginTop: 8 }}>
+      {/* Hero */}
+      <View
+        style={{
+          borderRadius: 20,
+          overflow: 'hidden',
+          backgroundColor: Colors.primary,
+          padding: 24,
+          marginBottom: 12,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+          <View style={{
+            width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Text style={{ fontSize: 18 }}>🏡</Text>
+          </View>
+          <Text style={{ color: Colors.surface, fontFamily: Fonts.sansSemiBold, fontSize: 13, opacity: 0.6, letterSpacing: 0.5 }}>
+            WELCOME TO RENTYBASE
+          </Text>
+        </View>
+
+        <Text style={{ color: Colors.surface, fontFamily: Fonts.sansBold, fontSize: 26, lineHeight: 32, marginBottom: 10 }}>
+          Your first rental is{'\n'}3 steps away.
+        </Text>
+        <Text style={{ color: 'rgba(255,255,255,0.55)', fontFamily: Fonts.sans, fontSize: 14, lineHeight: 20, marginBottom: 24 }}>
+          No spreadsheets. No WhatsApp receipts. Rent tracks itself — with photo proof and HRA receipts built in.
+        </Text>
+
+        {/* Steps */}
+        {ONBOARDING_STEPS.map((step, i) => (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: i < 2 ? 16 : 0 }}>
+            {/* connector line */}
+            <View style={{ alignItems: 'center', width: 36 }}>
+              <View style={{
+                width: 36, height: 36, borderRadius: 10,
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Text style={{ fontSize: 18 }}>{step.icon}</Text>
+              </View>
+              {i < 2 && (
+                <View style={{ width: 2, height: 16, backgroundColor: 'rgba(255,255,255,0.12)', marginTop: 3 }} />
+              )}
+            </View>
+            <View style={{ flex: 1, paddingTop: 6 }}>
+              <Text style={{ color: Colors.surface, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>{step.title}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.sans, fontSize: 12, lineHeight: 17, marginTop: 2 }}>{step.desc}</Text>
+            </View>
+          </View>
+        ))}
+
+        {/* CTA */}
+        <TouchableOpacity
+          onPress={onStart}
+          activeOpacity={0.85}
+          style={{
+            marginTop: 24,
+            backgroundColor: Colors.surface,
+            borderRadius: 14,
+            paddingVertical: 16,
+            alignItems: 'center',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 15 }}>
+            Add your first property
+          </Text>
+          <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Trust strip */}
+      <View
+        style={{
+          backgroundColor: Colors.fill ?? '#F5F5F5',
+          borderRadius: 14,
+          padding: 16,
+          flexDirection: 'row',
+          gap: 0,
+        }}
+      >
+        {[
+          { icon: '📸', text: 'Photo proof\non move-in & out' },
+          { icon: '🧾', text: 'HRA receipts\nin one tap' },
+          { icon: '🔒', text: 'Deposit ledger\nautomatically tracked' },
+        ].map((item, i) => (
+          <View key={i} style={{ flex: 1, alignItems: 'center', paddingHorizontal: 4 }}>
+            <Text style={{ fontSize: 20, marginBottom: 6 }}>{item.icon}</Text>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 10, textAlign: 'center', lineHeight: 14 }}>
+              {item.text}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 

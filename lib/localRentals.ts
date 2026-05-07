@@ -91,7 +91,7 @@ export const createLocalRental = async (
     late_fee_percent: Number(values.lateFeePercent ?? 5),
     maintenance_charges: Number(values.maintenanceCharges ?? 0),
     invite_token: `local-${idBase}`,
-    invite_expires_at: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+    invite_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     room_number: null,
     room_label: null,
     agreement_url: null,
