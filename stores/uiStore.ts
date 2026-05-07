@@ -13,6 +13,7 @@ interface ConfirmOptions {
   cancelText?: string;
   destructive?: boolean;
   onConfirm: () => void | Promise<void>;
+  onCancel?: () => void;
 }
 
 interface UIState {
@@ -21,7 +22,7 @@ interface UIState {
   bottomSheetContent: React.ReactNode | null;
   confirmOptions: ConfirmOptions | null;
 
-  showToast: (message: string, type?: Toast['type']) => void;
+  showToast: (message: string, type?: Toast['type'], duration?: number) => void;
   dismissToast: (id: string) => void;
   openBottomSheet: (content: React.ReactNode) => void;
   closeBottomSheet: () => void;
@@ -32,18 +33,30 @@ interface UIState {
 // React import for typing only — store itself is UI-agnostic
 import type React from 'react';
 
+const TOAST_DURATION: Record<Toast['type'], number> = {
+  error: 5000,
+  success: 3000,
+  info: 3500,
+};
+
+const MAX_TOASTS = 3;
+
 export const useUIStore = create<UIState>((set) => ({
   toasts: [],
   isBottomSheetOpen: false,
   bottomSheetContent: null,
   confirmOptions: null,
 
-  showToast: (message, type = 'info') => {
+  showToast: (message, type = 'info', duration) => {
     const id = `${Date.now()}-${Math.random()}`;
-    set((state) => ({ toasts: [...state.toasts, { id, message, type }] }));
+    const ms = duration ?? TOAST_DURATION[type];
+    // Evict oldest if already at cap
+    set((state) => ({
+      toasts: [...state.toasts.slice(-(MAX_TOASTS - 1)), { id, message, type }],
+    }));
     setTimeout(() => {
       set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
-    }, 3500);
+    }, ms);
   },
 
   dismissToast: (id) =>

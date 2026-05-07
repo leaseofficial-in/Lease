@@ -66,15 +66,17 @@ export const Button: React.FC<ButtonProps> = ({
     transform: [{ scale: scale.value }],
   }));
 
+  const isDisabled = disabled || loading;
+
   const handlePressIn = () => {
+    if (isDisabled) return;
     scale.value = withSpring(0.97, { damping: 20, stiffness: 300 });
   };
 
   const handlePressOut = () => {
+    if (isDisabled) return;
     scale.value = withSpring(1, { damping: 20, stiffness: 300 });
   };
-
-  const isDisabled = disabled || loading;
   const { container, text } = variantStyles[variant];
   const { container: sizeContainer, text: sizeText } = sizeStyles[size];
 

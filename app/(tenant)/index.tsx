@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Linking } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { Proof, Rental, RentPayment, RepairRequest } from '../../types';
@@ -28,6 +28,7 @@ import { checkAndMarkOverdue } from '../../lib/payments';
 export default function TenantDashboard() {
   const router = useRouter();
   const { profile } = useAuthStore();
+  const queryClient = useQueryClient();
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
   const { data: rental, isLoading, refetch, isRefetching } = useQuery({
@@ -157,7 +158,9 @@ export default function TenantDashboard() {
   useEffect(() => {
     if (!rental || rental.status !== 'active' || isLocalDevUser) return;
     void scheduleRentReminder(rental.id, rental.rent_due_day, rental.monthly_rent, rental.late_fee_percent ?? 5);
-    void checkAndMarkOverdue(rental.id, profile!.id, rental.rent_due_day, rental.monthly_rent, rental.late_fee_percent ?? 5);
+    checkAndMarkOverdue(rental.id, profile!.id, rental.rent_due_day, rental.monthly_rent, rental.late_fee_percent ?? 5)
+      .then(() => queryClient.invalidateQueries({ queryKey: ['current-payment', rental.id] }))
+      .catch(() => {});
   }, [rental?.id, rental?.status, isLocalDevUser]);
 
   useEffect(() => {

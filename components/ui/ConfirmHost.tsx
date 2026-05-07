@@ -10,7 +10,9 @@ export function ConfirmHost() {
   const [working, setWorking] = useState(false);
 
   const handleClose = () => {
-    if (!working) closeConfirm();
+    if (working) return;
+    confirmOptions?.onCancel?.();
+    closeConfirm();
   };
 
   const handleConfirm = async () => {

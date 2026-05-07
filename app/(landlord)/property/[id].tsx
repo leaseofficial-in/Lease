@@ -327,8 +327,8 @@ export default function PropertyDetailScreen() {
       showToast('Enter a valid security deposit', 'error');
       return;
     }
-    if (!Number.isInteger(rentDueDay) || rentDueDay < 1 || rentDueDay > 31) {
-      showToast('Rent due day must be between 1 and 31', 'error');
+    if (!Number.isInteger(rentDueDay) || rentDueDay < 1 || rentDueDay > 28) {
+      showToast('Rent due day must be between 1 and 28', 'error');
       return;
     }
     if (!termsForm.startDate.trim()) {

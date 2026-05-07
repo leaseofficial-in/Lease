@@ -85,8 +85,7 @@ export default function PayRentScreen() {
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
   const [proofUri, setProofUri] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [stage, setStage] = useState<null | 'uploading' | 'saving'>(null);
 
   const upiLaunched = useRef(false);
 
@@ -170,17 +169,17 @@ export default function PayRentScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!rental || !profile) return;
-    setSubmitting(true);
+    if (!rental || !profile || stage !== null) return;
     try {
+      setStage('saving');
       const paymentId = await ensurePaymentRecord();
 
       let proofUrl: string | null = null;
       if (proofUri) {
-        setUploading(true);
+        setStage('uploading');
         const result = await uploadPaymentProof(proofUri, rental.id, paymentId);
         proofUrl = result.publicUrl;
-        setUploading(false);
+        setStage('saving');
       }
 
       const { error } = await supabase
@@ -214,8 +213,7 @@ export default function PayRentScreen() {
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Could not record payment', 'error');
     } finally {
-      setSubmitting(false);
-      setUploading(false);
+      setStage(null);
     }
   };
 
@@ -502,10 +500,10 @@ export default function PayRentScreen() {
         </View>
 
         <Button
-          title={uploading ? 'Uploading receipt…' : `Submit as ${METHOD_LABEL[method]}`}
+          title={stage === 'uploading' ? 'Uploading receipt…' : stage === 'saving' ? 'Saving…' : `Submit as ${METHOD_LABEL[method]}`}
           onPress={handleSubmit}
-          loading={submitting}
-          disabled={submitting}
+          loading={stage !== null}
+          disabled={stage !== null}
           fullWidth
           size="lg"
         />
