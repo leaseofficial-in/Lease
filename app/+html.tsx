@@ -9,7 +9,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-        <meta name="theme-color" content="#1A56FF" />
+        <meta name="theme-color" content="#5046E4" />
         <meta name="description" content="RentyBase — Renting made trustworthy. Manage rent, deposits, move-in proof, and repairs in one place." />
         <meta property="og:title" content="RentyBase" />
         <meta property="og:description" content="The all-in-one app for landlords and tenants." />
