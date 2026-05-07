@@ -14,6 +14,7 @@ import { Card } from '../../../components/ui/Card';
 import { StatusPill } from '../../../components/ui/StatusPill';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingScreen } from '../../../components/ui/LoadingScreen';
+import { PageHeader } from '../../../components/ui/PageHeader';
 import { Cap, Chip } from '../../../components/ui/V2';
 import { Colors, Fonts } from '../../../constants/theme';
 import { isDevAuthUserId } from '../../../lib/devAuth';
@@ -120,26 +121,16 @@ export default function LandlordRepairsScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
-      <View style={{ paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="chevron-back" size={20} color={Colors.primary} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Cap>Maintenance</Cap>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18, marginTop: 2 }}>
-            Repair Requests
-          </Text>
-        </View>
-        {repairs.length > 0 && (
+      <PageHeader
+        title="Repair Requests"
+        caption="Maintenance"
+        onBack={() => router.back()}
+        right={repairs.length > 0 ? (
           <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
             {needsAction.length} new
           </Text>
-        )}
-      </View>
+        ) : undefined}
+      />
 
       {!repairs.length ? (
         <EmptyState

@@ -12,7 +12,8 @@ import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { PaymentRowSkeleton } from '../../components/ui/SkeletonLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { AppIcon, BackButton } from '../../components/ui/Icon';
+import { AppIcon } from '../../components/ui/Icon';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
@@ -56,21 +57,7 @@ export default function RentHistoryScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
-      {/* ── Header ── */}
-      <View style={{
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 16, paddingVertical: 12,
-        backgroundColor: Colors.surface,
-        borderBottomWidth: 1, borderBottomColor: Colors.border,
-      }}>
-        <BackButton onPress={() => router.back()} style={{ marginRight: 12 }} />
-        <View>
-          <Cap>Tenant</Cap>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>
-            Rent History
-          </Text>
-        </View>
-      </View>
+      <PageHeader title="Rent History" caption="Tenant" onBack={() => router.back()} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

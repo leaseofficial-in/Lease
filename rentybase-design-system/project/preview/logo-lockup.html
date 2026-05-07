@@ -1,0 +1,78 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#0E1413;--copper:#C97A3A;--canvas:#F6F4EE;--muted:#5C645F}
+  body{margin:0;background:var(--canvas);font-family:'Bricolage Grotesque',sans-serif;padding:28px;color:var(--ink);display:flex;flex-direction:column;gap:28px}
+  .label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  .tile{
+    background:#0E1413;border-radius:18px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    position:relative;overflow:hidden;
+    box-shadow:0 8px 22px -6px rgba(15,76,92,.35);
+  }
+  .tile::before{content:"";position:absolute;inset:0;
+    background:radial-gradient(circle at 78% 14%,rgba(201,122,58,.5),transparent 55%),
+               radial-gradient(circle at 14% 96%,rgba(15,76,92,.6),transparent 60%);}
+  .tile svg{position:relative;z-index:1}
+  .lockup{display:flex;align-items:center}
+  .word{
+    font-family:'Bricolage Grotesque',sans-serif;
+    font-variation-settings:"opsz" 96,"wdth" 75;
+    font-weight:800;line-height:.9;letter-spacing:-.06em;color:var(--ink);
+    display:inline-flex;align-items:baseline;
+  }
+  .word .base{color:var(--copper);margin-left:1px}
+  .word .stop{display:inline-block;background:var(--copper);border-radius:.06em;margin-left:.1em}
+
+  .horizontal .word{font-size:48px}
+  .horizontal .word .stop{width:9px;height:9px;transform:translateY(-3px)}
+  .horizontal .tile{width:72px;height:72px;border-radius:16px;margin-right:14px}
+
+  .small .word{font-size:30px}
+  .small .word .stop{width:6px;height:6px;transform:translateY(-2px)}
+  .small .tile{width:44px;height:44px;border-radius:10px;margin-right:10px}
+
+  .micro .word{font-size:20px;letter-spacing:-.05em}
+  .micro .word .stop{width:4px;height:4px;transform:translateY(-1px)}
+  .micro .tile{width:28px;height:28px;border-radius:7px;margin-right:8px}
+
+  .dark{background:#0E1413;color:var(--canvas);padding:28px;border-radius:20px}
+  .dark .word{color:var(--canvas)}
+</style></head>
+<body>
+
+<div>
+  <div class="label">Horizontal lockup</div>
+  <div class="lockup horizontal">
+    <div class="tile"><svg width="50" height="50" viewBox="0 0 200 200"><path d="M100 22 L176 88 V162 a14 14 0 0 1 -14 14 H38 a14 14 0 0 1 -14 -14 V88 Z" fill="#F6F4EE"/><path d="M62 178 V128 a38 38 0 0 1 76 0 V178 Z" fill="#0E1413"/><text x="100" y="170" text-anchor="middle" font-family="Bricolage Grotesque, sans-serif" font-size="46" font-weight="800" letter-spacing="-3" fill="#F6F4EE" style="font-variation-settings:'opsz' 96,'wdth' 75">RB</text><rect x="60" y="172" width="80" height="6" rx="1" fill="#C97A3A"/><circle cx="100" cy="46" r="3.2" fill="#C97A3A"/></svg></div>
+    <span class="word">Renty<span class="base">Base</span><span class="stop"></span></span>
+  </div>
+</div>
+
+<div>
+  <div class="label">Compact (header / nav)</div>
+  <div class="lockup small">
+    <div class="tile"><svg width="30" height="30" viewBox="0 0 200 200"><path d="M100 22 L176 88 V162 a14 14 0 0 1 -14 14 H38 a14 14 0 0 1 -14 -14 V88 Z" fill="#F6F4EE"/><path d="M62 178 V128 a38 38 0 0 1 76 0 V178 Z" fill="#0E1413"/><text x="100" y="170" text-anchor="middle" font-family="Bricolage Grotesque, sans-serif" font-size="46" font-weight="800" letter-spacing="-3" fill="#F6F4EE" style="font-variation-settings:'opsz' 96,'wdth' 75">RB</text><rect x="60" y="172" width="80" height="6" rx="1" fill="#C97A3A"/></svg></div>
+    <span class="word">Renty<span class="base">Base</span><span class="stop"></span></span>
+  </div>
+</div>
+
+<div>
+  <div class="label">Micro (footer / inline)</div>
+  <div class="lockup micro">
+    <div class="tile"><svg width="20" height="20" viewBox="0 0 200 200"><path d="M100 22 L176 88 V162 a14 14 0 0 1 -14 14 H38 a14 14 0 0 1 -14 -14 V88 Z" fill="#F6F4EE"/><path d="M62 178 V128 a38 38 0 0 1 76 0 V178 Z" fill="#0E1413"/><rect x="60" y="172" width="80" height="6" rx="1" fill="#C97A3A"/></svg></div>
+    <span class="word">Renty<span class="base">Base</span></span>
+  </div>
+</div>
+
+<div class="dark">
+  <div class="label" style="color:#A7A39B">On dark</div>
+  <div class="lockup horizontal" style="margin-top:10px">
+    <div class="tile" style="background:transparent;box-shadow:none"><svg width="50" height="50" viewBox="0 0 200 200"><path d="M100 22 L176 88 V162 a14 14 0 0 1 -14 14 H38 a14 14 0 0 1 -14 -14 V88 Z" fill="#F6F4EE"/><path d="M62 178 V128 a38 38 0 0 1 76 0 V178 Z" fill="#0E1413"/><text x="100" y="170" text-anchor="middle" font-family="Bricolage Grotesque, sans-serif" font-size="46" font-weight="800" letter-spacing="-3" fill="#F6F4EE" style="font-variation-settings:'opsz' 96,'wdth' 75">RB</text><rect x="60" y="172" width="80" height="6" rx="1" fill="#C97A3A"/><circle cx="100" cy="46" r="3.2" fill="#C97A3A"/></svg></div>
+    <span class="word">Renty<span class="base">Base</span><span class="stop"></span></span>
+  </div>
+</div>
+
+</body></html>

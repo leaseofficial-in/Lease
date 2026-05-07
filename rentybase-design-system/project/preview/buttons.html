@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:var(--rb-canvas);font-family:var(--rb-font-sans);padding:24px;color:var(--rb-ink)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:600;border:none;cursor:pointer;font-family:var(--rb-font-sans)}
+  .primary{background:#0F4C5C;color:#fff}
+  .primary:hover{background:#0A3A47;box-shadow:0 8px 24px rgba(15,76,92,.28)}
+  .secondary{background:#fff;color:#0E1413;border:1px solid #E6E2D7}
+  .ghost{background:transparent;color:#0E1413}
+  .danger{background:#B33A2E;color:#fff}
+  .sm{padding:8px 14px;font-size:13px}
+  .lg{padding:16px 28px;font-size:15px}
+</style></head><body>
+<div class="row" style="margin-bottom:14px">
+  <button class="btn primary">Pay rent</button>
+  <button class="btn secondary">Cancel</button>
+  <button class="btn ghost">Skip</button>
+  <button class="btn danger">Delete property</button>
+</div>
+<div class="row">
+  <button class="btn primary sm">Add</button>
+  <button class="btn primary">Add property</button>
+  <button class="btn primary lg">Generate HRA receipt</button>
+</div>
+</body></html>

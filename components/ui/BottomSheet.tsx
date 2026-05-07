@@ -30,16 +30,16 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   maxHeight = '86%',
   scrollable = false,
 }) => {
-  const translateY = useSharedValue(400);
+  const translateY = useSharedValue(500);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      opacity.value = withTiming(1, { duration: 200 });
-      translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+      opacity.value = withTiming(1, { duration: 180 });
+      translateY.value = withSpring(0, { damping: 22, stiffness: 220, mass: 0.8 });
     } else {
-      opacity.value = withTiming(0, { duration: 150 });
-      translateY.value = withTiming(400, { duration: 200 });
+      opacity.value = withTiming(0, { duration: 140 });
+      translateY.value = withTiming(500, { duration: 200 });
     }
   }, [visible, opacity, translateY]);
 
@@ -58,7 +58,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
       >
         <TouchableWithoutFeedback onPress={onClose}>
           <Animated.View
-            style={[overlayStyle, { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }]}
+            style={[overlayStyle, { flex: 1, backgroundColor: 'rgba(8,9,10,0.45)' }]}
           />
         </TouchableWithoutFeedback>
 
@@ -78,22 +78,28 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
               overflow: 'hidden',
             },
           ]}
-          className="bg-white rounded-t-3xl"
         >
           {/* Handle bar */}
-          <View className="items-center pt-3 pb-1">
-            <View className="w-10 h-1 rounded-full bg-border" />
+          <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
+            <View
+              style={{
+                width: 36,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: Colors.fill2,
+              }}
+            />
           </View>
 
           {scrollable ? (
             <ScrollView
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 36 }}
             >
               {children}
             </ScrollView>
           ) : (
-            <View style={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 36 }}>
               {children}
             </View>
           )}

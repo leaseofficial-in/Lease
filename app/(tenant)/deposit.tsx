@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
@@ -73,21 +74,7 @@ export default function TenantDepositScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
-      <View style={{ paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="chevron-back" size={20} color={Colors.primary} />
-        </TouchableOpacity>
-        <View>
-          <Cap>Security</Cap>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18, marginTop: 2 }}>
-            Deposit
-          </Text>
-        </View>
-      </View>
+      <PageHeader title="Deposit" caption="Security" onBack={() => router.back()} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

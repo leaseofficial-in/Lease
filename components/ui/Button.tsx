@@ -11,10 +11,10 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors } from '../../constants/theme';
+import { Colors, Fonts } from '../../constants/theme';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
-type ButtonSize = 'sm' | 'md' | 'lg';
+export type ButtonVariant = 'primary' | 'action' | 'secondary' | 'ghost' | 'danger';
+export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
@@ -27,29 +27,18 @@ interface ButtonProps extends TouchableOpacityProps {
   rightIcon?: React.ReactNode;
 }
 
-const variantStyles: Record<ButtonVariant, { container: string; text: string }> = {
-  primary: {
-    container: 'bg-primary',
-    text: 'text-white',
-  },
-  secondary: {
-    container: 'bg-white border border-border',
-    text: 'text-primary',
-  },
-  ghost: {
-    container: 'bg-transparent',
-    text: 'text-primary',
-  },
-  danger: {
-    container: 'bg-danger',
-    text: 'text-white',
-  },
+const VARIANT: Record<ButtonVariant, { bg: string; text: string; border?: string }> = {
+  primary:   { bg: Colors.primary,  text: Colors.surface },
+  action:    { bg: Colors.action,   text: Colors.surface },
+  secondary: { bg: Colors.surface,  text: Colors.primary, border: Colors.border },
+  ghost:     { bg: 'transparent',   text: Colors.primary },
+  danger:    { bg: Colors.danger,   text: Colors.surface },
 };
 
-const sizeStyles: Record<ButtonSize, { container: string; text: string }> = {
-  sm: { container: 'px-4 rounded-full', text: 'text-sm font-medium' },
-  md: { container: 'px-6 rounded-full', text: 'text-base font-semibold' },
-  lg: { container: 'px-8 rounded-full', text: 'text-base font-semibold' },
+const SIZE: Record<ButtonSize, { height: number; px: number; fontSize: number; radius: number }> = {
+  sm: { height: 36, px: 14, fontSize: 13, radius: 9999 },
+  md: { height: 50, px: 22, fontSize: 15, radius: 9999 },
+  lg: { height: 56, px: 28, fontSize: 16, radius: 16 },
 };
 
 export const Button: React.FC<ButtonProps> = ({
@@ -72,6 +61,8 @@ export const Button: React.FC<ButtonProps> = ({
   }));
 
   const isDisabled = disabled || loading;
+  const v = VARIANT[variant];
+  const s = SIZE[size];
 
   const handlePressIn = () => {
     if (isDisabled) return;
@@ -82,14 +73,24 @@ export const Button: React.FC<ButtonProps> = ({
     if (isDisabled) return;
     scale.value = withSpring(1, { damping: 20, stiffness: 300 });
   };
-  const { container, text } = variantStyles[variant];
-  const { container: sizeContainer, text: sizeText } = sizeStyles[size];
 
   return (
-    <Animated.View style={[fullWidth ? { alignSelf: 'stretch' } : undefined, animatedStyle, style]}>
+    <Animated.View
+      style={[fullWidth ? { alignSelf: 'stretch' } : { alignSelf: 'flex-start' }, animatedStyle, style]}
+    >
       <TouchableOpacity
-        className={`flex-row items-center justify-center ${container} ${sizeContainer} ${isDisabled ? 'opacity-50' : ''}`}
-        style={{ minHeight: size === 'lg' ? 56 : size === 'sm' ? 38 : 50 }}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: s.height,
+          paddingHorizontal: s.px,
+          borderRadius: s.radius,
+          backgroundColor: v.bg,
+          borderWidth: v.border ? 1.5 : 0,
+          borderColor: v.border ?? 'transparent',
+          opacity: isDisabled ? 0.45 : 1,
+        }}
         disabled={isDisabled}
         activeOpacity={1}
         onPressIn={handlePressIn}
@@ -100,17 +101,35 @@ export const Button: React.FC<ButtonProps> = ({
           <>
             <ActivityIndicator
               size="small"
-              color={variant === 'primary' || variant === 'danger' ? '#fff' : Colors.action}
+              color={variant === 'secondary' || variant === 'ghost' ? Colors.action : '#fff'}
             />
             {loadingText && (
-              <Text className={`${text} ${sizeText} ml-2`}>{loadingText}</Text>
+              <Text
+                style={{
+                  color: v.text,
+                  fontFamily: Fonts.sansSemiBold,
+                  fontSize: s.fontSize,
+                  marginLeft: 8,
+                }}
+              >
+                {loadingText}
+              </Text>
             )}
           </>
         ) : (
           <>
-            {leftIcon && <>{leftIcon}</>}
-            <Text className={`${text} ${sizeText} ${leftIcon ? 'ml-2' : ''}`}>{title}</Text>
-            {rightIcon && <View className="ml-2">{rightIcon}</View>}
+            {leftIcon && <View style={{ marginRight: 7 }}>{leftIcon}</View>}
+            <Text
+              style={{
+                color: v.text,
+                fontFamily: Fonts.sansSemiBold,
+                fontSize: s.fontSize,
+                letterSpacing: size === 'lg' ? -0.2 : 0,
+              }}
+            >
+              {title}
+            </Text>
+            {rightIcon && <View style={{ marginLeft: 7 }}>{rightIcon}</View>}
           </>
         )}
       </TouchableOpacity>

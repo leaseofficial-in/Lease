@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ActivityIndicator, Text } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { Colors, Fonts } from '../../constants/theme';
 
 interface LoadingScreenProps {
   message?: string;
@@ -8,10 +8,27 @@ interface LoadingScreenProps {
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message }) => {
   return (
-    <View className="flex-1 items-center justify-center bg-white">
+    <View
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Colors.background,
+      }}
+    >
       <ActivityIndicator size="large" color={Colors.action} />
       {message && (
-        <Text className="text-sm text-muted mt-3">{message}</Text>
+        <Text
+          style={{
+            color: Colors.muted,
+            fontFamily: Fonts.sans,
+            fontSize: 13,
+            marginTop: 12,
+            letterSpacing: 0.1,
+          }}
+        >
+          {message}
+        </Text>
       )}
     </View>
   );

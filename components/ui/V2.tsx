@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View, type TextProps, type ViewProps } from 'react-native';
+import { Text, View, TouchableOpacity, type TextProps, type ViewProps, type TouchableOpacityProps } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Colors, Fonts } from '../../constants/theme';
 
@@ -187,6 +187,99 @@ export function CollectionRing({
       </View>
     </View>
   );
+}
+
+/**
+ * Section divider used throughout list screens.
+ * Renders a label (left) with an optional action link (right).
+ */
+export function SectionHeader({
+  label,
+  action,
+  onAction,
+  style,
+}: {
+  label: string;
+  action?: string;
+  onAction?: () => void;
+  style?: ViewProps['style'];
+}) {
+  return (
+    <View
+      style={[
+        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+        style,
+      ]}
+    >
+      <Cap>{label}</Cap>
+      {action && onAction && (
+        <TouchableOpacity onPress={onAction} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
+            {action}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+/**
+ * A tappable row inside a Card — icon + label + optional right element.
+ * Used for settings rows, info rows, etc.
+ */
+export function RowItem({
+  label,
+  sublabel,
+  left,
+  right,
+  onPress,
+  last = false,
+}: {
+  label: string;
+  sublabel?: string;
+  left?: React.ReactNode;
+  right?: React.ReactNode;
+  onPress?: () => void;
+  last?: boolean;
+}) {
+  const inner = (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 13,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: Colors.borderSoft,
+      }}
+    >
+      {left && (
+        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.fill2, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {left}
+        </View>
+      )}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 14, lineHeight: 19 }} numberOfLines={1}>
+          {label}
+        </Text>
+        {sublabel && (
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }} numberOfLines={1}>
+            {sublabel}
+          </Text>
+        )}
+      </View>
+      {right && <View style={{ flexShrink: 0 }}>{right}</View>}
+    </View>
+  );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
+        {inner}
+      </TouchableOpacity>
+    );
+  }
+  return inner;
 }
 
 export function Sparkline({

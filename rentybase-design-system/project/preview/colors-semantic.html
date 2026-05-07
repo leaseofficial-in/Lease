@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body{margin:0;background:var(--rb-canvas);font-family:var(--rb-font-sans);padding:20px;color:var(--rb-ink)}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600}
+  .card{border:1px solid var(--rb-border-soft);background:#fff;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+  .swatch{height:32px;border-radius:8px}
+  .name{font-size:12px;font-weight:600}
+  .hex{font-family:var(--rb-font-mono);font-size:10px;color:var(--rb-ink-3)}
+</style></head><body>
+<div class="grid">
+  <div class="card"><div class="swatch" style="background:#1F7A55"></div><div class="name">Success</div><div class="hex">#1F7A55 · 4.9:1</div><span class="pill" style="background:#DEEFE6;color:#1F7A55">Paid</span></div>
+  <div class="card"><div class="swatch" style="background:#B8740F"></div><div class="name">Warning</div><div class="hex">#B8740F · 4.6:1</div><span class="pill" style="background:#F6E6CA;color:#B8740F">Due</span></div>
+  <div class="card"><div class="swatch" style="background:#B33A2E"></div><div class="name">Danger</div><div class="hex">#B33A2E · 5.4:1</div><span class="pill" style="background:#F3DAD6;color:#B33A2E">Overdue</span></div>
+  <div class="card"><div class="swatch" style="background:#0F4C5C"></div><div class="name">Info</div><div class="hex">#0F4C5C · 9.2:1</div><span class="pill" style="background:#DDE8EB;color:#0F4C5C">Confirm</span></div>
+</div>
+</body></html>

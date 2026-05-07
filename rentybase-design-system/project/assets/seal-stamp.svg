@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <circle cx="100" cy="100" r="92" fill="none" stroke="#C97A3A" stroke-width="3"></circle>
+  <circle cx="100" cy="100" r="80" fill="none" stroke="#C97A3A" stroke-width="1.5" stroke-dasharray="2 4"></circle>
+  <text x="100" y="86" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="11" letter-spacing="3" fill="#C97A3A" font-weight="600">VERIFIED RECORD</text>
+  <path d="M70 110 l18 18 l42 -42" fill="none" stroke="#C97A3A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+  <text x="100" y="160" text-anchor="middle" font-family="Instrument Serif, serif" font-size="14" fill="#C97A3A">RentyBase</text>
+</svg>
