@@ -88,25 +88,46 @@ function useWindowWidth() {
 
 function GlobalStyles() {
   useEffect(() => {
-    const el = document.createElement('style');
-    el.id = 'rentybase-landing-styles';
-    el.textContent = `
+    // Inject base CSS (applies before JS paints)
+    const styleEl = document.createElement('style');
+    styleEl.id = 'rentybase-landing-styles';
+    styleEl.textContent = `
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      /* Override Expo's overflow:hidden on root — landing page must scroll */
-      html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased;
-             height: auto !important; overflow-y: auto !important; overflow-x: hidden !important; }
-      body { background: ${C.bg}; height: auto !important;
-             overflow-y: auto !important; overflow-x: hidden !important; }
-      #root { height: auto !important; flex: none !important;
-              overflow: visible !important; display: block !important; }
+      html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
       ::selection { background: ${C.action}33; }
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: ${C.bg}; }
       ::-webkit-scrollbar-thumb { background: #2a2d31; border-radius: 3px; }
       a { color: inherit; text-decoration: none; }
     `;
-    document.head.appendChild(el);
-    return () => { document.getElementById('rentybase-landing-styles')?.remove(); };
+    document.head.appendChild(styleEl);
+
+    // Use element.style.setProperty with 'important' priority — this creates inline
+    // !important styles that beat Expo's React Native Web class-based overflow:hidden.
+    // Targets: html, body, #root, and the GestureHandlerRootView (#root > first child).
+    const targets: HTMLElement[] = [
+      document.documentElement,
+      document.body,
+    ];
+    const root = document.getElementById('root');
+    if (root) targets.push(root);
+    const expoShell = root?.firstElementChild as HTMLElement | null;
+    if (expoShell) targets.push(expoShell);
+
+    targets.forEach(el => {
+      el.style.setProperty('overflow-x', 'hidden', 'important');
+      el.style.setProperty('overflow-y', 'auto',   'important');
+      el.style.setProperty('height',     'auto',   'important');
+      el.style.setProperty('flex',       'none',   'important');
+      el.style.setProperty('display',    'block',  'important');
+    });
+
+    return () => {
+      document.getElementById('rentybase-landing-styles')?.remove();
+      targets.forEach(el => {
+        ['overflow-x','overflow-y','height','flex','display'].forEach(p => el.style.removeProperty(p));
+      });
+    };
   }, []);
   return null;
 }
