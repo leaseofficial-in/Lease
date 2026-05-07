@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../../../constants/theme';
 import { confirmAction } from '../../../lib/confirm';
 import { notifyUser } from '../../../lib/sendPush';
+import { writeRentalEvent } from '../../../lib/events';
 
 export default function UploadProofScreen() {
   const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
@@ -219,6 +220,14 @@ export default function UploadProofScreen() {
             .eq('id', proof.id);
           if (error) throw error;
           void queryClient.invalidateQueries({ queryKey: ['proof', rental?.id] });
+          void writeRentalEvent({
+            rentalId: rental.id,
+            actorType: 'tenant',
+            actorId: profile!.id,
+            eventType: `proof_${proofType}_submitted`,
+            payload: { proof_id: proof.id, total_photos: totalPhotos, rooms_covered: roomsCovered },
+            idempotencyKey: `proof_submitted_${proof.id}`,
+          });
           if (rental.landlord_id) {
             const label = proofType === 'move_out' ? 'move-out' : 'move-in';
             void notifyUser({

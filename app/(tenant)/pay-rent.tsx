@@ -28,6 +28,7 @@ import { Colors, Fonts } from '../../constants/theme';
 import { openUPIPayment } from '../../lib/upi';
 import { pickPhoto, takePhoto, uploadPaymentProof, revokeWebPhotoUrl } from '../../lib/storage';
 import { notifyUser } from '../../lib/sendPush';
+import { writeRentalEvent } from '../../lib/events';
 
 type PayMethod = 'upi' | 'bank_transfer' | 'cash' | 'cheque';
 
@@ -222,6 +223,14 @@ export default function PayRentScreen() {
         queryClient.invalidateQueries({ queryKey: ['current-payment'] }),
         queryClient.invalidateQueries({ queryKey: ['tenant-payments'] }),
       ]);
+      void writeRentalEvent({
+        rentalId: rental.id,
+        actorType: 'tenant',
+        actorId: profile.id,
+        eventType: 'rent_payment_submitted',
+        payload: { payment_id: paymentId, method, month: currentPayment?.month ?? monthKey(), amount: totalAmount, has_proof: !!proofUrl },
+        idempotencyKey: `rent_submitted_${paymentId}`,
+      });
       void notifyUser({
         recipientId: rental.landlord_id,
         title: 'Rent payment submitted',

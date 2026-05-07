@@ -26,6 +26,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Colors, Fonts } from '../../constants/theme';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { notifyUser } from '../../lib/sendPush';
+import { writeRentalEvent } from '../../lib/events';
 
 const schema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
@@ -129,7 +130,7 @@ export default function RepairsScreen() {
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('repair_requests').insert({
+      const { data: newRepair, error } = await supabase.from('repair_requests').insert({
         rental_id: rental.id,
         raised_by: profile.id,
         title: values.title,
@@ -138,6 +139,14 @@ export default function RepairsScreen() {
         status: 'open',
       }).select('id').single();
       if (error) throw error;
+      void writeRentalEvent({
+        rentalId: rental.id,
+        actorType: 'tenant',
+        actorId: profile.id,
+        eventType: 'repair_request_created',
+        payload: { repair_id: newRepair?.id, title: values.title, priority: values.priority },
+        idempotencyKey: newRepair?.id ? `repair_created_${newRepair.id}` : undefined,
+      });
       void queryClient.invalidateQueries({ queryKey: ['repairs', rental.id] });
       if (rental.landlord_id) {
         void notifyUser({

@@ -19,6 +19,7 @@ import { markLandlordActionsViewed } from '../../lib/landlordActionViews';
 import { markNotificationsRead } from '../../lib/notificationActions';
 import { notifyUser } from '../../lib/sendPush';
 import { confirmRentPayment } from '../../lib/payments';
+import { writeRentalEvent } from '../../lib/events';
 import { EmptyState } from '../../components/ui/EmptyState';
 
 interface PaymentWithRental extends RentPayment {
@@ -88,6 +89,14 @@ export default function LandlordPaymentsScreen() {
     setConfirming(true);
     try {
       await confirmRentPayment(confirmingPayment.id);
+      void writeRentalEvent({
+        rentalId: confirmingPayment.rental_id,
+        actorType: 'landlord',
+        actorId: profile?.id,
+        eventType: 'rent_payment_confirmed',
+        payload: { payment_id: confirmingPayment.id, amount: confirmingPayment.amount, month: confirmingPayment.month, method: confirmingPayment.payment_method },
+        idempotencyKey: `rent_confirmed_${confirmingPayment.id}`,
+      });
 
       if (confirmingPayment.rental.tenant_id) {
         notifyUser({
