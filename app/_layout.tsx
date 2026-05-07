@@ -1,10 +1,11 @@
 import '../global.css';
 import React, { useEffect } from 'react';
-import { Text, TextInput, View, StyleSheet } from 'react-native';
+import { Text, TextInput, View, StyleSheet, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import {
   Geist_400Regular,
   Geist_500Medium,
@@ -166,6 +167,7 @@ export default function RootLayout() {
             <ConfirmHost />
             <ToastHost />
           </QueryClientProvider>
+          {Platform.OS === 'web' && <SpeedInsights />}
         </WebContainer>
       </GestureHandlerRootView>
     </AppErrorBoundary>
