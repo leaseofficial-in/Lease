@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Free HRA Rent Receipt Generator India — Download PDF Instantly | RentyBase</title>
+  <meta name="description" content="Generate a Section 10(13A) compliant HRA rent receipt with landlord PAN in seconds. Free PDF download. No signup required. Used by 1,000+ Indian tenants." />
+  <meta property="og:title" content="Free HRA Receipt Generator India — Instant PDF Download" />
+  <meta property="og:description" content="Generate a valid HRA rent receipt with PAN number. Section 10(13A) compliant. Free, instant, no signup needed." />
+  <meta property="og:url" content="https://rentybase.com/tools/hra-receipt-generator/" />
+  <meta property="og:type" content="website" />
+  <link rel="canonical" href="https://rentybase.com/tools/hra-receipt-generator/" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231A56FF'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='18' fill='white'>R</text></svg>" />
+  <link rel="stylesheet" href="/assets/shared.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "HRA Rent Receipt Generator",
+    "url": "https://rentybase.com/tools/hra-receipt-generator/",
+    "description": "Generate a Section 10(13A) compliant HRA rent receipt PDF for free. Includes landlord PAN, tenant name, property address, and payment details.",
+    "applicationCategory": "FinanceApplication",
+    "operatingSystem": "Web",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+    "provider": { "@type": "Organization", "name": "RentyBase", "url": "https://rentybase.com" },
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://rentybase.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Tools", "item": "https://rentybase.com/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "HRA Receipt Generator", "item": "https://rentybase.com/tools/hra-receipt-generator/" }
+      ]
+    }
+  }
+  </script>
+  <style>
+    .tool-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+    .form-panel { background: var(--fill); border: 1px solid var(--border); border-radius: 20px; padding: 32px; }
+    .form-panel h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .form-panel > p { font-size: 13px; color: var(--ink3); margin-bottom: 24px; }
+    .form-row { margin-bottom: 15px; }
+    .form-row label { display: block; font-size: 13px; font-weight: 600; color: var(--ink2); margin-bottom: 5px; }
+    .form-row input, .form-row select { width: 100%; background: white; border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 13px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--primary); outline: none; transition: border-color .15s; }
+    .form-row input:focus, .form-row select:focus { border-color: var(--action); box-shadow: 0 0 0 3px rgba(26,86,255,.07); }
+    .form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-divider { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 20px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .tool-btn-row { display: flex; gap: 10px; margin-top: 20px; }
+    .tool-btn-row .btn { flex: 1; justify-content: center; padding: 13px; font-size: 14px; }
+
+    /* Receipt preview */
+    .receipt-panel { position: sticky; top: 80px; }
+    .receipt-preview {
+      background: white; border: 1.5px solid var(--border);
+      border-radius: 16px; padding: 36px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.08);
+      min-height: 500px;
+    }
+    .rp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid var(--primary); }
+    .rp-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; }
+    .rp-subtitle { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .rp-logo { font-family: 'Playfair Display', serif; font-size: 14px; color: var(--action); font-weight: 700; }
+    .rp-amount-box { background: var(--action); color: white; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; text-align: center; }
+    .rp-amount-label { font-size: 11px; opacity: .75; margin-bottom: 4px; }
+    .rp-amount-value { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; }
+    .rp-amount-words { font-size: 11px; opacity: .8; margin-top: 3px; }
+    .rp-row { display: flex; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+    .rp-key { color: var(--muted); font-weight: 500; min-width: 140px; flex-shrink: 0; }
+    .rp-val { color: var(--primary); font-weight: 600; }
+    .rp-declaration { background: var(--fill); border-radius: 10px; padding: 12px 14px; font-size: 12px; color: var(--ink3); line-height: 1.6; margin: 16px 0; }
+    .rp-sig { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .rp-sig-box { text-align: center; }
+    .rp-sig-line { width: 120px; border-bottom: 1px solid var(--border); margin-bottom: 6px; height: 28px; }
+    .rp-sig-label { font-size: 11px; color: var(--muted); }
+    .rp-receipt-num { font-size: 11px; color: var(--muted); }
+
+    /* Print styles */
+    @media print {
+      .no-print { display: none !important; }
+      body { padding: 0 !important; background: white; }
+      nav, footer, .sticky-mobile-bar, .back-top, .scroll-progress { display: none !important; }
+      .tool-layout { grid-template-columns: 1fr; }
+      .form-panel { display: none; }
+      .receipt-panel { position: static; }
+      .receipt-preview { border: 1.5px solid #000; box-shadow: none; border-radius: 0; padding: 48px; }
+      .rp-amount-box { background: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
+    .upsell-card { background: linear-gradient(135deg, #0d0d20, #0A0A0A); color: white; border-radius: 16px; padding: 24px; margin-top: 20px; text-align: center; }
+    .upsell-card h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .upsell-card p { font-size: 13px; color: rgba(255,255,255,.6); margin-bottom: 16px; line-height: 1.6; }
+
+    .feature-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 40px 0; }
+    .feat-chip { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 18px; text-align: center; }
+    .feat-chip .icon { font-size: 24px; margin-bottom: 8px; }
+    .feat-chip h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .feat-chip p { font-size: 12px; color: var(--ink3); line-height: 1.5; }
+
+    .faq-simple { display: flex; flex-direction: column; gap: 12px; }
+    .faq-s-item { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; cursor: pointer; }
+    .faq-s-item:hover { border-color: #c0cfff; }
+    .faq-s-q { font-size: 14px; font-weight: 700; margin-bottom: 0; display: flex; justify-content: space-between; gap: 12px; }
+    .faq-s-a { font-size: 13px; color: var(--ink3); line-height: 1.65; max-height: 0; overflow: hidden; opacity: 0; transition: max-height .35s cubic-bezier(.22,1,.36,1), opacity .25s ease, margin-top .2s; }
+    .faq-s-item.open .faq-s-a { max-height: 300px; opacity: 1; margin-top: 10px; }
+    .faq-s-item.open .faq-toggle { transform: rotate(45deg); }
+    .faq-toggle { flex-shrink: 0; font-size: 18px; font-weight: 300; transition: transform .2s; color: var(--muted); }
+
+    @media (max-width: 860px) {
+      .tool-layout { grid-template-columns: 1fr; }
+      .receipt-panel { position: static; order: -1; }
+      .feature-strip { grid-template-columns: 1fr 1fr; }
+      .form-2col { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .feature-strip { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<!-- Mobile menu -->
+<div class="mobile-menu" id="mobileMenu">
+  <div class="mobile-menu-header">
+    <a href="/" style="font-family:'Playfair Display',serif;font-size:20px;">RentyBase</a>
+    <button onclick="closeMenu()" style="background:none;border:none;cursor:pointer;padding:8px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="mobile-menu-links">
+    <a href="/" onclick="closeMenu()">Home</a>
+    <a href="/for/landlords/" onclick="closeMenu()">For Landlords</a>
+    <a href="/for/tenants/" onclick="closeMenu()">For Tenants</a>
+    <a href="/blog/" onclick="closeMenu()">Blog</a>
+    <a href="/features/hra-receipts/" onclick="closeMenu()">HRA Receipts</a>
+  </div>
+  <div class="mobile-menu-cta">
+    <a href="https://app.rentybase.com" class="btn btn-primary">Get Started Free →</a>
+  </div>
+</div>
+
+<nav id="mainNav">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon"><svg viewBox="0 0 72 72" fill="none"><path d="M14 62V30L36 12L58 30V62" stroke="white" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/><path d="M28 62V44a8 8 0 0116 0V62" stroke="white" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
+        RentyBase
+      </a>
+      <ul class="nav-links">
+        <li><a href="/for/landlords/">For Landlords</a></li>
+        <li><a href="/for/tenants/">For Tenants</a></li>
+        <li><a href="/features/hra-receipts/">HRA Receipts</a></li>
+        <li><a href="/blog/">Blog</a></li>
+      </ul>
+      <div class="nav-cta">
+        <a href="https://app.rentybase.com" class="btn btn-secondary">Sign In</a>
+        <a href="https://app.rentybase.com" class="btn btn-primary">Get Started Free →</a>
+      </div>
+      <button class="hamburger" onclick="openMenu()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    </div>
+  </div>
+</nav>
+
+<div class="breadcrumb no-print">
+  <div class="container">
+    <a href="/">Home</a><span>›</span><a href="/tools/">Tools</a><span>›</span>HRA Receipt Generator
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <div class="section-header no-print" style="max-width:680px;">
+      <div class="section-label">Free Tool</div>
+      <h1 class="section-title">HRA Rent Receipt Generator</h1>
+      <p class="section-sub">Generate a Section 10(13A) compliant rent receipt with landlord PAN — instantly, for free. No signup. Works for any month, any year.</p>
+    </div>
+
+    <div class="tool-layout">
+      <!-- Form -->
+      <div class="form-panel no-print">
+        <h2>Fill in receipt details</h2>
+        <p>All fields update the preview on the right in real time.</p>
+
+        <div class="form-divider">Tenant Details</div>
+        <div class="form-row"><label>Tenant Full Name *</label><input type="text" id="tenantName" placeholder="Rahul Sharma" oninput="updateReceipt()" /></div>
+        <div class="form-2col">
+          <div class="form-row"><label>Tenant PAN (optional)</label><input type="text" id="tenantPan" placeholder="ABCDE1234F" oninput="updateReceipt()" /></div>
+          <div class="form-row"><label>Tenant Email (optional)</label><input type="email" id="tenantEmail" placeholder="rahul@example.com" /></div>
+        </div>
+
+        <div class="form-divider">Landlord Details</div>
+        <div class="form-row"><label>Landlord Full Name *</label><input type="text" id="landlordName" placeholder="Suresh Kumar" oninput="updateReceipt()" /></div>
+        <div class="form-row"><label>Landlord PAN *</label><input type="text" id="landlordPan" placeholder="BCDFE5678G" oninput="updateReceipt()" style="text-transform:uppercase" /></div>
+
+        <div class="form-divider">Property & Payment</div>
+        <div class="form-row"><label>Rented Property Address *</label><input type="text" id="propAddress" placeholder="Flat 4B, Prestige Tower, Koramangala, Bangalore — 560034" oninput="updateReceipt()" /></div>
+        <div class="form-2col">
+          <div class="form-row">
+            <label>Month</label>
+            <select id="month" onchange="updateReceipt()">
+              <option value="January">January</option><option value="February">February</option><option value="March">March</option>
+              <option value="April">April</option><option value="May" selected>May</option><option value="June">June</option>
+              <option value="July">July</option><option value="August">August</option><option value="September">September</option>
+              <option value="October">October</option><option value="November">November</option><option value="December">December</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Year</label>
+            <select id="year" onchange="updateReceipt()">
+              <option value="2023">2023</option><option value="2024">2024</option><option value="2025" selected>2025</option><option value="2026">2026</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-2col">
+          <div class="form-row"><label>Rent Amount (₹) *</label><input type="number" id="rentAmount" placeholder="18000" oninput="updateReceipt()" /></div>
+          <div class="form-row">
+            <label>Payment Method</label>
+            <select id="paymentMethod" onchange="updateReceipt()">
+              <option>UPI Transfer</option><option>Bank Transfer (NEFT/IMPS)</option><option>Cash</option><option>Cheque</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row"><label>UTR / Reference Number (optional)</label><input type="text" id="utrNumber" placeholder="UTR123456789012" oninput="updateReceipt()" /></div>
+
+        <div class="tool-btn-row">
+          <button class="btn btn-primary" onclick="printReceipt()">⬇ Download PDF</button>
+          <button class="btn btn-secondary" onclick="resetForm()">Reset</button>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5;">To save as PDF: click "Download PDF", then in the print dialog choose "Save as PDF" as the destination.</p>
+      </div>
+
+      <!-- Receipt Preview -->
+      <div class="receipt-panel">
+        <div class="receipt-preview" id="receiptPreview">
+          <div class="rp-header">
+            <div>
+              <div class="rp-title">Rent Receipt</div>
+              <div class="rp-subtitle">House Rent Allowance — Section 10(13A)</div>
+            </div>
+            <div class="rp-logo">RentyBase</div>
+          </div>
+
+          <div class="rp-amount-box">
+            <div class="rp-amount-label">AMOUNT RECEIVED</div>
+            <div class="rp-amount-value" id="rp-amount">₹ —</div>
+            <div class="rp-amount-words" id="rp-words">Enter rent amount</div>
+          </div>
+
+          <div class="rp-row"><span class="rp-key">Receipt No.</span><span class="rp-val" id="rp-num">RB-2025-001</span></div>
+          <div class="rp-row"><span class="rp-key">Period</span><span class="rp-val" id="rp-period">May 2025</span></div>
+          <div class="rp-row"><span class="rp-key">Date of Receipt</span><span class="rp-val" id="rp-date">—</span></div>
+          <div class="rp-row"><span class="rp-key">Payment Method</span><span class="rp-val" id="rp-method">UPI Transfer</span></div>
+          <div class="rp-row" id="rp-utr-row" style="display:none"><span class="rp-key">UTR / Ref. No.</span><span class="rp-val" id="rp-utr">—</span></div>
+
+          <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:16px;">
+            <div class="rp-row"><span class="rp-key">Received From</span><span class="rp-val" id="rp-tenant">—</span></div>
+            <div class="rp-row" id="rp-tenant-pan-row" style="display:none"><span class="rp-key">Tenant PAN</span><span class="rp-val" id="rp-tenant-pan">—</span></div>
+            <div class="rp-row"><span class="rp-key">Property Address</span><span class="rp-val" id="rp-address" style="max-width:240px;line-height:1.5;">—</span></div>
+          </div>
+
+          <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:16px;">
+            <div class="rp-row"><span class="rp-key">Landlord Name</span><span class="rp-val" id="rp-landlord">—</span></div>
+            <div class="rp-row"><span class="rp-key">Landlord PAN</span><span class="rp-val" id="rp-pan">—</span></div>
+          </div>
+
+          <div class="rp-declaration" id="rp-decl">
+            I, <strong id="d-landlord">___</strong>, certify that I have received a sum of <strong id="d-amount">₹ ___</strong> from <strong id="d-tenant">___</strong> as rent for the property at <strong id="d-address">___</strong> for the period of <strong id="d-period">___</strong>.
+          </div>
+
+          <div class="rp-sig">
+            <div class="rp-receipt-num" id="rp-footer-num">Generated by RentyBase.com</div>
+            <div class="rp-sig-box">
+              <div class="rp-sig-line"></div>
+              <div class="rp-sig-label">Landlord's Signature</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="upsell-card no-print">
+          <h4>Never chase a receipt again</h4>
+          <p>On RentyBase, receipts generate automatically every month from your logged payments. Your tenant downloads them any time — no requests needed.</p>
+          <a href="https://app.rentybase.com" class="btn btn-white btn-lg">Start Free on RentyBase →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature strip -->
+    <div class="feature-strip no-print reveal">
+      <div class="feat-chip">
+        <div class="icon">📋</div>
+        <h4>Section 10(13A) Compliant</h4>
+        <p>Includes all CBDT-required fields: PAN, address, period, amount, payment method.</p>
+      </div>
+      <div class="feat-chip">
+        <div class="icon">⚡</div>
+        <h4>Instant PDF</h4>
+        <p>Fill the form, click download, save as PDF. Done in under 60 seconds.</p>
+      </div>
+      <div class="feat-chip">
+        <div class="icon">🔒</div>
+        <h4>No Signup Required</h4>
+        <p>This tool is completely free. No account, no email, no credit card.</p>
+      </div>
+    </div>
+
+    <!-- SEO content -->
+    <div style="max-width:720px;margin:0 auto;" class="no-print">
+      <div class="section-header center reveal">
+        <div class="section-label">Why This Matters</div>
+        <h2 class="section-title">₹10,000–₹40,000 lost every year — because of a missing receipt</h2>
+        <p class="section-sub">HRA exemption under Section 10(13A) is one of the most valuable tax benefits for salaried employees in India. But you need a valid rent receipt with your landlord's PAN to claim it. Most landlords never give one.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:40px;" class="reveal">
+        <div class="card">
+          <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">What you need</div>
+          <ul class="check-list">
+            <li><span class="ck">✓</span>Landlord name &amp; PAN number</li>
+            <li><span class="ck">✓</span>Your name as tenant</li>
+            <li><span class="ck">✓</span>Full property address</li>
+            <li><span class="ck">✓</span>Rent amount per month</li>
+            <li><span class="ck">✓</span>Period (month + year)</li>
+            <li><span class="ck">✓</span>Payment method used</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">PAN rules</div>
+          <ul class="check-list">
+            <li><span class="ck">✓</span>PAN mandatory if annual rent &gt; ₹1 lakh</li>
+            <li><span class="ck">✓</span>That's just ₹8,334/month</li>
+            <li><span class="ck">✓</span>Most metro renters exceed this</li>
+            <li><span class="ck">✓</span>No PAN? Use Form 60 declaration</li>
+            <li><span class="ck">✓</span>This tool handles both cases</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section-header reveal">
+        <div class="section-label">FAQ</div>
+        <h2 class="section-title">Common questions</h2>
+      </div>
+      <div class="faq-simple reveal">
+        <div class="faq-s-item" onclick="this.classList.toggle('open')">
+          <div class="faq-s-q">Is a self-generated HRA receipt valid for tax filing? <span class="faq-toggle">+</span></div>
+          <div class="faq-s-a">The Income Tax Act does not specify who must issue the receipt — only that it must reflect actual rent paid. A receipt generated through a platform like RentyBase, where the landlord's PAN was collected at onboarding and payments are logged, carries significantly more weight than a plain Word document. That said, it is always best to have the landlord sign or acknowledge the receipt. Share the PDF with your landlord over WhatsApp and ask for a "seen" or acknowledgement.</div>
+        </div>
+        <div class="faq-s-item" onclick="this.classList.toggle('open')">
+          <div class="faq-s-q">What if my landlord doesn't have a PAN? <span class="faq-toggle">+</span></div>
+          <div class="faq-s-a">If the landlord genuinely has no PAN, they must provide a signed Form 60 declaration. You submit this along with your HRA claim. Leave the PAN field blank in this generator and note "Form 60 obtained" on the receipt. Your employer's payroll team will guide the specific process.</div>
+        </div>
+        <div class="faq-s-item" onclick="this.classList.toggle('open')">
+          <div class="faq-s-q">Can I generate receipts for past months? <span class="faq-toggle">+</span></div>
+          <div class="faq-s-a">Yes. Select the appropriate month and year using the dropdowns. There is no legal restriction on generating receipts for past periods, as long as the rent was actually paid for those months and the amounts are accurate.</div>
+        </div>
+        <div class="faq-s-item" onclick="this.classList.toggle('open')">
+          <div class="faq-s-q">My employer needs 12 receipts — do I generate them one by one? <span class="faq-toggle">+</span></div>
+          <div class="faq-s-a">With this free tool, yes — you'd generate one per month. On RentyBase, all receipts are generated automatically from the payment records already in the system. Your tenant can download any month's receipt in one tap, any time, without asking the landlord. If you manage your rental on RentyBase, you never need this tool again.</div>
+        </div>
+        <div class="faq-s-item" onclick="this.classList.toggle('open')">
+          <div class="faq-s-q">Is this tool really free? <span class="faq-toggle">+</span></div>
+          <div class="faq-s-a">Yes, completely free. No signup, no email required, no credit card. Fill the form, download the PDF. That's it.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:48px;" class="reveal">
+        <div class="cta-banner">
+          <h2>Automate this for every month — <em>free.</em></h2>
+          <p>On RentyBase, receipts generate automatically from logged payments. No more December panic when HR asks for 12 months of proof.</p>
+          <div class="cta-actions">
+            <a href="https://app.rentybase.com?role=tenant" class="btn btn-white btn-xl">I'm a Tenant — Start Free</a>
+            <a href="https://app.rentybase.com?role=landlord" class="btn btn-ghost-white btn-xl">I'm a Landlord →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="no-print">
+  <div class="container">
+    <div class="footer-top">
+      <div>
+        <div class="footer-logo">RentyBase.</div>
+        <div class="footer-desc">The rental management workspace for Indian landlords and tenants.</div>
+        <div class="made-in">🇮🇳 Made in India</div>
+      </div>
+      <div class="footer-col"><h4>Tools</h4><ul><li><a href="/tools/hra-receipt-generator/">HRA Receipt Generator</a></li></ul></div>
+      <div class="footer-col"><h4>Features</h4><ul><li><a href="/features/hra-receipts/">HRA Receipts</a></li><li><a href="/#features">All Features</a></li></ul></div>
+      <div class="footer-col"><h4>Resources</h4><ul><li><a href="/blog/">Blog</a></li><li><a href="/for/landlords/">For Landlords</a></li><li><a href="/for/tenants/">For Tenants</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 RentyBase. All rights reserved.</p>
+      <div class="footer-legal"><a href="/#contact">Privacy</a><a href="/#contact">Terms</a></div>
+    </div>
+  </div>
+</footer>
+
+<div class="sticky-mobile-bar no-print">
+  <a href="https://app.rentybase.com?role=tenant" class="btn btn-primary">I'm a Tenant — Join Free</a>
+</div>
+
+<button class="back-top no-print" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 15l-6-6-6 6"/></svg>
+</button>
+
+<script src="/assets/shared.js"></script>
+<script>
+  var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function numToWords(n) {
+    if (!n || isNaN(n)) return '';
+    var a = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+    var b = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+    function tens(n) { return n < 20 ? a[n] : b[Math.floor(n/10)] + (n%10 ? ' ' + a[n%10] : ''); }
+    function hundreds(n) { return n > 99 ? a[Math.floor(n/100)] + ' Hundred' + (n%100 ? ' ' + tens(n%100) : '') : tens(n); }
+    if (n >= 100000) return hundreds(Math.floor(n/100000)) + ' Lakh' + (n%100000 ? ' ' + hundreds(Math.floor(n%100000/1000)) + (n%1000 ? ' Thousand ' + hundreds(n%1000) : ' Thousand') : '');
+    if (n >= 1000) return hundreds(Math.floor(n/1000)) + ' Thousand' + (n%1000 ? ' ' + hundreds(n%1000) : '');
+    return hundreds(n);
+  }
+
+  function updateReceipt() {
+    var tenant = document.getElementById('tenantName').value || '—';
+    var tenantPan = (document.getElementById('tenantPan').value || '').toUpperCase();
+    var landlord = document.getElementById('landlordName').value || '—';
+    var pan = (document.getElementById('landlordPan').value || '—').toUpperCase();
+    var addr = document.getElementById('propAddress').value || '—';
+    var month = document.getElementById('month').value;
+    var year = document.getElementById('year').value;
+    var amount = parseInt(document.getElementById('rentAmount').value) || 0;
+    var method = document.getElementById('paymentMethod').value;
+    var utr = document.getElementById('utrNumber').value;
+
+    document.getElementById('rp-tenant').textContent = tenant;
+    document.getElementById('rp-landlord').textContent = landlord;
+    document.getElementById('rp-pan').textContent = pan;
+    document.getElementById('rp-address').textContent = addr;
+    document.getElementById('rp-period').textContent = month + ' ' + year;
+    document.getElementById('rp-method').textContent = method;
+    document.getElementById('rp-date').textContent = new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'long',year:'numeric'});
+    document.getElementById('rp-num').textContent = 'RB-' + year + '-' + (Math.floor(Math.random()*900)+100);
+
+    if (tenantPan) { document.getElementById('rp-tenant-pan').textContent = tenantPan; document.getElementById('rp-tenant-pan-row').style.display = 'flex'; }
+    else { document.getElementById('rp-tenant-pan-row').style.display = 'none'; }
+
+    if (utr) { document.getElementById('rp-utr').textContent = utr; document.getElementById('rp-utr-row').style.display = 'flex'; }
+    else { document.getElementById('rp-utr-row').style.display = 'none'; }
+
+    if (amount) {
+      document.getElementById('rp-amount').textContent = '₹ ' + amount.toLocaleString('en-IN');
+      document.getElementById('rp-words').textContent = 'Rupees ' + numToWords(amount) + ' Only';
+    } else {
+      document.getElementById('rp-amount').textContent = '₹ —';
+      document.getElementById('rp-words').textContent = 'Enter rent amount';
+    }
+
+    document.getElementById('d-landlord').textContent = landlord;
+    document.getElementById('d-amount').textContent = amount ? '₹' + amount.toLocaleString('en-IN') : '₹___';
+    document.getElementById('d-tenant').textContent = tenant;
+    document.getElementById('d-address').textContent = addr;
+    document.getElementById('d-period').textContent = month + ' ' + year;
+  }
+
+  function printReceipt() { window.print(); }
+
+  function resetForm() {
+    ['tenantName','tenantPan','tenantEmail','landlordName','landlordPan','propAddress','rentAmount','utrNumber'].forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('paymentMethod').selectedIndex = 0;
+    document.getElementById('month').value = 'May';
+    document.getElementById('year').value = '2025';
+    updateReceipt();
+  }
+
+  updateReceipt();
+</script>
+</body>
+</html>

@@ -3,13 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RentyBase — The rental management workspace for India</title>
-  <meta name="description" content="Stop managing rentals over WhatsApp. Move-in photo proof, rent tracking, HRA receipts, deposit protection — free for Indian landlords and tenants." />
-  <meta property="og:title" content="RentyBase — Rental management for India" />
-  <meta property="og:description" content="Photo proof, rent tracking, HRA receipts, deposit ledger. One shared workspace for landlords and tenants." />
+  <title>RentyBase — Free Rental Management App for India</title>
+  <meta name="description" content="Stop managing rentals on WhatsApp. Move-in photo proof, HRA receipts in one tap, deposit ledger, repair tracking. Free for Indian landlords and tenants." />
+  <meta property="og:title" content="RentyBase — Free Rental Management App for India" />
+  <meta property="og:description" content="Photo proof, HRA receipts, deposit protection, repair tracking. The rental management workspace Indian landlords and tenants actually need." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://rentybase.com" />
+  <meta property="og:url" content="https://rentybase.com/" />
+  <meta property="og:image" content="https://rentybase.com/assets/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="RentyBase — Free Rental Management App for India" />
+  <meta name="twitter:description" content="Move-in photo proof, HRA receipts, deposit ledger. Free for Indian landlords and tenants." />
+  <link rel="canonical" href="https://rentybase.com/" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231A56FF'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='18' fill='white'>R</text></svg>" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://rentybase.com/#org",
+        "name": "RentyBase",
+        "url": "https://rentybase.com",
+        "logo": { "@type": "ImageObject", "url": "https://rentybase.com/assets/og-image.png" },
+        "contactPoint": { "@type": "ContactPoint", "email": "support@rentybase.com", "contactType": "customer support" },
+        "areaServed": "IN",
+        "description": "Rental management app for Indian landlords and tenants"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://rentybase.com/#app",
+        "name": "RentyBase",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web, Android, iOS",
+        "url": "https://rentybase.com",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR", "description": "Free during beta" },
+        "description": "Rental management app for Indian landlords and tenants. Move-in photo proof, HRA receipts, deposit protection, repair request tracking.",
+        "featureList": "Move-in photo proof, HRA receipt generator, Security deposit ledger, Repair request tracking, Digital Leave and License agreement, Automatic rent reminders",
+        "screenshot": "https://rentybase.com/assets/og-image.png"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://rentybase.com/#website",
+        "url": "https://rentybase.com",
+        "name": "RentyBase",
+        "publisher": { "@id": "https://rentybase.com/#org" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "Does my tenant need to download an app to use RentyBase?", "acceptedAnswer": { "@type": "Answer", "text": "No. The invite link opens in any browser. Your tenant can sign in with Google and upload photos from the web without installing anything." } },
+          { "@type": "Question", "name": "Is RentyBase really free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, completely free during beta. All features, no limits, no credit card required. When paid tiers launch, beta users get 30 days notice and a better rate." } },
+          { "@type": "Question", "name": "Are RentyBase HRA receipts valid for tax filing in India?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The generated PDF includes all required fields for HRA exemption under Section 10(13A): landlord name, PAN, tenant name, property address, period, amount, and payment method." } },
+          { "@type": "Question", "name": "Can I manage a PG with multiple tenants on RentyBase?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Choose PG/Hostel as your property type and add multiple rooms, each with its own tenant, rent amount, and proof photos — all under one landlord dashboard." } },
+          { "@type": "Question", "name": "What happens to move-in photos? Can they be deleted?", "acceptedAnswer": { "@type": "Answer", "text": "Once submitted, move-in photos are locked and cannot be edited or deleted by either party. They stay permanently attached to the rental record." } }
+        ]
+      }
+    ]
+  }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet" />

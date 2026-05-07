@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Rent Management App for Tenants India — RentyBase</title>
+  <meta name="description" content="Get HRA rent receipts on demand, track your payment history, protect your deposit, and raise repair requests — all from one free app for Indian tenants.">
+  <link rel="canonical" href="https://rentybase.com/for/tenants/" />
+  <meta property="og:title" content="For Tenants — RentyBase Rental Management App India">
+  <meta property="og:description" content="Get HRA receipts, track payments, and protect your deposit. Free app for Indian tenants.">
+  <meta property="og:url" content="https://rentybase.com/for/tenants/">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231A56FF'/><path d='M8 10h16M8 16h10M8 22h12' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="../../assets/shared.css">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://rentybase.com/"},{"@type":"ListItem","position":2,"name":"For Tenants","item":"https://rentybase.com/for/tenants/"}]}</script>
+  <style>
+    .hero{padding:80px 0 72px;background:linear-gradient(160deg,#f0fff8 0%,#ffffff 60%)}
+    .hero h1{font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,50px);line-height:1.1;letter-spacing:-.5px;margin-bottom:18px;max-width:680px}
+    .hero h1 em{font-style:italic;color:var(--success)}
+    .hero-lead{font-size:17px;line-height:1.75;color:var(--ink3);max-width:560px;margin-bottom:32px}
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px}
+    .hero-trust{display:flex;gap:24px;flex-wrap:wrap}
+    .trust-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink3)}
+    .trust-dot{width:7px;height:7px;border-radius:50%;background:var(--success)}
+    .pain-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+    .pain-card{background:white;border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;gap:16px}
+    .pain-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .pain-card h3{font-size:15px;font-weight:700;margin-bottom:5px}
+    .pain-card p{font-size:13px;color:var(--ink3);line-height:1.6}
+    .feature-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px}
+    .fstrip-card{background:white;border:1px solid var(--border);border-radius:18px;padding:28px}
+    .fstrip-card .ic{width:44px;height:44px;border-radius:12px;background:var(--success-soft);color:var(--success);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+    .fstrip-card h3{font-size:16px;font-weight:700;margin-bottom:8px}
+    .fstrip-card p{font-size:14px;color:var(--ink3);line-height:1.6}
+    .how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;position:relative}
+    .how-steps::before{content:'';position:absolute;top:24px;left:calc(16.666% + 12px);right:calc(16.666% + 12px);height:2px;background:linear-gradient(90deg,var(--success),var(--action));opacity:.2}
+    .step-card{text-align:center}
+    .step-num{width:48px;height:48px;border-radius:50%;background:var(--action);color:white;font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+    .step-card h3{font-size:16px;font-weight:700;margin-bottom:8px}
+    .step-card p{font-size:14px;color:var(--ink3);line-height:1.6}
+    .faq-item{border-bottom:1px solid var(--border)}
+    .faq-q{width:100%;background:none;border:none;text-align:left;padding:20px 0;font-size:16px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;font-family:'Inter',sans-serif;color:var(--primary)}
+    .faq-a{max-height:0;overflow:hidden;transition:max-height .35s ease,padding .35s ease}
+    .faq-a.open{max-height:250px;padding-bottom:16px}
+    .faq-a p{font-size:15px;color:var(--ink3);line-height:1.7}
+    .faq-arrow{transition:transform .3s;flex-shrink:0}
+    .faq-arrow.open{transform:rotate(180deg)}
+    @media(max-width:768px){.how-steps{grid-template-columns:1fr;gap:20px}.how-steps::before{display:none}.hero{padding:52px 0}}
+  </style>
+</head>
+<body>
+<div id="scrollProgress" class="scroll-progress"></div>
+<nav id="mainNav">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+        RentyBase
+      </a>
+      <ul class="nav-links">
+        <li><a href="/features/hra-receipts/">Features</a></li>
+        <li><a href="/for/landlords/">For Landlords</a></li>
+        <li><a href="/for/tenants/" class="active">For Tenants</a></li>
+        <li><a href="/blog/">Blog</a></li>
+        <li><a href="/tools/hra-receipt-generator/">Free Tools</a></li>
+      </ul>
+      <div class="nav-cta">
+        <a href="https://app.rentybase.com" class="btn btn-secondary">Sign In</a>
+        <a href="https://app.rentybase.com" class="btn btn-primary">Get Started Free</a>
+      </div>
+      <button class="hamburger" onclick="openMenu()" aria-label="Open menu">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 6h16M3 11h16M3 16h16" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+<div id="mobileMenu" class="mobile-menu">
+  <div class="mobile-menu-header">
+    <span class="nav-logo">RentyBase</span>
+    <button onclick="closeMenu()" style="background:none;border:none;cursor:pointer;padding:6px"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M5 5l12 12M17 5L5 17" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/></svg></button>
+  </div>
+  <nav class="mobile-menu-links">
+    <a href="/features/hra-receipts/">Features</a>
+    <a href="/for/landlords/">For Landlords</a>
+    <a href="/for/tenants/">For Tenants</a>
+    <a href="/blog/">Blog</a>
+    <a href="/tools/hra-receipt-generator/">Free Tools</a>
+  </nav>
+  <div class="mobile-menu-cta">
+    <a href="https://app.rentybase.com" class="btn btn-secondary">Sign In</a>
+    <a href="https://app.rentybase.com" class="btn btn-primary">Get Started Free</a>
+  </div>
+</div>
+
+<div class="breadcrumb"><div class="container"><a href="/">Home</a><span>›</span>For Tenants</div></div>
+
+<section class="hero">
+  <div class="container">
+    <div style="display:inline-flex;align-items:center;gap:7px;background:var(--success-soft);color:var(--success);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 13px;border-radius:99px;margin-bottom:20px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      For Tenants
+    </div>
+    <h1>Your Rental Life,<br><em>Organised.</em></h1>
+    <p class="hero-lead">Get HRA receipts on demand, track every payment, protect your security deposit with photo proof, and raise repairs without WhatsApp arguments. RentyBase is free for tenants.</p>
+    <div class="hero-actions">
+      <a href="https://app.rentybase.com" class="btn btn-primary btn-xl" style="background:var(--success)">Join Free — No Card</a>
+      <a href="/tools/hra-receipt-generator/" class="btn btn-secondary btn-xl">Generate HRA Receipt</a>
+    </div>
+    <div class="hero-trust">
+      <div class="trust-item"><div class="trust-dot"></div>Always free for tenants</div>
+      <div class="trust-item"><div class="trust-dot"></div>Download receipts instantly</div>
+      <div class="trust-item"><div class="trust-dot"></div>Secure deposit protection</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="background:var(--fill)">
+  <div class="container">
+    <div class="section-header center reveal">
+      <span class="section-label">Your Rental Pain Points</span>
+      <h2 class="section-title">Rental life is stressful. It shouldn't be.</h2>
+    </div>
+    <div class="pain-grid">
+      <div class="pain-card reveal">
+        <div class="pain-icon" style="background:#FEF2F2;color:#EF4444"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <div><h3>HRA receipt every March</h3><p>Your HR needs 12 months of rent receipts by March 15. Your landlord is unresponsive. With RentyBase, you download all receipts yourself — anytime, instantly.</p></div>
+      </div>
+      <div class="pain-card reveal reveal-d1">
+        <div class="pain-icon" style="background:#FEF2F2;color:#EF4444"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></div>
+        <div><h3>Deposit deducted unfairly</h3><p>"You scratched the wall." But it was like that when you moved in. RentyBase captures move-in photos of every room — timestamped, locked. Pre-existing damage is documented before you sign.</p></div>
+      </div>
+      <div class="pain-card reveal reveal-d2">
+        <div class="pain-icon" style="background:#FEF2F2;color:#EF4444"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.4 11.37a19.79 19.79 0 01-3.07-8.67A2 2 0 012.31 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 9.91a16 16 0 006.72 6.72l1.28-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div>
+        <div><h3>Repairs ignored for weeks</h3><p>The AC leak has been "coming soon" for a month. RentyBase tracks repair requests with dates and photos — your landlord can see status publicly, which creates accountability.</p></div>
+      </div>
+      <div class="pain-card reveal reveal-d3">
+        <div class="pain-icon" style="background:#FEF2F2;color:#EF4444"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+        <div><h3>"Did my rent reach you?"</h3><p>Bank transfer says processed, landlord says not received. RentyBase lets you upload the payment screenshot as proof and track confirmation — payment disputes resolved with evidence.</p></div>
+      </div>
+      <div class="pain-card reveal reveal-d4">
+        <div class="pain-icon" style="background:#FEF2F2;color:#EF4444"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+        <div><h3>No record of what was agreed</h3><p>Rent increase "you never told me about." Agreement on paper goes missing. RentyBase stores the rental agreement digitally — rent amount, due date, deposit — agreed by both parties.</p></div>
+      </div>
+      <div class="pain-card reveal reveal-d1">
+        <div class="pain-icon" style="background:#FEF2F2;color:#EF4444"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div><h3>Missed payments by mistake</h3><p>You forgot the due date, now it's overdue and awkward. RentyBase sends you reminders before the due date so you never miss — and your rental record stays clean.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-header center reveal">
+      <span class="section-label">What's Included</span>
+      <h2 class="section-title">Everything a tenant needs in one free app</h2>
+    </div>
+    <div class="feature-strip">
+      <div class="fstrip-card reveal">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <h3>HRA Receipts On Demand</h3>
+        <p>Download a Section 10(13A) compliant receipt for any month, any time. No dependency on your landlord. Perfect for tax filing season.</p>
+      </div>
+      <div class="fstrip-card reveal reveal-d1">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+        <h3>Complete Payment History</h3>
+        <p>Every rent payment you've ever made — amount, date, payment method, UTR number — stored permanently. Download receipts or export history anytime.</p>
+      </div>
+      <div class="fstrip-card reveal reveal-d2">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></div>
+        <h3>Deposit Transparency</h3>
+        <p>See your full deposit balance, every deduction your landlord makes (with their justification and photos), and the amount you'll get back at move-out.</p>
+      </div>
+      <div class="fstrip-card reveal reveal-d3">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+        <h3>Move-in Photo Proof</h3>
+        <p>Upload photos of every room when you move in — bathroom, kitchen, bedroom, walls. Timestamped and locked. Your strongest defence against false damage claims.</p>
+      </div>
+      <div class="fstrip-card reveal reveal-d4">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div>
+        <h3>Repair Request Tracking</h3>
+        <p>Raise a repair request with photos and a description. Your landlord gets notified and must respond. Every update is date-stamped — no more "I forgot" excuses.</p>
+      </div>
+      <div class="fstrip-card reveal reveal-d1">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>
+        <h3>Rental Agreement Access</h3>
+        <p>Your signed rental agreement is stored digitally. Reference the agreed rent amount, due date, notice period, or any clause — without digging through paper.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="background:var(--fill)">
+  <div class="container">
+    <div class="section-header center reveal">
+      <span class="section-label">Getting Started</span>
+      <h2 class="section-title">Join your rental in three steps</h2>
+    </div>
+    <div class="how-steps reveal">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>Get the invite link</h3>
+        <p>Ask your landlord to share the RentyBase invite link for your rental. It works even if they're not on the app yet.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>Create your free account</h3>
+        <p>Sign up with Google. Takes under a minute. No credit card. No subscription. Free forever for tenants.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>Upload your move-in photos</h3>
+        <p>Photograph every room immediately. These photos are your insurance policy against unfair deposit deductions.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-header center reveal">
+      <span class="section-label">Tenant FAQs</span>
+      <h2 class="section-title">Questions tenants ask us</h2>
+    </div>
+    <div style="max-width:720px;margin:0 auto" class="reveal">
+      <div class="faq-item"><button class="faq-q" onclick="toggleFaq(this)">My landlord is not on RentyBase. Can I still use it? <svg class="faq-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-a"><p>The full connected experience requires both you and your landlord on RentyBase. However, you can use the free <a href="/tools/hra-receipt-generator/" style="color:var(--action)">HRA receipt generator</a> without any landlord involvement. To get your landlord on board, share the "For Landlords" page with them — it's free for them too.</p></div></div>
+      <div class="faq-item"><button class="faq-q" onclick="toggleFaq(this)">Can I claim HRA exemption with receipts from RentyBase? <svg class="faq-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-a"><p>Yes. RentyBase receipts include all the information required by Section 10(13A) of the Income Tax Act: your name, landlord name, landlord PAN (when annual rent > ₹1 lakh), property address, rent amount in words and figures, and the payment period. These are accepted by all major Indian employers for HRA declaration.</p></div></div>
+      <div class="faq-item"><button class="faq-q" onclick="toggleFaq(this)">What if my landlord deducts money from my deposit unfairly? <svg class="faq-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-a"><p>If you uploaded move-in photos through RentyBase, you have timestamped evidence of the property's condition when you moved in. Any deduction your landlord logs must include a reason and photo evidence on their end. The full ledger is visible to both parties — creating accountability and reducing fraudulent deductions.</p></div></div>
+      <div class="faq-item"><button class="faq-q" onclick="toggleFaq(this)">Is RentyBase free for tenants? <svg class="faq-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-a"><p>Yes, always free for tenants. All features — receipts, payment history, deposit ledger, repair requests, move-in photos — are included at no cost. We may add optional premium features in the future, but the core tenant features will remain free.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section-sm">
+  <div class="container">
+    <div class="cta-banner reveal" style="background:linear-gradient(140deg,#052e16 0%,#064e3b 100%)">
+      <h2>Stop worrying about your <em>deposit.</em></h2>
+      <p>Upload move-in photos today and protect yourself. It takes 5 minutes and could save you thousands at move-out.</p>
+      <div class="cta-actions">
+        <a href="https://app.rentybase.com" class="btn btn-white btn-xl">Join Free as Tenant</a>
+        <a href="/tools/hra-receipt-generator/" class="btn btn-ghost-white btn-xl">Get HRA Receipt Now</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-top">
+      <div>
+        <div class="footer-logo">RentyBase</div>
+        <div class="footer-desc">Free rental management app for India. Built for landlords and tenants who want less friction and more clarity.</div>
+        <div class="made-in">🇮🇳 Made for India</div>
+      </div>
+      <div class="footer-col"><h4>Product</h4><ul><li><a href="/features/hra-receipts/">HRA Receipts</a></li><li><a href="/for/landlords/">For Landlords</a></li><li><a href="/for/tenants/">For Tenants</a></li><li><a href="https://app.rentybase.com">Get the App</a></li></ul></div>
+      <div class="footer-col"><h4>Free Tools</h4><ul><li><a href="/tools/hra-receipt-generator/">HRA Receipt Generator</a></li></ul></div>
+      <div class="footer-col"><h4>Learn</h4><ul><li><a href="/blog/">Blog</a></li><li><a href="/blog/how-to-claim-hra-when-landlord-wont-give-rent-receipts/">HRA Claim Guide</a></li><li><a href="/blog/can-landlord-deduct-security-deposit-wear-and-tear-india/">Deposit Rights</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 RentyBase. All rights reserved.</p>
+      <div class="footer-legal"><a href="#">Privacy</a><a href="#">Terms</a></div>
+    </div>
+  </div>
+</footer>
+
+<button class="back-top" id="backTop" onclick="scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg></button>
+<div class="sticky-mobile-bar">
+  <a href="/tools/hra-receipt-generator/" class="btn btn-secondary">HRA Receipt</a>
+  <a href="https://app.rentybase.com" class="btn btn-primary">Join Free</a>
+</div>
+
+<script src="../../assets/shared.js"></script>
+<script>function toggleFaq(btn){var a=btn.nextElementSibling,ar=btn.querySelector('.faq-arrow'),op=a.classList.toggle('open');ar.classList.toggle('open',op)}</script>
+</body>
+</html>
