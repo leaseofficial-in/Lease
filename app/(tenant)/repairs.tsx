@@ -17,8 +17,8 @@ import { z } from 'zod';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
-import { RepairRequest, RepairPriority } from '../../types';
-import { formatRelativeTime, repairPriorityLabel } from '../../lib/formatters';
+import { RepairRequest, RepairPriority, RepairStatus } from '../../types';
+import { formatRelativeTime, repairPriorityLabel, repairStatusLabel } from '../../lib/formatters';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatusPill } from '../../components/ui/StatusPill';
@@ -61,6 +61,49 @@ const PRIORITIES: { value: RepairPriority; label: string }[] = [
   { value: 'urgent', label: 'Urgent' },
 ];
 
+// Build a human-readable timeline from repair status + timestamps
+function buildTimeline(r: RepairRequest) {
+  const events: { label: string; sub: string; time: string; done: boolean }[] = [];
+  events.push({
+    label: 'Request raised',
+    sub: 'Sent to your landlord',
+    time: r.created_at,
+    done: true,
+  });
+  if (r.status === 'in_progress' || r.status === 'resolved' || r.status === 'closed') {
+    events.push({
+      label: 'Acknowledged',
+      sub: 'Landlord started work',
+      time: r.updated_at,
+      done: true,
+    });
+  }
+  if (r.status === 'resolved' || r.status === 'closed') {
+    events.push({
+      label: 'Resolved',
+      sub: r.landlord_note ? `Note: ${r.landlord_note}` : 'Issue marked resolved by landlord',
+      time: r.resolved_at ?? r.updated_at,
+      done: true,
+    });
+  }
+  if (r.status === 'closed') {
+    events.push({
+      label: 'Closed',
+      sub: 'Request closed',
+      time: r.updated_at,
+      done: true,
+    });
+  }
+  // Pending steps
+  if (r.status === 'open') {
+    events.push({ label: 'Acknowledged', sub: 'Waiting for landlord', time: '', done: false });
+    events.push({ label: 'Resolved', sub: '', time: '', done: false });
+  } else if (r.status === 'in_progress') {
+    events.push({ label: 'Resolved', sub: 'Work in progress', time: '', done: false });
+  }
+  return events;
+}
+
 export default function RepairsScreen() {
   const { profile } = useAuthStore();
   const { showToast } = useUIStore();
@@ -69,6 +112,7 @@ export default function RepairsScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<RepairFilter>('all');
   const [repairPhotos, setRepairPhotos] = useState<string[]>([]);
+  const [selectedRepair, setSelectedRepair] = useState<RepairRequest | null>(null);
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
   const { data: rental, isLoading: isRentalLoading, error: rentalError, refetch: refetchRental } = useQuery({
@@ -145,7 +189,6 @@ export default function RepairsScreen() {
       }).select('id').single();
       if (error) throw error;
 
-      // Upload any attached photos and patch the record
       if (repairPhotos.length > 0 && newRepair?.id) {
         const results = await Promise.allSettled(
           repairPhotos.map((uri) => uploadRepairPhoto(uri, rental.id, newRepair.id)),
@@ -335,10 +378,25 @@ export default function RepairsScreen() {
               icon={<Ionicons name="construct-outline" size={48} color={Colors.muted} />}
             />
           ) : (
-            filtered.map((r) => <RepairCard key={r.id} repair={r} />)
+            filtered.map((r) => (
+              <RepairCard
+                key={r.id}
+                repair={r}
+                onPress={() => setSelectedRepair(r)}
+              />
+            ))
           )}
         </View>
       </ScrollView>
+
+      {/* ── Repair Detail Sheet ── */}
+      <BottomSheet
+        visible={!!selectedRepair}
+        onClose={() => setSelectedRepair(null)}
+        scrollable
+      >
+        {selectedRepair && <RepairDetailContent repair={selectedRepair} />}
+      </BottomSheet>
 
       {/* ── New Request Sheet ── */}
       <BottomSheet visible={showForm} onClose={() => { setShowForm(false); reset(); setRepairPhotos([]); }} scrollable>
@@ -525,20 +583,26 @@ export default function RepairsScreen() {
   );
 }
 
-function RepairCard({ repair: r }: { repair: RepairRequest }) {
+// ── Repair card (list item) ────────────────────────────────────────────────────
+
+function RepairCard({ repair: r, onPress }: { repair: RepairRequest; onPress: () => void }) {
   const priorityColor = PRIORITY_BORDER[r.priority];
   const { color: pColor, bg: pBg } = PRIORITY_CONFIG[r.priority];
   const isDone = r.status === 'resolved' || r.status === 'closed';
 
   return (
-    <View style={{
-      backgroundColor: Colors.surface,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: Colors.border,
-      overflow: 'hidden',
-      opacity: isDone ? 0.72 : 1,
-    }}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.82}
+      style={{
+        backgroundColor: Colors.surface,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        overflow: 'hidden',
+        opacity: isDone ? 0.72 : 1,
+      }}
+    >
       {/* Priority accent stripe */}
       <View style={{ height: 3, backgroundColor: priorityColor }} />
 
@@ -577,7 +641,7 @@ function RepairCard({ repair: r }: { repair: RepairRequest }) {
             }}>
               Landlord's Update
             </Text>
-            <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 18 }}>
+            <Text numberOfLines={2} style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 18 }}>
               {r.landlord_note}
             </Text>
           </View>
@@ -595,11 +659,174 @@ function RepairCard({ repair: r }: { repair: RepairRequest }) {
               {repairPriorityLabel[r.priority]}
             </Text>
           </View>
-          <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
-            {formatRelativeTime(r.created_at)}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
+              {formatRelativeTime(r.created_at)}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color={Colors.muted} />
+          </View>
         </View>
       </View>
+    </TouchableOpacity>
+  );
+}
+
+// ── Repair detail content (shown in bottom sheet) ─────────────────────────────
+
+function RepairDetailContent({ repair: r }: { repair: RepairRequest }) {
+  const { color: pColor, bg: pBg } = PRIORITY_CONFIG[r.priority];
+  const isDone = r.status === 'resolved' || r.status === 'closed';
+  const timeline = buildTimeline(r);
+
+  return (
+    <View>
+      {/* Header */}
+      <View style={{ marginBottom: 20 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <View style={{
+            paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20,
+            backgroundColor: pBg, flexDirection: 'row', alignItems: 'center', gap: 5,
+          }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: pColor }} />
+            <Text style={{ color: pColor, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
+              {repairPriorityLabel[r.priority]}
+            </Text>
+          </View>
+          <StatusPill kind="repair" value={r.status} />
+        </View>
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 22, lineHeight: 28, marginBottom: 4 }}>
+          {r.title}
+        </Text>
+        <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 11 }}>
+          Raised {formatRelativeTime(r.created_at)}
+        </Text>
+      </View>
+
+      {/* Description */}
+      <View style={{
+        backgroundColor: Colors.fill, borderRadius: 14,
+        padding: 14, marginBottom: 16,
+      }}>
+        <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+          Description
+        </Text>
+        <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 14, lineHeight: 21 }}>
+          {r.description}
+        </Text>
+      </View>
+
+      {/* Photos */}
+      {(r.photos?.length ?? 0) > 0 && (
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+            Photos
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {r.photos.map((path, i) => {
+              const { data } = supabase.storage.from('repair-photos').getPublicUrl(path);
+              return (
+                <Image
+                  key={i}
+                  source={{ uri: data.publicUrl }}
+                  style={{ width: 100, height: 100, borderRadius: 12, marginRight: 10, backgroundColor: Colors.fill }}
+                />
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Landlord note */}
+      {r.landlord_note && (
+        <View style={{
+          backgroundColor: Colors.actionSoft,
+          borderRadius: 14,
+          padding: 14,
+          marginBottom: 16,
+          borderLeftWidth: 3, borderLeftColor: Colors.action,
+        }}>
+          <Text style={{
+            color: Colors.action, fontFamily: Fonts.sansMedium,
+            fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6,
+          }}>
+            Landlord's Update
+          </Text>
+          <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 14, lineHeight: 20 }}>
+            {r.landlord_note}
+          </Text>
+        </View>
+      )}
+
+      {/* Timeline */}
+      <View style={{ marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Timeline
+          </Text>
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 11 }}>
+            {timeline.filter((e) => e.done).length} events · append-only
+          </Text>
+        </View>
+
+        {timeline.map((ev, i) => {
+          const isLast = i === timeline.length - 1;
+          return (
+            <View key={i} style={{ flexDirection: 'row', gap: 14 }}>
+              {/* Dot + line */}
+              <View style={{ alignItems: 'center', width: 16 }}>
+                <View style={{
+                  width: 14, height: 14, borderRadius: 7,
+                  backgroundColor: ev.done ? Colors.action : Colors.fill2,
+                  borderWidth: ev.done ? 0 : 1.5,
+                  borderColor: Colors.border,
+                  marginTop: 3,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {ev.done && <Ionicons name="checkmark" size={8} color="#fff" />}
+                </View>
+                {!isLast && (
+                  <View style={{ width: 1.5, flex: 1, backgroundColor: Colors.border, marginTop: 4, marginBottom: 0 }} />
+                )}
+              </View>
+
+              {/* Content */}
+              <View style={{ flex: 1, paddingBottom: isLast ? 0 : 16 }}>
+                <Text style={{
+                  color: ev.done ? Colors.primary : Colors.muted,
+                  fontFamily: ev.done ? Fonts.sansSemiBold : Fonts.sans,
+                  fontSize: 14, lineHeight: 20,
+                }}>
+                  {ev.label}
+                </Text>
+                {ev.sub ? (
+                  <Text numberOfLines={2} style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, lineHeight: 16, marginTop: 1 }}>
+                    {ev.sub}
+                  </Text>
+                ) : null}
+                {ev.time ? (
+                  <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 11, marginTop: 3 }}>
+                    {formatRelativeTime(ev.time)}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Done banner */}
+      {isDone && (
+        <View style={{
+          marginTop: 16, backgroundColor: Colors.successSoft,
+          borderRadius: 14, padding: 14,
+          flexDirection: 'row', alignItems: 'center', gap: 10,
+        }}>
+          <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+          <Text style={{ color: Colors.success, fontFamily: Fonts.sansMedium, fontSize: 13 }}>
+            This request has been {r.status === 'closed' ? 'closed' : 'resolved'} by your landlord.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }

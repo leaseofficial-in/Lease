@@ -581,6 +581,52 @@ export default function LandlordDashboard() {
             </MiniPanel>
           </View>
 
+          <LandlordScoreCard
+            collectionRate={collectionRate}
+            ytdPaymentCount={(ytdPayments ?? []).length}
+            occupancyRate={currentPropertyCount > 0 ? Math.round((activePropertyCount / currentPropertyCount) * 100) : 100}
+          />
+
+          {/* Quick nav strip */}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => router.push('/(landlord)/ledger' as never)}
+              activeOpacity={0.8}
+              style={{
+                flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
+                backgroundColor: Colors.surface, borderRadius: 14,
+                borderWidth: 1, borderColor: Colors.border, padding: 14,
+              }}
+            >
+              <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="receipt-outline" size={17} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>Activity Ledger</Text>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>Sealed record</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={Colors.muted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/(landlord)/payments')}
+              activeOpacity={0.8}
+              style={{
+                flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
+                backgroundColor: Colors.surface, borderRadius: 14,
+                borderWidth: 1, borderColor: Colors.border, padding: 14,
+              }}
+            >
+              <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="wallet-outline" size={17} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>Rent Payments</Text>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>All tenants</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={Colors.muted} />
+            </TouchableOpacity>
+          </View>
+
           <View className="mt-2">
             <View className="flex-row items-center justify-between mb-3">
               <Cap>Your properties ({filteredPropertyGroups.length})</Cap>
@@ -832,6 +878,64 @@ function LandlordOnboardingCard({ onStart }: { onStart: () => void }) {
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+function scoreBand(score: number) {
+  if (score >= 850) return { label: 'EXCELLENT', color: Colors.success };
+  if (score >= 750) return { label: 'TRUSTED',   color: Colors.action  };
+  if (score >= 650) return { label: 'GOOD',      color: Colors.warning };
+  if (score >= 550) return { label: 'FAIR',      color: '#B8740F'      };
+  return               { label: 'BUILDING',  color: Colors.muted   };
+}
+
+function LandlordScoreCard({
+  collectionRate,
+  ytdPaymentCount,
+  occupancyRate,
+}: { collectionRate: number; ytdPaymentCount: number; occupancyRate: number }) {
+  const score = Math.min(900, Math.round(
+    680 +
+    (collectionRate * 0.8) +
+    Math.min(ytdPaymentCount * 3, 60) +
+    (occupancyRate * 0.4)
+  ));
+  const { label: band, color } = scoreBand(score);
+  const metrics = [
+    { label: 'Collection rate', pct: collectionRate, sublabel: `${collectionRate}%` },
+    { label: 'Occupancy',       pct: occupancyRate,  sublabel: `${occupancyRate}%` },
+    { label: 'Receipts issued', pct: Math.min(ytdPaymentCount * 8, 100), sublabel: `${ytdPaymentCount} this year` },
+  ];
+  return (
+    <View style={{
+      backgroundColor: Colors.surface, borderRadius: 20,
+      borderWidth: 1, borderColor: Colors.border, padding: 18,
+    }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+        <View>
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 1, marginBottom: 4 }}>LANDLORD SCORE</Text>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 38, lineHeight: 40 }}>{score}</Text>
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10 }}> / 900</Text>
+        </View>
+        <View style={{
+          paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10,
+          backgroundColor: color + '18',
+        }}>
+          <Text style={{ color, fontFamily: Fonts.sansBold, fontSize: 12, letterSpacing: 0.5 }}>{band}</Text>
+        </View>
+      </View>
+      {metrics.map((m, i) => (
+        <View key={i} style={{ marginBottom: i < 2 ? 10 : 0 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12 }}>{m.label}</Text>
+            <Text style={{ color: Colors.ink2, fontFamily: Fonts.sansMedium, fontSize: 12 }}>{m.sublabel}</Text>
+          </View>
+          <View style={{ height: 5, backgroundColor: Colors.fill2, borderRadius: 3 }}>
+            <View style={{ height: 5, width: `${m.pct}%`, backgroundColor: color, borderRadius: 3 }} />
+          </View>
+        </View>
+      ))}
     </View>
   );
 }

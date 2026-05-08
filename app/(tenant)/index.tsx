@@ -412,6 +412,13 @@ export default function TenantDashboard() {
               />
             </View>
 
+            <TenantScoreCard
+              recentPayments={recentPayments ?? []}
+              currentPaymentStatus={currentPayment?.status}
+              hasProof={(recentProofs ?? []).length > 0}
+              openRepairs={openRepairsCount ?? 0}
+            />
+
             <Card>
               <View className="flex-row items-center justify-between mb-3">
                 <Cap>Rental Terms</Cap>
@@ -504,6 +511,74 @@ export default function TenantDashboard() {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function scoreBand(score: number) {
+  if (score >= 850) return { label: 'EXCELLENT', color: Colors.success };
+  if (score >= 750) return { label: 'TRUSTED',   color: Colors.action  };
+  if (score >= 650) return { label: 'GOOD',      color: Colors.warning };
+  if (score >= 550) return { label: 'FAIR',      color: '#B8740F'      };
+  return               { label: 'BUILDING',  color: Colors.muted   };
+}
+
+function TenantScoreCard({
+  recentPayments,
+  currentPaymentStatus,
+  hasProof,
+  openRepairs,
+}: {
+  recentPayments: RentPayment[];
+  currentPaymentStatus: string | undefined;
+  hasProof: boolean;
+  openRepairs: number;
+}) {
+  const paidCount = recentPayments.filter((p) => p.status === 'paid').length;
+  const onTimePct = recentPayments.length > 0 ? Math.round((paidCount / recentPayments.length) * 100) : 0;
+  const currentPaid = currentPaymentStatus === 'paid' ? 100 : currentPaymentStatus === 'pending_verification' ? 60 : 0;
+  const proofPct = hasProof ? 100 : 0;
+  const repairScore = openRepairs === 0 ? 100 : Math.max(0, 100 - openRepairs * 20);
+
+  const score = Math.min(900, Math.round(
+    700 +
+    (onTimePct * 0.7) +
+    (currentPaid * 0.3) +
+    (hasProof ? 25 : 0) +
+    (openRepairs === 0 ? 15 : 0)
+  ));
+  const { label: band, color } = scoreBand(score);
+  const metrics = [
+    { label: 'On-time payments', pct: onTimePct,   sublabel: `${paidCount} / ${recentPayments.length} paid` },
+    { label: 'Move-in proof',    pct: proofPct,    sublabel: hasProof ? 'Submitted' : 'Not yet' },
+    { label: 'Repair backlog',   pct: repairScore, sublabel: openRepairs > 0 ? `${openRepairs} open` : 'None open' },
+  ];
+  return (
+    <View style={{
+      backgroundColor: Colors.surface, borderRadius: 20,
+      borderWidth: 1, borderColor: Colors.border, padding: 18,
+    }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+        <View>
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 1, marginBottom: 4 }}>TENANT SCORE</Text>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 38, lineHeight: 40 }}>{score}</Text>
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10 }}> / 900</Text>
+        </View>
+        <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: color + '18' }}>
+          <Text style={{ color, fontFamily: Fonts.sansBold, fontSize: 12, letterSpacing: 0.5 }}>{band}</Text>
+        </View>
+      </View>
+      {metrics.map((m, i) => (
+        <View key={i} style={{ marginBottom: i < 2 ? 10 : 0 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12 }}>{m.label}</Text>
+            <Text style={{ color: Colors.ink2, fontFamily: Fonts.sansMedium, fontSize: 12 }}>{m.sublabel}</Text>
+          </View>
+          <View style={{ height: 5, backgroundColor: Colors.fill2, borderRadius: 3 }}>
+            <View style={{ height: 5, width: `${m.pct}%`, backgroundColor: color, borderRadius: 3 }} />
+          </View>
+        </View>
+      ))}
+    </View>
   );
 }
 
