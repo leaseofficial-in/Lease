@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in · RentyBase</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --rb-action:#0F4C5C; --rb-action-hover:#0A3A47; --rb-action-soft:#DDE8EB;
+      --rb-accent:#C97A3A; --rb-accent-soft:#F4E5D4; --rb-accent-hover:#B26A2E;
+      --rb-ink:#0E1413; --rb-ink-2:#2A332F; --rb-ink-3:#5C645F;
+      --rb-canvas:#F6F4EE; --rb-canvas-2:#EFEDE5; --rb-surface:#FFFFFF;
+      --rb-fill:#F0EFE9; --rb-fill-2:#E6E2D7;
+      --rb-border:#E6E2D7; --rb-border-strong:#D4CFBE; --rb-border-soft:#EBE7DB;
+      --rb-success:#1F7A55; --rb-success-soft:#DEEFE6;
+      --rb-warning:#B8740F; --rb-warning-soft:#F6E6CA;
+      --rb-font-display:'Instrument Serif','Iowan Old Style',Georgia,serif;
+      --rb-font-sans:'DM Sans',system-ui,-apple-system,sans-serif;
+      --rb-font-mono:'JetBrains Mono',ui-monospace,monospace;
+      --rb-ease:cubic-bezier(0.22,1,0.36,1);
+      --rb-shadow-sm:0 1px 2px rgba(20,18,12,.04),0 2px 8px rgba(20,18,12,.05);
+      --rb-shadow-md:0 4px 12px rgba(20,18,12,.06),0 12px 32px rgba(20,18,12,.08);
+      --rb-radius-xl:22px; --rb-radius-lg:18px; --rb-radius-md:12px;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:var(--rb-font-sans); background:var(--rb-canvas); color:var(--rb-ink); -webkit-font-smoothing:antialiased; min-height:100vh; }
+    a { color:inherit; text-decoration:none; }
+    .ochre { color:var(--rb-accent); }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:12px 22px; border-radius:999px; border:1px solid transparent; font-family:var(--rb-font-sans); font-size:14px; font-weight:600; cursor:pointer; transition:all .22s var(--rb-ease); text-decoration:none; }
+    .btn-primary { background:var(--rb-action); color:#fff; }
+    .btn-primary:hover { background:var(--rb-action-hover); transform:translateY(-1px); }
+    .btn-ghost { background:transparent; color:var(--rb-ink); border-color:var(--rb-border); }
+    .btn-ghost:hover { background:var(--rb-fill); border-color:var(--rb-border-strong); }
+    .btn[disabled] { opacity:.45; cursor:not-allowed; transform:none !important; }
+
+    /* Split shell */
+    .sb-shell { min-height:100vh; display:grid; grid-template-columns:1fr 1fr; }
+
+    /* Brand pane */
+    .sb-pane { position:relative; padding:40px 56px; background:linear-gradient(180deg,#14403E 0%,#0F2A2D 100%); color:#F6F4EE; display:flex; flex-direction:column; justify-content:space-between; overflow:hidden; isolation:isolate; }
+    .sb-pane::before { content:""; position:absolute; inset:0; pointer-events:none; background-image:radial-gradient(rgba(246,244,238,0.04) 1px,transparent 1px),radial-gradient(rgba(201,122,58,0.07) 1px,transparent 1px); background-size:4px 4px,9px 9px; z-index:-1; }
+    .sb-pane::after { content:""; position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at 80% 90%,rgba(201,122,58,.18),transparent 55%); z-index:-1; }
+    .sb-logo { display:inline-flex; align-items:center; gap:12px; font-family:var(--rb-font-display); font-weight:800; font-size:22px; letter-spacing:-.02em; color:#F6F4EE; }
+    .sb-logo .ochre { color:var(--rb-accent); }
+    .sb-hero { margin-top:60px; }
+    .sb-eyebrow { font-size:11px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:rgba(246,244,238,.6); margin-bottom:22px; }
+    .sb-h1 { font-family:var(--rb-font-display); font-weight:400; font-size:clamp(44px,4.6vw,76px); line-height:1.04; letter-spacing:-.035em; color:#F6F4EE; }
+    .sb-h1 em { font-style:italic; color:var(--rb-accent); }
+    .sb-sub { font-size:16px; line-height:1.65; color:rgba(246,244,238,.78); max-width:480px; margin-top:24px; }
+    .sb-flow { margin-top:40px; display:flex; flex-direction:column; gap:14px; border-left:1px solid rgba(201,122,58,.4); padding-left:20px; max-width:360px; }
+    .sb-step { display:flex; align-items:baseline; gap:14px; }
+    .sb-num { font-family:var(--rb-font-mono); font-size:11px; color:var(--rb-accent); letter-spacing:.1em; min-width:20px; }
+    .sb-line { font-family:var(--rb-font-display); font-size:22px; line-height:1.2; color:#F6F4EE; letter-spacing:-.01em; }
+    .sb-footer { display:flex; justify-content:space-between; align-items:flex-end; gap:30px; margin-top:60px; }
+    .sb-trust { flex:1; max-width:360px; }
+    .sb-trust-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
+    .sb-pill { font-family:var(--rb-font-mono); font-size:10px; font-weight:600; letter-spacing:.08em; padding:5px 11px; border-radius:999px; background:rgba(246,244,238,.06); color:rgba(246,244,238,.8); border:1px solid rgba(246,244,238,.1); }
+    .sb-quote { font-family:var(--rb-font-display); font-style:italic; font-size:16px; line-height:1.5; color:rgba(246,244,238,.8); position:relative; padding-left:18px; }
+    .sb-quote-mark { position:absolute; left:-4px; top:-4px; font-size:32px; color:var(--rb-accent); font-style:normal; }
+    .sb-quote-by { display:block; margin-top:8px; font-style:normal; font-family:var(--rb-font-sans); font-size:12px; color:rgba(246,244,238,.5); letter-spacing:.04em; }
+    .sb-seal { transform:rotate(-8deg); opacity:.8; }
+    .seal-svg { filter:drop-shadow(0 4px 16px rgba(201,122,58,.2)); }
+
+    /* Form pane */
+    .sb-form-pane { padding:40px 56px; background:var(--rb-canvas); display:flex; flex-direction:column; }
+    .sb-progress { margin-bottom:48px; }
+    .sb-progress-track { height:3px; background:var(--rb-fill-2); border-radius:999px; overflow:hidden; }
+    .sb-progress-fill { height:100%; background:var(--rb-accent); border-radius:999px; transition:width .5s var(--rb-ease); }
+    .sb-progress-meta { display:flex; justify-content:space-between; margin-top:10px; font-size:12px; color:var(--rb-ink-3); font-family:var(--rb-font-mono); letter-spacing:.04em; }
+    .sb-meta-right { display:inline-flex; gap:18px; align-items:center; }
+    .sb-link { color:var(--rb-ink-3); transition:color .2s; }
+    .sb-link b { color:var(--rb-accent); font-weight:700; }
+    .sb-link:hover { color:var(--rb-ink); }
+    .sb-form-wrap { flex:1; max-width:520px; width:100%; margin:0 auto; }
+    .sb-step-card { animation:fadeUp .4s var(--rb-ease); }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    .sb-step-tag { font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--rb-accent); margin-bottom:14px; }
+    .sb-step-h { font-family:var(--rb-font-display); font-size:44px; font-weight:400; line-height:1.05; letter-spacing:-.025em; color:var(--rb-ink); }
+    .sb-step-p { color:var(--rb-ink-2); font-size:15px; line-height:1.55; margin-top:14px; max-width:420px; }
+
+    /* Auth buttons */
+    .sb-cta { margin-top:28px; width:100%; justify-content:center; padding:14px 24px; font-size:15px; }
+    .arr { display:inline-block; transition:transform .25s; }
+    .btn:hover .arr { transform:translateX(3px); }
+    .sb-divider { margin:24px 0 16px; text-align:center; position:relative; color:var(--rb-ink-3); font-size:12px; }
+    .sb-divider span { background:var(--rb-canvas); padding:0 14px; position:relative; }
+    .sb-divider::before { content:""; position:absolute; left:0; right:0; top:50%; height:1px; background:var(--rb-border); }
+
+    /* Google button */
+    .sb-google-btn { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:14px; border-radius:12px; background:var(--rb-surface); border:1.5px solid var(--rb-border); font-size:15px; font-weight:600; color:var(--rb-ink); cursor:pointer; transition:all .22s var(--rb-ease); font-family:inherit; }
+    .sb-google-btn:hover { background:var(--rb-fill); border-color:var(--rb-border-strong); transform:translateY(-1px); box-shadow:var(--rb-shadow-md); }
+    .sb-google-btn:active { transform:scale(0.98); }
+    .sb-google-btn:disabled { opacity:.55; cursor:not-allowed; transform:none; box-shadow:none; }
+
+    /* Disabled / coming-soon group */
+    .sb-soon-wrap { position:relative; margin-top:10px; }
+    .sb-soon-inner { display:grid; grid-template-columns:1fr 1fr; gap:10px; opacity:.3; filter:blur(0.8px); pointer-events:none; user-select:none; }
+    .sb-soon-inner.single { grid-template-columns:1fr; }
+    .sb-soon-badge { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--rb-ink); color:var(--rb-canvas); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; padding:6px 16px; border-radius:999px; white-space:nowrap; pointer-events:none; z-index:2; box-shadow:var(--rb-shadow-sm); }
+    .sb-oauth-btn { display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; border-radius:10px; background:var(--rb-surface); border:1px solid var(--rb-border); font-size:13px; font-weight:600; cursor:pointer; color:var(--rb-ink); font-family:inherit; width:100%; }
+
+    /* Phone input row */
+    .sb-phone-row { display:flex; gap:8px; }
+    .sb-phone-cc { display:flex; align-items:center; gap:6px; padding:12px 14px; border-radius:10px; background:var(--rb-surface); border:1px solid var(--rb-border); font-size:13px; font-weight:600; color:var(--rb-ink); white-space:nowrap; min-width:72px; justify-content:center; }
+    .sb-phone-input { flex:1; padding:12px 14px; border-radius:10px; background:var(--rb-surface); border:1px solid var(--rb-border); font-size:13px; font-family:inherit; color:var(--rb-ink); outline:none; }
+    .sb-phone-input::placeholder { color:var(--rb-ink-3); }
+
+    /* Fine print */
+    .sb-fineprint { margin-top:24px; font-size:12px; color:var(--rb-ink-3); line-height:1.55; }
+    .sb-fineprint a { color:var(--rb-ink-2); text-decoration:underline; text-decoration-color:var(--rb-border); }
+
+    /* Spinner */
+    .btn-spinner { width:16px; height:16px; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+    .btn-spinner-dark { border-color:rgba(14,20,19,.2); border-top-color:var(--rb-ink); }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width:1100px) {
+      .sb-shell { grid-template-columns:1fr; }
+      .sb-pane { padding:32px; }
+      .sb-form-pane { padding:40px 32px 60px; }
+      .sb-footer { flex-direction:column; align-items:flex-start; }
+      .sb-seal { align-self:flex-end; }
+    }
+    @media (max-width:640px) {
+      .sb-pane { padding:28px 24px; }
+      .sb-form-pane { padding:28px 24px 60px; }
+      .sb-step-h { font-size:32px; }
+      .sb-soon-inner { grid-template-columns:1fr; }
+      .sb-progress { margin-bottom:28px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+  <script type="text/babel">
+    const { useState, useCallback } = React;
+
+    const SUPABASE_URL = 'https://tuojgwrzfecyeiccdrlj.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_jKQSCW7n3hwESw6YHKrZWQ_r3fk62WF';
+
+    const { createClient } = window.supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    /* ── SVG Icons ─────────────────────────────────────── */
+    function LogoMark({ size = 36 }) {
+      return (
+        <svg viewBox="0 0 40 40" width={size} height={size}>
+          <rect width="40" height="40" rx="9" fill="#0E1413"/>
+          <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
+          <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
+          <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+          <circle cx="20" cy="11" r="0.9" fill="#C97A3A"/>
+        </svg>
+      );
+    }
+
+    function GoogleIcon() {
+      return (
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="#4285F4" d="M22.5 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.9a5.05 5.05 0 0 1-2.18 3.31v2.75h3.53c2.07-1.9 3.25-4.7 3.25-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.94 0 5.4-.98 7.2-2.64l-3.53-2.75c-.97.65-2.22 1.04-3.67 1.04-2.83 0-5.22-1.91-6.07-4.48H2.28v2.84A11 11 0 0 0 12 23z"/>
+          <path fill="#FBBC04" d="M5.93 14.17a6.6 6.6 0 0 1 0-4.34V6.99H2.28a11 11 0 0 0 0 10.02l3.65-2.84z"/>
+          <path fill="#EA4335" d="M12 5.5c1.6 0 3.03.55 4.16 1.63l3.12-3.12A11 11 0 0 0 12 1 11 11 0 0 0 2.28 6.99l3.65 2.84C6.78 7.41 9.17 5.5 12 5.5z"/>
+        </svg>
+      );
+    }
+
+    function AppleIcon() {
+      return (
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.29.07 2.18.74 3.01.8.89-.18 1.74-.84 2.95-.8 1.46.07 2.57.65 3.3 1.65C15.05 10.7 15.83 15.5 17.05 20.28zm-4.9-13.5c-.07-1.93 1.5-3.5 3.35-3.62.28 2.02-1.8 3.87-3.35 3.62z"/>
+        </svg>
+      );
+    }
+
+    /* ── Seal ─────────────────────────────────────────── */
+    function Seal() {
+      return (
+        <div className="sb-seal">
+          <svg viewBox="0 0 200 200" width="160" height="160" className="seal-svg">
+            <circle cx="100" cy="100" r="92" fill="none" stroke="#C97A3A" strokeWidth="2.4"/>
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#C97A3A" strokeWidth="1.2" strokeDasharray="2 4"/>
+            <text x="100" y="86" textAnchor="middle" fontFamily="DM Sans,sans-serif" fontSize="10" letterSpacing="3" fill="#C97A3A" fontWeight="700">SEALED FOR INDIA</text>
+            <path d="M70 110 l18 18 l42 -42" fill="none" stroke="#C97A3A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+            <text x="100" y="160" textAnchor="middle" fontFamily="Instrument Serif,serif" fontSize="14" fill="#C97A3A">RentyBase · est. 2026</text>
+          </svg>
+        </div>
+      );
+    }
+
+    /* ── Brand Pane ────────────────────────────────────── */
+    function BrandPane() {
+      return (
+        <div className="sb-pane">
+          {/* Header */}
+          <a href="/" className="sb-logo">
+            <LogoMark size={32} />
+            Renty<span className="ochre">Base</span>
+          </a>
+
+          {/* Hero */}
+          <div className="sb-hero">
+            <p className="sb-eyebrow">Welcome back</p>
+            <h1 className="sb-h1">
+              Your record,<br />
+              still <em>here.</em>
+            </h1>
+            <p className="sb-sub">
+              Every receipt, every photo, every signature — exactly where you left it. Nothing expires. Nothing disappears.
+            </p>
+            <div className="sb-flow">
+              <div className="sb-step">
+                <span className="sb-num">→</span>
+                <span className="sb-line">Same Google account</span>
+              </div>
+              <div className="sb-step">
+                <span className="sb-num">→</span>
+                <span className="sb-line">One click</span>
+              </div>
+              <div className="sb-step">
+                <span className="sb-num">→</span>
+                <span className="sb-line">Right where you left off</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="sb-footer">
+            <div className="sb-trust">
+              <div className="sb-trust-row">
+                <span className="sb-pill">No password to forget</span>
+                <span className="sb-pill">Google OAuth</span>
+                <span className="sb-pill">Secure</span>
+              </div>
+              <blockquote className="sb-quote">
+                <span className="sb-quote-mark">"</span>
+                I moved three times and every receipt was still there. Incredible.
+                <cite className="sb-quote-by">— Tenant, Hyderabad</cite>
+              </blockquote>
+            </div>
+            <Seal />
+          </div>
+        </div>
+      );
+    }
+
+    /* ── Form Pane ─────────────────────────────────────── */
+    function FormPane() {
+      const [loading, setLoading] = useState(false);
+
+      const handleGoogle = useCallback(async () => {
+        if (loading) return;
+        setLoading(true);
+        try {
+          const { error } = await sb.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: 'https://rentybase.com/auth/callback' },
+          });
+          if (error) throw error;
+        } catch (err) {
+          console.error(err);
+          setLoading(false);
+          alert('Could not connect to Google. Please try again.');
+        }
+      }, [loading]);
+
+      return (
+        <div className="sb-form-pane">
+          {/* Progress */}
+          <div className="sb-progress">
+            <div className="sb-progress-track">
+              <div className="sb-progress-fill" style={{ width: '100%' }} />
+            </div>
+            <div className="sb-progress-meta">
+              <span>Sign in</span>
+              <span className="sb-meta-right">
+                <a href="/signup" className="sb-link">New to RentyBase? <b>Create account</b></a>
+              </span>
+            </div>
+          </div>
+
+          {/* Form wrap */}
+          <div className="sb-form-wrap">
+            <div className="sb-step-card">
+              <p className="sb-step-tag">Sign in</p>
+              <h2 className="sb-step-h">Welcome back.</h2>
+              <p className="sb-step-p">
+                Sign in with your Google account — the same one you used to sign up. All your data will be right there.
+              </p>
+
+              {/* Google sign-in button */}
+              <button
+                className="sb-google-btn"
+                style={{ marginTop: 36 }}
+                onClick={handleGoogle}
+                disabled={loading}
+                type="button"
+              >
+                {loading
+                  ? <><div className="btn-spinner btn-spinner-dark" />Signing in with Google…</>
+                  : <><GoogleIcon />Sign in with Google</>
+                }
+              </button>
+
+              {/* Divider */}
+              <div className="sb-divider" style={{ marginTop: 28 }}>
+                <span>or sign in with</span>
+              </div>
+
+              {/* Coming soon: Phone, Apple, DigiLocker */}
+              <div className="sb-soon-wrap">
+                <div className="sb-soon-inner" style={{ gridTemplateColumns: '1fr' }}>
+                  {/* Phone input row */}
+                  <div className="sb-phone-row">
+                    <div className="sb-phone-cc">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M3 12h18M12 3a9 9 0 0 1 0 18A9 9 0 0 1 12 3z"/>
+                        <path d="M12 3c-2 4-2 14 0 18M12 3c2 4 2 14 0 18"/>
+                      </svg>
+                      +91
+                    </div>
+                    <input
+                      className="sb-phone-input"
+                      type="tel"
+                      placeholder="10-digit mobile number"
+                      tabIndex={-1}
+                      readOnly
+                    />
+                  </div>
+
+                  {/* Apple + DigiLocker side by side */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <button className="sb-oauth-btn" tabIndex={-1} type="button">
+                      <AppleIcon />
+                      Apple
+                    </button>
+                    <button className="sb-oauth-btn" tabIndex={-1} type="button">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="5" width="20" height="14" rx="1"/>
+                        <path d="M2 10h20"/>
+                        <path d="M7 15h2M15 15h2"/>
+                      </svg>
+                      DigiLocker
+                    </button>
+                  </div>
+                </div>
+                <span className="sb-soon-badge">Coming soon</span>
+              </div>
+
+              {/* Fine print */}
+              <p className="sb-fineprint">
+                New to RentyBase?{' '}
+                <a href="/signup"><b style={{ color: 'var(--rb-accent)' }}>Create a free account</b></a>.
+                {' '}Having trouble?{' '}
+                <a href="mailto:support@rentybase.com">Contact support</a>.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── Root App ──────────────────────────────────────── */
+    function App() {
+      return (
+        <div className="sb-shell">
+          <BrandPane />
+          <FormPane />
+        </div>
+      );
+    }
+
+    /* ── Mount ─────────────────────────────────────────── */
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

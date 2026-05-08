@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Signing you in · RentyBase</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    /* design tokens */
+    :root { --rb-action:#0F4C5C; --rb-accent:#C97A3A; --rb-canvas:#F6F4EE; --rb-ink:#0E1413; --rb-ink-3:#5C645F; --rb-font-display:'Instrument Serif',Georgia,serif; --rb-font-sans:'DM Sans',system-ui,sans-serif; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:var(--rb-font-sans); background:var(--rb-canvas); color:var(--rb-ink); min-height:100vh; display:grid; place-items:center; }
+    .wrap { text-align:center; }
+    .logo { display:inline-flex; align-items:center; gap:10px; margin-bottom:48px; font-family:var(--rb-font-display); font-size:22px; font-weight:800; color:var(--rb-ink); }
+    .spin { width:48px; height:48px; border:3px solid rgba(15,76,92,.15); border-top-color:var(--rb-action); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 24px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .msg { font-size:16px; color:var(--rb-ink-3); }
+    .err { color:#B33A2E; font-size:14px; margin-top:16px; display:none; }
+    .err.show { display:block; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">
+      <svg viewBox="0 0 40 40" width="36" height="36">
+        <rect width="40" height="40" rx="9" fill="#0E1413"/>
+        <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
+        <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
+        <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+        <circle cx="20" cy="11" r="0.9" fill="#C97A3A"/>
+      </svg>
+      Renty<span style="color:#C97A3A">Base</span>
+    </div>
+    <div class="spin"></div>
+    <p class="msg">Signing you in…</p>
+    <p class="err" id="err"></p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script>
+  (async () => {
+    const { createClient } = window.supabase;
+    const sb = createClient(
+      'https://tuojgwrzfecyeiccdrlj.supabase.co',
+      'sb_publishable_jKQSCW7n3hwESw6YHKrZWQ_r3fk62WF'
+    );
+
+    const showErr = (msg) => {
+      document.querySelector('.spin').style.display = 'none';
+      document.querySelector('.msg').textContent = 'Something went wrong.';
+      const e = document.getElementById('err');
+      e.textContent = msg + ' — redirecting to sign in…';
+      e.classList.add('show');
+      setTimeout(() => window.location.href = '/signin', 3000);
+    };
+
+    try {
+      // Exchange OAuth code for session (handles PKCE automatically)
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+
+      let session;
+      if (code) {
+        const { data, error } = await sb.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+        session = data.session;
+      } else {
+        // Fallback: try getting existing session (implicit flow)
+        const { data } = await sb.auth.getSession();
+        session = data.session;
+      }
+
+      if (!session) {
+        showErr('No session found.');
+        return;
+      }
+
+      // Read role stored before OAuth redirect
+      const role = sessionStorage.getItem('rb-signup-role') || localStorage.getItem('rb-signup-role');
+
+      if (role) {
+        // Save role to profile (upsert)
+        await sb.from('profiles').upsert({
+          id: session.user.id,
+          role: role,
+          full_name: session.user.user_metadata?.full_name || '',
+          avatar_url: session.user.user_metadata?.avatar_url || ''
+        }, { onConflict: 'id' });
+        sessionStorage.removeItem('rb-signup-role');
+        localStorage.removeItem('rb-signup-role');
+      }
+
+      // Check if profile has a role (returning user)
+      const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+
+      if (!profile?.role) {
+        // First time, no role yet → go to role select
+        window.location.href = '/signup';
+      } else {
+        // Has role → go to dashboard
+        window.location.href = '/dashboard';
+      }
+    } catch (err) {
+      console.error(err);
+      showErr(err.message || 'Auth error');
+    }
+  })();
+  </script>
+</body>
+</html>
