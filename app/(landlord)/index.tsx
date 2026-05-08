@@ -639,7 +639,9 @@ export default function LandlordDashboard() {
 
           <View className="mt-2">
             <View className="flex-row items-center justify-between mb-3">
-              <Cap>Your properties ({filteredPropertyGroups.length})</Cap>
+              <TouchableOpacity onPress={() => router.push('/(landlord)/properties' as never)} activeOpacity={0.75}>
+                <Cap>Your properties ({filteredPropertyGroups.length}) →</Cap>
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => router.push('/(landlord)/create-rental')}>
                 <Cap style={{ color: Colors.primary }}>+ Add</Cap>
               </TouchableOpacity>

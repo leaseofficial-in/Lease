@@ -174,6 +174,7 @@ export default function LandlordLayout() {
       <Tabs.Screen name="proof/[rentalId]" options={{ href: null }} />
       <Tabs.Screen name="repairs/[rentalId]" options={{ href: null }} />
       <Tabs.Screen name="ledger" options={{ href: null }} />
+      <Tabs.Screen name="properties" options={{ href: null }} />
     </Tabs>
   );
 }

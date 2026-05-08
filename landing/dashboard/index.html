@@ -9,206 +9,277 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    /* ── Design tokens ─────────────────────────── */
     :root {
       --rb-action:#0F4C5C; --rb-action-hover:#0A3A47; --rb-action-soft:#DDE8EB;
       --rb-accent:#C97A3A; --rb-accent-soft:#F4E5D4;
       --rb-ink:#0E1413; --rb-ink-2:#2A332F; --rb-ink-3:#5C645F;
-      --rb-canvas:#F6F4EE; --rb-surface:#FFFFFF;
+      --rb-canvas:#F6F4EE; --rb-canvas-2:#EFEDE5;
+      --rb-surface:#FFFFFF;
       --rb-fill:#F0EFE9; --rb-fill-2:#E6E2D7;
-      --rb-border:#E6E2D7; --rb-border-strong:#D4CFBE;
+      --rb-border:#E6E2D7; --rb-border-soft:#EBE7DB; --rb-border-strong:#D4CFBE;
       --rb-success:#1F7A55; --rb-success-soft:#DEEFE6;
+      --rb-warning:#B8740F; --rb-warning-soft:#F6E6CA;
+      --rb-danger:#B33A2E; --rb-danger-soft:#F3DAD6;
       --rb-font-display:'Instrument Serif','Iowan Old Style',Georgia,serif;
       --rb-font-sans:'DM Sans',system-ui,-apple-system,sans-serif;
       --rb-font-mono:'JetBrains Mono',ui-monospace,monospace;
       --rb-ease:cubic-bezier(0.22,1,0.36,1);
-      --rb-shadow-sm:0 1px 2px rgba(20,18,12,.04),0 2px 8px rgba(20,18,12,.05);
-      --rb-shadow-md:0 4px 12px rgba(20,18,12,.06),0 12px 32px rgba(20,18,12,.08);
     }
-    * { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:var(--rb-font-sans); background:var(--rb-canvas); color:var(--rb-ink); -webkit-font-smoothing:antialiased; min-height:100vh; }
-    a { color:inherit; text-decoration:none; }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:var(--rb-font-sans);background:var(--rb-canvas-2);color:var(--rb-ink);-webkit-font-smoothing:antialiased;min-height:100vh;}
+    a{color:inherit;text-decoration:none;}
 
-    /* ── Nav ─────────────────────────── */
-    .nav { position:sticky; top:0; z-index:50; background:rgba(246,244,238,.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--rb-border); }
-    .nav-inner { max-width:1100px; margin:0 auto; padding:14px 32px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
-    .nav-logo { display:inline-flex; align-items:center; gap:10px; }
-    .nav-word { font-family:var(--rb-font-sans); font-weight:700; font-size:20px; letter-spacing:-.022em; color:var(--rb-ink); line-height:1; }
-    .ochre { color:var(--rb-accent); }
-    .nav-right { display:flex; align-items:center; gap:12px; }
-    .btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:999px; border:1px solid transparent; font-family:var(--rb-font-sans); font-size:13px; font-weight:600; cursor:pointer; transition:all .2s var(--rb-ease); }
-    .btn-ghost { background:transparent; color:var(--rb-ink-2); border-color:var(--rb-border); }
-    .btn-ghost:hover { background:var(--rb-fill); border-color:var(--rb-border-strong); }
-    .btn-action { background:var(--rb-action); color:#fff; }
-    .btn-action:hover { background:var(--rb-action-hover); transform:translateY(-1px); }
+    /* ── Loading / error ───────────────────────── */
+    .d-loading{display:grid;place-items:center;min-height:100vh;}
+    .spin{width:44px;height:44px;border:3px solid rgba(15,76,92,.12);border-top-color:var(--rb-action);border-radius:50%;animation:spin .7s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .d-error{display:none;place-items:center;min-height:100vh;padding:24px;}
+    .d-error-inner{text-align:center;max-width:340px;}
+    .d-error-icon{font-size:40px;margin-bottom:16px;}
+    .d-error-h{font-family:var(--rb-font-display);font-size:28px;color:var(--rb-ink);}
+    .d-error-p{font-size:14px;color:var(--rb-ink-3);margin-top:8px;line-height:1.6;}
 
-    /* ── Loading state ───────────────── */
-    .loading-wrap { display:grid; place-items:center; min-height:60vh; }
-    .spin { width:40px; height:40px; border:3px solid rgba(15,76,92,.12); border-top-color:var(--rb-action); border-radius:50%; animation:spin .7s linear infinite; }
-    @keyframes spin { to { transform:rotate(360deg); } }
+    /* ── Shell layout ──────────────────────────── */
+    .d-shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh;}
 
-    /* ── Main content ────────────────── */
-    .main { max-width:1100px; margin:0 auto; padding:48px 32px 80px; }
-    .dash-header { margin-bottom:40px; }
-    .dash-eyebrow { font-size:11px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--rb-ink-3); margin-bottom:10px; }
-    .dash-h { font-family:var(--rb-font-display); font-size:clamp(36px,5vw,56px); font-weight:400; line-height:1.05; letter-spacing:-.03em; color:var(--rb-ink); }
-    .dash-h em { font-style:italic; color:var(--rb-action); }
-    .dash-sub { font-size:16px; color:var(--rb-ink-3); line-height:1.6; margin-top:12px; max-width:500px; }
+    /* ── Sidebar ───────────────────────────────── */
+    .d-side{padding:28px 18px;background:var(--rb-canvas);border-right:1px solid var(--rb-border);display:flex;flex-direction:column;gap:28px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+    .d-logo{display:flex;align-items:center;gap:10px;font-family:var(--rb-font-display);font-weight:800;font-size:19px;letter-spacing:-.02em;color:var(--rb-ink);padding:0 8px;}
+    .d-logo .ochre{color:var(--rb-accent);}
+    .d-nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+    .d-nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:transparent;border:0;font:inherit;font-size:14px;color:var(--rb-ink-2);cursor:pointer;text-align:left;transition:all .2s;width:100%;}
+    .d-nav-item:hover{background:var(--rb-fill);color:var(--rb-ink);}
+    .d-nav-item.active{background:var(--rb-ink);color:var(--rb-canvas);}
+    .d-nav-ico{width:22px;text-align:center;font-size:15px;flex-shrink:0;}
+    .d-badge{margin-left:auto;font-family:var(--rb-font-mono);font-size:10px;font-weight:700;padding:2px 7px;background:var(--rb-accent);color:#fff;border-radius:999px;}
+    .d-nav-item.active .d-badge{background:var(--rb-accent);}
+    .d-side-foot{padding-top:18px;border-top:1px solid var(--rb-border);}
+    .d-user{display:flex;gap:10px;align-items:center;padding:6px 6px 12px;}
+    .d-avatar{width:34px;height:34px;border-radius:50%;color:#fff;display:grid;place-items:center;font-weight:700;font-family:var(--rb-font-display);font-size:16px;overflow:hidden;flex-shrink:0;}
+    .d-avatar img{width:100%;height:100%;object-fit:cover;}
+    .d-user-name{font-size:13px;font-weight:600;color:var(--rb-ink);}
+    .d-user-meta{font-size:11px;color:var(--rb-ink-3);}
+    .d-logout{display:block;padding:8px 12px;font-size:12px;color:var(--rb-ink-3);border-radius:8px;border:0;background:transparent;cursor:pointer;font:inherit;text-align:left;width:100%;}
+    .d-logout:hover{color:var(--rb-ink);background:var(--rb-fill);}
 
-    /* ── Status card ─────────────────── */
-    .status-card { display:flex; align-items:center; gap:14px; padding:16px 20px; background:var(--rb-success-soft); border:1.5px solid rgba(31,122,85,.2); border-radius:14px; margin-bottom:40px; max-width:520px; }
-    .status-dot { width:10px; height:10px; border-radius:50%; background:var(--rb-success); flex-shrink:0; box-shadow:0 0 0 3px rgba(31,122,85,.2); }
-    .status-text { font-size:14px; font-weight:600; color:var(--rb-success); }
+    /* ── Main ──────────────────────────────────── */
+    .d-main{padding:32px 36px 60px;max-width:1200px;min-width:0;}
+    .d-top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:28px;flex-wrap:wrap;}
+    .eyebrow{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--rb-ink-3);}
+    .d-h1{font-family:var(--rb-font-display);font-size:40px;font-weight:400;letter-spacing:-.025em;line-height:1.05;color:var(--rb-ink);margin-top:4px;}
+    .d-sub{color:var(--rb-ink-2);margin-top:6px;font-size:14px;line-height:1.55;}
+    .d-sub b{color:var(--rb-ink);font-weight:600;}
 
-    /* ── Grid ────────────────────────── */
-    .dash-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:40px; }
-    .card { background:var(--rb-surface); border:1px solid var(--rb-border); border-radius:18px; padding:28px; box-shadow:var(--rb-shadow-sm); }
-    .card-label { font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--rb-ink-3); margin-bottom:8px; }
-    .card-val { font-family:var(--rb-font-display); font-size:28px; letter-spacing:-.02em; color:var(--rb-ink); }
-    .card-sub { font-size:13px; color:var(--rb-ink-3); margin-top:6px; line-height:1.5; }
-    .card-role { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; font-family:var(--rb-font-mono); font-size:11px; font-weight:600; letter-spacing:.06em; }
-    .role-landlord { background:var(--rb-action-soft); color:var(--rb-action); }
-    .role-tenant { background:var(--rb-accent-soft); color:var(--rb-accent); }
-    .role-none { background:var(--rb-fill-2); color:var(--rb-ink-3); }
+    /* ── Grid + cards ──────────────────────────── */
+    .d-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+    .card{background:var(--rb-canvas);border:1px solid var(--rb-border-soft);border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(20,18,12,.03);}
+    .span-2{grid-column:span 2;}
+    .card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:16px;}
+    .card h3{font-family:var(--rb-font-display);font-size:22px;font-weight:400;letter-spacing:-.015em;line-height:1.1;}
+    .card-sub{font-size:12px;color:var(--rb-ink-3);display:block;margin-top:4px;}
 
-    /* ── App CTA card ────────────────── */
-    .app-card { background:linear-gradient(135deg,#0F4C5C 0%,#0E1413 100%); border-radius:18px; padding:36px 40px; display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:24px; }
-    .app-card-copy { flex:1; }
-    .app-card-eyebrow { font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:rgba(246,244,238,.55); margin-bottom:10px; }
-    .app-card-h { font-family:var(--rb-font-display); font-size:32px; font-weight:400; letter-spacing:-.025em; color:#F6F4EE; line-height:1.1; }
-    .app-card-h em { font-style:italic; color:var(--rb-accent); }
-    .app-card-p { font-size:14px; color:rgba(246,244,238,.7); margin-top:10px; line-height:1.55; max-width:380px; }
-    .app-card-cta { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
-    .btn-white { background:#F6F4EE; color:var(--rb-ink); border:none; padding:12px 22px; font-size:14px; }
-    .btn-white:hover { background:#fff; transform:translateY(-1px); box-shadow:0 8px 24px rgba(0,0,0,.15); }
-    .btn-outline-white { background:transparent; color:#F6F4EE; border:1px solid rgba(246,244,238,.3); padding:12px 22px; font-size:14px; }
-    .btn-outline-white:hover { background:rgba(246,244,238,.08); border-color:rgba(246,244,238,.5); }
-    .app-phone-mock { flex-shrink:0; width:100px; height:180px; background:rgba(246,244,238,.08); border:1.5px solid rgba(246,244,238,.12); border-radius:18px; display:flex; align-items:center; justify-content:center; }
+    /* ── Buttons ───────────────────────────────── */
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:999px;border:1px solid transparent;font-family:var(--rb-font-sans);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s var(--rb-ease);text-decoration:none;}
+    .btn.sm{padding:7px 14px;font-size:12px;}
+    .btn-primary{background:var(--rb-action);color:#fff;}
+    .btn-primary:hover{background:var(--rb-action-hover);}
+    .btn-ghost{background:transparent;color:var(--rb-ink);border-color:var(--rb-border);}
+    .btn-ghost:hover{background:var(--rb-fill);border-color:var(--rb-border-strong);}
 
-    /* ── Info links ──────────────────── */
-    .dash-links { display:flex; gap:16px; flex-wrap:wrap; }
-    .dash-link { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--rb-ink-3); padding:8px 16px; background:var(--rb-fill); border-radius:999px; border:1px solid var(--rb-border); transition:all .2s; }
-    .dash-link:hover { color:var(--rb-ink); background:var(--rb-fill-2); border-color:var(--rb-border-strong); }
+    /* ── Hero (landlord) ───────────────────────── */
+    .d-hero-card{grid-column:span 2;background:linear-gradient(135deg,#0F4C5C 0%,#163A47 100%);color:#F6F4EE;border:0;}
+    .d-hero-meta{font-family:var(--rb-font-mono);font-size:11px;letter-spacing:.14em;color:rgba(246,244,238,.6);}
+    .d-hero-num{font-family:var(--rb-font-display);font-size:56px;line-height:1;letter-spacing:-.025em;margin-top:10px;}
+    .d-of{font-size:24px;color:rgba(246,244,238,.5);}
+    .d-bar{height:6px;background:rgba(246,244,238,.12);border-radius:999px;margin-top:18px;overflow:hidden;}
+    .d-bar-f{height:100%;background:var(--rb-accent);border-radius:999px;}
+    .d-hero-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:22px;padding-top:20px;border-top:1px solid rgba(246,244,238,.12);}
+    .d-stat-l{font-size:11px;color:rgba(246,244,238,.55);letter-spacing:.08em;text-transform:uppercase;}
+    .d-stat-v{font-family:var(--rb-font-display);font-size:24px;margin-top:4px;}
+    .d-stat-v.ochre{color:var(--rb-accent);}
+    .d-stat-of{font-size:14px;color:rgba(246,244,238,.5);}
 
-    /* ── Profile avatar ──────────────── */
-    .avatar { width:40px; height:40px; border-radius:50%; background:var(--rb-action); color:#fff; font-weight:700; font-size:16px; display:grid; place-items:center; flex-shrink:0; overflow:hidden; }
-    .avatar img { width:100%; height:100%; object-fit:cover; }
+    /* ── Score card ────────────────────────────── */
+    .d-score-tag{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--rb-ink-3);}
+    .d-score-num{font-family:var(--rb-font-display);font-size:64px;line-height:1;margin-top:10px;letter-spacing:-.03em;color:var(--rb-accent);}
+    .d-score.tenant .d-score-num{color:var(--rb-action);}
+    .d-score-band{display:inline-block;margin-top:8px;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.12em;background:var(--rb-accent-soft);color:var(--rb-accent);}
+    .d-score-band.action{background:var(--rb-action-soft);color:var(--rb-action);}
+    .d-score-rows{margin-top:18px;display:flex;flex-direction:column;gap:10px;}
+    .d-score-rows .b span{font-size:12px;color:var(--rb-ink-2);}
+    .d-score-rows .bar{height:4px;background:var(--rb-fill-2);border-radius:4px;margin-top:4px;overflow:hidden;}
+    .d-score-rows .bar div{height:100%;background:var(--rb-accent);border-radius:4px;}
+    .d-score-rows .bar.action div{background:var(--rb-action);}
+    .d-score-foot{margin-top:18px;padding-top:14px;border-top:1px dashed var(--rb-border);font-size:12px;color:var(--rb-ink-3);}
 
-    /* ── Responsive ──────────────────── */
-    @media (max-width:768px) {
-      .nav-inner { padding:12px 20px; }
-      .main { padding:32px 20px 60px; }
-      .dash-grid { grid-template-columns:1fr; }
-      .app-card { flex-direction:column; align-items:flex-start; padding:28px 24px; }
-      .app-phone-mock { display:none; }
-      .dash-links { gap:10px; }
+    /* ── Properties list ───────────────────────── */
+    .d-props-list{display:flex;flex-direction:column;gap:10px;}
+    .d-prop{display:grid;grid-template-columns:56px 1fr auto;gap:16px;align-items:center;padding:12px;background:var(--rb-surface);border:1px solid var(--rb-border-soft);border-radius:12px;transition:all .2s;}
+    .d-prop:hover{border-color:var(--rb-border-strong);transform:translateX(2px);}
+    .d-prop-thumb{width:56px;height:56px;border-radius:8px;}
+    .d-prop-city{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--rb-ink-3);font-weight:600;}
+    .d-prop-addr{font-family:var(--rb-font-display);font-size:18px;line-height:1.15;letter-spacing:-.01em;margin-top:2px;}
+    .d-prop-tenant{font-size:12px;color:var(--rb-ink-3);margin-top:2px;}
+    .d-prop-r{text-align:right;}
+    .d-prop-rent{font-family:var(--rb-font-display);font-size:22px;letter-spacing:-.015em;}
+    .d-prop-rent span{font-size:12px;color:var(--rb-ink-3);margin-left:2px;}
+    .d-prop-pill{font-family:var(--rb-font-mono);font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;margin-top:4px;display:inline-block;letter-spacing:.04em;}
+    .d-prop-pill.paid{background:var(--rb-action-soft);color:var(--rb-action);}
+    .d-prop-pill.due{background:var(--rb-warning-soft);color:var(--rb-warning);}
+    .d-prop-pill.pending{background:var(--rb-accent-soft);color:var(--rb-accent);}
+    .d-prop-pill.none{background:var(--rb-fill-2);color:var(--rb-ink-3);}
+
+    /* ── Quick actions ─────────────────────────── */
+    .d-action-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+    .d-action{padding:14px;background:var(--rb-surface);border:1px solid var(--rb-border-soft);border-radius:10px;text-align:left;cursor:pointer;transition:all .2s;font:inherit;display:flex;flex-direction:column;gap:4px;}
+    .d-action:hover{border-color:var(--rb-accent);background:var(--rb-accent-soft);}
+    .d-action span{font-size:18px;}
+    .d-action b{font-size:13px;color:var(--rb-ink);font-weight:600;}
+    .d-action i{font-style:normal;font-size:11px;color:var(--rb-ink-3);}
+
+    /* ── Ledger table ──────────────────────────── */
+    .d-tabs{display:inline-flex;padding:3px;background:var(--rb-fill);border-radius:8px;gap:2px;}
+    .d-tabs button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font:inherit;font-size:12px;color:var(--rb-ink-3);cursor:pointer;}
+    .d-tabs button.on{background:var(--rb-canvas);color:var(--rb-ink);font-weight:600;}
+    .d-table{width:100%;border-collapse:collapse;}
+    .d-table th{text-align:left;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--rb-ink-3);font-weight:700;padding:10px 8px;border-bottom:1px solid var(--rb-border);}
+    .d-table td{padding:12px 8px;font-size:13px;border-bottom:1px solid var(--rb-border-soft);color:var(--rb-ink-2);}
+    .d-table tr:last-child td{border-bottom:0;}
+    .d-table .right{text-align:right;}
+    .d-table .pos{color:var(--rb-action);font-weight:600;}
+    .d-table .neg{color:var(--rb-warning);}
+    .d-table .muted{color:var(--rb-ink-3);}
+    .d-tag{font-family:var(--rb-font-mono);font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;margin-right:8px;letter-spacing:.04em;}
+    .d-tag.in{background:var(--rb-action-soft);color:var(--rb-action);}
+    .d-tag.out{background:var(--rb-warning-soft);color:var(--rb-warning);}
+    .d-tag.doc{background:var(--rb-accent-soft);color:var(--rb-accent);}
+    .d-tag.sys{background:var(--rb-fill-2);color:var(--rb-ink-3);}
+    .mono{font-family:var(--rb-font-mono);}
+
+    /* ── Tenant: Rent card ─────────────────────── */
+    .d-rent-card{grid-column:span 2;background:linear-gradient(135deg,#14403E,#0F2A2D);color:#F6F4EE;border:0;}
+    .d-rent-tag{font-family:var(--rb-font-mono);font-size:11px;letter-spacing:.14em;color:rgba(246,244,238,.6);}
+    .d-rent-row{display:flex;align-items:baseline;gap:24px;margin-top:14px;flex-wrap:wrap;}
+    .d-rent-num{font-family:var(--rb-font-display);font-size:64px;line-height:1;letter-spacing:-.03em;}
+    .d-rent-due{color:rgba(246,244,238,.78);font-size:15px;}
+    .d-rent-due b{color:var(--rb-accent);}
+    .d-rent-cta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap;}
+    .d-rent-paid-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(31,122,85,.25);border:1px solid rgba(31,122,85,.35);border-radius:999px;font-size:13px;font-weight:600;color:#A8E6C8;}
+    .d-rent-foot{margin-top:22px;padding-top:18px;border-top:1px solid rgba(246,244,238,.12);display:flex;justify-content:space-between;gap:16px;font-size:12px;color:rgba(246,244,238,.65);}
+    .d-rent-foot i{font-style:normal;color:var(--rb-accent);margin-left:4px;}
+
+    /* ── HRA Receipts ──────────────────────────── */
+    .d-recs{display:flex;flex-direction:column;gap:6px;}
+    .d-rec{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:10px 12px;background:var(--rb-surface);border-radius:10px;}
+    .d-rec-m{font-size:11px;letter-spacing:.1em;color:var(--rb-ink-3);font-weight:600;}
+    .d-rec-n{font-size:11px;color:var(--rb-ink-3);margin-top:2px;}
+    .d-rec-amt{font-family:var(--rb-font-display);font-size:18px;color:var(--rb-ink);}
+    .d-rec-st{width:24px;height:24px;border-radius:50%;background:var(--rb-action-soft);color:var(--rb-action);display:grid;place-items:center;font-size:12px;font-weight:700;}
+    .d-rec-tot{display:flex;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px dashed var(--rb-border);font-size:13px;color:var(--rb-ink-2);align-items:center;}
+    .d-rec-tot b{font-family:var(--rb-font-display);font-size:22px;color:var(--rb-action);letter-spacing:-.015em;}
+
+    /* ── Repairs ───────────────────────────────── */
+    .d-req{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:12px;border-radius:10px;background:var(--rb-surface);margin-bottom:8px;}
+    .d-req-dot{width:8px;height:8px;border-radius:50%;}
+    .d-req-dot.open{background:var(--rb-accent);animation:dotPulse 1.6s ease-in-out infinite;}
+    .d-req-dot.progress{background:var(--rb-warning);animation:dotPulse 1.6s ease-in-out infinite;}
+    .d-req-dot.done{background:var(--rb-action);}
+    @keyframes dotPulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+    .d-req-t{font-size:14px;font-weight:600;color:var(--rb-ink);}
+    .d-req-m{font-size:12px;color:var(--rb-ink-3);margin-top:2px;}
+    .d-req-st{font-family:var(--rb-font-mono);font-size:9px;font-weight:700;padding:4px 9px;border-radius:999px;letter-spacing:.04em;}
+    .d-req-st.open{background:var(--rb-accent-soft);color:var(--rb-accent);}
+    .d-req-st.in{background:var(--rb-warning-soft);color:var(--rb-warning);}
+    .d-req-st.done{background:var(--rb-action-soft);color:var(--rb-action);}
+
+    /* ── Proof photo grid ──────────────────────── */
+    .d-proof-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+    .d-proof-tile{aspect-ratio:1;border-radius:8px;position:relative;overflow:hidden;}
+    .d-proof-tile::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(0,0,0,.55));}
+    .d-proof-cap{position:absolute;bottom:8px;left:10px;color:#fff;font-size:11px;font-weight:600;z-index:1;}
+
+    /* ── Empty state ───────────────────────────── */
+    .d-empty{text-align:center;padding:40px 20px;color:var(--rb-ink-3);}
+    .d-empty-icon{font-size:32px;margin-bottom:12px;}
+    .d-empty p{font-size:14px;line-height:1.6;}
+
+    /* ── No rental banner ──────────────────────── */
+    .d-onboard{background:linear-gradient(135deg,var(--rb-action),var(--rb-action-hover));border-radius:16px;padding:28px 32px;color:#F6F4EE;margin-bottom:18px;}
+    .d-onboard h2{font-family:var(--rb-font-display);font-size:28px;font-weight:400;letter-spacing:-.02em;margin-top:6px;}
+    .d-onboard p{font-size:14px;color:rgba(246,244,238,.8);margin-top:8px;line-height:1.55;}
+    .d-onboard-cta{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;}
+    .btn-onboard{background:rgba(246,244,238,.15);color:#F6F4EE;border-color:rgba(246,244,238,.3);}
+    .btn-onboard:hover{background:rgba(246,244,238,.25);}
+
+    /* ── Responsive ────────────────────────────── */
+    @media(max-width:1100px){
+      .d-shell{grid-template-columns:1fr;}
+      .d-side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 16px;}
+      .d-nav{flex-direction:row;overflow-x:auto;flex:none;gap:4px;}
+      .d-nav-item{padding:7px 10px;font-size:13px;white-space:nowrap;}
+      .d-side-foot{display:none;}
+      .d-grid{grid-template-columns:1fr;}
+      .span-2{grid-column:auto;}
+      .d-hero-num{font-size:40px;}
+      .d-score-num{font-size:48px;}
+      .d-rent-num{font-size:48px;}
+      .d-proof-grid{grid-template-columns:repeat(3,1fr);}
+    }
+    @media(max-width:640px){
+      .d-main{padding:20px 16px 48px;}
+      .d-h1{font-size:28px;}
+      .d-hero-row{grid-template-columns:1fr 1fr;}
+      .d-action-grid{grid-template-columns:1fr 1fr;}
+      .d-proof-grid{grid-template-columns:repeat(2,1fr);}
     }
   </style>
 </head>
 <body>
 
-  <!-- Nav -->
-  <nav class="nav">
-    <div class="nav-inner">
-      <a class="nav-logo" href="/">
-        <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true">
+  <!-- Loading -->
+  <div class="d-loading" id="loading">
+    <div class="spin"></div>
+  </div>
+
+  <!-- Error -->
+  <div class="d-error" id="err-wrap">
+    <div class="d-error-inner">
+      <div class="d-error-icon">⚠</div>
+      <h2 class="d-error-h">Not signed in</h2>
+      <p class="d-error-p">Your session has expired. Please sign in again to access your dashboard.</p>
+      <a href="/signin" class="btn btn-primary" style="margin-top:24px;display:inline-flex;">Sign in →</a>
+    </div>
+  </div>
+
+  <!-- App shell -->
+  <div class="d-shell" id="app-shell" style="display:none">
+    <!-- Sidebar -->
+    <aside class="d-side">
+      <a href="/" class="d-logo">
+        <svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true">
           <rect width="40" height="40" rx="9" fill="#0E1413"/>
           <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
           <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
           <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
-          <circle cx="20" cy="11" r="0.9" fill="#C97A3A"/>
         </svg>
-        <span class="nav-word">Renty<span class="ochre">Base</span></span>
+        Renty<span class="ochre">Base</span>
       </a>
-      <div class="nav-right">
-        <div class="avatar" id="nav-avatar">–</div>
-        <button class="btn btn-ghost" id="signout-btn" type="button">Sign out</button>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Loading -->
-  <div class="loading-wrap" id="loading">
-    <div class="spin"></div>
-  </div>
-
-  <!-- Dashboard (hidden until loaded) -->
-  <div class="main" id="dash" style="display:none">
-    <div class="dash-header">
-      <p class="dash-eyebrow" id="dash-role-eyebrow">Your account</p>
-      <h1 class="dash-h">Welcome back, <em id="dash-name">–</em></h1>
-      <p class="dash-sub">Your records are exactly where you left them. Nothing expires. Nothing disappears.</p>
-    </div>
-
-    <!-- Signed-in status -->
-    <div class="status-card">
-      <div class="status-dot"></div>
-      <span class="status-text">Signed in · <span id="dash-email" style="font-weight:400;color:var(--rb-success)"></span></span>
-    </div>
-
-    <!-- Info cards -->
-    <div class="dash-grid">
-      <div class="card">
-        <div class="card-label">Account</div>
-        <div class="card-val" id="card-name">–</div>
-        <div class="card-sub" id="card-email">–</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Role</div>
-        <div style="margin-top:4px" id="card-role-wrap">
-          <span class="card-role role-none">–</span>
+      <nav class="d-nav" id="sidebar-nav"></nav>
+      <div class="d-side-foot">
+        <div class="d-user">
+          <div class="d-avatar" id="side-avatar" style="background:linear-gradient(135deg,#0F4C5C,#163A47)">–</div>
+          <div>
+            <div class="d-user-name" id="side-name">–</div>
+            <div class="d-user-meta" id="side-meta">–</div>
+          </div>
         </div>
-        <div class="card-sub" id="card-role-desc">–</div>
+        <button class="d-logout" id="signout-btn">Sign out</button>
       </div>
-    </div>
+    </aside>
 
-    <!-- App CTA -->
-    <div class="app-card">
-      <div class="app-card-copy">
-        <p class="app-card-eyebrow">Mobile app</p>
-        <h2 class="app-card-h">Everything lives<br/><em>in the app.</em></h2>
-        <p class="app-card-p">Rent tracking, HRA receipts, move-in photo proof, deposit ledger — all in one place. Your account is ready.</p>
-        <div class="app-card-cta">
-          <a class="btn btn-white" href="/">← Back to RentyBase</a>
-          <a class="btn btn-outline-white" href="https://apps.apple.com/app/rentybase" target="_blank" rel="noopener">App Store</a>
-          <a class="btn btn-outline-white" href="https://play.google.com/store/apps/rentybase" target="_blank" rel="noopener">Play Store</a>
-        </div>
-      </div>
-      <div class="app-phone-mock">
-        <svg viewBox="0 0 40 40" width="40" height="40" opacity=".4">
-          <rect width="40" height="40" rx="9" fill="#F6F4EE"/>
-          <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#0E1413"/>
-          <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#F6F4EE"/>
-          <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
-          <circle cx="20" cy="11" r="0.9" fill="#C97A3A"/>
-        </svg>
-      </div>
-    </div>
-
-    <!-- Quick links -->
-    <div class="dash-links">
-      <a class="dash-link" href="/signup">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        Set up profile
-      </a>
-      <a class="dash-link" href="mailto:support@rentybase.com">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        Contact support
-      </a>
-      <a class="dash-link" href="/">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        Home
-      </a>
-    </div>
-  </div>
-
-  <!-- Error state -->
-  <div class="loading-wrap" id="err-wrap" style="display:none">
-    <div style="text-align:center;max-width:340px;padding:0 24px">
-      <div style="font-size:32px;margin-bottom:16px">⚠</div>
-      <p style="font-size:18px;font-weight:600;color:var(--rb-ink)">Not signed in</p>
-      <p style="font-size:14px;color:var(--rb-ink-3);margin-top:8px;line-height:1.6">Your session may have expired. Please sign in again.</p>
-      <a href="/signin" class="btn btn-action" style="margin-top:24px;display:inline-flex">Sign in →</a>
-    </div>
+    <!-- Main -->
+    <main class="d-main" id="main-content"></main>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -220,70 +291,806 @@
       'sb_publishable_jKQSCW7n3hwESw6YHKrZWQ_r3fk62WF'
     );
 
-    const show = (id) => {
-      ['loading','dash','err-wrap'].forEach(i => {
-        document.getElementById(i).style.display = i === id ? (id === 'dash' ? 'block' : 'grid') : 'none';
+    // ── Helpers ──────────────────────────────────
+    const $ = id => document.getElementById(id);
+    const inr = n => '₹' + Number(n || 0).toLocaleString('en-IN');
+    const now = new Date();
+    const currentMonth = now.toISOString().slice(0, 7);
+
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthLabel = s => {
+      if (!s) return '';
+      const [y, m] = s.split('-');
+      return `${MONTHS[parseInt(m) - 1]} ${y}`;
+    };
+    const relDate = isoStr => {
+      if (!isoStr) return '';
+      const d = new Date(isoStr);
+      const diff = Math.floor((now - d) / 86400000);
+      if (diff === 0) return 'Today';
+      if (diff === 1) return 'Yesterday';
+      return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    };
+    const daysUntil = isoStr => {
+      if (!isoStr) return 0;
+      return Math.max(0, Math.ceil((new Date(isoStr) - now) / 86400000));
+    };
+    const scoreBand = score => {
+      if (score >= 850) return { label: 'EXCELLENT', cls: 'action' };
+      if (score >= 750) return { label: 'TRUSTED', cls: '' };
+      if (score >= 650) return { label: 'GOOD', cls: '' };
+      if (score >= 550) return { label: 'FAIR', cls: '' };
+      return { label: 'BUILDING', cls: '' };
+    };
+    const THUMB_COLORS = ['#a87a4f','#9aa6a3','#c9a878','#a89280','#7a5d35','#5b3a20','#4f5e5b','#5e483a'];
+
+    const show = id => {
+      ['loading', 'err-wrap', 'app-shell'].forEach(i => {
+        const el = $(i);
+        if (i === 'loading') el.style.display = i === id ? 'grid' : 'none';
+        else if (i === 'err-wrap') el.style.display = i === id ? 'grid' : 'none';
+        else el.style.display = i === id ? 'grid' : 'none';
       });
-      if (id === 'dash') document.getElementById('dash').style.display = 'block';
     };
 
-    // Sign out
+    // ── Auth ──────────────────────────────────────
     document.getElementById('signout-btn').addEventListener('click', async () => {
       await sb.auth.signOut();
       window.location.href = '/signin';
     });
 
+    let session, user, profile;
     try {
-      const { data: { session } } = await sb.auth.getSession();
+      const res = await sb.auth.getSession();
+      session = res.data?.session;
       if (!session) { show('err-wrap'); return; }
+      user = session.user;
 
-      const user = session.user;
-      const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'there';
-      const firstName = name.split(' ')[0];
-      const email = user.email || '';
-      const avatar = user.user_metadata?.avatar_url;
-
-      // Populate nav avatar
-      const navAvatar = document.getElementById('nav-avatar');
-      if (avatar) {
-        navAvatar.innerHTML = `<img src="${avatar}" alt="${name}"/>`;
-      } else {
-        navAvatar.textContent = firstName.charAt(0).toUpperCase();
-      }
-
-      // Fetch profile for role
-      const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
-      const role = profile?.role || null;
-
-      // Populate header
-      document.getElementById('dash-name').textContent = firstName;
-      document.getElementById('dash-email').textContent = email;
-      document.getElementById('card-name').textContent = name;
-      document.getElementById('card-email').textContent = email;
-
-      // Role
-      const roleWrap = document.getElementById('card-role-wrap');
-      const roleDesc = document.getElementById('card-role-desc');
-      const eyebrow = document.getElementById('dash-role-eyebrow');
-      if (role === 'landlord') {
-        roleWrap.innerHTML = `<span class="card-role role-landlord">Landlord</span>`;
-        roleDesc.textContent = 'You manage properties and collect rent.';
-        eyebrow.textContent = 'Landlord dashboard';
-      } else if (role === 'tenant') {
-        roleWrap.innerHTML = `<span class="card-role role-tenant">Tenant</span>`;
-        roleDesc.textContent = 'You pay rent and store your receipts here.';
-        eyebrow.textContent = 'Tenant dashboard';
-      } else {
-        roleWrap.innerHTML = `<span class="card-role role-none">Not set</span>`;
-        roleDesc.textContent = 'Complete your profile to get started.';
-        eyebrow.textContent = 'Your account';
-      }
-
-      show('dash');
-    } catch (err) {
-      console.error(err);
+      const { data: prof } = await sb.from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+      profile = prof;
+    } catch (e) {
+      console.error(e);
       show('err-wrap');
+      return;
     }
+
+    // ── Populate sidebar user ─────────────────────
+    const name = profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+    const firstName = name.split(' ')[0];
+    const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url;
+    const role = profile?.role || null;
+
+    const sideAvatar = $('side-avatar');
+    if (avatarUrl) {
+      sideAvatar.innerHTML = `<img src="${avatarUrl}" alt="${name}"/>`;
+    } else {
+      sideAvatar.textContent = firstName.charAt(0).toUpperCase();
+      sideAvatar.style.background = role === 'tenant'
+        ? 'linear-gradient(135deg,#c9b388,#7a6042)'
+        : 'linear-gradient(135deg,#0F4C5C,#163A47)';
+    }
+    $('side-name').textContent = name;
+
+    // ── Sidebar nav ───────────────────────────────
+    const lNavItems = [
+      { k: 'home', icon: '⌂', label: 'Overview' },
+      { k: 'props', icon: '▦', label: 'Properties' },
+      { k: 'led', icon: '≡', label: 'Ledger' },
+      { k: 'hra', icon: '₹', label: 'Receipts' },
+      { k: 'rep', icon: '⚙', label: 'Repairs' },
+    ];
+    const tNavItems = [
+      { k: 'home', icon: '⌂', label: 'My place' },
+      { k: 'pay', icon: '₹', label: 'Pay rent' },
+      { k: 'hra', icon: '📄', label: 'HRA receipts' },
+      { k: 'proof', icon: '📷', label: 'Move-in proof' },
+      { k: 'rep', icon: '⚙', label: 'Repairs' },
+    ];
+
+    let activeView = 'home';
+    const navItems = role === 'landlord' ? lNavItems : tNavItems;
+
+    function renderNav() {
+      $('sidebar-nav').innerHTML = navItems.map(it =>
+        `<button class="d-nav-item${activeView === it.k ? ' active' : ''}" data-view="${it.k}">
+          <span class="d-nav-ico">${it.icon}</span>
+          <span>${it.label}</span>
+        </button>`
+      ).join('');
+      $('sidebar-nav').querySelectorAll('.d-nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeView = btn.dataset.view;
+          renderNav();
+          renderMain();
+        });
+      });
+    }
+
+    // ── Data fetching ─────────────────────────────
+    let landlordData = null;
+    let tenantData = null;
+
+    if (role === 'landlord') {
+      try {
+        const [rentalsRes, ytdRes] = await Promise.all([
+          sb.from('rentals')
+            .select('*, property:properties(*), tenant:profiles!rentals_tenant_id_fkey(full_name, phone, avatar_url)')
+            .eq('landlord_id', user.id)
+            .neq('status', 'ended')
+            .order('created_at', { ascending: false })
+            .limit(10),
+          sb.from('rent_payments')
+            .select('id, amount, month, status, rental_id, created_at, rental:rentals!inner(landlord_id, property:properties(name, city))')
+            .eq('rental.landlord_id', user.id)
+            .gte('month', `${now.getFullYear()}-01`)
+            .order('created_at', { ascending: false })
+        ]);
+
+        const rentals = rentalsRes.data || [];
+        const rentalIds = rentals.map(r => r.id);
+        $('side-meta').textContent = `${rentals.length} propert${rentals.length === 1 ? 'y' : 'ies'}`;
+
+        let currentPayments = [], recentRepairs = [];
+        if (rentalIds.length) {
+          const [pmtRes, repRes] = await Promise.all([
+            sb.from('rent_payments')
+              .select('*')
+              .in('rental_id', rentalIds)
+              .eq('month', currentMonth),
+            sb.from('repair_requests')
+              .select('*, rental:rentals(property:properties(name, city))')
+              .in('rental_id', rentalIds)
+              .order('created_at', { ascending: false })
+              .limit(5),
+          ]);
+          currentPayments = pmtRes.data || [];
+          recentRepairs = repRes.data || [];
+        }
+
+        const ytdPayments = (ytdRes.data || []).filter(p => p.status === 'paid');
+        const ytdTotal = ytdPayments.reduce((s, p) => s + Number(p.amount), 0);
+        const activeRentals = rentals.filter(r => r.status === 'active');
+        const totalMonthlyRent = activeRentals.reduce((s, r) => s + Number(r.monthly_rent), 0);
+        const paidThisMonth = currentPayments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0);
+        const dueThisMonth = currentPayments.filter(p => p.status !== 'paid').reduce((s, p) => s + Number(p.amount), 0);
+        const onTimeCount = currentPayments.filter(p => p.status === 'paid').length;
+        const collectionRate = totalMonthlyRent > 0 ? Math.round((paidThisMonth / totalMonthlyRent) * 100) : 0;
+        const score = Math.min(900, Math.round(600 + (collectionRate / 100) * 180 + (rentals.length > 0 ? 20 : 0)));
+
+        // Build ledger from ytdPayments + recentRepairs
+        const ledgerEntries = [
+          ...ytdPayments.slice(0, 6).map(p => ({
+            d: relDate(p.created_at),
+            t: `Rent · ${p.rental?.property?.name || 'Property'}`,
+            who: p.rental?.property?.city || '',
+            amt: Number(p.amount),
+            st: 'in'
+          })),
+          ...recentRepairs.slice(0, 3).filter(r => r.cost).map(r => ({
+            d: relDate(r.created_at),
+            t: `Repair · ${r.title || 'Repair request'}`,
+            who: r.rental?.property?.name || '',
+            amt: -(Number(r.cost || 0)),
+            st: 'out'
+          })),
+        ].sort((a, b) => 0).slice(0, 8);
+
+        landlordData = {
+          rentals, currentPayments, ytdTotal, totalMonthlyRent,
+          paidThisMonth, dueThisMonth, onTimeCount, activeRentals,
+          collectionRate, score, ledgerEntries, recentRepairs, ytdPayments
+        };
+      } catch (e) {
+        console.error('Landlord data error:', e);
+        landlordData = { error: true };
+      }
+    } else if (role === 'tenant') {
+      try {
+        const { data: rental } = await sb.from('rentals')
+          .select('*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(full_name, avatar_url)')
+          .eq('tenant_id', user.id)
+          .neq('status', 'ended')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        $('side-meta').textContent = rental?.property?.city ? `Tenant · ${rental.property.city}` : 'Tenant';
+
+        let currentPayment = null, recentPayments = [], openRepairs = [], proofs = [];
+        if (rental) {
+          const [pmtRes, histRes, repRes, proofRes] = await Promise.all([
+            sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('month', currentMonth).maybeSingle(),
+            sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('status', 'paid').order('month', { ascending: false }).limit(6),
+            sb.from('repair_requests').select('*').eq('rental_id', rental.id).in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(5),
+            sb.from('proofs').select('*, proof_photos(id, room_label)').eq('rental_id', rental.id).eq('type', 'move_in').maybeSingle(),
+          ]);
+          currentPayment = pmtRes.data;
+          recentPayments = histRes.data || [];
+          openRepairs = repRes.data || [];
+          proofs = proofRes.data;
+        }
+
+        const ytdTotal = recentPayments.reduce((s, p) => s + Number(p.amount), 0);
+        const score = Math.min(900, Math.round(700 + (recentPayments.length > 0 ? Math.min(150, recentPayments.length * 12) : 0)));
+
+        // Next due date calculation
+        let nextDueDate = null;
+        if (rental?.rent_due_day) {
+          const d = new Date(now);
+          d.setDate(rental.rent_due_day);
+          if (d <= now) d.setMonth(d.getMonth() + 1);
+          nextDueDate = d;
+        }
+
+        tenantData = { rental, currentPayment, recentPayments, openRepairs, proofs, ytdTotal, score, nextDueDate };
+      } catch (e) {
+        console.error('Tenant data error:', e);
+        tenantData = { error: true };
+      }
+    } else {
+      $('side-meta').textContent = 'Setup pending';
+    }
+
+    // ── Render functions ──────────────────────────
+    function renderMain() {
+      if (!role) {
+        renderNoRole();
+      } else if (role === 'landlord') {
+        renderLandlordView();
+      } else {
+        renderTenantView();
+      }
+    }
+
+    function renderNoRole() {
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Your account</div>
+            <h1 class="d-h1">Welcome, ${firstName}.</h1>
+            <p class="d-sub">Complete your profile setup to get started.</p>
+          </div>
+        </div>
+        <div class="d-onboard">
+          <div class="eyebrow" style="color:rgba(246,244,238,.6)">Get started</div>
+          <h2>Set up your account.</h2>
+          <p>Open the RentyBase mobile app to choose your role and complete setup. Once done, your full dashboard will appear here.</p>
+          <div class="d-onboard-cta">
+            <a href="/" class="btn btn-onboard">← Back to home</a>
+          </div>
+        </div>`;
+    }
+
+    function renderLandlordView() {
+      if (!landlordData || landlordData.error || landlordData.rentals.length === 0) {
+        renderLandlordEmpty();
+        return;
+      }
+      switch(activeView) {
+        case 'props': return renderLandlordProperties();
+        case 'led': return renderLandlordLedger();
+        case 'hra': return renderLandlordHRA();
+        case 'rep': return renderLandlordRepairs();
+        default: return renderLandlordHome();
+      }
+    }
+
+    function renderLandlordEmpty() {
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Landlord · Overview</div>
+            <h1 class="d-h1">Good to see you, ${firstName}.</h1>
+            <p class="d-sub">Your landlord dashboard is ready. Add your first property to get started.</p>
+          </div>
+        </div>
+        <div class="d-onboard">
+          <div class="eyebrow" style="color:rgba(246,244,238,.6)">No properties yet</div>
+          <h2>Add your first property.</h2>
+          <p>Open the RentyBase app to create your first property, set rent terms, and invite your tenant.</p>
+          <div class="d-onboard-cta">
+            <a href="/" class="btn btn-onboard">← Back to home</a>
+          </div>
+        </div>`;
+    }
+
+    function renderLandlordHome() {
+      const { rentals, currentPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth,
+              onTimeCount, activeRentals, collectionRate, score, ledgerEntries, recentRepairs } = landlordData;
+      const band = scoreBand(score);
+      const pct = totalMonthlyRent > 0 ? Math.min(100, Math.round(paidThisMonth / totalMonthlyRent * 100)) : 0;
+      const openRepairs = recentRepairs.filter(r => r.status === 'open' || r.status === 'in_progress');
+
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Landlord · Overview</div>
+            <h1 class="d-h1">Good to see you, ${firstName}.</h1>
+            <p class="d-sub">
+              You have <b>${activeRentals.length} active ${activeRentals.length === 1 ? 'property' : 'properties'}</b>
+              ${dueThisMonth > 0 ? ` — <b>${inr(dueThisMonth)} pending</b> this month` : ' — <b>all collections up to date</b>'}.
+              Score <b>${score} / 900</b>.
+            </p>
+          </div>
+        </div>
+        <div class="d-grid">
+          <!-- Hero stats -->
+          <section class="card d-hero-card">
+            <div class="d-hero-meta">COLLECTED · ${monthLabel(currentMonth).toUpperCase()}</div>
+            <div class="d-hero-num">${inr(paidThisMonth)} <span class="d-of">/ ${inr(totalMonthlyRent)}</span></div>
+            <div class="d-bar"><div class="d-bar-f" style="width:${pct}%"></div></div>
+            <div class="d-hero-row">
+              <div><div class="d-stat-l">On time</div><div class="d-stat-v">${onTimeCount} / ${activeRentals.length}</div></div>
+              <div><div class="d-stat-l">Pending</div><div class="d-stat-v ochre">${dueThisMonth > 0 ? inr(dueThisMonth) : '—'}</div></div>
+              <div><div class="d-stat-l">YTD income</div><div class="d-stat-v">${ytdTotal > 100000 ? (ytdTotal/100000).toFixed(1)+'L' : inr(ytdTotal)}</div></div>
+              <div><div class="d-stat-l">Score</div><div class="d-stat-v">${score}<span class="d-stat-of">/900</span></div></div>
+            </div>
+          </section>
+
+          <!-- Score card -->
+          <section class="card d-score">
+            <div class="d-score-tag">Landlord score</div>
+            <div class="d-score-num">${score}</div>
+            <div class="d-score-band ${band.cls}">${band.label}</div>
+            <div class="d-score-rows">
+              <div class="b"><span>Collection rate · ${collectionRate}%</span>
+                <div class="bar"><div style="width:${collectionRate}%"></div></div></div>
+              <div class="b"><span>${rentals.length} propert${rentals.length === 1 ? 'y' : 'ies'} managed</span>
+                <div class="bar"><div style="width:${Math.min(100, rentals.length * 25)}%"></div></div></div>
+              <div class="b"><span>${openRepairs.length === 0 ? 'No open repair requests' : openRepairs.length + ' open repair' + (openRepairs.length > 1 ? 's' : '')}</span>
+                <div class="bar"><div style="width:${openRepairs.length === 0 ? 100 : Math.max(10, 100 - openRepairs.length * 20)}%"></div></div></div>
+            </div>
+          </section>
+
+          <!-- Properties -->
+          <section class="card d-props span-2">
+            <div class="card-head">
+              <div><h3>Properties</h3><span class="card-sub">${activeRentals.length} active · ${rentals.length} total</span></div>
+            </div>
+            <div class="d-props-list">
+              ${rentals.slice(0, 5).map((r, i) => propRow(r, currentPayments, i)).join('')}
+            </div>
+          </section>
+
+          <!-- Quick actions -->
+          <section class="card d-actions">
+            <h3>Quick actions</h3>
+            <div class="d-action-grid">
+              <button class="d-action"><span>📄</span><b>Issue HRA receipt</b><i>Auto-fill from this month</i></button>
+              <button class="d-action"><span>🛠</span><b>Log repair</b><i>With photo &amp; quote</i></button>
+              <button class="d-action"><span>↩</span><b>Refund deposit</b><i>End-of-tenancy ledger</i></button>
+              <button class="d-action"><span>📨</span><b>Send nudge</b><i>0/3/5-day reminders</i></button>
+            </div>
+            <div style="margin-top:14px;padding:12px;background:var(--rb-fill);border-radius:10px;font-size:12px;color:var(--rb-ink-3);text-align:center;">
+              Actions are completed in the RentyBase mobile app
+            </div>
+          </section>
+
+          <!-- Ledger -->
+          <section class="card d-ledger span-2">
+            <div class="card-head">
+              <div><h3>Activity ledger</h3><span class="card-sub">Sealed · append-only record</span></div>
+            </div>
+            ${ledgerEntries.length > 0 ? `
+            <table class="d-table">
+              <thead><tr><th>Date</th><th>Item</th><th>Property</th><th style="text-align:right">Amount</th></tr></thead>
+              <tbody>
+                ${ledgerEntries.map(r => `
+                  <tr>
+                    <td class="mono">${r.d}</td>
+                    <td><span class="d-tag ${r.st}">${r.st === 'in' ? 'IN' : r.st === 'out' ? 'OUT' : r.st === 'doc' ? 'DOC' : 'SYS'}</span>${r.t}</td>
+                    <td class="muted">${r.who}</td>
+                    <td class="mono right ${r.amt > 0 ? 'pos' : r.amt < 0 ? 'neg' : ''}">${r.amt === 0 ? '—' : (r.amt > 0 ? '+' : '') + inr(Math.abs(r.amt))}</td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>` : `<div class="d-empty"><div class="d-empty-icon">📋</div><p>No activity yet. Rent payments and events will appear here.</p></div>`}
+          </section>
+        </div>`;
+
+      // Wire quick action buttons
+      $('main-content').querySelectorAll('.d-action').forEach(btn => {
+        btn.addEventListener('click', () => alert('Open the RentyBase mobile app to complete this action.'));
+      });
+    }
+
+    function renderLandlordProperties() {
+      const { rentals, currentPayments } = landlordData;
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Landlord · Properties</div>
+            <h1 class="d-h1">Properties.</h1>
+            <p class="d-sub">${rentals.length} active propert${rentals.length === 1 ? 'y' : 'ies'} · ${inr(landlordData.totalMonthlyRent)} / month combined.</p>
+          </div>
+        </div>
+        <section class="card" style="margin-bottom:18px">
+          <div class="d-props-list">
+            ${rentals.map((r, i) => propRow(r, currentPayments, i)).join('')}
+          </div>
+        </section>`;
+    }
+
+    function renderLandlordLedger() {
+      const { ledgerEntries, ytdTotal } = landlordData;
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Landlord · Ledger</div>
+            <h1 class="d-h1">Activity ledger.</h1>
+            <p class="d-sub">Sealed record of all financial events. ${inr(ytdTotal)} collected year-to-date.</p>
+          </div>
+        </div>
+        <section class="card">
+          ${ledgerEntries.length > 0 ? `
+          <table class="d-table">
+            <thead><tr><th>Date</th><th>Item</th><th>Property</th><th style="text-align:right">Amount</th></tr></thead>
+            <tbody>
+              ${ledgerEntries.map(r => `
+                <tr>
+                  <td class="mono">${r.d}</td>
+                  <td><span class="d-tag ${r.st}">${r.st === 'in' ? 'IN' : r.st === 'out' ? 'OUT' : r.st === 'doc' ? 'DOC' : 'SYS'}</span>${r.t}</td>
+                  <td class="muted">${r.who}</td>
+                  <td class="mono right ${r.amt > 0 ? 'pos' : r.amt < 0 ? 'neg' : ''}">${r.amt === 0 ? '—' : (r.amt > 0 ? '+' : '') + inr(Math.abs(r.amt))}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>` : `<div class="d-empty"><div class="d-empty-icon">📋</div><p>No activity yet. Rent payments and events will appear here.</p></div>`}
+        </section>`;
+    }
+
+    function renderLandlordHRA() {
+      const { ytdPayments, rentals } = landlordData;
+      const paidPmts = ytdPayments.slice(0, 12);
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Landlord · Receipts</div>
+            <h1 class="d-h1">HRA receipts.</h1>
+            <p class="d-sub">Section 10(13A) receipts for FY ${now.getFullYear() - 1}–${String(now.getFullYear()).slice(2)}. ${paidPmts.length} issued.</p>
+          </div>
+        </div>
+        <section class="card">
+          ${paidPmts.length > 0 ? `
+          <div class="d-recs">
+            ${paidPmts.map(p => `
+              <div class="d-rec">
+                <div>
+                  <div class="d-rec-m">${monthLabel(p.month).toUpperCase()}</div>
+                  <div class="d-rec-n mono">${p.rental?.property?.name || 'Property'}</div>
+                </div>
+                <div class="d-rec-amt">${inr(p.amount)}</div>
+                <div class="d-rec-st">✓</div>
+              </div>`).join('')}
+          </div>
+          <div class="d-rec-tot">
+            <span>YTD income</span><b>${inr(landlordData.ytdTotal)}</b>
+          </div>` : `<div class="d-empty"><div class="d-empty-icon">📄</div><p>No HRA receipts yet. They appear after confirmed rent payments.</p></div>`}
+        </section>`;
+    }
+
+    function renderLandlordRepairs() {
+      const { recentRepairs } = landlordData;
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Landlord · Repairs</div>
+            <h1 class="d-h1">Repair requests.</h1>
+            <p class="d-sub">${recentRepairs.filter(r => r.status === 'open' || r.status === 'in_progress').length} open requests across all properties.</p>
+          </div>
+        </div>
+        <section class="card">
+          ${recentRepairs.length > 0 ? recentRepairs.map(r => repairRow(r)).join('') :
+            `<div class="d-empty"><div class="d-empty-icon">🛠</div><p>No repair requests. Your tenants are all good!</p></div>`}
+        </section>`;
+    }
+
+    function renderTenantView() {
+      if (!tenantData || tenantData.error) {
+        renderTenantEmpty();
+        return;
+      }
+      switch(activeView) {
+        case 'pay': return renderTenantPay();
+        case 'hra': return renderTenantHRA();
+        case 'proof': return renderTenantProof();
+        case 'rep': return renderTenantRepairs();
+        default: return renderTenantHome();
+      }
+    }
+
+    function renderTenantEmpty() {
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Tenant · Dashboard</div>
+            <h1 class="d-h1">Hi, ${firstName}.</h1>
+            <p class="d-sub">You haven't joined a rental yet.</p>
+          </div>
+        </div>
+        <div class="d-onboard">
+          <div class="eyebrow" style="color:rgba(246,244,238,.6)">No active rental</div>
+          <h2>Join your rental.</h2>
+          <p>Ask your landlord to share an invite link, then open the RentyBase app to join. Your receipts and history will appear here once you're active.</p>
+          <div class="d-onboard-cta">
+            <a href="/" class="btn btn-onboard">← Back to home</a>
+          </div>
+        </div>`;
+    }
+
+    function renderTenantHome() {
+      const { rental, currentPayment, recentPayments, openRepairs, proofs, ytdTotal, score, nextDueDate } = tenantData;
+      if (!rental) { renderTenantEmpty(); return; }
+      const band = scoreBand(score);
+      const isPaid = currentPayment?.status === 'paid';
+      const daysLeft = nextDueDate ? Math.ceil((nextDueDate - now) / 86400000) : null;
+      const nextMonth = nextDueDate ? `${MONTHS[nextDueDate.getMonth()]} ${nextDueDate.getFullYear()}` : '';
+      const dueDateStr = nextDueDate ? nextDueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+      const property = rental.property || {};
+      const propLine = [property.name, property.city].filter(Boolean).join(' · ');
+      const landlordName = rental.landlord?.full_name || 'Landlord';
+      const onTimePct = recentPayments.length > 0 ? Math.round((recentPayments.length / Math.max(recentPayments.length, recentPayments.length)) * 100) : 100;
+
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Tenant · Dashboard</div>
+            <h1 class="d-h1">Hi, ${firstName}.</h1>
+            <p class="d-sub">
+              Rent for <b>${monthLabel(currentMonth)}</b> is
+              ${isPaid ? '<b style="color:var(--rb-success)">paid &amp; receipted ✓</b>' : '<b style="color:var(--rb-accent)">pending</b>'}.
+              Your score is <b>${score} / 900</b>.
+            </p>
+          </div>
+        </div>
+        <div class="d-grid">
+          <!-- Rent card -->
+          <section class="card d-rent-card">
+            <div class="d-rent-tag">${isPaid ? 'CURRENT RENT · ' + monthLabel(currentMonth).toUpperCase() : 'NEXT RENT · ' + nextMonth.toUpperCase()}</div>
+            <div class="d-rent-row">
+              <div class="d-rent-num">${inr(rental.monthly_rent)}</div>
+              ${isPaid
+                ? `<div class="d-rent-due" style="color:rgba(168,230,200,.9)">✓ <b style="color:#A8E6C8">Paid</b> · ${relDate(currentPayment?.updated_at || currentPayment?.created_at)}</div>`
+                : daysLeft !== null
+                  ? `<div class="d-rent-due">Due in <b>${daysLeft} day${daysLeft !== 1 ? 's' : ''}</b> · ${dueDateStr}</div>`
+                  : ''}
+            </div>
+            ${isPaid
+              ? `<div style="margin-top:18px"><span class="d-rent-paid-badge">✓ Paid this month · Open app for receipt</span></div>`
+              : `<div class="d-rent-cta">
+                  <a href="#" class="btn btn-primary" onclick="alert('Open the RentyBase mobile app to pay your rent.');return false;">Pay via UPI in app</a>
+                 </div>`}
+            <div class="d-rent-foot">
+              <span>${propLine}</span>
+              <span>Landlord · ${landlordName}<i>${score >= 750 ? ' ✓ Verified' : ''}</i></span>
+            </div>
+          </section>
+
+          <!-- Score card -->
+          <section class="card d-score tenant">
+            <div class="d-score-tag">Tenant score</div>
+            <div class="d-score-num">${score}</div>
+            <div class="d-score-band ${band.cls}">${band.label}</div>
+            <div class="d-score-rows">
+              <div class="b"><span>On-time rent · ${recentPayments.length} month${recentPayments.length !== 1 ? 's' : ''} paid</span>
+                <div class="bar action"><div style="width:${Math.min(100, recentPayments.length * 12 + 28)}%"></div></div></div>
+              <div class="b"><span>Move-in proof · ${proofs ? 'submitted ✓' : 'pending'}</span>
+                <div class="bar action"><div style="width:${proofs ? 100 : 0}%"></div></div></div>
+              <div class="b"><span>${openRepairs.length === 0 ? 'No open repair requests' : openRepairs.length + ' open'}</span>
+                <div class="bar action"><div style="width:${openRepairs.length === 0 ? 100 : 60}%"></div></div></div>
+            </div>
+            <div class="d-score-foot">Score carries to your next rental →</div>
+          </section>
+
+          <!-- Move-in proof -->
+          ${proofs ? `
+          <section class="card span-2">
+            <div class="card-head">
+              <div><h3>Move-in proof · sealed</h3><span class="card-sub">${proofs.proof_photos?.length || 0} photos · timestamped · cannot be edited</span></div>
+            </div>
+            <div class="d-proof-grid">
+              ${(proofs.proof_photos || []).slice(0, 8).map((photo, i) => `
+                <div class="d-proof-tile" style="background:linear-gradient(135deg,${THUMB_COLORS[i % THUMB_COLORS.length]},#2c1c0e)">
+                  <span class="d-proof-cap">${photo.room_label || 'Room'}</span>
+                </div>`).join('')}
+              ${proofs.proof_photos?.length === 0 ? `<div class="d-empty" style="grid-column:1/-1"><p>Photos appear once submitted from the mobile app.</p></div>` : ''}
+            </div>
+          </section>` : ''}
+
+          <!-- HRA receipts -->
+          <section class="card d-receipts">
+            <div class="card-head">
+              <div><h3>HRA receipts</h3><span class="card-sub">Section 10(13A) · ${now.getFullYear() - 1}–${String(now.getFullYear()).slice(2)}</span></div>
+            </div>
+            ${recentPayments.length > 0 ? `
+            <div class="d-recs">
+              ${recentPayments.slice(0, 5).map(p => `
+                <div class="d-rec">
+                  <div>
+                    <div class="d-rec-m">${monthLabel(p.month).toUpperCase()}</div>
+                    <div class="d-rec-n mono">${propLine}</div>
+                  </div>
+                  <div class="d-rec-amt">${inr(p.amount)}</div>
+                  <div class="d-rec-st">✓</div>
+                </div>`).join('')}
+            </div>
+            <div class="d-rec-tot">
+              <span>YTD HRA eligible</span><b>${inr(ytdTotal)}</b>
+            </div>` : `<div class="d-empty"><div class="d-empty-icon">📄</div><p>Receipts appear after each confirmed rent payment.</p></div>`}
+          </section>
+
+          <!-- Repairs -->
+          <section class="card d-repair">
+            <div class="card-head">
+              <div><h3>Repair requests</h3><span class="card-sub">Both you and your landlord see these</span></div>
+            </div>
+            ${openRepairs.length > 0 ? openRepairs.map(r => repairRow(r)).join('') :
+              `<div class="d-empty"><div class="d-empty-icon">✓</div><p>No open repair requests. All good!</p></div>`}
+          </section>
+        </div>`;
+    }
+
+    function renderTenantPay() {
+      const { rental, currentPayment, nextDueDate } = tenantData;
+      if (!rental) { renderTenantEmpty(); return; }
+      const isPaid = currentPayment?.status === 'paid';
+      const daysLeft = nextDueDate ? Math.ceil((nextDueDate - now) / 86400000) : null;
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Tenant · Pay rent</div>
+            <h1 class="d-h1">Pay rent.</h1>
+            <p class="d-sub">${monthLabel(currentMonth)} rent · ${inr(rental.monthly_rent)}</p>
+          </div>
+        </div>
+        <section class="card d-rent-card">
+          <div class="d-rent-tag">RENT · ${monthLabel(currentMonth).toUpperCase()}</div>
+          <div class="d-rent-row">
+            <div class="d-rent-num">${inr(rental.monthly_rent)}</div>
+            ${isPaid ? `<div style="color:#A8E6C8">✓ Paid</div>` :
+              daysLeft !== null ? `<div class="d-rent-due">Due in <b>${daysLeft} day${daysLeft !== 1 ? 's' : ''}</b></div>` : ''}
+          </div>
+          ${isPaid
+            ? `<div style="margin-top:18px"><span class="d-rent-paid-badge">✓ This month is paid. See you next month!</span></div>`
+            : `<div class="d-rent-cta"><a href="#" class="btn btn-primary" onclick="alert('Open the RentyBase mobile app to pay your rent via UPI, bank transfer or cheque.');return false;">Pay in app →</a></div>`}
+          <div class="d-rent-foot">
+            <span>${rental.property?.name || ''}</span>
+            <span>Due on ${rental.rent_due_day ? rental.rent_due_day + ordSuffix(rental.rent_due_day) : 'each month'}</span>
+          </div>
+        </section>`;
+    }
+
+    function renderTenantHRA() {
+      const { recentPayments, rental, ytdTotal } = tenantData;
+      const propLine = [rental?.property?.name, rental?.property?.city].filter(Boolean).join(' · ');
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Tenant · HRA receipts</div>
+            <h1 class="d-h1">HRA receipts.</h1>
+            <p class="d-sub">Section 10(13A) · FY ${now.getFullYear() - 1}–${String(now.getFullYear()).slice(2)} · ${recentPayments.length} issued.</p>
+          </div>
+        </div>
+        <section class="card">
+          ${recentPayments.length > 0 ? `
+          <div class="d-recs">
+            ${recentPayments.map(p => `
+              <div class="d-rec">
+                <div>
+                  <div class="d-rec-m">${monthLabel(p.month).toUpperCase()}</div>
+                  <div class="d-rec-n mono">${propLine}</div>
+                </div>
+                <div class="d-rec-amt">${inr(p.amount)}</div>
+                <div class="d-rec-st">✓</div>
+              </div>`).join('')}
+          </div>
+          <div class="d-rec-tot">
+            <span>YTD total eligible for HRA</span><b>${inr(ytdTotal)}</b>
+          </div>` : `<div class="d-empty"><div class="d-empty-icon">📄</div><p>Receipts appear after each confirmed rent payment. Pay rent in the app to generate them.</p></div>`}
+        </section>`;
+    }
+
+    function renderTenantProof() {
+      const { proofs } = tenantData;
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Tenant · Move-in proof</div>
+            <h1 class="d-h1">Move-in proof.</h1>
+            <p class="d-sub">${proofs ? `${proofs.proof_photos?.length || 0} photos sealed on ${relDate(proofs.created_at)}` : 'Upload room photos from the mobile app'}</p>
+          </div>
+        </div>
+        <section class="card">
+          ${proofs ? `
+          <div class="card-head">
+            <div><h3>Move-in record · sealed</h3><span class="card-sub">Timestamped · append-only · cannot be edited</span></div>
+          </div>
+          <div class="d-proof-grid">
+            ${(proofs.proof_photos || []).map((photo, i) => `
+              <div class="d-proof-tile" style="background:linear-gradient(135deg,${THUMB_COLORS[i % THUMB_COLORS.length]},#2c1c0e)">
+                <span class="d-proof-cap">${photo.room_label || 'Room'}</span>
+              </div>`).join('')}
+            ${!proofs.proof_photos?.length ? `<div class="d-empty" style="grid-column:1/-1"><p>Photos appear once submitted.</p></div>` : ''}
+          </div>` : `
+          <div class="d-empty">
+            <div class="d-empty-icon">📷</div>
+            <p>Upload move-in photos from the RentyBase app. Photos are sealed once submitted and cannot be edited.</p>
+          </div>`}
+        </section>`;
+    }
+
+    function renderTenantRepairs() {
+      const { openRepairs } = tenantData;
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Tenant · Repairs</div>
+            <h1 class="d-h1">Repair requests.</h1>
+            <p class="d-sub">${openRepairs.length} open request${openRepairs.length !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+        <section class="card">
+          ${openRepairs.length > 0 ? openRepairs.map(r => repairRow(r)).join('') :
+            `<div class="d-empty"><div class="d-empty-icon">✓</div><p>No open repair requests. Raise one from the mobile app if needed.</p></div>`}
+        </section>`;
+    }
+
+    // ── Component helpers ─────────────────────────
+    function propRow(r, currentPayments, i = 0) {
+      const pmt = currentPayments.find(p => p.rental_id === r.id);
+      const isPaid = pmt?.status === 'paid';
+      const noPmt = !pmt;
+      const pillCls = isPaid ? 'paid' : noPmt ? 'none' : 'due';
+      const pillLabel = isPaid ? `Paid · ${monthLabel(currentMonth)}` : noPmt ? 'No payment yet' : 'Due this month';
+      const propName = r.property?.name || `Property ${i + 1}`;
+      const city = r.property?.city || '';
+      const tenantName = r.tenant?.full_name || (r.status === 'pending_tenant' ? 'Awaiting tenant' : 'No tenant');
+      const tone = THUMB_COLORS[i % THUMB_COLORS.length];
+      return `
+        <div class="d-prop">
+          <div class="d-prop-thumb" style="background:linear-gradient(135deg,${tone},#2c1c0e)"></div>
+          <div class="d-prop-body">
+            <div class="d-prop-city">${city}</div>
+            <div class="d-prop-addr">${propName}</div>
+            <div class="d-prop-tenant">Tenant · ${tenantName}</div>
+          </div>
+          <div class="d-prop-r">
+            <div class="d-prop-rent">${inr(r.monthly_rent)}<span>/mo</span></div>
+            <div class="d-prop-pill ${pillCls}">${pillLabel}</div>
+          </div>
+        </div>`;
+    }
+
+    function repairRow(r) {
+      const stMap = { open: 'open', in_progress: 'progress', resolved: 'done' };
+      const dotCls = stMap[r.status] || 'done';
+      const stLabelMap = { open: 'OPEN', in_progress: 'IN PROGRESS', resolved: 'RESOLVED' };
+      const stPillMap = { open: 'open', in_progress: 'in', resolved: 'done' };
+      const stLabel = stLabelMap[r.status] || r.status;
+      const stPill = stPillMap[r.status] || 'done';
+      const propName = r.rental?.property?.name || '';
+      return `
+        <div class="d-req">
+          <div class="d-req-dot ${dotCls}"></div>
+          <div class="d-req-body">
+            <div class="d-req-t">${r.title || 'Repair request'}</div>
+            <div class="d-req-m">${r.description ? r.description.slice(0, 60) + (r.description.length > 60 ? '…' : '') : ''} ${propName ? '· ' + propName : ''} · ${relDate(r.created_at)}</div>
+          </div>
+          <div class="d-req-st ${stPill}">${stLabel}</div>
+        </div>`;
+    }
+
+    function ordSuffix(n) {
+      const s = ['th','st','nd','rd'];
+      const v = n % 100;
+      return s[(v - 20) % 10] || s[v] || s[0];
+    }
+
+    // ── Init ──────────────────────────────────────
+    renderNav();
+    renderMain();
+    show('app-shell');
   })();
   </script>
 </body>
