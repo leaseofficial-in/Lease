@@ -166,11 +166,11 @@ section { position:relative; z-index:1; }
 .s-proof .photo .ts { position:absolute; left:10px; bottom:8px; color:#fff; font-family:var(--rb-font-mono); font-size:9px; z-index:2; }
 .s-proof .photo .seal { position:absolute; right:8px; top:8px; width:44px; height:44px; border:1.2px solid var(--rb-accent); color:var(--rb-accent); border-radius:50%; display:grid; place-items:center; font-family:var(--rb-font-display); font-size:8px; transform:rotate(-10deg); background:rgba(246,244,238,.6); }
 .cinema { height:500vh; position:relative; }
-.cinema-pin { position:sticky; top:0; height:100vh; overflow:hidden; display:grid; grid-template-columns:1fr 1fr; align-items:center; perspective:1800px; }
-.cinema-stage { display:grid; place-items:center; height:100%; transform-style:preserve-3d; position:relative; overflow:visible; }
+.cinema-pin { position:sticky; top:0; height:100vh; overflow:hidden; display:grid; grid-template-columns:1fr 1fr; align-items:stretch; perspective:1800px; }
+.cinema-stage { display:grid; place-items:center; height:100%; transform-style:preserve-3d; position:relative; overflow:visible; align-self:stretch; }
 .cinema-stage .phone { max-height:80vh; }
 .cinema-stage .phone-screen-stack { overflow:hidden; }
-.cinema-copy { padding:0 8% 0 4%; position:relative; align-self:stretch; }
+.cinema-copy { padding:0 8% 0 4%; position:relative; }
 .cinema-step { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; opacity:0; transform:translateY(20px); transition:opacity .6s var(--rb-ease),transform .6s var(--rb-ease); }
 .cinema-step.active { opacity:1; transform:none; }
 .cinema-step .num { font-family:var(--rb-font-display); font-size:96px; line-height:1; color:var(--rb-accent); opacity:.4; letter-spacing:-.04em; }
@@ -374,13 +374,14 @@ section { position:relative; z-index:1; }
   .hero-center { height:440px; overflow:hidden; }
   .float-receipt { display:none; }
   .hero-stat .num { font-size:40px; }
-  .cinema-pin { grid-template-columns:1fr; grid-template-rows:55vh 1fr; }
-  .cinema-stage { height:55vh; }
-  .cinema-stage .phone { width:200px; height:400px; }
-  .cinema-copy { padding:16px 20px 60px; position:relative; z-index:2; align-self:stretch; }
-  .cinema-step .num { font-size:56px; }
-  .cinema-step h2 { font-size:32px; }
-  .cinema-step p { font-size:14px; }
+  .cinema-pin { grid-template-columns:1fr; grid-template-rows:50vh 50vh; }
+  .cinema-stage { height:50vh; }
+  .cinema-stage .phone { width:190px; height:380px; }
+  .cinema-copy { padding:20px 24px 48px; position:relative; z-index:2; }
+  .cinema-step .num { font-size:36px; }
+  .cinema-step h2 { font-size:28px; margin-top:4px; }
+  .cinema-step p { font-size:13px; margin-top:10px; line-height:1.5; }
+  .cinema-step .meta { margin-top:12px; }
   .cinema-floats { display:none; }
   .proof-film { padding:80px 0; }
   .proof-copy h2 { font-size:40px; }
