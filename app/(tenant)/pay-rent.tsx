@@ -25,6 +25,7 @@ import { Button } from '../../components/ui/Button';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { openUPIPayment } from '../../lib/upi';
 import { pickPhoto, takePhoto, uploadPaymentProof, revokeWebPhotoUrl } from '../../lib/storage';
 import { notifyUser } from '../../lib/sendPush';
@@ -271,6 +272,7 @@ export default function PayRentScreen() {
   const methodConfig = METHODS.find((m) => m.id === method)!;
 
   return (
+  <DashboardShell role="tenant">
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.canvas }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
@@ -551,5 +553,6 @@ export default function PayRentScreen() {
         />
       </BottomSheet>
     </SafeAreaView>
+  </DashboardShell>
   );
 }

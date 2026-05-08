@@ -17,6 +17,7 @@ import { Card } from '../../components/ui/Card';
 import { AppIcon } from '../../components/ui/Icon';
 import { Cap, Chip, DisplayText } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { confirmAction } from '../../lib/confirm';
 import { shareLandlordReferral } from '../../lib/referrals';
 
@@ -92,6 +93,7 @@ export default function TenantProfileScreen() {
   };
 
   return (
+  <DashboardShell role="tenant">
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
@@ -242,5 +244,6 @@ export default function TenantProfileScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
