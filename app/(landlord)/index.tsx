@@ -136,6 +136,49 @@ export default function LandlordDashboard() {
     enabled: !!profile?.id && !isLocalDevUser,
   });
 
+  const { data: recentLedgerPayments } = useQuery({
+    queryKey: ['landlord-ledger-preview', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rent_payments')
+        .select(`
+          id, amount, status, month, paid_at, created_at,
+          rental:rentals!inner(landlord_id, property:properties(name), tenant:profiles!rentals_tenant_id_fkey(full_name))
+        `)
+        .eq('rental.landlord_id', profile!.id)
+        .order('created_at', { ascending: false })
+        .limit(8);
+      if (error) throw error;
+      return data as unknown as Array<{
+        id: string; amount: number; status: string; month: string;
+        paid_at: string | null; created_at: string;
+        rental?: { property?: { name: string } | null; tenant?: { full_name: string } | null };
+      }>;
+    },
+    enabled: !!profile?.id && !isLocalDevUser,
+  });
+
+  const { data: recentLedgerRepairs } = useQuery({
+    queryKey: ['landlord-ledger-repairs-preview', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('repair_requests')
+        .select(`
+          id, title, status, created_at,
+          rental:rentals!inner(landlord_id, property:properties(name), tenant:profiles!rentals_tenant_id_fkey(full_name))
+        `)
+        .eq('rental.landlord_id', profile!.id)
+        .order('created_at', { ascending: false })
+        .limit(4);
+      if (error) throw error;
+      return data as unknown as Array<{
+        id: string; title: string; status: string; created_at: string;
+        rental?: { property?: { name: string } | null; tenant?: { full_name: string } | null };
+      }>;
+    },
+    enabled: !!profile?.id && !isLocalDevUser,
+  });
+
   const currentMonth = monthKey(new Date());
   const nextMonthDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
   const nextMonth = monthKey(nextMonthDate);
@@ -587,45 +630,12 @@ export default function LandlordDashboard() {
             occupancyRate={currentPropertyCount > 0 ? Math.round((activePropertyCount / currentPropertyCount) * 100) : 100}
           />
 
-          {/* Quick nav strip */}
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity
-              onPress={() => router.push('/(landlord)/ledger' as never)}
-              activeOpacity={0.8}
-              style={{
-                flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
-                backgroundColor: Colors.surface, borderRadius: 14,
-                borderWidth: 1, borderColor: Colors.border, padding: 14,
-              }}
-            >
-              <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="receipt-outline" size={17} color={Colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>Activity Ledger</Text>
-                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>Sealed record</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={14} color={Colors.muted} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/(landlord)/payments')}
-              activeOpacity={0.8}
-              style={{
-                flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
-                backgroundColor: Colors.surface, borderRadius: 14,
-                borderWidth: 1, borderColor: Colors.border, padding: 14,
-              }}
-            >
-              <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="wallet-outline" size={17} color={Colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>Rent Payments</Text>
-                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>All tenants</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={14} color={Colors.muted} />
-            </TouchableOpacity>
-          </View>
+          {/* ── Inline mini-ledger ── */}
+          <DashboardLedger
+            payments={recentLedgerPayments ?? []}
+            repairs={recentLedgerRepairs ?? []}
+            onViewAll={() => router.push('/(landlord)/ledger' as never)}
+          />
 
           <View className="mt-2">
             <View className="flex-row items-center justify-between mb-3">
@@ -878,6 +888,126 @@ function LandlordOnboardingCard({ onStart }: { onStart: () => void }) {
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+// ── Dashboard mini-ledger ─────────────────────────────────────────────────────
+
+type LedgerTag = 'in' | 'out' | 'doc' | 'sys';
+interface MiniEntry { id: string; date: string; title: string; who: string; amount: number; tag: LedgerTag }
+
+const DASH_TAG: Record<LedgerTag, { label: string; color: string; bg: string }> = {
+  in:  { label: 'IN',  color: Colors.success, bg: Colors.successSoft },
+  out: { label: 'OUT', color: Colors.warning,  bg: Colors.warningSoft },
+  doc: { label: 'DOC', color: '#C97A3A',       bg: '#FBF1E8'         },
+  sys: { label: 'SYS', color: Colors.muted,    bg: Colors.fill2      },
+};
+
+function buildMiniLedger(
+  payments: Array<{ id: string; amount: number; status: string; month: string; paid_at: string | null; created_at: string; rental?: { property?: { name: string } | null; tenant?: { full_name: string } | null } }>,
+  repairs: Array<{ id: string; title: string; status: string; created_at: string; rental?: { property?: { name: string } | null; tenant?: { full_name: string } | null } }>,
+): MiniEntry[] {
+  const entries: MiniEntry[] = [];
+
+  payments.forEach((p) => {
+    const name = p.rental?.tenant?.full_name?.split(' ')[0] ?? 'Tenant';
+    const prop = p.rental?.property?.name ?? 'Property';
+    if (p.status === 'paid') {
+      entries.push({ id: `p-${p.id}`, date: p.paid_at ?? p.created_at, title: `Rent · ${formatMonth(p.month)}`, who: `${name} · ${prop}`, amount: p.amount, tag: 'in' });
+    } else if (p.status === 'pending_verification') {
+      entries.push({ id: `pv-${p.id}`, date: p.created_at, title: `Payment submitted · ${formatMonth(p.month)}`, who: `${name} · ${prop}`, amount: p.amount, tag: 'sys' });
+    } else if (p.status === 'overdue') {
+      entries.push({ id: `po-${p.id}`, date: p.created_at, title: `Rent overdue · ${formatMonth(p.month)}`, who: `${name} · ${prop}`, amount: p.amount, tag: 'sys' });
+    }
+  });
+
+  repairs.forEach((r) => {
+    const name = r.rental?.tenant?.full_name?.split(' ')[0] ?? 'Tenant';
+    const prop = r.rental?.property?.name ?? 'Property';
+    entries.push({ id: `r-${r.id}`, date: r.created_at, title: `Repair · ${r.title}`, who: `${name} · ${prop}`, amount: 0, tag: r.status === 'resolved' || r.status === 'closed' ? 'doc' : 'sys' });
+  });
+
+  return entries
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 6);
+}
+
+function DashboardLedger({
+  payments,
+  repairs,
+  onViewAll,
+}: {
+  payments: Parameters<typeof buildMiniLedger>[0];
+  repairs: Parameters<typeof buildMiniLedger>[1];
+  onViewAll: () => void;
+}) {
+  const entries = buildMiniLedger(payments, repairs);
+
+  return (
+    <View style={{ backgroundColor: Colors.surface, borderRadius: 20, borderWidth: 1, borderColor: Colors.border }}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 }}>
+        <View>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>Activity Ledger</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+            <Ionicons name="lock-closed-outline" size={10} color={Colors.muted} />
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10 }}>Sealed · append-only</Text>
+          </View>
+        </View>
+        <TouchableOpacity onPress={onViewAll} activeOpacity={0.75} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+          <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 13 }}>View all</Text>
+          <Ionicons name="chevron-forward" size={13} color={Colors.action} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Divider */}
+      <View style={{ height: 1, backgroundColor: Colors.border }} />
+
+      {/* Rows */}
+      {entries.length === 0 ? (
+        <View style={{ paddingHorizontal: 16, paddingVertical: 20, alignItems: 'center' }}>
+          <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>No activity yet</Text>
+        </View>
+      ) : (
+        entries.map((e, i) => {
+          const { label, color, bg } = DASH_TAG[e.tag];
+          return (
+            <View
+              key={e.id}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10,
+                paddingHorizontal: 16, paddingVertical: 11,
+                borderBottomWidth: i < entries.length - 1 ? 1 : 0,
+                borderBottomColor: Colors.borderSoft,
+              }}
+            >
+              {/* Tag */}
+              <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, backgroundColor: bg }}>
+                <Text style={{ color, fontFamily: Fonts.sansBold, fontSize: 9, letterSpacing: 0.3 }}>{label}</Text>
+              </View>
+
+              {/* Content */}
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>{e.title}</Text>
+                <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11, marginTop: 1 }}>{e.who}</Text>
+              </View>
+
+              {/* Amount + date */}
+              <View style={{ alignItems: 'flex-end' }}>
+                {e.amount > 0 ? (
+                  <Text style={{ color: e.tag === 'in' ? Colors.success : Colors.warning, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>
+                    {e.tag === 'in' ? '+' : '−'}{formatCurrency(e.amount, true)}
+                  </Text>
+                ) : (
+                  <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 11 }}>—</Text>
+                )}
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, marginTop: 1 }}>{formatDateShort(e.date)}</Text>
+              </View>
+            </View>
+          );
+        })
+      )}
     </View>
   );
 }
