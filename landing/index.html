@@ -170,7 +170,7 @@ section { position:relative; z-index:1; }
 .cinema-stage { display:grid; place-items:center; height:100%; transform-style:preserve-3d; position:relative; overflow:visible; }
 .cinema-stage .phone { max-height:80vh; }
 .cinema-stage .phone-screen-stack { overflow:hidden; }
-.cinema-copy { padding:0 8% 0 4%; position:relative; }
+.cinema-copy { padding:0 8% 0 4%; position:relative; align-self:stretch; }
 .cinema-step { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; opacity:0; transform:translateY(20px); transition:opacity .6s var(--rb-ease),transform .6s var(--rb-ease); }
 .cinema-step.active { opacity:1; transform:none; }
 .cinema-step .num { font-family:var(--rb-font-display); font-size:96px; line-height:1; color:var(--rb-accent); opacity:.4; letter-spacing:-.04em; }
@@ -374,10 +374,10 @@ section { position:relative; z-index:1; }
   .hero-center { height:440px; overflow:hidden; }
   .float-receipt { display:none; }
   .hero-stat .num { font-size:40px; }
-  .cinema-pin { grid-template-columns:1fr; grid-template-rows:1fr auto; }
+  .cinema-pin { grid-template-columns:1fr; grid-template-rows:55vh 1fr; }
   .cinema-stage { height:55vh; }
   .cinema-stage .phone { width:200px; height:400px; }
-  .cinema-copy { padding:16px 20px 60px; position:relative; z-index:2; }
+  .cinema-copy { padding:16px 20px 60px; position:relative; z-index:2; align-self:stretch; }
   .cinema-step .num { font-size:56px; }
   .cinema-step h2 { font-size:32px; }
   .cinema-step p { font-size:14px; }
