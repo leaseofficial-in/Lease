@@ -18,6 +18,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { isDevAuthUserId } from '../../lib/devAuth';
 
 export default function RentHistoryScreen() {
@@ -81,6 +82,7 @@ export default function RentHistoryScreen() {
   };
 
   return (
+  <DashboardShell role="tenant">
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <PageHeader title="Rent History" caption="Tenant" onBack={() => router.back()} />
 
@@ -242,6 +244,7 @@ export default function RentHistoryScreen() {
         )}
       </BottomSheet>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
 

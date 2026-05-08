@@ -13,6 +13,7 @@ import { StatusPill } from '../../components/ui/StatusPill';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Cap, Chip } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 
 type RepairFilter = 'open' | 'in_progress' | 'all';
 
@@ -71,6 +72,7 @@ export default function AllRepairsScreen() {
   ];
 
   return (
+  <DashboardShell role="landlord">
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -186,6 +188,7 @@ export default function AllRepairsScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
 

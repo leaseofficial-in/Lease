@@ -39,21 +39,25 @@ function TabIcon({
 }
 
 export default function TenantLayout() {
+  const tabBarStyle = Platform.OS === 'web'
+    ? { display: 'none' as const }
+    : {
+        backgroundColor: Colors.surface,
+        borderTopColor: Colors.border,
+        borderTopWidth: 1,
+        height: 82,
+        paddingBottom: 18,
+        paddingTop: 0,
+        elevation: 0,
+        shadowOpacity: 0,
+      };
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: {
-          backgroundColor: Colors.surface,
-          borderTopColor: Colors.border,
-          borderTopWidth: 1,
-          height: Platform.OS === 'web' ? 64 : 82,
-          paddingBottom: Platform.OS === 'web' ? 4 : 18,
-          paddingTop: 0,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
+        tabBarStyle,
       }}
     >
       <Tabs.Screen

@@ -15,6 +15,7 @@ import { Button } from '../../components/ui/Button';
 import { PaymentRowSkeleton } from '../../components/ui/SkeletonLoader';
 import { Colors, Fonts } from '../../constants/theme';
 import { Cap } from '../../components/ui/V2';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { markLandlordActionsViewed } from '../../lib/landlordActionViews';
 import { markNotificationsRead } from '../../lib/notificationActions';
 import { notifyUser } from '../../lib/sendPush';
@@ -189,6 +190,7 @@ export default function LandlordPaymentsScreen() {
   ];
 
   return (
+  <DashboardShell role="landlord">
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -442,6 +444,7 @@ export default function LandlordPaymentsScreen() {
         )}
       </BottomSheet>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
 

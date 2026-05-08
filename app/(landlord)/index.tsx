@@ -20,6 +20,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Card } from '../../components/ui/Card';
 import { Cap, Chip, CollectionRing, DisplayText, InkCard, Sparkline } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { Ionicons } from '@expo/vector-icons';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { listLocalRentals } from '../../lib/localRentals';
@@ -419,6 +420,7 @@ export default function LandlordDashboard() {
   const unsettledEndedRentals = endedRentalsWithDeposit.filter((r) => !settledDepositRentalIds.includes(r.id));
 
   return (
+  <DashboardShell role="landlord">
     <SafeAreaView className="flex-1 bg-white" edges={['top']} style={{ flex: 1, backgroundColor: Colors.surface }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -720,6 +722,7 @@ export default function LandlordDashboard() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
 

@@ -20,6 +20,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
 import { Cap, Chip, CollectionRing, InkCard, Sparkline } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { buildRentalActivity } from '../../lib/rentalActivity';
 import { scheduleRentReminder } from '../../lib/notifications';
@@ -196,6 +197,7 @@ export default function TenantDashboard() {
     : null;
 
   return (
+  <DashboardShell role="tenant">
     <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -511,6 +513,7 @@ export default function TenantDashboard() {
         )}
       </ScrollView>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
 

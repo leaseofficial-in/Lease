@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/ui/Button';
 import { Cap, Chip, DisplayText } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { markNotificationRead, markNotificationsRead, routeForNotification } from '../../lib/notificationActions';
 
 export default function LandlordActionsScreen() {
@@ -57,6 +58,7 @@ export default function LandlordActionsScreen() {
   };
 
   return (
+  <DashboardShell role="landlord">
     <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -130,6 +132,7 @@ export default function LandlordActionsScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
 

@@ -17,6 +17,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { formatCurrency, formatDateShort, formatMonth } from '../../lib/formatters';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { RentPayment, RepairRequest, DepositTransaction, Proof, Rental } from '../../types';
@@ -282,6 +283,7 @@ export default function LedgerScreen() {
   ];
 
   return (
+  <DashboardShell role="landlord">
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <PageHeader
         title="Activity Ledger"
@@ -458,6 +460,7 @@ export default function LedgerScreen() {
         {selected && <EntryDetail entry={selected} />}
       </BottomSheet>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
 

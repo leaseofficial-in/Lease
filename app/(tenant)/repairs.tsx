@@ -25,6 +25,7 @@ import { StatusPill } from '../../components/ui/StatusPill';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { pickMultiplePhotos, takePhoto, uploadRepairPhoto } from '../../lib/storage';
 import { notifyUser } from '../../lib/sendPush';
@@ -249,6 +250,7 @@ export default function RepairsScreen() {
   const pageError = rentalError ?? repairsError;
 
   return (
+  <DashboardShell role="tenant">
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -580,6 +582,7 @@ export default function RepairsScreen() {
         />
       </BottomSheet>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
 

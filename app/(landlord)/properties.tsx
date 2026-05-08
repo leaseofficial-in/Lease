@@ -18,6 +18,7 @@ import { formatCurrency, monthKey } from '../../lib/formatters';
 import { Card } from '../../components/ui/Card';
 import { Cap, Chip } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { isDevAuthUserId } from '../../lib/devAuth';
 import { listLocalRentals } from '../../lib/localRentals';
 import { StatusPill } from '../../components/ui/StatusPill';
@@ -114,6 +115,7 @@ export default function PropertiesScreen() {
   }, [rentals]);
 
   return (
+  <DashboardShell role="landlord">
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       {/* Header */}
       <View
@@ -216,6 +218,7 @@ export default function PropertiesScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
 

@@ -15,6 +15,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Cap, Chip, DisplayText } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
+import { DashboardShell } from '../../components/layout/WebSidebar';
 import { confirmAction } from '../../lib/confirm';
 
 const schema = z.object({
@@ -86,6 +87,7 @@ export default function LandlordProfileScreen() {
   };
 
   return (
+  <DashboardShell role="landlord">
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
@@ -228,5 +230,6 @@ export default function LandlordProfileScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  </DashboardShell>
   );
 }
