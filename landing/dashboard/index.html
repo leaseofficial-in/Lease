@@ -487,18 +487,21 @@
 
     // ── Sidebar nav ───────────────────────────────
     const lNavItems = [
-      { k: 'home', icon: '⌂', label: 'Overview',    short: 'Home' },
-      { k: 'props', icon: '▦', label: 'Properties', short: 'Props' },
-      { k: 'led', icon: '≡', label: 'Ledger',       short: 'Ledger' },
-      { k: 'hra', icon: '₹', label: 'Receipts',     short: 'Receipts' },
-      { k: 'rep', icon: '⚙', label: 'Repairs',      short: 'Repairs' },
+      { k: 'home',  icon: '⌂',  label: 'Overview',    short: 'Home' },
+      { k: 'props', icon: '▦',  label: 'Properties',  short: 'Props' },
+      { k: 'led',   icon: '≡',  label: 'Ledger',      short: 'Ledger' },
+      { k: 'hra',   icon: '₹',  label: 'Receipts',    short: 'Receipts' },
+      { k: 'rep',   icon: '⚙',  label: 'Repairs',     short: 'Repairs' },
+      { k: 'inbox', icon: '🔔', label: 'Inbox',       short: 'Inbox' },
     ];
     const tNavItems = [
-      { k: 'home', icon: '⌂', label: 'My place',      short: 'Home' },
-      { k: 'pay', icon: '₹', label: 'Pay rent',        short: 'Pay' },
-      { k: 'hra', icon: '📄', label: 'HRA receipts',   short: 'HRA' },
-      { k: 'proof', icon: '📷', label: 'Move-in proof', short: 'Proof' },
-      { k: 'rep', icon: '⚙', label: 'Repairs',         short: 'Repairs' },
+      { k: 'home',  icon: '⌂',  label: 'My place',      short: 'Home' },
+      { k: 'pay',   icon: '₹',  label: 'Pay rent',       short: 'Pay' },
+      { k: 'agree', icon: '📋', label: 'Agreement',      short: 'Agree' },
+      { k: 'dep',   icon: '🔒', label: 'Deposit',        short: 'Deposit' },
+      { k: 'hra',   icon: '📄', label: 'HRA receipts',   short: 'HRA' },
+      { k: 'proof', icon: '📷', label: 'Move-in proof',  short: 'Proof' },
+      { k: 'rep',   icon: '⚙',  label: 'Repairs',        short: 'Repairs' },
     ];
 
     let activeView = 'home';
@@ -520,10 +523,11 @@
         });
       });
 
-      // Mobile tab bar (uses short labels to fit 5 tabs)
+      // Mobile tab bar — max 5 tabs; extras accessible via sidebar on desktop
       const mTabs = $('m-tabs');
       if (mTabs) {
-        mTabs.innerHTML = navItems.map(it =>
+        const mobileItems = navItems.slice(0, 5);
+        mTabs.innerHTML = mobileItems.map(it =>
           `<button class="m-tab${activeView === it.k ? ' active' : ''}" data-view="${it.k}">
             <span class="m-tab-ico">${it.icon}</span>
             <span class="m-tab-lbl">${it.short || it.label}</span>
@@ -575,11 +579,13 @@
               .select('*, rental:rentals(property:properties(name, city))')
               .in('rental_id', rentalIds)
               .order('created_at', { ascending: false })
-              .limit(5),
+              .limit(20),
           ]);
           currentPayments = pmtRes.data || [];
           recentRepairs = repRes.data || [];
         }
+        const notifRes = await sb.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30);
+        const lNotifications = notifRes.data || [];
 
         const ytdPayments = (ytdRes.data || []).filter(p => p.status === 'paid');
         const ytdTotal = ytdPayments.reduce((s, p) => s + Number(p.amount), 0);
@@ -612,7 +618,8 @@
         landlordData = {
           rentals, currentPayments, ytdTotal, totalMonthlyRent,
           paidThisMonth, dueThisMonth, onTimeCount, activeRentals,
-          collectionRate, score, ledgerEntries, recentRepairs, ytdPayments
+          collectionRate, score, ledgerEntries, recentRepairs, ytdPayments,
+          notifications: lNotifications,
         };
       } catch (e) {
         console.error('Landlord data error:', e);
@@ -630,18 +637,22 @@
 
         $('side-meta').textContent = rental?.property?.city ? `Tenant · ${rental.property.city}` : 'Tenant';
 
-        let currentPayment = null, recentPayments = [], openRepairs = [], proofs = [];
+        let currentPayment = null, recentPayments = [], openRepairs = [], proofs = null, depositTransactions = [], notifications = [];
         if (rental) {
-          const [pmtRes, histRes, repRes, proofRes] = await Promise.all([
+          const [pmtRes, histRes, repRes, proofRes, depRes, notifRes] = await Promise.all([
             sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('month', currentMonth).maybeSingle(),
-            sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('status', 'paid').order('month', { ascending: false }).limit(6),
-            sb.from('repair_requests').select('*').eq('rental_id', rental.id).in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(5),
+            sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('status', 'paid').order('month', { ascending: false }).limit(12),
+            sb.from('repair_requests').select('*').eq('rental_id', rental.id).in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(10),
             sb.from('proofs').select('*, proof_photos(id, room_label)').eq('rental_id', rental.id).eq('type', 'move_in').maybeSingle(),
+            sb.from('deposit_transactions').select('*').eq('rental_id', rental.id).order('created_at', { ascending: false }),
+            sb.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
           ]);
           currentPayment = pmtRes.data;
           recentPayments = histRes.data || [];
           openRepairs = repRes.data || [];
           proofs = proofRes.data;
+          depositTransactions = depRes.data || [];
+          notifications = notifRes.data || [];
         }
 
         const ytdTotal = recentPayments.reduce((s, p) => s + Number(p.amount), 0);
@@ -656,7 +667,7 @@
           nextDueDate = d;
         }
 
-        tenantData = { rental, currentPayment, recentPayments, openRepairs, proofs, ytdTotal, score, nextDueDate };
+        tenantData = { rental, currentPayment, recentPayments, openRepairs, proofs, depositTransactions, notifications, ytdTotal, score, nextDueDate };
       } catch (e) {
         console.error('Tenant data error:', e);
         tenantData = { error: true };
@@ -705,6 +716,7 @@
         case 'led': return renderLandlordLedger();
         case 'hra': return renderLandlordHRA();
         case 'rep': return renderLandlordRepairs();
+        case 'inbox': return renderLandlordInbox();
         default: return renderLandlordHome();
       }
     }
@@ -880,6 +892,7 @@
             <h1 class="d-h1">HRA receipts.</h1>
             <p class="d-sub">Section 10(13A) receipts for FY ${now.getFullYear() - 1}–${String(now.getFullYear()).slice(2)}. ${paidPmts.length} issued.</p>
           </div>
+          ${paidPmts.length > 0 ? `<button class="act-btn ghost" onclick="downloadHRACSV()" style="flex-shrink:0;margin-top:8px">↓ Export CSV</button>` : ''}
         </div>
         <section class="card">
           ${paidPmts.length > 0 ? `
@@ -922,10 +935,12 @@
         return;
       }
       switch(activeView) {
-        case 'pay': return renderTenantPay();
-        case 'hra': return renderTenantHRA();
+        case 'pay':   return renderTenantPay();
+        case 'agree': return renderTenantAgreement();
+        case 'dep':   return renderTenantDeposit();
+        case 'hra':   return renderTenantHRA();
         case 'proof': return renderTenantProof();
-        case 'rep': return renderTenantRepairs();
+        case 'rep':   return renderTenantRepairs();
         default: return renderTenantHome();
       }
     }
@@ -1112,6 +1127,7 @@
             <h1 class="d-h1">HRA receipts.</h1>
             <p class="d-sub">Section 10(13A) · FY ${now.getFullYear() - 1}–${String(now.getFullYear()).slice(2)} · ${recentPayments.length} issued.</p>
           </div>
+          ${recentPayments.length > 0 ? `<button class="act-btn ghost" onclick="downloadHRACSV()" style="flex-shrink:0;margin-top:8px">↓ Export CSV</button>` : ''}
         </div>
         <section class="card">
           ${recentPayments.length > 0 ? `
@@ -1180,6 +1196,143 @@
         </section>`;
     }
 
+    function renderTenantAgreement() {
+      const { rental } = tenantData;
+      if (!rental) { renderTenantEmpty(); return; }
+      const isSigned = !!rental.agreement_signed_at;
+      const prop = rental.property || {};
+      const landlord = rental.landlord || {};
+      const addrParts = [prop.address, prop.city, prop.state].filter(Boolean);
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Tenant · Agreement</div>
+            <h1 class="d-h1">Rental agreement.</h1>
+            <p class="d-sub">${isSigned ? 'Signed · digitally confirmed' : 'Review and sign your rental agreement'}</p>
+          </div>
+        </div>
+        <section class="card" style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:14px;padding:16px;border-radius:14px;background:${isSigned ? 'rgba(0,200,150,.08)' : 'rgba(245,158,11,.08)'};border:1px solid ${isSigned ? 'rgba(0,200,150,.25)' : 'rgba(245,158,11,.3)'}">
+            <div style="width:40px;height:40px;border-radius:20px;background:${isSigned ? 'var(--rb-success)' : 'var(--rb-warning)'};display:grid;place-items:center;flex-shrink:0;font-size:18px">${isSigned ? '✓' : '!'}</div>
+            <div>
+              <div style="font-weight:600;font-size:15px">${isSigned ? 'Agreement signed' : 'Awaiting your signature'}</div>
+              <div style="font-size:13px;color:var(--rb-ink-3);margin-top:2px">${isSigned ? 'Signed on ' + relDate(rental.agreement_signed_at) : 'Review the terms below and tap Sign to confirm.'}</div>
+            </div>
+          </div>
+        </section>
+        <section class="card" style="margin-bottom:14px">
+          <div class="card-head"><div><h3>Agreement summary</h3></div></div>
+          <div style="display:flex;flex-direction:column;gap:0">
+            ${agSection('Property', [
+              ['Name', prop.name || '–'],
+              ['Address', addrParts.join(', ') || '–'],
+              ['Type', (prop.property_type||'').replace('_',' ') || '–'],
+            ])}
+            ${agSection('Parties', [
+              ['Landlord', landlord.full_name || '–'],
+              ['Tenant', profile?.full_name || '–'],
+            ])}
+            ${agSection('Financial terms', [
+              ['Monthly rent', inr(rental.monthly_rent)],
+              ['Security deposit', inr(rental.security_deposit)],
+              ['Rent due', (rental.rent_due_day || 1) + ordSuffix(rental.rent_due_day || 1) + ' of each month'],
+            ])}
+            ${agSection('Duration', [
+              ['Start date', rental.start_date ? new Date(rental.start_date).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '–'],
+              ['End date', rental.end_date ? new Date(rental.end_date).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : 'Open-ended'],
+            ], true)}
+          </div>
+        </section>
+        ${!isSigned ? `<button class="act-btn primary" style="width:100%;padding:14px;font-size:15px;justify-content:center" onclick="signAgreement('${rental.id}')">Sign agreement →</button>` : ''}`;
+    }
+
+    function agSection(title, rows, last = false) {
+      return `<div style="padding:14px 0;${last ? '' : 'border-bottom:1px solid var(--rb-border);margin-bottom:0'}">
+        <div style="font-size:10px;font-weight:700;color:var(--rb-ink-3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">${title}</div>
+        ${rows.map(([l, v]) => `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:6px">
+          <span style="font-size:13px;color:var(--rb-ink-3)">${l}</span>
+          <span style="font-size:13px;font-weight:500;text-align:right">${v}</span>
+        </div>`).join('')}
+      </div>`;
+    }
+
+    function renderTenantDeposit() {
+      const { rental, depositTransactions } = tenantData;
+      if (!rental) { renderTenantEmpty(); return; }
+      const received = depositTransactions.filter(t => t.type === 'received').reduce((s, t) => s + Number(t.amount), 0);
+      const deducted = depositTransactions.filter(t => t.type === 'deduction').reduce((s, t) => s + Number(t.amount), 0);
+      const refunded = depositTransactions.filter(t => t.type === 'refund').reduce((s, t) => s + Number(t.amount), 0);
+      const balance = received - deducted - refunded;
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Tenant · Deposit</div>
+            <h1 class="d-h1">Security deposit.</h1>
+            <p class="d-sub">${inr(rental.security_deposit)} agreed · ${inr(balance)} balance remaining</p>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+          <div style="background:var(--rb-surface);border:1px solid var(--rb-border-soft);border-radius:12px;padding:14px">
+            <div style="font-size:10px;font-weight:700;color:var(--rb-ink-3);letter-spacing:.1em;margin-bottom:6px">RECEIVED</div>
+            <div style="font-size:18px;font-weight:600;color:var(--rb-success)">${inr(received)}</div>
+          </div>
+          <div style="background:var(--rb-surface);border:1px solid var(--rb-border-soft);border-radius:12px;padding:14px">
+            <div style="font-size:10px;font-weight:700;color:var(--rb-ink-3);letter-spacing:.1em;margin-bottom:6px">DEDUCTED</div>
+            <div style="font-size:18px;font-weight:600;color:var(--rb-warning)">${inr(deducted)}</div>
+          </div>
+          <div style="background:var(--rb-surface);border:1px solid var(--rb-border-soft);border-radius:12px;padding:14px">
+            <div style="font-size:10px;font-weight:700;color:var(--rb-ink-3);letter-spacing:.1em;margin-bottom:6px">BALANCE</div>
+            <div style="font-size:18px;font-weight:600">${inr(balance)}</div>
+          </div>
+        </div>
+        <section class="card">
+          <div class="card-head"><div><h3>Transaction history</h3><span class="card-sub">Append-only record</span></div></div>
+          ${depositTransactions.length > 0 ? `
+          <div class="d-recs">
+            ${depositTransactions.map(t => {
+              const typeLabel = { received: 'Deposit received', deduction: 'Deduction', refund: 'Refund' }[t.type] || t.type;
+              const col = t.type === 'received' ? 'var(--rb-success)' : t.type === 'deduction' ? 'var(--rb-warning)' : 'var(--rb-action)';
+              const sign = t.type === 'received' ? '+' : t.type === 'deduction' ? '−' : '';
+              return `<div class="d-rec">
+                <div>
+                  <div class="d-rec-m">${typeLabel}</div>
+                  <div class="d-rec-n mono">${t.note || ''} · ${relDate(t.created_at)}</div>
+                </div>
+                <div class="d-rec-amt" style="color:${col}">${sign}${inr(t.amount)}</div>
+                <div class="d-rec-st">✓</div>
+              </div>`;
+            }).join('')}
+          </div>` : `<div class="d-empty"><div class="d-empty-icon">🔒</div><p>No deposit transactions yet. Your landlord will log the deposit payment here once received.</p></div>`}
+        </section>`;
+    }
+
+    function renderLandlordInbox() {
+      const { notifications } = landlordData;
+      const unread = notifications.filter(n => !n.read);
+      $('main-content').innerHTML = `
+        <div class="d-top">
+          <div>
+            <div class="eyebrow">Landlord · Inbox</div>
+            <h1 class="d-h1">Inbox.</h1>
+            <p class="d-sub">${unread.length} unread · ${notifications.length} total</p>
+          </div>
+          ${unread.length > 0 ? `<button class="act-btn ghost" onclick="markAllRead()" style="flex-shrink:0;margin-top:8px">Mark all read</button>` : ''}
+        </div>
+        <section class="card">
+          ${notifications.length > 0 ? notifications.map(n => `
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--rb-border-soft)${n.read ? '' : ';background:rgba(26,86,255,.03)'}">
+              <div style="width:8px;height:8px;border-radius:50%;background:${n.read ? 'var(--rb-border)' : 'var(--rb-action)'};flex-shrink:0;margin-top:5px"></div>
+              <div style="flex:1">
+                <div style="font-size:14px;font-weight:${n.read ? '400' : '600'};color:var(--rb-ink)">${n.title || n.message || 'Notification'}</div>
+                ${n.body ? `<div style="font-size:13px;color:var(--rb-ink-3);margin-top:2px">${n.body}</div>` : ''}
+                <div style="font-size:11px;color:var(--rb-ink-3);margin-top:4px">${relDate(n.created_at)}</div>
+              </div>
+              ${!n.read ? `<button class="act-btn ghost" style="font-size:11px;padding:4px 8px;flex-shrink:0" onclick="markNotifRead('${n.id}')">Mark read</button>` : ''}
+            </div>`).join('') :
+          `<div class="d-empty"><div class="d-empty-icon">🔔</div><p>No notifications yet. Rent submissions and repair updates appear here.</p></div>`}
+        </section>`;
+    }
+
     // ── Component helpers ─────────────────────────
     function propRow(r, currentPayments, i = 0) {
       const pmt = currentPayments.find(p => p.rental_id === r.id);
@@ -1234,14 +1387,14 @@
         btns = `<button class="act-btn success" onclick="updateRepairStatus('${r.id}','resolved')">✓ Mark resolved</button>`;
       }
       return `
-        <div class="d-req">
+        <div class="d-req" onclick="openRepairDetail('${r.id}',${isLandlord})" style="cursor:pointer">
           <div class="d-req-dot ${dotCls}"></div>
           <div class="d-req-body">
             <div class="d-req-t">${r.title || 'Repair request'}</div>
             <div class="d-req-m">${r.description ? r.description.slice(0, 80) + (r.description.length > 80 ? '…' : '') : ''} ${propName ? '· ' + propName : ''} · ${relDate(r.created_at)}</div>
           </div>
           <div class="d-req-st ${stPill}">${stLabel}</div>
-          ${btns ? `<div style="grid-column:1/-1;display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--rb-border-soft)">${btns}</div>` : ''}
+          ${btns ? `<div style="grid-column:1/-1;display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--rb-border-soft)">${btns.replace(/onclick="/g, 'onclick="event.stopPropagation();')}</div>` : ''}
         </div>`;
     }
 
@@ -1490,6 +1643,8 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
           ${noTenant && invToken ? `<button type="button" class="act-btn accent" onclick="closeModal();setTimeout(()=>showInviteLink('${r.id}','${invToken}'),100)">🔗 Share invite link</button>` : ''}
+          ${noTenant ? `<button type="button" class="act-btn ghost" onclick="regenerateInvite('${r.id}')">↻ Regenerate invite link</button>` : ''}
+          ${r.status === 'active' ? `<button type="button" class="act-btn ghost" onclick="endRental('${r.id}')">⏹ End rental</button>` : ''}
           <div style="display:flex;gap:8px">
             <button type="button" class="act-btn ghost" style="flex:1" onclick="openEditProperty('${r.id}')">Edit</button>
             <button type="button" class="act-btn danger" style="flex:1" onclick="deleteProperty('${r.id}','${prop.id||''}')">Delete</button>
@@ -1564,11 +1719,102 @@
       setTimeout(() => location.reload(), 1200);
     }
 
+    // ── Tenant: Sign agreement ───────────────────
+    async function signAgreement(rentalId) {
+      if (!confirm('By confirming, you agree to the rental terms listed. This cannot be undone.')) return;
+      const { error } = await sb.from('rentals').update({ agreement_signed_at: new Date().toISOString() }).eq('id', rentalId);
+      if (error) { showToast(error.message, 'error'); return; }
+      showToast('Agreement signed!', 'success');
+      setTimeout(() => location.reload(), 1200);
+    }
+
+    // ── Landlord: End rental ──────────────────────
+    async function endRental(rentalId) {
+      if (!confirm('End this rental? The tenant will lose access. This cannot be undone.')) return;
+      const { error } = await sb.from('rentals').update({ status: 'ended' }).eq('id', rentalId);
+      if (error) { showToast(error.message, 'error'); return; }
+      showToast('Rental ended.', 'success');
+      setTimeout(() => location.reload(), 1200);
+    }
+
+    // ── Landlord: Regenerate invite link ─────────
+    async function regenerateInvite(rentalId) {
+      if (!confirm('Generate a new invite link? The old link will stop working immediately.')) return;
+      const token = crypto.randomUUID();
+      const exp = new Date(Date.now() + 72 * 3600000).toISOString();
+      const { error } = await sb.from('rentals').update({ invite_token: token, invite_expires_at: exp }).eq('id', rentalId);
+      if (error) { showToast(error.message, 'error'); return; }
+      showToast('New link generated!', 'success');
+      closeModal();
+      setTimeout(() => { location.reload(); }, 800);
+    }
+
+    // ── Repair detail modal ───────────────────────
+    function openRepairDetail(repairId, isLandlord) {
+      const allRepairs = isLandlord ? (landlordData?.recentRepairs || []) : (tenantData?.openRepairs || []);
+      const r = allRepairs.find(x => x.id === repairId);
+      if (!r) return;
+      const stLabelMap = { open: 'OPEN', in_progress: 'IN PROGRESS', resolved: 'RESOLVED' };
+      const stColMap = { open: 'var(--rb-warning)', in_progress: 'var(--rb-action)', resolved: 'var(--rb-success)' };
+      const stLabel = stLabelMap[r.status] || r.status;
+      const stCol = stColMap[r.status] || 'var(--rb-muted)';
+      showModal(`
+        <button class="modal-close" type="button">×</button>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+          <div style="padding:4px 10px;border-radius:20px;background:${stCol}22;color:${stCol};font-size:10px;font-weight:700;letter-spacing:.08em">${stLabel}</div>
+          <div style="font-size:12px;color:var(--rb-ink-3)">${relDate(r.created_at)}</div>
+        </div>
+        <h2 style="margin-bottom:12px">${r.title || 'Repair request'}</h2>
+        ${r.description ? `<p style="font-size:14px;color:var(--rb-ink-3);line-height:1.6;margin-bottom:18px">${r.description}</p>` : ''}
+        ${r.rental?.property?.name ? `<div style="font-size:12px;color:var(--rb-ink-3);margin-bottom:18px">📍 ${r.rental.property.name}${r.rental.property.city ? ' · ' + r.rental.property.city : ''}</div>` : ''}
+        ${isLandlord && r.status !== 'resolved' ? `
+        <div class="modal-foot">
+          <button type="button" class="act-btn ghost" onclick="closeModal()">Close</button>
+          ${r.status === 'open' ? `<button type="button" class="act-btn ghost" onclick="updateRepairStatus('${r.id}','in_progress');closeModal()">Start work</button>` : ''}
+          <button type="button" class="act-btn success" onclick="updateRepairStatus('${r.id}','resolved');closeModal()">✓ Mark resolved</button>
+        </div>` : `
+        <div class="modal-foot">
+          <button type="button" class="act-btn ghost" onclick="closeModal()">Close</button>
+        </div>`}`);
+    }
+
+    // ── Landlord: Notifications ───────────────────
+    async function markNotifRead(notifId) {
+      await sb.from('notifications').update({ read: true }).eq('id', notifId);
+      setTimeout(() => location.reload(), 400);
+    }
+    async function markAllRead() {
+      if (!confirm('Mark all notifications as read?')) return;
+      await sb.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
+      showToast('All marked as read.', 'success');
+      setTimeout(() => location.reload(), 800);
+    }
+
+    // ── HRA CSV download ──────────────────────────
+    function downloadHRACSV() {
+      const payments = tenantData?.recentPayments || landlordData?.ytdPayments || [];
+      if (!payments.length) { showToast('No payments to export.', 'error'); return; }
+      const rental = tenantData?.rental;
+      const propLine = [rental?.property?.name, rental?.property?.city].filter(Boolean).join(', ');
+      const rows = [['Month', 'Amount (₹)', 'Property', 'Status', 'Date']];
+      payments.forEach(p => rows.push([
+        monthLabel(p.month), Number(p.amount), propLine || (p.rental?.property?.name || ''), p.status,
+        p.created_at ? new Date(p.created_at).toLocaleDateString('en-IN') : '',
+      ]));
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+      a.download = `rentybase-hra-${now.getFullYear()}.csv`;
+      a.click();
+    }
+
     // Expose onclick-referenced functions to global scope (they live inside the IIFE)
     Object.assign(window, {
       openAddProperty, showInviteLink, confirmPayment, rejectPayment,
       updateRepairStatus, openPayRent, openRaiseRepair, closeModal, showToast,
       openPropertyDetail, openEditProperty, deleteProperty,
+      signAgreement, endRental, regenerateInvite, openRepairDetail,
+      markNotifRead, markAllRead, downloadHRACSV,
     });
 
     // ── Init ──────────────────────────────────────
