@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no"/>
   <title>Dashboard · RentyBase</title>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"/>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,7 +27,7 @@
       --rb-ease:cubic-bezier(0.22,1,0.36,1);
     }
     *{box-sizing:border-box;margin:0;padding:0;}
-    body{font-family:var(--rb-font-sans);background:var(--rb-canvas-2);color:var(--rb-ink);-webkit-font-smoothing:antialiased;min-height:100vh;}
+    body{font-family:var(--rb-font-sans);background:var(--rb-canvas-2);color:var(--rb-ink);-webkit-font-smoothing:antialiased;min-height:100vh;touch-action:pan-y;-webkit-text-size-adjust:100%;}
     a{color:inherit;text-decoration:none;}
 
     /* ── Loading / error ───────────────────────── */
@@ -1197,14 +1197,14 @@
       // Action row spans all 3 grid columns using grid-column:1/-1
       let actionHtml = '';
       if (noTenant && invToken) {
-        actionHtml = `<div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--rb-border-soft);display:flex;gap:8px"><button class="act-btn accent" onclick="showInviteLink('${r.id}','${invToken}')">Share invite link</button></div>`;
+        actionHtml = `<div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--rb-border-soft);display:flex;gap:8px"><button class="act-btn accent" onclick="event.stopPropagation();showInviteLink('${r.id}','${invToken}')">Share invite link</button></div>`;
       } else if (isPending && pmt?.id) {
-        actionHtml = `<div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--rb-border-soft);display:flex;gap:8px"><button class="act-btn success" onclick="confirmPayment('${pmt.id}')">✓ Confirm receipt</button><button class="act-btn ghost" onclick="rejectPayment('${pmt.id}')">Reject</button></div>`;
+        actionHtml = `<div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--rb-border-soft);display:flex;gap:8px"><button class="act-btn success" onclick="event.stopPropagation();confirmPayment('${pmt.id}')">✓ Confirm receipt</button><button class="act-btn ghost" onclick="event.stopPropagation();rejectPayment('${pmt.id}')">Reject</button></div>`;
       } else if (!isPaid && !noPmt && pmt?.id) {
-        actionHtml = `<div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--rb-border-soft);display:flex;gap:8px"><button class="act-btn success" onclick="confirmPayment('${pmt.id}')">✓ Mark as paid</button></div>`;
+        actionHtml = `<div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--rb-border-soft);display:flex;gap:8px"><button class="act-btn success" onclick="event.stopPropagation();confirmPayment('${pmt.id}')">✓ Mark as paid</button></div>`;
       }
       return `
-        <div class="d-prop">
+        <div class="d-prop" onclick="openPropertyDetail('${r.id}')" style="cursor:pointer">
           <div class="d-prop-thumb" style="background:linear-gradient(135deg,${tone},#2c1c0e)"></div>
           <div class="d-prop-body">
             <div class="d-prop-city">${city}</div>
@@ -1289,34 +1289,60 @@
         <button class="modal-close" type="button">×</button>
         <h2>Add property</h2>
         <form>
-          <div class="field"><label>Property name</label><input name="name" placeholder="e.g. Sunrise Apt 3B" required autocomplete="off"/></div>
-          <div class="field"><label>City</label><input name="city" placeholder="e.g. Hyderabad" required autocomplete="off"/></div>
+          <div class="field"><label>Property name / unit</label><input name="name" placeholder="e.g. Sunrise Apt 3B" required autocomplete="off"/></div>
+          <div class="field"><label>Street address</label><input name="address" placeholder="e.g. 42, Park Road, Banjara Hills" autocomplete="off"/></div>
           <div class="field-row">
-            <div class="field"><label>Monthly rent (₹)</label><input name="monthly_rent" type="number" min="1" placeholder="15000" required/></div>
-            <div class="field"><label>Security deposit (₹)</label><input name="security_deposit" type="number" min="0" placeholder="30000" value="0"/></div>
+            <div class="field"><label>City</label><input name="city" placeholder="Hyderabad" required autocomplete="off"/></div>
+            <div class="field"><label>Pincode</label><input name="pincode" placeholder="500001" autocomplete="off" inputmode="numeric" maxlength="6"/></div>
           </div>
           <div class="field-row">
-            <div class="field"><label>Rent due day</label><input name="rent_due_day" type="number" min="1" max="28" placeholder="1" value="1" required/></div>
+            <div class="field"><label>State</label><input name="state" placeholder="Telangana" autocomplete="off"/></div>
             <div class="field"><label>Property type</label>
               <select name="property_type">
-                <option value="apartment">Apartment</option>
-                <option value="house">House</option>
+                <option value="apartment">Apartment / Flat</option>
+                <option value="house">Independent House</option>
                 <option value="pg">PG / Hostel</option>
-                <option value="villa">Villa</option>
-                <option value="commercial">Commercial</option>
+                <option value="villa">Villa / Row-house</option>
+                <option value="commercial">Commercial space</option>
               </select>
             </div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Monthly rent (₹)</label><input name="monthly_rent" type="number" min="1" placeholder="15000" required inputmode="numeric"/></div>
+            <div class="field"><label>Security deposit (₹)</label><input name="security_deposit" type="number" min="0" placeholder="30000" value="0" inputmode="numeric"/></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Rent due day (1–28)</label><input name="rent_due_day" type="number" min="1" max="28" placeholder="1" value="1" required inputmode="numeric"/></div>
+            <div class="field"><label>Total rooms / beds</label><input name="total_rooms" type="number" min="1" placeholder="1" inputmode="numeric"/></div>
           </div>
           <div class="modal-foot">
             <button type="button" class="act-btn ghost" onclick="closeModal()">Cancel</button>
             <button type="submit" class="act-btn primary">Add property →</button>
           </div>
         </form>`, async data => {
-        const { data: prop, error: pErr } = await sb.from('properties').insert({ landlord_id: user.id, name: data.name, city: data.city, property_type: data.property_type }).select().single();
+        const { data: prop, error: pErr } = await sb.from('properties').insert({
+          landlord_id: user.id,
+          name: data.name,
+          address: data.address || null,
+          city: data.city,
+          state: data.state || null,
+          pincode: data.pincode || null,
+          property_type: data.property_type,
+          total_rooms: data.total_rooms ? Number(data.total_rooms) : null,
+        }).select().single();
         if (pErr) throw pErr;
         const token = crypto.randomUUID();
         const exp = new Date(Date.now() + 72 * 3600000).toISOString();
-        const { error: rErr } = await sb.from('rentals').insert({ landlord_id: user.id, property_id: prop.id, monthly_rent: Number(data.monthly_rent), security_deposit: Number(data.security_deposit), rent_due_day: Number(data.rent_due_day), status: 'pending_tenant', invite_token: token, invite_expires_at: exp });
+        const { error: rErr } = await sb.from('rentals').insert({
+          landlord_id: user.id,
+          property_id: prop.id,
+          monthly_rent: Number(data.monthly_rent),
+          security_deposit: Number(data.security_deposit || 0),
+          rent_due_day: Number(data.rent_due_day || 1),
+          status: 'pending_tenant',
+          invite_token: token,
+          invite_expires_at: exp,
+        });
         if (rErr) throw rErr;
         showToast('Property added! Share the invite link with your tenant.', 'success');
         setTimeout(() => location.reload(), 1200);
@@ -1421,6 +1447,129 @@
         setTimeout(() => location.reload(), 1200);
       });
     }
+
+    // ── Landlord: Property detail / edit / delete ─
+    function openPropertyDetail(rentalId) {
+      const { rentals, currentPayments } = landlordData || {};
+      if (!rentals) return;
+      const r = rentals.find(x => x.id === rentalId);
+      if (!r) return;
+      const prop = r.property || {};
+      const idx = rentals.indexOf(r);
+      const tone = THUMB_COLORS[idx % THUMB_COLORS.length];
+      const noTenant = r.status === 'pending_tenant' || !r.tenant_id;
+      const tenantName = r.tenant?.full_name || (noTenant ? 'No tenant yet' : '–');
+      const invToken = (r.invite_token || '').replace(/'/g, '');
+      const pmt = (currentPayments || []).find(p => p.rental_id === r.id);
+      const pmtLabel = pmt ? (pmt.status === 'paid' ? 'Paid this month' : pmt.status === 'pending_verification' ? 'Pending verification' : 'Due this month') : 'No payment this month';
+      const addrParts = [prop.address, prop.city, prop.state, prop.pincode].filter(Boolean);
+      showModal(`
+        <button class="modal-close" type="button">×</button>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+          <div style="width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,${tone},#2c1c0e);flex-shrink:0"></div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--rb-ink-3);letter-spacing:.1em;text-transform:uppercase">${prop.city || ''}</div>
+            <div style="font-family:var(--rb-font-display);font-size:22px;font-weight:400;line-height:1.2;letter-spacing:-.01em">${prop.name || 'Property'}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+          <div style="background:var(--rb-fill);border-radius:10px;padding:12px">
+            <div style="font-size:10px;font-weight:700;color:var(--rb-ink-3);letter-spacing:.1em;margin-bottom:4px">RENT</div>
+            <div style="font-size:20px;font-weight:600;letter-spacing:-.02em">${inr(r.monthly_rent)}<span style="font-size:11px;font-weight:400;color:var(--rb-ink-3)">/mo</span></div>
+          </div>
+          <div style="background:var(--rb-fill);border-radius:10px;padding:12px">
+            <div style="font-size:10px;font-weight:700;color:var(--rb-ink-3);letter-spacing:.1em;margin-bottom:4px">DEPOSIT</div>
+            <div style="font-size:20px;font-weight:600;letter-spacing:-.02em">${inr(r.security_deposit)}</div>
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--rb-ink-3);line-height:1.8;margin-bottom:18px">
+          ${addrParts.length ? `<div>📍 ${addrParts.join(', ')}</div>` : ''}
+          <div>🏠 ${(prop.property_type||'property').charAt(0).toUpperCase()+(prop.property_type||'property').slice(1).replace('_',' ')} · Due ${r.rent_due_day}${ordSuffix(r.rent_due_day)} of each month</div>
+          <div>👤 Tenant: ${tenantName}</div>
+          <div>💳 ${pmtLabel}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${noTenant && invToken ? `<button type="button" class="act-btn accent" onclick="closeModal();setTimeout(()=>showInviteLink('${r.id}','${invToken}'),100)">🔗 Share invite link</button>` : ''}
+          <div style="display:flex;gap:8px">
+            <button type="button" class="act-btn ghost" style="flex:1" onclick="openEditProperty('${r.id}')">Edit</button>
+            <button type="button" class="act-btn danger" style="flex:1" onclick="deleteProperty('${r.id}','${prop.id||''}')">Delete</button>
+          </div>
+          <button type="button" class="act-btn ghost" style="width:100%;justify-content:center" onclick="closeModal()">Close</button>
+        </div>`);
+    }
+
+    function openEditProperty(rentalId) {
+      const r = (landlordData?.rentals || []).find(x => x.id === rentalId);
+      if (!r) return;
+      const prop = r.property || {};
+      showModal(`
+        <button class="modal-close" type="button">×</button>
+        <h2>Edit property</h2>
+        <form>
+          <div class="field"><label>Property name / unit</label><input name="name" value="${(prop.name||'').replace(/"/g,'&quot;')}" required autocomplete="off"/></div>
+          <div class="field"><label>Street address</label><input name="address" value="${(prop.address||'').replace(/"/g,'&quot;')}" placeholder="42, Park Road…" autocomplete="off"/></div>
+          <div class="field-row">
+            <div class="field"><label>City</label><input name="city" value="${(prop.city||'').replace(/"/g,'&quot;')}" required autocomplete="off"/></div>
+            <div class="field"><label>Pincode</label><input name="pincode" value="${(prop.pincode||'').replace(/"/g,'&quot;')}" placeholder="500001" inputmode="numeric" maxlength="6"/></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>State</label><input name="state" value="${(prop.state||'').replace(/"/g,'&quot;')}" placeholder="Telangana" autocomplete="off"/></div>
+            <div class="field"><label>Property type</label>
+              <select name="property_type">
+                <option value="apartment" ${prop.property_type==='apartment'?'selected':''}>Apartment / Flat</option>
+                <option value="house" ${prop.property_type==='house'?'selected':''}>Independent House</option>
+                <option value="pg" ${prop.property_type==='pg'?'selected':''}>PG / Hostel</option>
+                <option value="villa" ${prop.property_type==='villa'?'selected':''}>Villa / Row-house</option>
+                <option value="commercial" ${prop.property_type==='commercial'?'selected':''}>Commercial space</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Monthly rent (₹)</label><input name="monthly_rent" type="number" min="1" value="${r.monthly_rent||''}" required inputmode="numeric"/></div>
+            <div class="field"><label>Security deposit (₹)</label><input name="security_deposit" type="number" min="0" value="${r.security_deposit||0}" inputmode="numeric"/></div>
+          </div>
+          <div class="field"><label>Rent due day (1–28)</label><input name="rent_due_day" type="number" min="1" max="28" value="${r.rent_due_day||1}" required inputmode="numeric"/></div>
+          <div class="modal-foot">
+            <button type="button" class="act-btn ghost" onclick="closeModal()">Cancel</button>
+            <button type="submit" class="act-btn primary">Save changes →</button>
+          </div>
+        </form>`, async data => {
+        const propId = prop.id;
+        if (propId) {
+          const { error: pErr } = await sb.from('properties').update({
+            name: data.name, address: data.address || null, city: data.city,
+            state: data.state || null, pincode: data.pincode || null, property_type: data.property_type,
+          }).eq('id', propId);
+          if (pErr) throw pErr;
+        }
+        const { error: rErr } = await sb.from('rentals').update({
+          monthly_rent: Number(data.monthly_rent),
+          security_deposit: Number(data.security_deposit || 0),
+          rent_due_day: Number(data.rent_due_day || 1),
+        }).eq('id', rentalId);
+        if (rErr) throw rErr;
+        showToast('Property updated!', 'success');
+        setTimeout(() => location.reload(), 1200);
+      });
+    }
+
+    async function deleteProperty(rentalId, propertyId) {
+      if (!confirm('Delete this property and its rental record? This cannot be undone.')) return;
+      const { error: rErr } = await sb.from('rentals').delete().eq('id', rentalId);
+      if (rErr) { showToast(rErr.message, 'error'); return; }
+      if (propertyId) {
+        await sb.from('properties').delete().eq('id', propertyId);
+      }
+      showToast('Property deleted.', 'success');
+      setTimeout(() => location.reload(), 1200);
+    }
+
+    // Expose onclick-referenced functions to global scope (they live inside the IIFE)
+    Object.assign(window, {
+      openAddProperty, showInviteLink, confirmPayment, rejectPayment,
+      updateRepairStatus, openPayRent, openRaiseRepair, closeModal, showToast,
+      openPropertyDetail, openEditProperty, deleteProperty,
+    });
 
     // ── Init ──────────────────────────────────────
     renderNav();
