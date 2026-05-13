@@ -511,6 +511,8 @@
     let activeView = 'home';
     const navItems = role === 'landlord' ? lNavItems : tNavItems;
 
+    function navigate(key) { activeView = key; renderNav(); renderMain(); window.scrollTo(0,0); }
+
     function renderNav() {
       // Desktop sidebar
       $('sidebar-nav').innerHTML = navItems.map(it =>
@@ -651,7 +653,7 @@
             sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('month', currentMonthDate).maybeSingle(),
             sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('status', 'paid').order('month', { ascending: false }).limit(12),
             sb.from('repair_requests').select('*').eq('rental_id', rental.id).in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(10),
-            sb.from('proofs').select('*, proof_photos(id, room_label)').eq('rental_id', rental.id).eq('type', 'move_in').maybeSingle(),
+            sb.from('proofs').select('*, proof_photos(id, room_label, public_url, annotation, created_at)').eq('rental_id', rental.id).eq('type', 'move_in').maybeSingle(),
             sb.from('deposit_transactions').select('*').eq('rental_id', rental.id).order('created_at', { ascending: false }),
             sb.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
           ]);
@@ -1040,19 +1042,24 @@
           </section>
 
           <!-- Move-in proof -->
-          ${proofs ? `
           <section class="card span-2">
             <div class="card-head">
-              <div><h3>Move-in proof · sealed</h3><span class="card-sub">${proofs.proof_photos?.length || 0} photos · timestamped · cannot be edited</span></div>
+              <div><h3>Move-in proof</h3><span class="card-sub">${proofs ? `${proofs.proof_photos?.length || 0} photos · ${proofs.status}` : 'Not yet submitted'}</span></div>
+              ${!proofs || proofs.status === 'pending' ? `<button class="act-btn sm" onclick="navigate('proof')">+ Add photos</button>` : ''}
             </div>
+            ${proofs && proofs.proof_photos?.length > 0 ? `
             <div class="d-proof-grid">
-              ${(proofs.proof_photos || []).slice(0, 8).map((photo, i) => `
-                <div class="d-proof-tile" style="background:linear-gradient(135deg,${THUMB_COLORS[i % THUMB_COLORS.length]},#2c1c0e)">
+              ${proofs.proof_photos.slice(0, 8).map((photo, i) => `
+                <div class="d-proof-tile" style="background:${photo.public_url ? 'none' : `linear-gradient(135deg,${THUMB_COLORS[i % THUMB_COLORS.length]},#2c1c0e)`};cursor:pointer" onclick="openPhotoLightbox('${photo.public_url || ''}','${photo.room_label || ''}')">
+                  ${photo.public_url ? `<img src="${photo.public_url}" alt="${photo.room_label}" style="width:100%;height:100%;object-fit:cover;display:block"/>` : ''}
                   <span class="d-proof-cap">${photo.room_label || 'Room'}</span>
                 </div>`).join('')}
-              ${proofs.proof_photos?.length === 0 ? `<div class="d-empty" style="grid-column:1/-1"><p>Photos appear once submitted from the mobile app.</p></div>` : ''}
-            </div>
-          </section>` : ''}
+            </div>` : `
+            <div class="d-empty" style="padding:20px 0">
+              <p>${proofs ? 'No photos added yet.' : 'Document your room condition at move-in.'}</p>
+              <div style="margin-top:12px;text-align:center"><button class="act-btn primary" onclick="navigate('proof')">+ Add move-in photos</button></div>
+            </div>`}
+          </section>
 
           <!-- HRA receipts -->
           <section class="card d-receipts">
@@ -1159,33 +1166,164 @@
         </section>`;
     }
 
+    const PROOF_ROOMS = ['Living Room', 'Bedroom', 'Bathroom', 'Kitchen', 'Balcony', 'Parking', 'Store Room'];
+
     function renderTenantProof() {
-      const { proofs } = tenantData;
+      const { proofs, rental } = tenantData;
+      const photos = proofs?.proof_photos || [];
+      const isSealed = proofs && proofs.status !== 'pending';
+      const statusLabel = { pending: 'Pending review', approved: 'Approved ✓', rejected: 'Needs attention', dispute: 'Under dispute' };
+
       $('main-content').innerHTML = `
         <div class="d-top">
           <div>
             <div class="eyebrow">Tenant · Move-in proof</div>
             <h1 class="d-h1">Move-in proof.</h1>
-            <p class="d-sub">${proofs ? `${proofs.proof_photos?.length || 0} photos sealed on ${relDate(proofs.created_at)}` : 'Upload room photos from the mobile app'}</p>
+            <p class="d-sub">${proofs
+              ? `${photos.length} photo${photos.length !== 1 ? 's' : ''} · ${statusLabel[proofs.status] || proofs.status} · submitted ${relDate(proofs.created_at)}`
+              : 'Document your room condition when you move in. Photos are timestamped and sealed.'}</p>
           </div>
+          ${!proofs && rental ? `<button class="act-btn primary" onclick="openAddProofPhoto()" style="flex-shrink:0;margin-top:8px">+ Add photos</button>` : ''}
+          ${proofs && proofs.status === 'pending' ? `<button class="act-btn primary" onclick="openAddProofPhoto()" style="flex-shrink:0;margin-top:8px">+ Add more photos</button>` : ''}
         </div>
+
+        ${proofs ? `
+        <div class="d-proof-banner ${proofs.status === 'approved' ? 'success' : proofs.status === 'rejected' ? 'danger' : ''}" style="
+          background:${proofs.status === 'approved' ? 'var(--rb-success-soft)' : proofs.status === 'rejected' ? '#fde8e8' : 'var(--rb-action-soft)'};
+          border:1px solid ${proofs.status === 'approved' ? 'var(--rb-success)' : proofs.status === 'rejected' ? '#f87171' : 'var(--rb-action)'};
+          border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
+          <div style="font-size:22px">${proofs.status === 'approved' ? '✅' : proofs.status === 'rejected' ? '⚠️' : '🔒'}</div>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--rb-ink)">${proofs.status === 'approved' ? 'Proof approved by landlord' : proofs.status === 'rejected' ? 'Landlord raised a concern' : 'Proof submitted · awaiting landlord review'}</div>
+            <div style="font-size:12px;color:var(--rb-ink-3);margin-top:2px">${proofs.status === 'pending' ? 'You can still add more photos until your landlord reviews.' : proofs.dispute_note || 'No further action needed.'}</div>
+          </div>
+        </div>` : ''}
+
         <section class="card">
-          ${proofs ? `
+          ${photos.length > 0 ? `
           <div class="card-head">
-            <div><h3>Move-in record · sealed</h3><span class="card-sub">Timestamped · append-only · cannot be edited</span></div>
+            <div><h3>Room photos · ${photos.length} submitted</h3><span class="card-sub">Timestamped · cannot be edited after landlord review</span></div>
           </div>
           <div class="d-proof-grid">
-            ${(proofs.proof_photos || []).map((photo, i) => `
-              <div class="d-proof-tile" style="background:linear-gradient(135deg,${THUMB_COLORS[i % THUMB_COLORS.length]},#2c1c0e)">
+            ${photos.map((photo, i) => `
+              <div class="d-proof-tile" style="background:${photo.public_url ? 'none' : `linear-gradient(135deg,${THUMB_COLORS[i % THUMB_COLORS.length]},#2c1c0e)`};cursor:pointer" onclick="openPhotoLightbox('${photo.public_url || ''}','${photo.room_label || ''}')">
+                ${photo.public_url
+                  ? `<img src="${photo.public_url}" alt="${photo.room_label}" style="width:100%;height:100%;object-fit:cover;display:block"/>`
+                  : ''}
                 <span class="d-proof-cap">${photo.room_label || 'Room'}</span>
               </div>`).join('')}
-            ${!proofs.proof_photos?.length ? `<div class="d-empty" style="grid-column:1/-1"><p>Photos appear once submitted.</p></div>` : ''}
           </div>` : `
           <div class="d-empty">
             <div class="d-empty-icon">📷</div>
-            <p>Upload move-in photos from the RentyBase app. Photos are sealed once submitted and cannot be edited.</p>
+            <p>No photos yet. Add photos for each room to document your move-in condition.</p>
+            ${rental ? `<div style="margin-top:16px;text-align:center"><button class="act-btn primary" onclick="openAddProofPhoto()">+ Add room photos</button></div>` : ''}
           </div>`}
-        </section>`;
+        </section>
+
+        ${!proofs ? `
+        <section class="card" style="margin-top:14px">
+          <div class="card-head"><div><h3>Why submit move-in proof?</h3></div></div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:var(--rb-ink-3);line-height:1.6;padding-top:4px">
+            <div>📷 <b style="color:var(--rb-ink)">Protects your deposit</b> — photos prove the condition you received the property in</div>
+            <div>🔒 <b style="color:var(--rb-ink)">Timestamped and sealed</b> — immutable record nobody can dispute later</div>
+            <div>⭐ <b style="color:var(--rb-ink)">Boosts your renter score</b> — landlords trust tenants who document carefully</div>
+          </div>
+        </section>` : ''}`;
+    }
+
+    function openPhotoLightbox(url, label) {
+      if (!url) return;
+      showModal(`
+        <button class="modal-close" type="button" onclick="closeModal()">×</button>
+        <div style="text-align:center">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--rb-accent);margin-bottom:10px">${label.toUpperCase()}</div>
+          <img src="${url}" alt="${label}" style="max-width:100%;max-height:60vh;border-radius:10px;object-fit:contain"/>
+        </div>`);
+    }
+
+    async function openAddProofPhoto() {
+      const { proofs, rental } = tenantData;
+      if (!rental) return;
+
+      showModal(`
+        <button class="modal-close" type="button">×</button>
+        <h2>Add room photo</h2>
+        <p style="font-size:13px;color:var(--rb-ink-3);margin-bottom:18px;line-height:1.5">
+          Select the room, then choose a photo. Each room should have at least one clear photo.
+        </p>
+        <form>
+          <div class="field">
+            <label>Room / area</label>
+            <select name="room_label">
+              ${PROOF_ROOMS.map(r => `<option value="${r}">${r}</option>`).join('')}
+              <option value="__custom__">Other (type below)</option>
+            </select>
+          </div>
+          <div class="field" id="custom-room-wrap" style="display:none">
+            <label>Custom room name</label>
+            <input name="custom_label" placeholder="e.g. Study, Terrace, Garage" autocomplete="off"/>
+          </div>
+          <div class="field">
+            <label>Photo</label>
+            <input name="photo_file" type="file" accept="image/*" required style="padding:8px;border:1px solid var(--rb-border);border-radius:8px;width:100%;font-size:13px"/>
+          </div>
+          <div id="proof-upload-progress" style="display:none;margin-top:10px;font-size:13px;color:var(--rb-ink-3)">Uploading…</div>
+          <div class="modal-foot">
+            <button type="button" class="act-btn ghost" onclick="closeModal()">Cancel</button>
+            <button type="submit" class="act-btn primary">Upload photo →</button>
+          </div>
+        </form>`,
+        async data => {
+          const file = document.querySelector('input[name="photo_file"]').files[0];
+          if (!file) throw new Error('Please select a photo.');
+          const roomLabel = data.room_label === '__custom__' ? (data.custom_label || '').trim() : data.room_label;
+          if (!roomLabel) throw new Error('Please enter a room name.');
+
+          $('proof-upload-progress').style.display = 'block';
+
+          // Get or create proof record
+          let proofId = proofs?.id;
+          if (!proofId) {
+            const { data: newProof, error: pe } = await sb.from('proofs').insert({
+              rental_id: rental.id, type: 'move_in', submitted_by: user.id
+            }).select('id').single();
+            if (pe) throw pe;
+            proofId = newProof.id;
+          }
+
+          // Upload to storage
+          const ext = file.name.split('.').pop().toLowerCase() || 'jpg';
+          const path = `${rental.id}/${proofId}/${Date.now()}.${ext}`;
+          const { error: upErr } = await sb.storage.from('proof-photos').upload(path, file, { upsert: false });
+          if (upErr) throw upErr;
+
+          const { data: { publicUrl } } = sb.storage.from('proof-photos').getPublicUrl(path);
+
+          // Insert proof_photos record
+          const { error: phe } = await sb.from('proof_photos').insert({
+            proof_id: proofId,
+            room_label: roomLabel,
+            storage_path: path,
+            public_url: publicUrl,
+            uploaded_by: user.id,
+          });
+          if (phe) throw phe;
+
+          showToast('Photo uploaded!', 'success');
+          setTimeout(() => location.reload(), 900);
+        }
+      );
+
+      // Wire the custom room toggle after modal renders
+      setTimeout(() => {
+        const sel = document.querySelector('select[name="room_label"]');
+        const wrap = $('custom-room-wrap');
+        if (sel && wrap) {
+          sel.addEventListener('change', () => {
+            wrap.style.display = sel.value === '__custom__' ? 'block' : 'none';
+          });
+        }
+      }, 50);
     }
 
     function renderTenantRepairs() {
@@ -1680,6 +1818,7 @@
           <button type="button" class="act-btn ghost" onclick="openManageDeposit('${r.id}')">💰 Manage deposit</button>
           <button type="button" class="act-btn ghost" onclick="uploadAgreement('${r.id}')">${prop.agreement_url || r.agreement_url ? '📄 Replace agreement PDF' : '📄 Upload agreement PDF'}</button>
           ${(prop.agreement_url || r.agreement_url) ? `<button type="button" class="act-btn ghost" onclick="viewAgreement('${r.agreement_url||''}')">↗ View agreement</button>` : ''}
+          ${r.status === 'active' ? `<button type="button" class="act-btn ghost" onclick="openReviewProof('${r.id}')">📷 Review move-in proof</button>` : ''}
           ${r.status === 'active' ? `<button type="button" class="act-btn ghost" onclick="endRental('${r.id}')">⏹ End rental</button>` : ''}
           <div style="display:flex;gap:8px">
             <button type="button" class="act-btn ghost" style="flex:1" onclick="openEditProperty('${r.id}')">Edit</button>
@@ -1687,6 +1826,56 @@
           </div>
           <button type="button" class="act-btn ghost" style="width:100%;justify-content:center" onclick="closeModal()">Close</button>
         </div>`);
+    }
+
+    async function openReviewProof(rentalId) {
+      const { data: proof, error } = await sb.from('proofs')
+        .select('*, proof_photos(id, room_label, public_url, annotation, created_at)')
+        .eq('rental_id', rentalId).eq('type', 'move_in').maybeSingle();
+      if (error) { showToast(error.message, 'error'); return; }
+      if (!proof) {
+        showModal(`
+          <button class="modal-close" type="button">×</button>
+          <h2>Move-in proof</h2>
+          <div class="d-empty" style="padding:24px 0">
+            <div class="d-empty-icon">📷</div>
+            <p>Tenant hasn't submitted move-in proof yet.</p>
+          </div>
+          <div class="modal-foot"><button type="button" class="act-btn ghost" onclick="closeModal()">Close</button></div>`);
+        return;
+      }
+      const photos = proof.proof_photos || [];
+      const statusColor = { pending: 'var(--rb-action-soft)', approved: 'var(--rb-success-soft)', rejected: '#fde8e8', dispute: 'var(--rb-warning-soft)' };
+      showModal(`
+        <button class="modal-close" type="button">×</button>
+        <h2>Move-in proof · ${photos.length} photo${photos.length !== 1 ? 's' : ''}</h2>
+        <div style="background:${statusColor[proof.status]||'var(--rb-fill)'};border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px">
+          Status: <b>${proof.status}</b> · Submitted ${relDate(proof.created_at)}
+        </div>
+        ${photos.length > 0 ? `
+        <div class="d-proof-grid" style="margin-bottom:18px">
+          ${photos.map((p, i) => `
+            <div class="d-proof-tile" style="background:${p.public_url ? 'none' : `linear-gradient(135deg,${THUMB_COLORS[i%THUMB_COLORS.length]},#2c1c0e)`};cursor:pointer" onclick="openPhotoLightbox('${p.public_url||''}','${p.room_label||''}')">
+              ${p.public_url ? `<img src="${p.public_url}" alt="${p.room_label}" style="width:100%;height:100%;object-fit:cover"/>` : ''}
+              <span class="d-proof-cap">${p.room_label||'Room'}</span>
+            </div>`).join('')}
+        </div>` : '<p style="color:var(--rb-ink-3);font-size:13px;margin-bottom:16px">No photos attached.</p>'}
+        ${proof.status === 'pending' ? `
+        <div class="modal-foot" style="gap:8px">
+          <button type="button" class="act-btn ghost" onclick="closeModal()">Close</button>
+          <button type="button" class="act-btn danger" onclick="reviewProof('${proof.id}','rejected')">Raise concern</button>
+          <button type="button" class="act-btn primary" onclick="reviewProof('${proof.id}','approved')">Approve ✓</button>
+        </div>` : `
+        <div class="modal-foot">
+          <button type="button" class="act-btn ghost" onclick="closeModal()">Close</button>
+        </div>`}`);
+    }
+
+    async function reviewProof(proofId, newStatus) {
+      const { error } = await sb.from('proofs').update({ status: newStatus, reviewed_by: user.id }).eq('id', proofId);
+      if (error) { showToast(error.message, 'error'); return; }
+      showToast(newStatus === 'approved' ? 'Proof approved!' : 'Concern raised — tenant notified.', 'success');
+      closeModal();
     }
 
     function openEditProperty(rentalId) {
@@ -2067,6 +2256,8 @@
       markNotifRead, markAllRead, downloadHRACSV,
       openEditProfile, openManageDeposit, openLogDepositTxn,
       uploadAgreement, viewAgreement,
+      openAddProofPhoto, openPhotoLightbox, navigate,
+      openReviewProof, reviewProof,
     });
 
     // ── Init ──────────────────────────────────────
