@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/* ── RentyBase design tokens ──────────────────────────────── */
+:root {
+  --rb-action:        #0F4C5C;
+  --rb-action-hover:  #0A3A47;
+  --rb-action-soft:   #DDE8EB;
+  --rb-accent:        #C97A3A;
+  --rb-accent-soft:   #F4E5D4;
+  --rb-accent-hover:  #B26A2E;
+  --rb-ink:           #0E1413;
+  --rb-ink-2:         #2A332F;
+  --rb-ink-3:         #5C645F;
+  --rb-canvas:        #F6F4EE;
+  --rb-canvas-2:      #EFEDE5;
+  --rb-surface:       #FFFFFF;
+  --rb-fill:          #F0EFE9;
+  --rb-fill-2:        #E6E2D7;
+  --rb-border:        #E6E2D7;
+  --rb-border-strong: #D4CFBE;
+  --rb-border-soft:   #EBE7DB;
+  --rb-success:       #1F7A55;
+  --rb-success-soft:  #DEEFE6;
+  --rb-warning:       #B8740F;
+  --rb-warning-soft:  #F6E6CA;
+  --rb-danger:        #C0392B;
+  --rb-danger-soft:   #FDECEA;
+  --rb-font-display:  'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --rb-font-sans:     'DM Sans', system-ui, -apple-system, sans-serif;
+  --rb-font-mono:     'JetBrains Mono', ui-monospace, monospace;
+  --rb-ease:          cubic-bezier(0.22, 1, 0.36, 1);
+  --rb-shadow-sm:     0 1px 2px rgba(20,18,12,.04), 0 2px 8px rgba(20,18,12,.05);
+  --rb-shadow-md:     0 4px 12px rgba(20,18,12,.06), 0 12px 32px rgba(20,18,12,.08);
+  --rb-radius-xl:     22px;
+  --rb-radius-lg:     18px;
+  --rb-radius-md:     12px;
+}
+
+/* ── Base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { height: 100%; }
+
+body {
+  font-family: var(--rb-font-sans);
+  background: var(--rb-canvas);
+  color: var(--rb-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100%;
+  touch-action: pan-y;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ── Auth split-screen shared styles ─────────────────────── */
+.sb-shell { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
+
+.sb-pane {
+  position: relative; padding: 40px 56px;
+  background: linear-gradient(180deg, #14403E 0%, #0F2A2D 100%);
+  color: #F6F4EE; display: flex; flex-direction: column;
+  justify-content: space-between; overflow: hidden; isolation: isolate;
+}
+.sb-pane::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    radial-gradient(rgba(246,244,238,0.04) 1px, transparent 1px),
+    radial-gradient(rgba(201,122,58,0.07)  1px, transparent 1px);
+  background-size: 4px 4px, 9px 9px; z-index: -1;
+}
+.sb-pane::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 80% 90%, rgba(201,122,58,.18), transparent 55%);
+  z-index: -1;
+}
+
+.sb-form-pane {
+  padding: 40px 56px;
+  background: var(--rb-canvas);
+  display: flex; flex-direction: column;
+}
+
+/* ── Shared button primitives ─────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 22px; border-radius: 999px; border: 1px solid transparent;
+  font-family: var(--rb-font-sans); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all .22s var(--rb-ease); text-decoration: none;
+}
+.btn-primary { background: var(--rb-action); color: #fff; }
+.btn-primary:hover { background: var(--rb-action-hover); transform: translateY(-1px); }
+.btn-ghost { background: transparent; color: var(--rb-ink); border-color: var(--rb-border); }
+.btn-ghost:hover { background: var(--rb-fill); border-color: var(--rb-border-strong); }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
+
+.google-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 14px; border-radius: 12px;
+  background: var(--rb-surface); border: 1.5px solid var(--rb-border);
+  font-size: 15px; font-weight: 600; color: var(--rb-ink);
+  cursor: pointer; transition: all .22s var(--rb-ease); font-family: inherit;
+}
+.google-btn:hover {
+  background: var(--rb-fill); border-color: var(--rb-border-strong);
+  transform: translateY(-1px); box-shadow: var(--rb-shadow-md);
+}
+.google-btn:active { transform: scale(0.98); }
+.google-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ── Spinner ──────────────────────────────────────────────── */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(14,20,19,.2);
+  border-top-color: var(--rb-ink);
+  border-radius: 50%;
+  animation: spin .7s linear infinite; flex-shrink: 0;
+}
+.spinner-white { border-color: rgba(255,255,255,.35); border-top-color: #fff; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error banner ─────────────────────────────────────────── */
+.error-banner {
+  margin-top: 16px; padding: 12px 16px; border-radius: 10px;
+  background: var(--rb-warning-soft); border: 1px solid rgba(184,116,15,.35);
+  color: var(--rb-warning); font-size: 13px; line-height: 1.5;
+  display: flex; align-items: flex-start; gap: 10px;
+  animation: fadeUp .3s var(--rb-ease);
+}
+
+/* ── Coming-soon blur group ───────────────────────────────── */
+.soon-wrap { position: relative; margin-top: 10px; }
+.soon-inner {
+  display: grid; gap: 10px;
+  opacity: .3; filter: blur(0.8px);
+  pointer-events: none; user-select: none;
+}
+.soon-badge {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: var(--rb-ink); color: var(--rb-canvas);
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  padding: 6px 16px; border-radius: 999px; white-space: nowrap;
+  pointer-events: none; z-index: 2; box-shadow: var(--rb-shadow-sm);
+}
+.soon-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px; border-radius: 10px; background: var(--rb-surface);
+  border: 1px solid var(--rb-border); font-size: 13px; font-weight: 600;
+  cursor: pointer; color: var(--rb-ink); font-family: inherit; width: 100%;
+}
+
+/* ── Auth role cards ──────────────────────────────────────── */
+.role-card {
+  display: flex; align-items: center; gap: 18px; padding: 18px 20px;
+  background: var(--rb-surface); border: 1.5px solid var(--rb-border-soft);
+  border-radius: 14px; text-align: left; cursor: pointer;
+  transition: all .25s var(--rb-ease); font-family: inherit; color: inherit;
+  position: relative; width: 100%;
+}
+.role-card:hover { border-color: var(--rb-border-strong); transform: translateY(-1px); }
+.role-card.active {
+  border-color: var(--rb-accent);
+  background: linear-gradient(135deg, var(--rb-accent-soft), var(--rb-surface) 70%);
+  box-shadow: 0 8px 24px rgba(201,122,58,.12);
+}
+.role-card:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+.role-icon {
+  width: 48px; height: 48px; border-radius: 12px; display: grid;
+  place-items: center; flex-shrink: 0; background: var(--rb-fill); color: var(--rb-ink-2);
+}
+.role-card.active .role-icon { background: var(--rb-accent); color: #fff; }
+.role-radio {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.8px solid var(--rb-border-strong); flex-shrink: 0;
+  transition: all .2s; position: relative;
+}
+.role-card.active .role-radio { border-color: var(--rb-accent); background: var(--rb-accent); }
+.role-card.active .role-radio::after {
+  content: ""; position: absolute; inset: 4px; border-radius: 50%; background: #fff;
+}
+
+/* ── Progress bar ─────────────────────────────────────────── */
+.progress-track {
+  height: 3px; background: var(--rb-fill-2);
+  border-radius: 999px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: var(--rb-accent);
+  border-radius: 999px; transition: width .5s var(--rb-ease);
+}
+
+/* ── Fine print ───────────────────────────────────────────── */
+.fineprint {
+  margin-top: 24px; font-size: 12px; color: var(--rb-ink-3); line-height: 1.55;
+}
+.fineprint a { color: var(--rb-ink-2); text-decoration: underline; text-decoration-color: var(--rb-border); }
+
+/* ── Animations ───────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp .4s var(--rb-ease); }
+
+/* ── Responsive: auth pages ───────────────────────────────── */
+@media (max-width: 1100px) {
+  .sb-shell { grid-template-columns: 1fr; }
+  .sb-pane  { padding: 32px; }
+  .sb-form-pane { padding: 40px 32px 60px; }
+}
+@media (max-width: 640px) {
+  .sb-pane { padding: 28px 24px; }
+  .sb-form-pane { padding: 28px 24px 60px; }
+}
