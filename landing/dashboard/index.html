@@ -431,12 +431,11 @@
     const THUMB_COLORS = ['#a87a4f','#9aa6a3','#c9a878','#a89280','#7a5d35','#5b3a20','#4f5e5b','#5e483a'];
 
     const show = id => {
-      ['loading', 'err-wrap', 'app-shell'].forEach(i => {
-        const el = $(i);
-        if (i === 'loading') el.style.display = i === id ? 'grid' : 'none';
-        else if (i === 'err-wrap') el.style.display = i === id ? 'grid' : 'none';
-        else el.style.display = i === id ? 'grid' : 'none';
-      });
+      $('loading').style.display   = id === 'loading'   ? 'grid' : 'none';
+      $('err-wrap').style.display  = id === 'err-wrap'  ? 'grid' : 'none';
+      // Clear inline style on app-shell so CSS media queries control display
+      // (setting 'grid' inline would override the mobile display:block rule)
+      $('app-shell').style.display = id === 'app-shell' ? '' : 'none';
     };
 
     // ── Auth ──────────────────────────────────────
