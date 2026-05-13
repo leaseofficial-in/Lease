@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Platform, Text, View } from 'react-native';
+import { Platform, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../../constants/theme';
 
@@ -39,7 +39,10 @@ function TabIcon({
 }
 
 export default function TenantLayout() {
-  const tabBarStyle = Platform.OS === 'web'
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 900;
+
+  const tabBarStyle = isDesktop
     ? { display: 'none' as const }
     : {
         backgroundColor: Colors.surface,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Platform, Text, View } from 'react-native';
+import { Platform, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
@@ -34,6 +34,8 @@ function AddTabIcon() {
 
 export default function LandlordLayout() {
   const { profile } = useAuthStore();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 900;
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['landlord-unread-notifications', profile?.id],
@@ -57,8 +59,9 @@ export default function LandlordLayout() {
     refetchInterval: 60_000,
   });
 
-  // On web: hide bottom tab bar (sidebar replaces it)
-  const tabBarStyle = Platform.OS === 'web'
+  // On desktop web: hide bottom tab bar (sidebar replaces it)
+  // On mobile web or native: show tab bar normally
+  const tabBarStyle = isDesktop
     ? { display: 'none' as const }
     : {
         backgroundColor: Colors.surface,

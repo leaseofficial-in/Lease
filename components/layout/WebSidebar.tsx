@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Platform, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, ScrollView, Image, useWindowDimensions } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Colors, Fonts } from '../../constants/theme';
@@ -209,8 +209,14 @@ interface DashboardShellProps {
   children: React.ReactNode;
 }
 
+// Breakpoint at which the sidebar appears (desktop/tablet).
+// Below this width mobile-browser users get the bottom tab bar instead.
+const SIDEBAR_BREAKPOINT = 900;
+
 export function DashboardShell({ role, children }: DashboardShellProps) {
+  const { width } = useWindowDimensions();
   const { profile } = useAuthStore();
+  const isDesktop = Platform.OS === 'web' && width >= SIDEBAR_BREAKPOINT;
 
   const { data: openRepairCount = 0 } = useQuery({
     queryKey: ['sidebar-open-repairs', role, profile?.id],
@@ -230,11 +236,11 @@ export function DashboardShell({ role, children }: DashboardShellProps) {
         .in('status', ['open', 'in_progress']);
       return count ?? 0;
     },
-    enabled: Platform.OS === 'web' && !!profile?.id,
+    enabled: isDesktop && !!profile?.id,
     refetchInterval: 60_000,
   });
 
-  if (Platform.OS !== 'web') {
+  if (!isDesktop) {
     return <>{children}</>;
   }
   return (
