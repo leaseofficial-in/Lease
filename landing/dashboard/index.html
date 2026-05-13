@@ -212,6 +212,38 @@
     .btn-onboard{background:rgba(246,244,238,.15);color:#F6F4EE;border-color:rgba(246,244,238,.3);}
     .btn-onboard:hover{background:rgba(246,244,238,.25);}
 
+    /* ── Action buttons ───────────────────────── */
+    .act-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:999px;border:0;font-family:var(--rb-font-sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s var(--rb-ease);}
+    .act-btn.primary{background:var(--rb-action);color:#fff;}
+    .act-btn.primary:hover{background:var(--rb-action-hover);}
+    .act-btn.accent{background:var(--rb-accent);color:#fff;}
+    .act-btn.ghost{background:var(--rb-fill-2);color:var(--rb-ink);}
+    .act-btn.ghost:hover{background:var(--rb-border);}
+    .act-btn.success{background:var(--rb-success-soft);color:var(--rb-success);}
+    .act-btn.danger{background:var(--rb-danger-soft);color:var(--rb-danger);}
+    .act-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--rb-border-soft);}
+
+    /* ── Modal ─────────────────────────────────── */
+    .modal-bg{position:fixed;inset:0;z-index:500;background:rgba(14,20,19,.55);backdrop-filter:blur(5px);display:grid;place-items:center;padding:20px;}
+    .modal{background:var(--rb-canvas);border-radius:20px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;position:relative;animation:modalIn .28s var(--rb-ease);}
+    @keyframes modalIn{from{opacity:0;transform:translateY(20px) scale(.97);}to{opacity:1;transform:none;}}
+    .modal h2{font-family:var(--rb-font-display);font-size:26px;font-weight:400;letter-spacing:-.02em;margin-bottom:18px;}
+    .modal-close{position:absolute;top:16px;right:16px;width:28px;height:28px;border:0;background:var(--rb-fill-2);border-radius:50%;cursor:pointer;font-size:18px;line-height:1;display:grid;place-items:center;color:var(--rb-ink-3);}
+    .field{margin-bottom:14px;}
+    .field label{display:block;font-size:11px;font-weight:700;color:var(--rb-ink-3);margin-bottom:5px;letter-spacing:.1em;text-transform:uppercase;}
+    .field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--rb-border);border-radius:10px;font-family:var(--rb-font-sans);font-size:14px;color:var(--rb-ink);background:var(--rb-surface);outline:none;transition:border .2s;-webkit-appearance:none;}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--rb-action);}
+    .field textarea{resize:vertical;min-height:80px;}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--rb-border);}
+
+    /* ── Toast ─────────────────────────────────── */
+    #toast-wrap{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:600;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
+    .toast{background:var(--rb-ink);color:var(--rb-canvas);padding:11px 20px;border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.2);animation:toastIn .3s var(--rb-ease);pointer-events:none;}
+    .toast.success{background:var(--rb-success);}
+    .toast.error{background:var(--rb-danger);}
+    @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
     /* ── Mobile nav elements (hidden on desktop) ── */
     .m-head{display:none;}
     .m-tabs{display:none;}
@@ -267,7 +299,7 @@
       }
       .m-tab.active{color:var(--rb-action);}
       .m-tab-ico{font-size:20px;line-height:1.2;}
-      .m-tab-lbl{font-size:10px;font-weight:600;letter-spacing:.02em;white-space:nowrap;}
+      .m-tab-lbl{font-size:9px;font-weight:600;letter-spacing:.01em;text-align:center;}
 
       /* Card grid becomes single-column stack */
       .d-grid{display:flex;flex-direction:column;gap:14px;}
@@ -331,6 +363,13 @@
     <!-- Main -->
     <main class="d-main" id="main-content"></main>
   </div>
+
+  <!-- Modal overlay -->
+  <div class="modal-bg" id="modal-bg" style="display:none" onclick="if(event.target===this)closeModal()">
+    <div class="modal" id="modal-inner"></div>
+  </div>
+  <!-- Toast container -->
+  <div id="toast-wrap"></div>
 
   <!-- Mobile header (CSS shows this only below 768px) -->
   <div class="m-head">
@@ -449,18 +488,18 @@
 
     // ── Sidebar nav ───────────────────────────────
     const lNavItems = [
-      { k: 'home', icon: '⌂', label: 'Overview' },
-      { k: 'props', icon: '▦', label: 'Properties' },
-      { k: 'led', icon: '≡', label: 'Ledger' },
-      { k: 'hra', icon: '₹', label: 'Receipts' },
-      { k: 'rep', icon: '⚙', label: 'Repairs' },
+      { k: 'home', icon: '⌂', label: 'Overview',    short: 'Home' },
+      { k: 'props', icon: '▦', label: 'Properties', short: 'Props' },
+      { k: 'led', icon: '≡', label: 'Ledger',       short: 'Ledger' },
+      { k: 'hra', icon: '₹', label: 'Receipts',     short: 'Receipts' },
+      { k: 'rep', icon: '⚙', label: 'Repairs',      short: 'Repairs' },
     ];
     const tNavItems = [
-      { k: 'home', icon: '⌂', label: 'My place' },
-      { k: 'pay', icon: '₹', label: 'Pay rent' },
-      { k: 'hra', icon: '📄', label: 'HRA receipts' },
-      { k: 'proof', icon: '📷', label: 'Move-in proof' },
-      { k: 'rep', icon: '⚙', label: 'Repairs' },
+      { k: 'home', icon: '⌂', label: 'My place',      short: 'Home' },
+      { k: 'pay', icon: '₹', label: 'Pay rent',        short: 'Pay' },
+      { k: 'hra', icon: '📄', label: 'HRA receipts',   short: 'HRA' },
+      { k: 'proof', icon: '📷', label: 'Move-in proof', short: 'Proof' },
+      { k: 'rep', icon: '⚙', label: 'Repairs',         short: 'Repairs' },
     ];
 
     let activeView = 'home';
@@ -482,13 +521,13 @@
         });
       });
 
-      // Mobile tab bar
+      // Mobile tab bar (uses short labels to fit 5 tabs)
       const mTabs = $('m-tabs');
       if (mTabs) {
         mTabs.innerHTML = navItems.map(it =>
           `<button class="m-tab${activeView === it.k ? ' active' : ''}" data-view="${it.k}">
             <span class="m-tab-ico">${it.icon}</span>
-            <span class="m-tab-lbl">${it.label}</span>
+            <span class="m-tab-lbl">${it.short || it.label}</span>
           </button>`
         ).join('');
         mTabs.querySelectorAll('.m-tab').forEach(btn => {
@@ -683,8 +722,9 @@
         <div class="d-onboard">
           <div class="eyebrow" style="color:rgba(246,244,238,.6)">No properties yet</div>
           <h2>Add your first property.</h2>
-          <p>Open the RentyBase app to create your first property, set rent terms, and invite your tenant.</p>
+          <p>Create a property, set rent terms, and share the invite link with your tenant — all right here.</p>
           <div class="d-onboard-cta">
+            <button class="btn btn-primary" onclick="openAddProperty()">+ Add property →</button>
             <a href="/" class="btn btn-onboard">← Back to home</a>
           </div>
         </div>`;
@@ -752,13 +792,10 @@
           <section class="card d-actions">
             <h3>Quick actions</h3>
             <div class="d-action-grid">
-              <button class="d-action"><span>📄</span><b>Issue HRA receipt</b><i>Auto-fill from this month</i></button>
-              <button class="d-action"><span>🛠</span><b>Log repair</b><i>With photo &amp; quote</i></button>
-              <button class="d-action"><span>↩</span><b>Refund deposit</b><i>End-of-tenancy ledger</i></button>
-              <button class="d-action"><span>📨</span><b>Send nudge</b><i>0/3/5-day reminders</i></button>
-            </div>
-            <div style="margin-top:14px;padding:12px;background:var(--rb-fill);border-radius:10px;font-size:12px;color:var(--rb-ink-3);text-align:center;">
-              Actions are completed in the RentyBase mobile app
+              <button class="d-action" id="qa-add-prop"><span>🏠</span><b>Add property</b><i>Create &amp; invite tenant</i></button>
+              <button class="d-action" id="qa-receipts"><span>📄</span><b>HRA receipts</b><i>View all issued</i></button>
+              <button class="d-action" id="qa-repairs"><span>🛠</span><b>Repairs</b><i>Review open requests</i></button>
+              <button class="d-action" id="qa-ledger"><span>≡</span><b>Full ledger</b><i>All transactions</i></button>
             </div>
           </section>
 
@@ -784,9 +821,8 @@
         </div>`;
 
       // Wire quick action buttons
-      $('main-content').querySelectorAll('.d-action').forEach(btn => {
-        btn.addEventListener('click', () => alert('Open the RentyBase mobile app to complete this action.'));
-      });
+      const qaMap = { 'qa-add-prop': openAddProperty, 'qa-receipts': () => { activeView='hra'; renderNav(); renderMain(); }, 'qa-repairs': () => { activeView='rep'; renderNav(); renderMain(); }, 'qa-ledger': () => { activeView='led'; renderNav(); renderMain(); } };
+      Object.entries(qaMap).forEach(([id, fn]) => { const el = $(id); if (el) el.addEventListener('click', fn); });
     }
 
     function renderLandlordProperties() {
@@ -796,12 +832,14 @@
           <div>
             <div class="eyebrow">Landlord · Properties</div>
             <h1 class="d-h1">Properties.</h1>
-            <p class="d-sub">${rentals.length} active propert${rentals.length === 1 ? 'y' : 'ies'} · ${inr(landlordData.totalMonthlyRent)} / month combined.</p>
+            <p class="d-sub">${rentals.length} propert${rentals.length === 1 ? 'y' : 'ies'} · ${inr(landlordData.totalMonthlyRent)} / month combined.</p>
           </div>
+          <button class="act-btn primary" onclick="openAddProperty()" style="flex-shrink:0;margin-top:8px">+ Add property</button>
         </div>
         <section class="card" style="margin-bottom:18px">
           <div class="d-props-list">
-            ${rentals.map((r, i) => propRow(r, currentPayments, i)).join('')}
+            ${rentals.length > 0 ? rentals.map((r, i) => propRow(r, currentPayments, i)).join('') :
+              `<div class="d-empty"><div class="d-empty-icon">🏠</div><p>No properties yet. Add your first one above.</p></div>`}
           </div>
         </section>`;
     }
@@ -870,11 +908,11 @@
           <div>
             <div class="eyebrow">Landlord · Repairs</div>
             <h1 class="d-h1">Repair requests.</h1>
-            <p class="d-sub">${recentRepairs.filter(r => r.status === 'open' || r.status === 'in_progress').length} open requests across all properties.</p>
+            <p class="d-sub">${recentRepairs.filter(r => r.status === 'open' || r.status === 'in_progress').length} open · ${recentRepairs.length} total shown.</p>
           </div>
         </div>
         <section class="card">
-          ${recentRepairs.length > 0 ? recentRepairs.map(r => repairRow(r)).join('') :
+          ${recentRepairs.length > 0 ? recentRepairs.map(r => repairRow(r, true)).join('') :
             `<div class="d-empty"><div class="d-empty-icon">🛠</div><p>No repair requests. Your tenants are all good!</p></div>`}
         </section>`;
     }
@@ -1028,6 +1066,7 @@
       const { rental, currentPayment, nextDueDate } = tenantData;
       if (!rental) { renderTenantEmpty(); return; }
       const isPaid = currentPayment?.status === 'paid';
+      const isPending = currentPayment?.status === 'pending_verification';
       const daysLeft = nextDueDate ? Math.ceil((nextDueDate - now) / 86400000) : null;
       $('main-content').innerHTML = `
         <div class="d-top">
@@ -1042,11 +1081,21 @@
           <div class="d-rent-row">
             <div class="d-rent-num">${inr(rental.monthly_rent)}</div>
             ${isPaid ? `<div style="color:#A8E6C8">✓ Paid</div>` :
+              isPending ? `<div style="color:rgba(201,122,58,.9)">⏳ Awaiting confirmation</div>` :
               daysLeft !== null ? `<div class="d-rent-due">Due in <b>${daysLeft} day${daysLeft !== 1 ? 's' : ''}</b></div>` : ''}
           </div>
           ${isPaid
             ? `<div style="margin-top:18px"><span class="d-rent-paid-badge">✓ This month is paid. See you next month!</span></div>`
-            : `<div class="d-rent-cta"><a href="#" class="btn btn-primary" onclick="alert('Open the RentyBase mobile app to pay your rent via UPI, bank transfer or cheque.');return false;">Pay in app →</a></div>`}
+            : isPending
+              ? `<div style="margin-top:16px;padding:12px 16px;background:rgba(201,122,58,.12);border-radius:10px;font-size:13px;color:rgba(246,244,238,.8)">
+                   ⏳ Submitted · ref: <b style="color:rgba(246,244,238,.95)">${currentPayment.utr_number || 'pending'}</b>. Awaiting landlord confirmation.
+                 </div>
+                 <div class="act-row" style="border-top:1px solid rgba(246,244,238,.12);margin-top:14px">
+                   <button class="act-btn" style="background:rgba(246,244,238,.1);color:#F6F4EE" onclick="openPayRent('${rental.id}','${currentPayment?.id||''}',${rental.monthly_rent})">Update details</button>
+                 </div>`
+              : `<div class="d-rent-cta">
+                   <button class="btn btn-primary" onclick="openPayRent('${rental.id}','${currentPayment?.id||''}',${rental.monthly_rent})">Pay / record payment →</button>
+                 </div>`}
           <div class="d-rent-foot">
             <span>${rental.property?.name || ''}</span>
             <span>Due on ${rental.rent_due_day ? rental.rent_due_day + ordSuffix(rental.rent_due_day) : 'each month'}</span>
@@ -1114,7 +1163,7 @@
     }
 
     function renderTenantRepairs() {
-      const { openRepairs } = tenantData;
+      const { openRepairs, rental } = tenantData;
       $('main-content').innerHTML = `
         <div class="d-top">
           <div>
@@ -1122,10 +1171,13 @@
             <h1 class="d-h1">Repair requests.</h1>
             <p class="d-sub">${openRepairs.length} open request${openRepairs.length !== 1 ? 's' : ''}</p>
           </div>
+          ${rental ? `<button class="act-btn accent" onclick="openRaiseRepair('${rental.id}')" style="flex-shrink:0;margin-top:8px">+ Raise repair</button>` : ''}
         </div>
         <section class="card">
-          ${openRepairs.length > 0 ? openRepairs.map(r => repairRow(r)).join('') :
-            `<div class="d-empty"><div class="d-empty-icon">✓</div><p>No open repair requests. Raise one from the mobile app if needed.</p></div>`}
+          ${openRepairs.length > 0 ? openRepairs.map(r => repairRow(r, false)).join('') :
+            `<div class="d-empty"><div class="d-empty-icon">✓</div><p>No open repair requests.</p>
+             ${rental ? `<div style="margin-top:16px;text-align:center"><button class="act-btn accent" onclick="openRaiseRepair('${rental.id}')">+ Raise a repair request</button></div>` : ''}
+            </div>`}
         </section>`;
     }
 
@@ -1133,29 +1185,43 @@
     function propRow(r, currentPayments, i = 0) {
       const pmt = currentPayments.find(p => p.rental_id === r.id);
       const isPaid = pmt?.status === 'paid';
+      const isPending = pmt?.status === 'pending_verification';
       const noPmt = !pmt;
-      const pillCls = isPaid ? 'paid' : noPmt ? 'none' : 'due';
-      const pillLabel = isPaid ? `Paid · ${monthLabel(currentMonth)}` : noPmt ? 'No payment yet' : 'Due this month';
+      const pillCls = isPaid ? 'paid' : isPending ? 'pending' : noPmt ? 'none' : 'due';
+      const pillLabel = isPaid ? `Paid · ${monthLabel(currentMonth)}` : isPending ? 'Pending verify' : noPmt ? 'No payment yet' : 'Due this month';
       const propName = r.property?.name || `Property ${i + 1}`;
       const city = r.property?.city || '';
-      const tenantName = r.tenant?.full_name || (r.status === 'pending_tenant' ? 'Awaiting tenant' : 'No tenant');
+      const noTenant = r.status === 'pending_tenant' || !r.tenant_id;
+      const tenantName = r.tenant?.full_name || (noTenant ? 'Awaiting tenant' : 'No tenant');
       const tone = THUMB_COLORS[i % THUMB_COLORS.length];
+      const invToken = (r.invite_token || '').replace(/'/g, '');
+      let actionHtml = '';
+      if (noTenant && invToken) {
+        actionHtml = `<div class="act-row"><button class="act-btn accent" onclick="showInviteLink('${r.id}','${invToken}')">Share invite link</button></div>`;
+      } else if (isPending && pmt?.id) {
+        actionHtml = `<div class="act-row"><button class="act-btn success" onclick="confirmPayment('${pmt.id}')">✓ Confirm receipt</button><button class="act-btn ghost" onclick="rejectPayment('${pmt.id}')">Reject</button></div>`;
+      } else if (!isPaid && !noPmt && pmt?.id) {
+        actionHtml = `<div class="act-row"><button class="act-btn success" onclick="confirmPayment('${pmt.id}')">✓ Mark as paid</button></div>`;
+      }
       return `
-        <div class="d-prop">
-          <div class="d-prop-thumb" style="background:linear-gradient(135deg,${tone},#2c1c0e)"></div>
-          <div class="d-prop-body">
-            <div class="d-prop-city">${city}</div>
-            <div class="d-prop-addr">${propName}</div>
-            <div class="d-prop-tenant">Tenant · ${tenantName}</div>
+        <div class="d-prop" style="flex-direction:column;align-items:stretch;gap:0;padding-bottom:${actionHtml ? '14px' : '12px'}">
+          <div style="display:grid;grid-template-columns:56px 1fr auto;gap:14px;align-items:center;padding:2px 0">
+            <div class="d-prop-thumb" style="background:linear-gradient(135deg,${tone},#2c1c0e)"></div>
+            <div class="d-prop-body">
+              <div class="d-prop-city">${city}</div>
+              <div class="d-prop-addr">${propName}</div>
+              <div class="d-prop-tenant">Tenant · ${tenantName}</div>
+            </div>
+            <div class="d-prop-r">
+              <div class="d-prop-rent">${inr(r.monthly_rent)}<span>/mo</span></div>
+              <div class="d-prop-pill ${pillCls}">${pillLabel}</div>
+            </div>
           </div>
-          <div class="d-prop-r">
-            <div class="d-prop-rent">${inr(r.monthly_rent)}<span>/mo</span></div>
-            <div class="d-prop-pill ${pillCls}">${pillLabel}</div>
-          </div>
+          ${actionHtml}
         </div>`;
     }
 
-    function repairRow(r) {
+    function repairRow(r, isLandlord = false) {
       const stMap = { open: 'open', in_progress: 'progress', resolved: 'done' };
       const dotCls = stMap[r.status] || 'done';
       const stLabelMap = { open: 'OPEN', in_progress: 'IN PROGRESS', resolved: 'RESOLVED' };
@@ -1163,14 +1229,23 @@
       const stLabel = stLabelMap[r.status] || r.status;
       const stPill = stPillMap[r.status] || 'done';
       const propName = r.rental?.property?.name || '';
+      let btns = '';
+      if (isLandlord && r.status === 'open') {
+        btns = `<button class="act-btn ghost" onclick="updateRepairStatus('${r.id}','in_progress')">Start work</button><button class="act-btn success" onclick="updateRepairStatus('${r.id}','resolved')">Mark resolved</button>`;
+      } else if (isLandlord && r.status === 'in_progress') {
+        btns = `<button class="act-btn success" onclick="updateRepairStatus('${r.id}','resolved')">✓ Mark resolved</button>`;
+      }
       return `
-        <div class="d-req">
-          <div class="d-req-dot ${dotCls}"></div>
-          <div class="d-req-body">
-            <div class="d-req-t">${r.title || 'Repair request'}</div>
-            <div class="d-req-m">${r.description ? r.description.slice(0, 60) + (r.description.length > 60 ? '…' : '') : ''} ${propName ? '· ' + propName : ''} · ${relDate(r.created_at)}</div>
+        <div class="d-req" style="flex-direction:column;align-items:stretch;gap:0">
+          <div style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center">
+            <div class="d-req-dot ${dotCls}"></div>
+            <div class="d-req-body">
+              <div class="d-req-t">${r.title || 'Repair request'}</div>
+              <div class="d-req-m">${r.description ? r.description.slice(0, 80) + (r.description.length > 80 ? '…' : '') : ''} ${propName ? '· ' + propName : ''} · ${relDate(r.created_at)}</div>
+            </div>
+            <div class="d-req-st ${stPill}">${stLabel}</div>
           </div>
-          <div class="d-req-st ${stPill}">${stLabel}</div>
+          ${btns ? `<div class="act-row">${btns}</div>` : ''}
         </div>`;
     }
 
@@ -1178,6 +1253,177 @@
       const s = ['th','st','nd','rd'];
       const v = n % 100;
       return s[(v - 20) % 10] || s[v] || s[0];
+    }
+
+    // ── Modal helpers ─────────────────────────────
+    function showModal(html, onSubmit) {
+      const bg = $('modal-bg');
+      const inner = $('modal-inner');
+      inner.innerHTML = html;
+      bg.style.display = 'grid';
+      inner.querySelector('.modal-close')?.addEventListener('click', closeModal);
+      const form = inner.querySelector('form');
+      if (form && onSubmit) {
+        form.addEventListener('submit', async e => {
+          e.preventDefault();
+          const data = Object.fromEntries(new FormData(form));
+          const btn = form.querySelector('[type=submit]');
+          const orig = btn.textContent;
+          btn.disabled = true; btn.textContent = 'Saving…';
+          try { await onSubmit(data); closeModal(); }
+          catch (err) { btn.disabled = false; btn.textContent = orig; showToast(err.message || 'Error saving', 'error'); }
+        });
+      }
+    }
+    function closeModal() { $('modal-bg').style.display = 'none'; }
+
+    // ── Toast helper ──────────────────────────────
+    function showToast(msg, type = '') {
+      const wrap = $('toast-wrap');
+      const t = document.createElement('div');
+      t.className = 'toast' + (type ? ' ' + type : '');
+      t.textContent = msg;
+      wrap.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 320); }, 3000);
+    }
+
+    // ── Landlord: Add property ────────────────────
+    function openAddProperty() {
+      showModal(`
+        <button class="modal-close" type="button">×</button>
+        <h2>Add property</h2>
+        <form>
+          <div class="field"><label>Property name</label><input name="name" placeholder="e.g. Sunrise Apt 3B" required autocomplete="off"/></div>
+          <div class="field"><label>City</label><input name="city" placeholder="e.g. Hyderabad" required autocomplete="off"/></div>
+          <div class="field-row">
+            <div class="field"><label>Monthly rent (₹)</label><input name="monthly_rent" type="number" min="1" placeholder="15000" required/></div>
+            <div class="field"><label>Security deposit (₹)</label><input name="security_deposit" type="number" min="0" placeholder="30000" value="0"/></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Rent due day</label><input name="rent_due_day" type="number" min="1" max="28" placeholder="1" value="1" required/></div>
+            <div class="field"><label>Property type</label>
+              <select name="property_type">
+                <option value="apartment">Apartment</option>
+                <option value="house">House</option>
+                <option value="pg">PG / Hostel</option>
+                <option value="villa">Villa</option>
+                <option value="commercial">Commercial</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-foot">
+            <button type="button" class="act-btn ghost" onclick="closeModal()">Cancel</button>
+            <button type="submit" class="act-btn primary">Add property →</button>
+          </div>
+        </form>`, async data => {
+        const { data: prop, error: pErr } = await sb.from('properties').insert({ landlord_id: user.id, name: data.name, city: data.city, property_type: data.property_type }).select().single();
+        if (pErr) throw pErr;
+        const token = crypto.randomUUID();
+        const exp = new Date(Date.now() + 72 * 3600000).toISOString();
+        const { error: rErr } = await sb.from('rentals').insert({ landlord_id: user.id, property_id: prop.id, monthly_rent: Number(data.monthly_rent), security_deposit: Number(data.security_deposit), rent_due_day: Number(data.rent_due_day), status: 'pending_tenant', invite_token: token, invite_expires_at: exp });
+        if (rErr) throw rErr;
+        showToast('Property added! Share the invite link with your tenant.', 'success');
+        setTimeout(() => location.reload(), 1200);
+      });
+    }
+
+    // ── Landlord: Show invite link ────────────────
+    function showInviteLink(rentalId, token) {
+      if (!token) { showToast('No invite token found.', 'error'); return; }
+      const link = `https://rentybase.com/join/${token}`;
+      showModal(`
+        <button class="modal-close" type="button">×</button>
+        <h2>Invite tenant</h2>
+        <p style="color:var(--rb-ink-3);font-size:14px;line-height:1.55;margin-bottom:16px">Share this link with your tenant. Expires in 72 hours from when the property was created.</p>
+        <div style="background:var(--rb-fill);border-radius:10px;padding:14px;font-family:var(--rb-font-mono);font-size:12px;word-break:break-all;color:var(--rb-ink);user-select:all">${link}</div>
+        <div class="modal-foot">
+          <button type="button" class="act-btn ghost" onclick="closeModal()">Close</button>
+          <button type="button" class="act-btn primary" onclick="navigator.clipboard.writeText('${link}').then(()=>showToast('Link copied!','success'))">Copy link</button>
+        </div>`);
+    }
+
+    // ── Landlord: Confirm / reject payment ────────
+    async function confirmPayment(paymentId) {
+      if (!confirm('Confirm this rent payment as received?')) return;
+      const { error } = await sb.from('rent_payments').update({ status: 'paid' }).eq('id', paymentId);
+      if (error) { showToast(error.message, 'error'); return; }
+      showToast('Payment confirmed!', 'success');
+      setTimeout(() => location.reload(), 1200);
+    }
+    async function rejectPayment(paymentId) {
+      if (!confirm('Reject this payment submission? Tenant will need to resubmit.')) return;
+      const { error } = await sb.from('rent_payments').update({ status: 'pending', utr_number: null, payment_note: null }).eq('id', paymentId);
+      if (error) { showToast(error.message, 'error'); return; }
+      showToast('Payment rejected — tenant notified.', 'success');
+      setTimeout(() => location.reload(), 1200);
+    }
+
+    // ── Landlord: Update repair status ────────────
+    async function updateRepairStatus(repairId, newStatus) {
+      const labels = { in_progress: 'In Progress', resolved: 'Resolved' };
+      if (!confirm(`Mark this repair as ${labels[newStatus] || newStatus}?`)) return;
+      const { error } = await sb.from('repair_requests').update({ status: newStatus }).eq('id', repairId);
+      if (error) { showToast(error.message, 'error'); return; }
+      showToast('Repair updated!', 'success');
+      setTimeout(() => location.reload(), 1200);
+    }
+
+    // ── Tenant: Submit rent payment ───────────────
+    function openPayRent(rentalId, paymentId, amount) {
+      showModal(`
+        <button class="modal-close" type="button">×</button>
+        <h2>Record payment</h2>
+        <div style="background:var(--rb-action-soft);border-radius:12px;padding:14px 16px;margin-bottom:18px">
+          <div style="font-size:11px;font-weight:700;color:var(--rb-action);letter-spacing:.1em">AMOUNT</div>
+          <div style="font-family:var(--rb-font-display);font-size:32px;color:var(--rb-action);letter-spacing:-.02em;margin-top:2px">${inr(amount)}</div>
+        </div>
+        <form>
+          <div class="field"><label>Payment method</label>
+            <select name="payment_method">
+              <option value="upi">UPI (GPay, PhonePe, Paytm…)</option>
+              <option value="bank_transfer">Bank Transfer / NEFT / IMPS</option>
+              <option value="cheque">Cheque</option>
+              <option value="cash">Cash</option>
+            </select>
+          </div>
+          <div class="field"><label>UTR / Transaction reference</label><input name="utr_number" placeholder="e.g. T2605131234567890" autocomplete="off"/></div>
+          <div class="field"><label>Note to landlord (optional)</label><textarea name="payment_note" placeholder="Paid via Google Pay to 9876543210@upi…"></textarea></div>
+          <div class="modal-foot">
+            <button type="button" class="act-btn ghost" onclick="closeModal()">Cancel</button>
+            <button type="submit" class="act-btn primary">Submit payment →</button>
+          </div>
+        </form>`, async data => {
+        const upd = { status: 'pending_verification', payment_method: data.payment_method, utr_number: data.utr_number || null, payment_note: data.payment_note || null };
+        let error;
+        if (paymentId) {
+          ({ error } = await sb.from('rent_payments').update(upd).eq('id', paymentId));
+        } else {
+          ({ error } = await sb.from('rent_payments').insert({ rental_id: rentalId, month: currentMonth, amount: amount, ...upd }));
+        }
+        if (error) throw error;
+        showToast('Payment submitted! Awaiting landlord confirmation.', 'success');
+        setTimeout(() => location.reload(), 1200);
+      });
+    }
+
+    // ── Tenant: Raise repair request ──────────────
+    function openRaiseRepair(rentalId) {
+      showModal(`
+        <button class="modal-close" type="button">×</button>
+        <h2>Raise repair request</h2>
+        <form>
+          <div class="field"><label>Issue title</label><input name="title" placeholder="e.g. Leaking tap in bathroom" required autocomplete="off"/></div>
+          <div class="field"><label>Description</label><textarea name="description" placeholder="Describe the issue — location, when it started, how severe…" required></textarea></div>
+          <div class="modal-foot">
+            <button type="button" class="act-btn ghost" onclick="closeModal()">Cancel</button>
+            <button type="submit" class="act-btn accent">Submit request →</button>
+          </div>
+        </form>`, async data => {
+        const { error } = await sb.from('repair_requests').insert({ rental_id: rentalId, title: data.title, description: data.description, status: 'open' });
+        if (error) throw error;
+        showToast('Repair request submitted!', 'success');
+        setTimeout(() => location.reload(), 1200);
+      });
     }
 
     // ── Init ──────────────────────────────────────
