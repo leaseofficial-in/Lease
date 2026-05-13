@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no"/>
   <title>Sign in · RentyBase</title>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"/>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,7 +27,14 @@
       --rb-radius-xl:22px; --rb-radius-lg:18px; --rb-radius-md:12px;
     }
     * { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:var(--rb-font-sans); background:var(--rb-canvas); color:var(--rb-ink); -webkit-font-smoothing:antialiased; min-height:100vh; }
+    body { font-family:var(--rb-font-sans); background:var(--rb-canvas); color:var(--rb-ink); -webkit-font-smoothing:antialiased; min-height:100vh; touch-action:pan-y; }
+
+    /* Inline error banner */
+    .sb-error { margin-top:16px; padding:12px 16px; border-radius:10px; background:var(--rb-warning-soft); border:1px solid rgba(184,116,15,.35); color:var(--rb-warning); font-size:13px; line-height:1.5; display:flex; align-items:flex-start; gap:10px; animation:fadeUp .3s var(--rb-ease); }
+    .sb-error-icon { flex-shrink:0; margin-top:1px; }
+
+    /* Top nav strip (replaces progress bar) */
+    .sb-topnav { display:flex; align-items:center; justify-content:space-between; margin-bottom:56px; padding-bottom:16px; border-bottom:1px solid var(--rb-border); }
     a { color:inherit; text-decoration:none; }
     .ochre { color:var(--rb-accent); }
     .btn { display:inline-flex; align-items:center; gap:8px; padding:12px 22px; border-radius:999px; border:1px solid transparent; font-family:var(--rb-font-sans); font-size:14px; font-weight:600; cursor:pointer; transition:all .22s var(--rb-ease); text-decoration:none; }
@@ -66,11 +73,6 @@
 
     /* Form pane */
     .sb-form-pane { padding:40px 56px; background:var(--rb-canvas); display:flex; flex-direction:column; }
-    .sb-progress { margin-bottom:48px; }
-    .sb-progress-track { height:3px; background:var(--rb-fill-2); border-radius:999px; overflow:hidden; }
-    .sb-progress-fill { height:100%; background:var(--rb-accent); border-radius:999px; transition:width .5s var(--rb-ease); }
-    .sb-progress-meta { display:flex; justify-content:space-between; margin-top:10px; font-size:12px; color:var(--rb-ink-3); font-family:var(--rb-font-mono); letter-spacing:.04em; }
-    .sb-meta-right { display:inline-flex; gap:18px; align-items:center; }
     .sb-link { color:var(--rb-ink-3); transition:color .2s; }
     .sb-link b { color:var(--rb-accent); font-weight:700; }
     .sb-link:hover { color:var(--rb-ink); }
@@ -144,7 +146,7 @@
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 
   <script type="text/babel">
-    const { useState, useCallback } = React;
+    const { useState, useCallback, useEffect } = React;
 
     const SUPABASE_URL = 'https://tuojgwrzfecyeiccdrlj.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_jKQSCW7n3hwESw6YHKrZWQ_r3fk62WF';
@@ -245,36 +247,42 @@
     /* ── Form Pane ─────────────────────────────────────── */
     function FormPane() {
       const [loading, setLoading] = useState(false);
+      const [error, setError] = useState('');
+
+      /* Auto-redirect if already signed in */
+      useEffect(() => {
+        sb.auth.getSession().then(({ data: { session } }) => {
+          if (session) window.location.replace('/dashboard');
+        });
+      }, []);
 
       const handleGoogle = useCallback(async () => {
         if (loading) return;
         setLoading(true);
+        setError('');
         try {
-          const { error } = await sb.auth.signInWithOAuth({
+          const { error: oauthError } = await sb.auth.signInWithOAuth({
             provider: 'google',
             options: { redirectTo: 'https://rentybase.com/auth/callback' },
           });
-          if (error) throw error;
+          if (oauthError) throw oauthError;
         } catch (err) {
           console.error(err);
           setLoading(false);
-          alert('Could not connect to Google. Please try again.');
+          setError('Could not connect to Google. Check your connection and try again.');
         }
       }, [loading]);
 
       return (
         <div className="sb-form-pane">
-          {/* Progress */}
-          <div className="sb-progress">
-            <div className="sb-progress-track">
-              <div className="sb-progress-fill" style={{ width: '100%' }} />
-            </div>
-            <div className="sb-progress-meta">
-              <span>Sign in</span>
-              <span className="sb-meta-right">
-                <a href="/signup" className="sb-link">New to RentyBase? <b>Create account</b></a>
-              </span>
-            </div>
+          {/* Top nav strip */}
+          <div className="sb-topnav">
+            <span style={{ fontFamily:'var(--rb-font-mono)', fontSize:12, letterSpacing:'.06em', color:'var(--rb-ink-3)' }}>
+              rentybase.com
+            </span>
+            <a href="/signup" className="sb-link" style={{ fontSize:13 }}>
+              New here? <b>Create account</b>
+            </a>
           </div>
 
           {/* Form wrap */}
@@ -283,7 +291,7 @@
               <p className="sb-step-tag">Sign in</p>
               <h2 className="sb-step-h">Welcome back.</h2>
               <p className="sb-step-p">
-                Sign in with your Google account — the same one you used to sign up. All your data will be right there.
+                Use the same Google account you signed up with. Everything will be right where you left it.
               </p>
 
               {/* Google sign-in button */}
@@ -295,52 +303,45 @@
                 type="button"
               >
                 {loading
-                  ? <><div className="btn-spinner btn-spinner-dark" />Signing in with Google…</>
+                  ? <><div className="btn-spinner btn-spinner-dark" />Connecting to Google…</>
                   : <><GoogleIcon />Sign in with Google</>
                 }
               </button>
+
+              {/* Inline error */}
+              {error && (
+                <div className="sb-error">
+                  <svg className="sb-error-icon" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <circle cx="10" cy="10" r="8"/>
+                    <path d="M10 6v4M10 14h.01" strokeLinecap="round"/>
+                  </svg>
+                  {error}
+                </div>
+              )}
 
               {/* Divider */}
               <div className="sb-divider" style={{ marginTop: 28 }}>
                 <span>or sign in with</span>
               </div>
 
-              {/* Coming soon: Phone, Apple, DigiLocker */}
+              {/* Coming soon methods */}
               <div className="sb-soon-wrap">
-                <div className="sb-soon-inner" style={{ gridTemplateColumns: '1fr' }}>
-                  {/* Phone input row */}
-                  <div className="sb-phone-row">
-                    <div className="sb-phone-cc">
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8">
-                        <path d="M3 12h18M12 3a9 9 0 0 1 0 18A9 9 0 0 1 12 3z"/>
-                        <path d="M12 3c-2 4-2 14 0 18M12 3c2 4 2 14 0 18"/>
-                      </svg>
-                      +91
-                    </div>
-                    <input
-                      className="sb-phone-input"
-                      type="tel"
-                      placeholder="10-digit mobile number"
-                      tabIndex={-1}
-                      readOnly
-                    />
-                  </div>
-
-                  {/* Apple + DigiLocker side by side */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <button className="sb-oauth-btn" tabIndex={-1} type="button">
-                      <AppleIcon />
-                      Apple
-                    </button>
-                    <button className="sb-oauth-btn" tabIndex={-1} type="button">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="2" y="5" width="20" height="14" rx="1"/>
-                        <path d="M2 10h20"/>
-                        <path d="M7 15h2M15 15h2"/>
-                      </svg>
-                      DigiLocker
-                    </button>
-                  </div>
+                <div className="sb-soon-inner" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                  <button className="sb-oauth-btn" tabIndex={-1} type="button">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="17" r="1"/>
+                    </svg>
+                    Phone
+                  </button>
+                  <button className="sb-oauth-btn" tabIndex={-1} type="button">
+                    <AppleIcon />Apple
+                  </button>
+                  <button className="sb-oauth-btn" tabIndex={-1} type="button">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="5" width="20" height="14" rx="1"/><path d="M2 10h20M7 15h2M15 15h2"/>
+                    </svg>
+                    DigiLocker
+                  </button>
                 </div>
                 <span className="sb-soon-badge">Coming soon</span>
               </div>
