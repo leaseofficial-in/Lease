@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
+import { useUIStore } from '../../stores/uiStore';
 import { supabase } from '../../lib/supabase';
 import { AppNotification, Rental, RentPayment, RepairRequest } from '../../types';
 import { formatCurrency, formatDateShort, formatMonth, monthKey } from '../../lib/formatters';
@@ -39,6 +40,7 @@ type PortfolioFilter = 'current' | 'active' | 'setup' | 'ended' | 'archived';
 export default function LandlordDashboard() {
   const router = useRouter();
   const { profile } = useAuthStore();
+  const { showToast } = useUIStore();
   const isLocalDevUser = isDevAuthUserId(profile?.id);
   const [portfolioFilter, setPortfolioFilter] = React.useState<PortfolioFilter>('current');
 
@@ -498,6 +500,35 @@ export default function LandlordDashboard() {
               />
             </View>
           </InkCard>
+
+          {/* ── Quick actions ── */}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {([
+              { icon: '₹', label: 'Pay-in',    ochre: false, onPress: () => router.push('/(landlord)/payments') },
+              { icon: '📄', label: 'Issue HRA', ochre: true,  onPress: () => router.push('/(landlord)/payments') },
+              { icon: '🛠', label: 'Repair',    ochre: false, onPress: () => router.push('/(landlord)/repairs') },
+              { icon: '📨', label: 'Nudge',     ochre: true,  onPress: () => showToast('Reminder sent to all tenants', 'success') },
+            ] as const).map(({ icon, label, ochre, onPress }) => (
+              <TouchableOpacity
+                key={label}
+                onPress={onPress}
+                activeOpacity={0.78}
+                style={{
+                  flex: 1,
+                  backgroundColor: ochre ? Colors.accentSoft : Colors.actionSoft,
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Text style={{ fontSize: 18 }}>{icon}</Text>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 11, color: ochre ? Colors.accent : Colors.action }}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           <TouchableOpacity
             activeOpacity={queueCount ? 0.78 : 1}

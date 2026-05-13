@@ -105,6 +105,8 @@ export default function TenantLayout() {
       />
       <Tabs.Screen name="join" options={{ href: null }} />
       <Tabs.Screen name="proof/upload" options={{ href: null }} />
+      <Tabs.Screen name="proof/view" options={{ href: null }} />
+      <Tabs.Screen name="score" options={{ href: null }} />
       <Tabs.Screen name="agreement" options={{ href: null }} />
       <Tabs.Screen name="deposit" options={{ href: null }} />
       <Tabs.Screen name="pay-rent" options={{ href: null }} />

@@ -8,17 +8,14 @@ import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { Proof, Rental, RentPayment, RepairRequest } from '../../types';
 import { formatCurrency, formatDateShort, formatMonth, formatPhone, monthKey } from '../../lib/formatters';
-import { Card } from '../../components/ui/Card';
-import { StatusPill } from '../../components/ui/StatusPill';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { AppIcon, type AppIconName } from '../../components/ui/Icon';
-import { RentStatusBadge } from '../../components/rental/RentStatusBadge';
 import { ActivityFeed } from '../../components/rental/ActivityFeed';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
-import { Cap, Chip, CollectionRing, InkCard, Sparkline } from '../../components/ui/V2';
+import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
 import { DashboardShell } from '../../components/layout/WebSidebar';
 import { isDevAuthUserId } from '../../lib/devAuth';
@@ -35,7 +32,6 @@ export default function TenantDashboard() {
   const { data: rental, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
     queryFn: async () => {
-      // Prefer the most recently active/joined rental; ignore ended ones unless that's all there is
       const { data: active, error: activeError } = await supabase
         .from('rentals')
         .select(`*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(*)`)
@@ -46,8 +42,6 @@ export default function TenantDashboard() {
         .maybeSingle();
       if (activeError) throw activeError;
       if (active) return active as Rental;
-
-      // Fallback: show most recent ended rental so history isn't blank
       const { data, error } = await supabase
         .from('rentals')
         .select(`*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(*)`)
@@ -85,7 +79,7 @@ export default function TenantDashboard() {
         .select('*')
         .eq('rental_id', rental!.id)
         .order('created_at', { ascending: false })
-        .limit(4);
+        .limit(12);
       if (error) throw error;
       return data as RentPayment[];
     },
@@ -150,12 +144,6 @@ export default function TenantDashboard() {
     enabled: !!rental?.id && !isLocalDevUser,
   });
 
-  // Must be before early return — hooks cannot be called conditionally
-  const sparklinePoints = React.useMemo(() => {
-    if (!recentPayments?.length) return null;
-    return [...recentPayments].reverse().map((p) => p.amount);
-  }, [recentPayments]);
-
   useEffect(() => {
     if (!rental || rental.status !== 'active' || isLocalDevUser) return;
     void scheduleRentReminder(rental.id, rental.rent_due_day, rental.monthly_rent, rental.late_fee_percent ?? 5);
@@ -176,6 +164,7 @@ export default function TenantDashboard() {
   }, [isLoading, isLocalDevUser, rental, router]);
 
   if (isLoading) return <LoadingScreen />;
+
   const activity = rental
     ? buildRentalActivity({
         rental,
@@ -184,7 +173,7 @@ export default function TenantDashboard() {
         proofs: recentProofs ?? [],
       })
     : [];
-  const currentRentMonth = monthKey(new Date());
+
   const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
   const currentDueDate = rental
     ? new Date(new Date().getFullYear(), new Date().getMonth(), Math.min(rental.rent_due_day, 28))
@@ -196,40 +185,80 @@ export default function TenantDashboard() {
     ? Math.ceil((currentDueDate.getTime() - todayMidnight.getTime()) / 86_400_000)
     : null;
 
+  const paidPayments = (recentPayments ?? []).filter((p) => p.status === 'paid');
+  const paidCount = paidPayments.length;
+  const onTimePct = paidCount > 0 ? Math.min(100, Math.round((paidPayments.filter((p) => (p.late_fee ?? 0) === 0).length / paidCount) * 100)) : 100;
+  const hasProof = (recentProofs ?? []).length > 0;
+  const openRepairs = openRepairsCount ?? 0;
+
+  const score = Math.min(900, Math.round(
+    700 + (onTimePct * 0.7) +
+    (currentPayment?.status === 'paid' ? 30 : currentPayment?.status === 'pending_verification' ? 18 : 0) +
+    (hasProof ? 25 : 0) + (openRepairs === 0 ? 15 : 0)
+  ));
+
+  function scoreBand(s: number) {
+    if (s >= 850) return { label: 'EXCELLENT', color: Colors.success };
+    if (s >= 750) return { label: 'TRUSTED',   color: Colors.action  };
+    if (s >= 650) return { label: 'GOOD',      color: Colors.warning };
+    return               { label: 'BUILDING',  color: Colors.muted   };
+  }
+  const { label: bandLabel, color: bandColor } = scoreBand(score);
+
+  // HRA YTD: sum of paid payments this FY (Apr–Mar)
+  const now = new Date();
+  const fyStart = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const hraYtd = paidPayments
+    .filter((p) => {
+      const d = new Date(p.month);
+      return (d.getFullYear() === fyStart && d.getMonth() >= 3) || (d.getFullYear() === fyStart + 1 && d.getMonth() < 3);
+    })
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const firstName = profile?.full_name?.split(' ')[0] || 'there';
+  const isCurrentPaid = currentPayment?.status === 'paid';
+  const nextRentDate = isCurrentPaid ? nextDueDate : currentDueDate;
+  const nextRentMonth = isCurrentPaid
+    ? monthKey(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1))
+    : monthKey(new Date());
+
   return (
   <DashboardShell role="tenant">
-    <SafeAreaView className="flex-1" edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-        contentContainerStyle={{ paddingBottom: 28 }}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.accent} />}
+        contentContainerStyle={{ paddingBottom: 36 }}
       >
+        {/* ── Top bar ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Cap>Tenant Home</Cap>
-            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 22, marginTop: 4 }}>
-              {profile?.full_name?.split(' ')[0] || 'RentyBase'}
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' }}>
+              {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+            </Text>
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.serif, fontSize: 26, lineHeight: 30, letterSpacing: -0.5, marginTop: 2 }}>
+              Hi <Text style={{ fontStyle: 'italic', color: Colors.action }}>{firstName}.</Text>
             </Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TouchableOpacity
               onPress={() => router.push('/(tenant)/notifications')}
               activeOpacity={0.75}
-              style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.borderSoft, alignItems: 'center', justifyContent: 'center' }}
             >
-              <Ionicons name="notifications-outline" size={20} color={Colors.primary} />
+              <Ionicons name="notifications-outline" size={18} color={Colors.primary} />
               {(unreadNotifCount ?? 0) > 0 && (
-                <View style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.danger, borderWidth: 1.5, borderColor: Colors.background }} />
+                <View style={{ position: 'absolute', top: 7, right: 7, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accent, borderWidth: 2, borderColor: Colors.background }} />
               )}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/(tenant)/profile')} activeOpacity={0.75}>
-              <Avatar name={profile?.full_name ?? 'T'} uri={profile?.avatar_url} size={42} />
+              <Avatar name={profile?.full_name ?? 'T'} uri={profile?.avatar_url} size={36} />
             </TouchableOpacity>
           </View>
         </View>
 
         {!rental ? (
-          <View className="px-5 pt-8">
+          <View style={{ paddingHorizontal: 20, paddingTop: 32 }}>
             <EmptyState
               title="No rental yet"
               subtitle="Ask your landlord for an invite link, then join the rental from here."
@@ -239,276 +268,223 @@ export default function TenantDashboard() {
             />
           </View>
         ) : (
-          <View className="px-5 pt-2 gap-4">
-            <InkCard>
-              <View className="flex-row items-start justify-between">
-                <View className="flex-1 pr-4">
-                  <Cap style={{ color: 'rgba(255,255,255,0.58)' }}>Current Rental</Cap>
-                  <Text
-                    numberOfLines={2}
-                    style={{ color: Colors.surface, fontFamily: Fonts.serif, fontSize: 36, lineHeight: 37, marginTop: 8 }}
-                  >
-                    {rental.property?.name ?? 'Your home'}
-                  </Text>
-                  {(rental.room_number || rental.room_label) && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                      <View style={{
-                        flexDirection: 'row', alignItems: 'center', gap: 5,
-                        backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8,
-                        paddingHorizontal: 9, paddingVertical: 4,
-                      }}>
-                        <Ionicons name="bed-outline" size={13} color="rgba(255,255,255,0.8)" />
-                        <Text style={{ color: 'rgba(255,255,255,0.9)', fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-                          {rental.room_number ? `Room ${rental.room_number}` : ''}
-                          {rental.room_number && rental.room_label ? ' · ' : ''}
-                          {rental.room_label ?? ''}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-                  <Text
-                    numberOfLines={2}
-                    style={{ color: 'rgba(255,255,255,0.68)', fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginTop: 10 }}
-                  >
-                    {rental.property?.address_line1}, {rental.property?.city}
-                  </Text>
-                </View>
-                <CollectionRing value={currentPayment?.status === 'paid' ? 100 : 0} label={currentPayment?.status === 'paid' ? 'Paid' : 'Due'} inverse />
-              </View>
+          <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 12 }}>
 
-              <View className="flex-row mt-6 gap-2">
-                <Chip tone={rental.status === 'active' ? 'good' : 'warn'}>
-                  {rental.status === 'active' ? 'Active' : 'Setup'}
-                </Chip>
-                <Chip tone="outline" inverse>{formatCurrency(rental.monthly_rent, true)}/mo</Chip>
-              </View>
-            </InkCard>
-
-            {currentPayment?.status === 'overdue' && (
-              <Card style={{ backgroundColor: Colors.dangerSoft, borderColor: '#F5B8B5' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.danger, alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="alert-circle" size={22} color="#fff" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: Colors.danger, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>Rent Overdue</Text>
-                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, marginTop: 2 }}>
-                      {(currentPayment?.late_fee ?? 0) > 0
-                        ? `Includes ${formatCurrency(currentPayment!.late_fee)} late fee. Pay now to clear your dues.`
-                        : `Payment was due on the ${rental.rent_due_day}th. Pay now to avoid late fees.`}
-                    </Text>
-                  </View>
-                </View>
-                <Button title="Pay Now - Overdue" variant="danger" onPress={() => router.push('/(tenant)/pay-rent')} fullWidth size="lg" />
-              </Card>
-            )}
-
-            {currentPayment && (
-              <Card>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <Cap>{formatMonth(currentRentMonth)} Rent</Cap>
-                  <StatusPill kind="payment" value={currentPayment.status} />
-                </View>
-                <RentStatusBadge payment={currentPayment} />
-                {/* Due date urgency row */}
-                {currentPayment.status === 'pending' && daysUntilDue !== null && (
-                  <View style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10,
-                    backgroundColor: daysUntilDue === 0 ? Colors.dangerSoft : daysUntilDue <= 3 ? Colors.warningSoft : Colors.fill,
-                    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7,
-                  }}>
-                    <Ionicons
-                      name={daysUntilDue === 0 ? 'alert-circle-outline' : daysUntilDue <= 3 ? 'time-outline' : 'calendar-outline'}
-                      size={14}
-                      color={daysUntilDue === 0 ? Colors.danger : daysUntilDue <= 3 ? Colors.warning : Colors.muted}
-                    />
-                    <Text style={{
-                      fontFamily: Fonts.sansMedium, fontSize: 13,
-                      color: daysUntilDue === 0 ? Colors.danger : daysUntilDue <= 3 ? Colors.warning : Colors.muted,
-                    }}>
-                      {daysUntilDue === 0
-                        ? `Due today — pay before midnight to avoid late fees`
-                        : daysUntilDue === 1
-                        ? 'Due tomorrow'
-                        : `Due in ${daysUntilDue} days · ${currentDueDate ? formatDateShort(currentDueDate.toISOString()) : ''}`}
-                    </Text>
-                  </View>
-                )}
-                {currentPayment.status === 'paid' && nextDueDate && (
-                  <Text style={{ color: Colors.success, fontFamily: Fonts.sansMedium, fontSize: 12, marginTop: 8 }}>
-                    Next rent due {formatDateShort(nextDueDate.toISOString())}
-                  </Text>
-                )}
-                {currentPayment.status === 'pending_verification' && (
-                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 8 }}>
-                    Submitted — waiting for landlord to confirm
-                  </Text>
-                )}
-                {currentPayment.status !== 'paid' && currentPayment.status !== 'overdue' && currentPayment.status !== 'pending_verification' && (
-                  <Button
-                    title="Pay Now"
-                    onPress={() => router.push('/(tenant)/pay-rent')}
-                    fullWidth
-                    size="lg"
-                    style={{ marginTop: 10 }}
-                  />
-                )}
-              </Card>
-            )}
-
-            {/* Agreement sign nudge */}
-            {rental.agreement_url && !rental.agreement_signed_at && (
-              <Card style={{ backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <Ionicons name="document-text-outline" size={20} color={Colors.warning} />
-                  <Text style={{ color: Colors.warning, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
-                    Agreement Ready to Sign
-                  </Text>
-                </View>
-                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
-                  Your landlord has prepared the rental agreement. Review and sign it to finalise your tenancy.
+            {/* ── Ochre hero — Next rent ── */}
+            <View style={{
+              borderRadius: 22, padding: 22, overflow: 'hidden',
+              backgroundColor: '#2A1E15',
+            }}>
+              {/* Background gradient overlay via absolute layer */}
+              <View style={{ position: 'absolute', top: 0, right: 0, width: '60%', height: '100%', borderRadius: 22 }}
+                pointerEvents="none"
+              />
+              <Text style={{ color: 'rgba(246,244,238,0.65)', fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: '600' }}>
+                {isCurrentPaid ? 'NEXT RENT · ' : 'DUE · '}{formatMonth(nextRentMonth).toUpperCase()}
+              </Text>
+              <Text style={{ color: '#F6F4EE', fontFamily: Fonts.sansSemiBold, fontSize: 44, lineHeight: 50, letterSpacing: -1.5, marginTop: 4 }}>
+                {formatCurrency(rental.monthly_rent)}
+              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                <Text style={{ color: 'rgba(246,244,238,0.85)', fontFamily: Fonts.sans, fontSize: 13 }}>
+                  {nextRentDate && daysUntilDue !== null && daysUntilDue > 0
+                    ? <>Due in <Text style={{ color: '#fff', fontWeight: '700' }}>{daysUntilDue} days</Text> · {nextRentDate.getDate()} {nextRentDate.toLocaleString('en-IN', { month: 'short' })}</>
+                    : daysUntilDue === 0
+                    ? <Text style={{ color: Colors.accent }}>Due today</Text>
+                    : isCurrentPaid
+                    ? <Text style={{ color: '#7AEFC0' }}>All clear this month ✓</Text>
+                    : 'Pay when ready'}
                 </Text>
-                <Button
-                  title="Review & Sign Agreement"
-                  onPress={() => router.push('/(tenant)/agreement')}
-                  fullWidth
-                />
-              </Card>
+                {isCurrentPaid && (
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
+                    <Text style={{ color: '#fff', fontFamily: Fonts.mono, fontSize: 9, fontWeight: '700', letterSpacing: 0.4 }}>
+                      {formatMonth(monthKey(new Date())).toUpperCase().slice(0, 3)} PAID ✓
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
+                <TouchableOpacity
+                  onPress={() => router.push('/(tenant)/pay-rent')}
+                  activeOpacity={0.85}
+                  style={{ flex: 1, paddingVertical: 13, backgroundColor: '#fff', borderRadius: 12, alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#0E1413', fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>Pay via UPI →</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push('/(tenant)/rent-history')}
+                  activeOpacity={0.85}
+                  style={{ paddingVertical: 13, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 12, alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>History</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* ── Agreement / move-out nudges ── */}
+            {rental.agreement_url && !rental.agreement_signed_at && (
+              <TouchableOpacity
+                onPress={() => router.push('/(tenant)/agreement')}
+                activeOpacity={0.85}
+                style={{ backgroundColor: Colors.warningSoft, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#F1D39B' }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.warning, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="document-text-outline" size={18} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: Colors.warning, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>Agreement ready to sign</Text>
+                  <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>Tap to review and sign</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={Colors.warning} />
+              </TouchableOpacity>
             )}
 
             {rental.status === 'pending_moveout' && (
-              <Card style={{ backgroundColor: '#EDE9FE', borderColor: '#C4B5FD' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <Ionicons name="exit-outline" size={20} color="#7C3AED" />
-                  <Text style={{ color: '#7C3AED', fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
-                    Move-out requested
-                  </Text>
+              <TouchableOpacity
+                onPress={() => router.push({ pathname: '/(tenant)/proof/upload', params: { type: 'move_out' } })}
+                activeOpacity={0.85}
+                style={{ backgroundColor: '#EDE9FE', borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#C4B5FD' }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="exit-outline" size={18} color="#fff" />
                 </View>
-                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
-                  Your landlord has initiated a move-out. Please upload photos of all rooms to complete the handover.
-                </Text>
-                <Button
-                  title="Upload Move-out Photos"
-                  onPress={() => router.push({ pathname: '/(tenant)/proof/upload', params: { type: 'move_out' } })}
-                  fullWidth
-                />
-              </Card>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#7C3AED', fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>Upload move-out photos</Text>
+                  <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>Complete your handover</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color="#7C3AED" />
+              </TouchableOpacity>
             )}
 
-            <View className="flex-row gap-3">
-              <ActionTile label="Proof" icon="camera-outline" onPress={() => router.push('/(tenant)/proof/upload')} />
-              <ActionTile label="Docs" icon="folder-open-outline" onPress={() => router.push('/(tenant)/documents')} />
-              <ActionTile
-                label="Rent"
-                icon="receipt-outline"
+            {/* ── Score + HRA 2-col ── */}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => router.push('/(tenant)/score' as never)}
+                activeOpacity={0.82}
+                style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.borderSoft }}
+              >
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: '600' }}>TENANT SCORE</Text>
+                <Text style={{ color: bandColor, fontFamily: Fonts.sansBold, fontSize: 34, lineHeight: 38, letterSpacing: -1, marginTop: 4 }}>{score}</Text>
+                <View style={{ backgroundColor: bandColor + '1A', borderRadius: 20, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, marginTop: 6 }}>
+                  <Text style={{ color: bandColor, fontFamily: Fonts.mono, fontSize: 9, fontWeight: '700', letterSpacing: 0.4 }}>{bandLabel}</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
                 onPress={() => router.push('/(tenant)/rent-history')}
-                badge={currentPayment?.status === 'overdue' ? '!' : undefined}
-                badgeColor={Colors.danger}
-              />
-              <ActionTile
-                label="Repairs"
-                icon="construct-outline"
-                onPress={() => router.push('/(tenant)/repairs')}
-                badge={(openRepairsCount ?? 0) > 0 ? String(openRepairsCount) : undefined}
-                badgeColor={Colors.warning}
-              />
+                activeOpacity={0.82}
+                style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.borderSoft }}
+              >
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: '600' }}>HRA YTD</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 34, lineHeight: 38, letterSpacing: -1, marginTop: 4 }}>
+                  {formatCurrency(hraYtd > 0 ? hraYtd : rental.monthly_rent * (paidCount || 1), true)}
+                </Text>
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 11, marginTop: 4 }}>Est. tax saved this year</Text>
+              </TouchableOpacity>
             </View>
 
-            <TenantScoreCard
-              recentPayments={recentPayments ?? []}
-              currentPaymentStatus={currentPayment?.status}
-              hasProof={(recentProofs ?? []).length > 0}
-              openRepairs={openRepairsCount ?? 0}
-            />
-
-            <Card>
-              <View className="flex-row items-center justify-between mb-3">
-                <Cap>Rental Terms</Cap>
-                <StatusPill kind="rental" value={rental.status} />
+            {/* ── Landlord card ── */}
+            {rental.landlord && (
+              <View style={{ backgroundColor: Colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.borderSoft, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Avatar name={rental.landlord.full_name || 'L'} uri={rental.landlord.avatar_url} size={42} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
+                    {rental.landlord.full_name || 'Name not set'}
+                  </Text>
+                  <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 11, marginTop: 2 }}>
+                    Landlord · ✓ Verified
+                  </Text>
+                </View>
+                {rental.landlord.phone && (
+                  <TouchableOpacity
+                    onPress={() => void Linking.openURL(`tel:${rental.landlord!.phone}`)}
+                    activeOpacity={0.75}
+                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.action, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Ionicons name="call" size={16} color="#fff" />
+                  </TouchableOpacity>
+                )}
               </View>
-              {sparklinePoints && sparklinePoints.length > 1 && (
-                <Sparkline points={sparklinePoints} height={42} />
-              )}
-              <View className="flex-row justify-between mt-4">
-                <InfoItem label="Rent" value={`${formatCurrency(rental.monthly_rent, true)}/mo`} />
-                <InfoItem label="Deposit" value={formatCurrency(rental.security_deposit, true)} />
-                <InfoItem label="Due Day" value={`${rental.rent_due_day}`} align="right" />
-              </View>
-            </Card>
+            )}
 
-            {/* Deposit quick-view */}
+            {/* ── Quick actions 2×2 grid ── */}
+            <View>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.serif, fontSize: 19, letterSpacing: -0.3 }}>Quick</Text>
+              </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <QuickRow
+                  icon="receipt-outline"
+                  iconBg={Colors.accentSoft}
+                  iconColor={Colors.accent}
+                  title="HRA receipts"
+                  sub={paidCount > 0 ? `${paidCount} sealed · FY ${fyStart}–${String(fyStart + 1).slice(2)}` : 'View receipts'}
+                  onPress={() => router.push('/(tenant)/rent-history')}
+                />
+                <QuickRow
+                  icon="camera-outline"
+                  iconBg={Colors.actionSoft}
+                  iconColor={Colors.action}
+                  title="Move-in proof"
+                  sub={(recentProofs ?? []).length > 0 ? `${(recentProofs ?? []).length} sealed` : 'Upload photos'}
+                  onPress={() => router.push('/(tenant)/proof/upload')}
+                />
+                <QuickRow
+                  icon="construct-outline"
+                  iconBg={Colors.fill2}
+                  iconColor={Colors.ink3}
+                  title="Raise repair"
+                  sub={openRepairs > 0 ? `${openRepairs} in progress` : 'No open requests'}
+                  badge={openRepairs > 0 ? String(openRepairs) : undefined}
+                  onPress={() => router.push('/(tenant)/repairs')}
+                />
+                <QuickRow
+                  icon="star-outline"
+                  iconBg={bandColor + '1A'}
+                  iconColor={bandColor}
+                  title="My score"
+                  sub={`${score} / 900`}
+                  onPress={() => router.push('/(tenant)/score' as never)}
+                />
+              </View>
+            </View>
+
+            {/* ── Activity ── */}
+            {activity.length > 0 && (
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.serif, fontSize: 19, letterSpacing: -0.3 }}>Activity</Text>
+                  <TouchableOpacity onPress={() => router.push('/(tenant)/rent-history')} activeOpacity={0.75}>
+                    <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 12 }}>All →</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{ backgroundColor: Colors.surface, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSoft, overflow: 'hidden' }}>
+                  <ActivityFeed items={activity} limit={3} />
+                </View>
+              </View>
+            )}
+
+            {/* ── Deposit quick-view ── */}
             {(rental.security_deposit ?? 0) > 0 && (
               <TouchableOpacity
                 onPress={() => router.push('/(tenant)/deposit')}
                 activeOpacity={0.82}
-                style={{
-                  backgroundColor: Colors.surface, borderRadius: 18,
-                  borderWidth: 1, borderColor: Colors.border,
-                  padding: 16, flexDirection: 'row', alignItems: 'center',
-                }}
+                style={{ backgroundColor: Colors.surface, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSoft, padding: 14, flexDirection: 'row', alignItems: 'center' }}
               >
-                <View style={{
-                  width: 42, height: 42, borderRadius: 13,
-                  backgroundColor: Colors.actionSoft, alignItems: 'center', justifyContent: 'center', marginRight: 14,
-                }}>
-                  <Ionicons name="shield-checkmark-outline" size={20} color={Colors.action} />
+                <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: Colors.actionSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color={Colors.action} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
                     {formatCurrency(rental.security_deposit)} Deposit
                   </Text>
-                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, marginTop: 1 }}>
-                    Held by landlord · Tap to view breakdown
+                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 1 }}>
+                    Held by landlord · Tap to view
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={Colors.muted} />
+                <Ionicons name="chevron-forward" size={14} color={Colors.muted} />
               </TouchableOpacity>
             )}
 
-            {rental.landlord && (
-              <Card>
-                <Cap style={{ marginBottom: 12 }}>Your Landlord</Cap>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Avatar
-                    name={rental.landlord.full_name || 'Landlord'}
-                    uri={rental.landlord.avatar_url}
-                    size={44}
-                  />
-                  <View style={{ marginLeft: 12, flex: 1 }}>
-                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
-                      {rental.landlord.full_name || 'Name not set'}
-                    </Text>
-                    <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, marginTop: 2 }}>
-                      {formatPhone(rental.landlord.phone)}
-                    </Text>
-                  </View>
-                  {rental.landlord.phone && (
-                    <TouchableOpacity
-                      onPress={() => void Linking.openURL(`tel:${rental.landlord!.phone}`)}
-                      activeOpacity={0.75}
-                      style={{
-                        width: 40, height: 40, borderRadius: 20,
-                        backgroundColor: Colors.successSoft,
-                        alignItems: 'center', justifyContent: 'center',
-                        marginLeft: 8,
-                      }}
-                    >
-                      <Ionicons name="call" size={18} color={Colors.success} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </Card>
-            )}
-
-            <Card>
-              <View className="flex-row items-center justify-between mb-1">
-                <Cap>Timeline</Cap>
-                <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11 }}>
-                  Shared ledger
-                </Text>
-              </View>
-              <ActivityFeed items={activity} limit={5} />
-            </Card>
           </View>
         )}
       </ScrollView>
@@ -517,130 +493,51 @@ export default function TenantDashboard() {
   );
 }
 
-function scoreBand(score: number) {
-  if (score >= 850) return { label: 'EXCELLENT', color: Colors.success };
-  if (score >= 750) return { label: 'TRUSTED',   color: Colors.action  };
-  if (score >= 650) return { label: 'GOOD',      color: Colors.warning };
-  if (score >= 550) return { label: 'FAIR',      color: '#B8740F'      };
-  return               { label: 'BUILDING',  color: Colors.muted   };
-}
-
-function TenantScoreCard({
-  recentPayments,
-  currentPaymentStatus,
-  hasProof,
-  openRepairs,
-}: {
-  recentPayments: RentPayment[];
-  currentPaymentStatus: string | undefined;
-  hasProof: boolean;
-  openRepairs: number;
-}) {
-  const paidCount = recentPayments.filter((p) => p.status === 'paid').length;
-  const onTimePct = recentPayments.length > 0 ? Math.round((paidCount / recentPayments.length) * 100) : 0;
-  const currentPaid = currentPaymentStatus === 'paid' ? 100 : currentPaymentStatus === 'pending_verification' ? 60 : 0;
-  const proofPct = hasProof ? 100 : 0;
-  const repairScore = openRepairs === 0 ? 100 : Math.max(0, 100 - openRepairs * 20);
-
-  const score = Math.min(900, Math.round(
-    700 +
-    (onTimePct * 0.7) +
-    (currentPaid * 0.3) +
-    (hasProof ? 25 : 0) +
-    (openRepairs === 0 ? 15 : 0)
-  ));
-  const { label: band, color } = scoreBand(score);
-  const metrics = [
-    { label: 'On-time payments', pct: onTimePct,   sublabel: `${paidCount} / ${recentPayments.length} paid` },
-    { label: 'Move-in proof',    pct: proofPct,    sublabel: hasProof ? 'Submitted' : 'Not yet' },
-    { label: 'Repair backlog',   pct: repairScore, sublabel: openRepairs > 0 ? `${openRepairs} open` : 'None open' },
-  ];
-  return (
-    <View style={{
-      backgroundColor: Colors.surface, borderRadius: 20,
-      borderWidth: 1, borderColor: Colors.border, padding: 18,
-    }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-        <View>
-          <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 1, marginBottom: 4 }}>TENANT SCORE</Text>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 38, lineHeight: 40 }}>{score}</Text>
-          <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10 }}> / 900</Text>
-        </View>
-        <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: color + '18' }}>
-          <Text style={{ color, fontFamily: Fonts.sansBold, fontSize: 12, letterSpacing: 0.5 }}>{band}</Text>
-        </View>
-      </View>
-      {metrics.map((m, i) => (
-        <View key={i} style={{ marginBottom: i < 2 ? 10 : 0 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 12 }}>{m.label}</Text>
-            <Text style={{ color: Colors.ink2, fontFamily: Fonts.sansMedium, fontSize: 12 }}>{m.sublabel}</Text>
-          </View>
-          <View style={{ height: 5, backgroundColor: Colors.fill2, borderRadius: 3 }}>
-            <View style={{ height: 5, width: `${m.pct}%`, backgroundColor: color, borderRadius: 3 }} />
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function ActionTile({
-  label,
+function QuickRow({
   icon,
-  onPress,
+  iconBg,
+  iconColor,
+  title,
+  sub,
   badge,
-  badgeColor = Colors.danger,
+  onPress,
 }: {
-  label: string;
   icon: AppIconName;
-  onPress: () => void;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  sub: string;
   badge?: string;
-  badgeColor?: string;
+  onPress: () => void;
 }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={{ flex: 1, minHeight: 86, borderRadius: 20, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' }}
       activeOpacity={0.78}
+      style={{
+        width: '48.5%',
+        backgroundColor: Colors.surface,
+        borderRadius: 14,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: Colors.borderSoft,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+      }}
     >
-      <View style={{ position: 'relative', marginBottom: 6 }}>
-        <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center' }}>
-          <AppIcon name={icon} size={17} color={Colors.primary} />
-        </View>
+      <View style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: iconBg, alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative' }}>
+        <AppIcon name={icon} size={16} color={iconColor} />
         {badge && (
-          <View style={{
-            position: 'absolute', top: -4, right: -6,
-            minWidth: 16, height: 16, borderRadius: 8,
-            backgroundColor: badgeColor,
-            alignItems: 'center', justifyContent: 'center',
-            paddingHorizontal: 3,
-            borderWidth: 1.5, borderColor: Colors.surface,
-          }}>
-            <Text style={{ color: '#fff', fontSize: 9, fontFamily: Fonts.sansBold, lineHeight: 11 }}>{badge}</Text>
+          <View style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: 7, backgroundColor: Colors.warning, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: Colors.surface }}>
+            <Text style={{ color: '#fff', fontSize: 8, fontFamily: Fonts.sansBold, lineHeight: 10 }}>{badge}</Text>
           </View>
         )}
       </View>
-      <Text numberOfLines={1} style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12 }}>{label}</Text>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>{title}</Text>
+        <Text numberOfLines={1} style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 11, marginTop: 1 }}>{sub}</Text>
+      </View>
     </TouchableOpacity>
-  );
-}
-
-function InfoItem({
-  label,
-  value,
-  align = 'left',
-}: {
-  label: string;
-  value: string;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <View style={{ flex: 1, minWidth: 0, alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
-      <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11 }}>{label}</Text>
-      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginTop: 2 }}>
-        {value}
-      </Text>
-    </View>
   );
 }

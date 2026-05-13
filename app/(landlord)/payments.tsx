@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +44,21 @@ export default function LandlordPaymentsScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [confirmingPayment, setConfirmingPayment] = useState<PaymentWithRental | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [confirmStep, setConfirmStep] = useState<0 | 1>(0);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const burstAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!confirmingPayment) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.3, duration: 600, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [confirmingPayment, pulseAnim]);
 
   const { data: payments, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['landlord-payments', profile?.id],
@@ -127,8 +142,10 @@ export default function LandlordPaymentsScreen() {
         queryClient.invalidateQueries({ queryKey: ['landlord-payments'] }),
         queryClient.invalidateQueries({ queryKey: ['landlord-payment-actions'] }),
       ]);
-      setConfirmingPayment(null);
-      showToast('Payment confirmed', 'success');
+      // Transition to sealed screen
+      setConfirmStep(1);
+      burstAnim.setValue(0);
+      Animated.timing(burstAnim, { toValue: 1, duration: 500, useNativeDriver: true, easing: Easing.out(Easing.back(1.6)) }).start();
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Failed to confirm payment', 'error');
     } finally {
@@ -387,27 +404,30 @@ export default function LandlordPaymentsScreen() {
       {/* Confirm payment bottom sheet */}
       <BottomSheet
         visible={!!confirmingPayment}
-        onClose={() => { if (!confirming) setConfirmingPayment(null); }}
+        onClose={() => {
+          if (!confirming) {
+            setConfirmingPayment(null);
+            setConfirmStep(0);
+          }
+        }}
         scrollable
       >
-        {confirmingPayment && (
+        {confirmingPayment && confirmStep === 0 && (
           <>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <View style={{
-                width: 44, height: 44, borderRadius: 22,
-                backgroundColor: Colors.warningSoft, alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Ionicons name="cash-outline" size={22} color={Colors.warning} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>
-                  Confirm payment?
-                </Text>
-                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>
-                  {confirmingPayment.rental?.property?.name}
-                </Text>
-              </View>
+            {/* MLAccept — live incoming header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <Animated.View style={{ opacity: pulseAnim, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.success }} />
+              <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+                Live incoming payment
+              </Text>
             </View>
+
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.serif, fontSize: 38, letterSpacing: -1, lineHeight: 44, marginBottom: 4 }}>
+              {formatCurrency(confirmingPayment.amount)}
+            </Text>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 14, marginBottom: 20 }}>
+              {confirmingPayment.rental?.property?.name} · {formatMonth(confirmingPayment.month)}
+            </Text>
 
             <View style={{ backgroundColor: Colors.fill, borderRadius: 14, padding: 16, gap: 10, marginBottom: 20 }}>
               <ConfirmRow label="Month" value={formatMonth(confirmingPayment.month)} />
@@ -425,22 +445,107 @@ export default function LandlordPaymentsScreen() {
               )}
             </View>
 
-            <Button
-              title="Mark as Received"
-              onPress={handleConfirm}
-              loading={confirming}
-              fullWidth
-              size="lg"
-            />
+            <View style={{ backgroundColor: Colors.fill, borderRadius: 14, padding: 14, marginBottom: 20, gap: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>Amount received</Text>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>{formatCurrency(confirmingPayment.amount)}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>HRA receipt</Text>
+                <Text style={{ color: Colors.success, fontFamily: Fonts.sansMedium, fontSize: 13 }}>Auto-issued</Text>
+              </View>
+              <View style={{ height: 1, backgroundColor: Colors.border }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>Net credited</Text>
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>{formatCurrency(confirmingPayment.amount)}</Text>
+              </View>
+            </View>
+
+            <Button title="Confirm receipt →" onPress={handleConfirm} loading={confirming} fullWidth size="lg" />
             <Button
               title="Cancel"
               variant="ghost"
-              onPress={() => setConfirmingPayment(null)}
+              onPress={() => { setConfirmingPayment(null); setConfirmStep(0); }}
               disabled={confirming}
               fullWidth
               style={{ marginTop: 8 }}
             />
           </>
+        )}
+
+        {confirmingPayment && confirmStep === 1 && (
+          /* MLSealed */
+          <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+            {/* Burst rays */}
+            <View style={{ width: 120, height: 120, alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+              {Array.from({ length: 12 }).map((_, i) => {
+                const angle = (i / 12) * Math.PI * 2;
+                const tx = burstAnim.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(angle) * 44] });
+                const ty = burstAnim.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(angle) * 44] });
+                return (
+                  <Animated.View
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      width: 3, height: 14,
+                      borderRadius: 2,
+                      backgroundColor: Colors.accent,
+                      opacity: burstAnim,
+                      transform: [{ translateX: tx }, { translateY: ty }, { rotate: `${(i / 12) * 360}deg` }],
+                    }}
+                  />
+                );
+              })}
+              {/* Seal circle */}
+              <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.action, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="checkmark" size={36} color="#fff" />
+              </View>
+            </View>
+
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.serif, fontSize: 30, letterSpacing: -0.8, textAlign: 'center', marginBottom: 4 }}>
+              Rent confirmed.
+            </Text>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+              {formatMonth(confirmingPayment.month)} · {formatCurrency(confirmingPayment.amount)}
+            </Text>
+
+            {/* Sealed receipt card */}
+            <View style={{ width: '100%', backgroundColor: Colors.fill, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16, marginBottom: 14 }}>
+              {[
+                { l: 'Property', v: confirmingPayment.rental?.property?.name ?? '—' },
+                { l: 'Month', v: formatMonth(confirmingPayment.month) },
+                { l: 'Amount', v: formatCurrency(confirmingPayment.amount) },
+                { l: 'Method', v: PAYMENT_METHOD_LABEL[confirmingPayment.payment_method ?? ''] ?? '—' },
+              ].map(({ l, v }) => (
+                <View key={l} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
+                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>{l}</Text>
+                  <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>{v}</Text>
+                </View>
+              ))}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.border }}>
+                <Ionicons name="lock-closed" size={12} color={Colors.muted} />
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10 }}>SEALED · APPEND-ONLY</Text>
+              </View>
+            </View>
+
+            {/* Tenant notification card */}
+            {confirmingPayment.rental?.tenant_id && (
+              <View style={{ width: '100%', backgroundColor: Colors.actionSoft, borderRadius: 14, padding: 14, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="notifications-outline" size={18} color={Colors.action} />
+                <Text style={{ color: Colors.action, fontFamily: Fonts.sansMedium, fontSize: 13, flex: 1 }}>
+                  HRA receipt sent to tenant
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              onPress={() => { setConfirmingPayment(null); setConfirmStep(0); showToast('Payment confirmed', 'success'); }}
+              activeOpacity={0.82}
+              style={{ width: '100%', backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' }}
+            >
+              <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>Done →</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </BottomSheet>
     </SafeAreaView>

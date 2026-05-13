@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -154,29 +153,28 @@ export default function PropertiesScreen() {
         contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
       >
-        {/* Summary strip */}
-        <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingTop: 16, flexWrap: 'wrap' }}>
-          <SummaryTile
-            label="PORTFOLIO"
-            value={String(propertyGroups.length)}
-            unit="properties"
-            sub={`${stats.paid.length} paid · ${stats.due.length} due`}
-          />
-          <SummaryTile
-            label="MONTHLY RENT"
-            value={formatCurrency(stats.totalMonthly, true)}
-            sub={`${formatCurrency(stats.collectedAmt, true)} collected · ${formatCurrency(stats.pendingAmt, true)} pending`}
-          />
-          <SummaryTile
-            label="FY INCOME (YTD)"
-            value={formatCurrency(stats.ytdTotal, true)}
-            progress={stats.totalMonthly > 0 ? Math.min(1, stats.ytdTotal / (stats.totalMonthly * 12)) : 0}
-          />
-          <SummaryTile
-            label="DEPOSIT HELD"
-            value={formatCurrency(stats.totalDeposit, true)}
-            sub={`across ${stats.nonEnded.length} tenancy${stats.nonEnded.length !== 1 ? 'ies' : ''}`}
-          />
+        {/* Portfolio hero card */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <View style={{ backgroundColor: Colors.action, borderRadius: 22, padding: 22 }}>
+            <Text style={{ color: 'rgba(246,244,238,0.55)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 1.4, textTransform: 'uppercase' }}>
+              MONTHLY RENT ROLL
+            </Text>
+            <Text style={{ color: '#F6F4EE', fontFamily: Fonts.serif, fontSize: 42, letterSpacing: -1.2, lineHeight: 48, marginTop: 4 }}>
+              {formatCurrency(stats.totalMonthly, true)}
+            </Text>
+            <View style={{ flexDirection: 'row', marginTop: 16, gap: 0 }}>
+              {[
+                { l: 'Properties', v: String(propertyGroups.length) },
+                { l: 'Active', v: String(stats.active.length) },
+                { l: 'FY income', v: formatCurrency(stats.ytdTotal, true) },
+              ].map(({ l, v }, i) => (
+                <View key={l} style={{ flex: 1, borderLeftWidth: i > 0 ? 1 : 0, borderLeftColor: 'rgba(246,244,238,0.15)', paddingLeft: i > 0 ? 14 : 0 }}>
+                  <Text style={{ color: 'rgba(246,244,238,0.5)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>{l}</Text>
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: '#F6F4EE', fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>{v}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         </View>
 
         {/* Property cards */}
@@ -219,58 +217,6 @@ export default function PropertiesScreen() {
       </ScrollView>
     </SafeAreaView>
   </DashboardShell>
-  );
-}
-
-// ── Summary tile ──────────────────────────────────────────────────────────────
-
-function SummaryTile({
-  label,
-  value,
-  unit,
-  sub,
-  progress,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  sub?: string;
-  progress?: number;
-}) {
-  const isWide = Platform.OS === 'web';
-  return (
-    <View
-      style={{
-        flex: 1,
-        minWidth: 140,
-        backgroundColor: Colors.surface,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        borderRadius: 14,
-        padding: 16,
-      }}
-    >
-      <Text numberOfLines={1} style={{ fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 1.4, color: Colors.muted, textTransform: 'uppercase' }}>
-        {label}
-      </Text>
-      <Text
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.65}
-        style={{ fontFamily: Fonts.serif, fontSize: 26, lineHeight: 30, letterSpacing: -0.5, color: Colors.primary, marginTop: 8 }}
-      >
-        {value}
-        {unit ? <Text style={{ fontFamily: Fonts.sans, fontSize: 13, color: Colors.ink3 }}> {unit}</Text> : null}
-      </Text>
-      {sub ? (
-        <Text numberOfLines={2} style={{ fontFamily: Fonts.sans, fontSize: 11, color: Colors.ink3, marginTop: 6, lineHeight: 16 }}>{sub}</Text>
-      ) : null}
-      {progress !== undefined ? (
-        <View style={{ height: 3, backgroundColor: Colors.fill2, borderRadius: 2, marginTop: 10, overflow: 'hidden' }}>
-          <View style={{ height: '100%', backgroundColor: Colors.action, borderRadius: 2, width: `${Math.round(progress * 100)}%` }} />
-        </View>
-      ) : null}
-    </View>
   );
 }
 

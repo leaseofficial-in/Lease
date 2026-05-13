@@ -38,6 +38,15 @@ const schema = z.object({
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
 });
 
+type RepairCategory = 'plumbing' | 'electric' | 'appliance' | 'other';
+
+const CATEGORIES: { id: RepairCategory; icon: string; label: string; placeholder: string }[] = [
+  { id: 'plumbing',  icon: '🚿', label: 'Plumbing',  placeholder: 'e.g. Geyser leaking near valve' },
+  { id: 'electric',  icon: '⚡', label: 'Electric',  placeholder: 'e.g. Socket sparking in bedroom' },
+  { id: 'appliance', icon: '❄️', label: 'Appliance', placeholder: 'e.g. AC not cooling properly' },
+  { id: 'other',     icon: '🚪', label: 'Other',     placeholder: 'e.g. Wardrobe door broken' },
+];
+
 type FormValues = z.infer<typeof schema>;
 type RepairFilter = 'all' | 'open' | 'in_progress' | 'done';
 
@@ -114,6 +123,7 @@ export default function RepairsScreen() {
   const [filter, setFilter] = useState<RepairFilter>('all');
   const [repairPhotos, setRepairPhotos] = useState<string[]>([]);
   const [selectedRepair, setSelectedRepair] = useState<RepairRequest | null>(null);
+  const [category, setCategory] = useState<RepairCategory>('plumbing');
   const isLocalDevUser = isDevAuthUserId(profile?.id);
 
   const { data: rental, isLoading: isRentalLoading, error: rentalError, refetch: refetchRental } = useQuery({
@@ -401,31 +411,47 @@ export default function RepairsScreen() {
       </BottomSheet>
 
       {/* ── New Request Sheet ── */}
-      <BottomSheet visible={showForm} onClose={() => { setShowForm(false); reset(); setRepairPhotos([]); }} scrollable>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <View style={{
-            width: 44, height: 44, borderRadius: 14,
-            backgroundColor: Colors.actionSoft, alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Ionicons name="construct-outline" size={22} color={Colors.action} />
-          </View>
-          <View>
-            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
-              New Repair Request
-            </Text>
-            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, marginTop: 1 }}>
-              Your landlord will be notified
-            </Text>
-          </View>
+      <BottomSheet visible={showForm} onClose={() => { setShowForm(false); reset(); setRepairPhotos([]); setCategory('plumbing'); }} scrollable>
+        {/* Header */}
+        <View style={{ alignItems: 'center', paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: Colors.borderSoft, marginBottom: 18 }}>
+          <Text style={{ fontFamily: Fonts.serif, fontSize: 24, letterSpacing: -0.5, color: Colors.primary, lineHeight: 28 }}>
+            What needs{' '}
+            <Text style={{ color: Colors.action, fontStyle: 'italic' }}>fixing?</Text>
+          </Text>
+          <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: Colors.ink3, marginTop: 5 }}>
+            Your landlord sees this the moment you submit.
+          </Text>
         </View>
 
+        {/* Category grid */}
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginBottom: 10 }}>Category</Text>
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+          {CATEGORIES.map((cat) => {
+            const isSel = category === cat.id;
+            return (
+              <TouchableOpacity key={cat.id} onPress={() => setCategory(cat.id)} activeOpacity={0.8}
+                style={{ flex: 1, padding: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1.5,
+                  borderColor: isSel ? Colors.accent : Colors.borderSoft,
+                  backgroundColor: isSel ? Colors.accentSoft : Colors.surface }}>
+                <Text style={{ fontSize: 22 }}>{cat.icon}</Text>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 11, marginTop: 4,
+                  color: isSel ? Colors.accent : Colors.ink3 }}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Title */}
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginBottom: 8 }}>Details</Text>
         <Controller
           control={control}
           name="title"
           render={({ field: { onChange, value } }) => (
             <Input
-              label="Issue Title"
-              placeholder="e.g. Leaking tap in kitchen"
+              label="Title"
+              placeholder={CATEGORIES.find((c) => c.id === category)?.placeholder ?? 'e.g. Leaking tap in kitchen'}
               value={value}
               onChangeText={onChange}
               error={errors.title?.message}
@@ -440,22 +466,19 @@ export default function RepairsScreen() {
           render={({ field: { onChange, value } }) => (
             <View style={{ marginBottom: 16 }}>
               <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 6 }}>
-                Description <Text style={{ color: Colors.danger }}>*</Text>
+                Describe what you see <Text style={{ color: Colors.danger }}>*</Text>
               </Text>
               <TextInput
                 value={value}
                 onChangeText={onChange}
-                placeholder="Describe the problem in detail — when did it start, how bad is it?"
+                placeholder="When did it start, how bad is it? The more detail, the faster the fix."
                 placeholderTextColor={Colors.muted}
                 multiline
                 numberOfLines={4}
-                style={{
-                  borderWidth: 1, borderColor: errors.description ? Colors.danger : Colors.border,
-                  borderRadius: 14, padding: 12,
-                  fontFamily: Fonts.sans, fontSize: 14,
+                style={{ borderWidth: 1, borderColor: errors.description ? Colors.danger : Colors.border,
+                  borderRadius: 14, padding: 12, fontFamily: Fonts.sans, fontSize: 14,
                   color: Colors.primary, backgroundColor: Colors.fill,
-                  textAlignVertical: 'top', minHeight: 100,
-                }}
+                  textAlignVertical: 'top', minHeight: 100 }}
               />
               {errors.description && (
                 <Text style={{ color: Colors.danger, fontFamily: Fonts.sans, fontSize: 12, marginTop: 4 }}>
@@ -466,120 +489,93 @@ export default function RepairsScreen() {
           )}
         />
 
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 10 }}>
-            Priority
-          </Text>
-          <Controller
-            control={control}
-            name="priority"
-            render={({ field: { onChange, value } }) => (
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                {PRIORITIES.map((p) => {
-                  const { color, bg } = PRIORITY_CONFIG[p.value];
-                  const active = value === p.value;
-                  return (
-                    <TouchableOpacity
-                      key={p.value}
-                      onPress={() => onChange(p.value)}
-                      activeOpacity={0.8}
-                      style={{
-                        paddingHorizontal: 16, paddingVertical: 9, borderRadius: 22,
-                        borderWidth: 1.5,
-                        borderColor: active ? color : Colors.border,
-                        backgroundColor: active ? bg : Colors.surface,
-                        flexDirection: 'row', alignItems: 'center', gap: 5,
-                      }}
-                    >
-                      {active && (
-                        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }} />
-                      )}
-                      <Text style={{
-                        fontFamily: active ? Fonts.sansSemiBold : Fonts.sans,
-                        fontSize: 13,
-                        color: active ? color : Colors.ink3,
-                      }}>
-                        {p.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+        {/* Photos */}
+        <View style={{ marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>Photos</Text>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>3 max</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {repairPhotos.slice(0, 3).map((uri, i) => (
+              <View key={i} style={{ flex: 1, aspectRatio: 1, position: 'relative' }}>
+                <Image source={{ uri }} style={{ width: '100%', height: '100%', borderRadius: 12, backgroundColor: Colors.fill }} />
+                <TouchableOpacity onPress={() => setRepairPhotos((prev) => prev.filter((_, idx) => idx !== i))}
+                  style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.danger, alignItems: 'center', justifyContent: 'center' }}
+                  activeOpacity={0.8}>
+                  <Ionicons name="close" size={11} color="#fff" />
+                </TouchableOpacity>
               </View>
+            ))}
+            {repairPhotos.length < 3 && (
+              <TouchableOpacity onPress={async () => { const uri = await takePhoto(); if (uri) setRepairPhotos((prev) => [...prev, uri].slice(0, 3)); }}
+                activeOpacity={0.75}
+                style={{ flex: 1, aspectRatio: 1, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.fill }}>
+                <Ionicons name="camera-outline" size={18} color={Colors.ink3} />
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 10, marginTop: 4 }}>Take</Text>
+              </TouchableOpacity>
             )}
-          />
+            {repairPhotos.length < 2 && (
+              <TouchableOpacity onPress={async () => { const uris = await pickMultiplePhotos(); if (uris.length) setRepairPhotos((prev) => [...prev, ...uris].slice(0, 3)); }}
+                activeOpacity={0.75}
+                style={{ flex: 1, aspectRatio: 1, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.fill }}>
+                <Ionicons name="images-outline" size={18} color={Colors.ink3} />
+                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 10, marginTop: 4 }}>Gallery</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
-        {/* Photo attachment */}
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 10 }}>
-            Photos <Text style={{ color: Colors.muted, fontFamily: Fonts.sans }}>(optional, max 5)</Text>
-          </Text>
-          {repairPhotos.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-              {repairPhotos.map((uri, i) => (
-                <View key={i} style={{ marginRight: 8, position: 'relative' }}>
-                  <Image source={{ uri }} style={{ width: 72, height: 72, borderRadius: 10, backgroundColor: Colors.fill }} />
-                  <TouchableOpacity
-                    onPress={() => setRepairPhotos((prev) => prev.filter((_, idx) => idx !== i))}
-                    style={{
-                      position: 'absolute', top: -6, right: -6,
-                      width: 20, height: 20, borderRadius: 10,
-                      backgroundColor: Colors.danger, alignItems: 'center', justifyContent: 'center',
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="close" size={11} color="#fff" />
+        {/* Urgency segmented control */}
+        <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginBottom: 10 }}>Urgency</Text>
+        <Controller
+          control={control}
+          name="priority"
+          render={({ field: { onChange, value } }) => (
+            <View style={{ flexDirection: 'row', backgroundColor: Colors.fill, borderRadius: 14, padding: 3, marginBottom: 16 }}>
+              {([
+                { value: 'low',    label: 'Low' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high',   label: 'High' },
+                { value: 'urgent', label: 'Emergency' },
+              ] as const).map((p) => {
+                const active = value === p.value;
+                return (
+                  <TouchableOpacity key={p.value} onPress={() => onChange(p.value)} activeOpacity={0.8}
+                    style={{ flex: 1, paddingVertical: 8, borderRadius: 11, alignItems: 'center',
+                      backgroundColor: active ? Colors.surface : 'transparent' }}>
+                    <Text style={{ fontFamily: active ? Fonts.sansSemiBold : Fonts.sans, fontSize: 12,
+                      color: active ? (p.value === 'urgent' ? Colors.danger : Colors.primary) : Colors.muted }}>
+                      {p.label}
+                    </Text>
                   </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-          {repairPhotos.length < 5 && (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity
-                onPress={async () => {
-                  const uri = await takePhoto();
-                  if (uri) setRepairPhotos((prev) => [...prev, uri].slice(0, 5));
-                }}
-                style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                  gap: 6, paddingVertical: 11, borderRadius: 12,
-                  borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed',
-                  backgroundColor: Colors.fill,
-                }}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="camera-outline" size={16} color={Colors.ink3} />
-                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 13 }}>Camera</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={async () => {
-                  const uris = await pickMultiplePhotos();
-                  if (uris.length) setRepairPhotos((prev) => [...prev, ...uris].slice(0, 5));
-                }}
-                style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                  gap: 6, paddingVertical: 11, borderRadius: 12,
-                  borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed',
-                  backgroundColor: Colors.fill,
-                }}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="images-outline" size={16} color={Colors.ink3} />
-                <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 13 }}>Gallery</Text>
-              </TouchableOpacity>
+                );
+              })}
             </View>
           )}
+        />
+
+        {/* Helper tip */}
+        <View style={{ flexDirection: 'row', gap: 10, backgroundColor: Colors.fill, borderRadius: 14, padding: 12, marginBottom: 20 }}>
+          <Text style={{ fontSize: 16 }}>💡</Text>
+          <Text style={{ flex: 1, fontFamily: Fonts.sans, fontSize: 12, color: Colors.ink3, lineHeight: 18 }}>
+            Cost will be quoted by a verified vendor.{' '}
+            <Text style={{ fontFamily: Fonts.sansSemiBold, color: Colors.primary }}>You won't be charged anything yet</Text>
+            {' '}— both you and your landlord approve the split before work begins.
+          </Text>
         </View>
 
-        <Button
-          title="Submit to Landlord"
-          onPress={handleSubmit(onSubmit)}
-          loading={submitting}
-          loadingText={repairPhotos.length > 0 ? 'Uploading & Submitting…' : 'Submitting…'}
-          fullWidth
-          size="lg"
-        />
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity onPress={() => { setShowForm(false); reset(); setRepairPhotos([]); }}
+            style={{ flex: 1, height: 52, borderRadius: 16, borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' }} activeOpacity={0.8}>
+            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: Colors.primary }}>Save draft</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSubmit(onSubmit)} disabled={submitting}
+            style={{ flex: 2, height: 52, borderRadius: 16, backgroundColor: Colors.action, alignItems: 'center', justifyContent: 'center', opacity: submitting ? 0.6 : 1 }} activeOpacity={0.85}>
+            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: '#fff' }}>
+              {submitting ? (repairPhotos.length > 0 ? 'Uploading…' : 'Sending…') : 'Send to Landlord →'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </BottomSheet>
     </SafeAreaView>
   </DashboardShell>

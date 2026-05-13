@@ -276,9 +276,9 @@ export default function LedgerScreen() {
 
   const FILTERS: { key: LedgerFilter; label: string }[] = [
     { key: 'all',  label: 'All' },
-    { key: 'in',   label: 'Money in' },
-    { key: 'out',  label: 'Money out' },
-    { key: 'doc',  label: 'Documents' },
+    { key: 'in',   label: 'In' },
+    { key: 'out',  label: 'Out' },
+    { key: 'doc',  label: 'Docs' },
     { key: 'sys',  label: 'System' },
   ];
 
@@ -399,15 +399,17 @@ export default function LedgerScreen() {
                 const showDateHeader = !prev || new Date(prev.date).toDateString() !== new Date(entry.date).toDateString();
                 return (
                   <React.Fragment key={entry.id}>
-                    {showDateHeader && (
-                      <Text style={{
-                        color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10,
-                        textTransform: 'uppercase', letterSpacing: 0.8,
-                        marginTop: i > 0 ? 6 : 0, marginBottom: 2,
-                      }}>
-                        {formatDateShort(entry.date)}
-                      </Text>
-                    )}
+                    {showDateHeader && (() => {
+                      const d = new Date(entry.date);
+                      const day = d.getDate();
+                      const mon = d.toLocaleDateString('en-IN', { month: 'short' }).toUpperCase();
+                      return (
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: i > 0 ? 14 : 0, marginBottom: 4 }}>
+                          <Text style={{ color: Colors.primary, fontFamily: Fonts.serif, fontSize: 32, lineHeight: 36, letterSpacing: -1 }}>{day}</Text>
+                          <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 1.2 }}>{mon}</Text>
+                        </View>
+                      );
+                    })()}
                     <TouchableOpacity
                       onPress={() => setSelected(entry)}
                       activeOpacity={0.8}

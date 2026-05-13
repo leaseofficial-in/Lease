@@ -8,25 +8,26 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { RentPayment } from '../../types';
-import { formatCurrency, formatDate, formatMonth } from '../../lib/formatters';
-import { Card } from '../../components/ui/Card';
-import { StatusPill } from '../../components/ui/StatusPill';
-import { PaymentRowSkeleton } from '../../components/ui/SkeletonLoader';
+import { formatCurrency, formatMonth } from '../../lib/formatters';
+import { BottomSheet } from '../../components/ui/BottomSheet';
+import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { AppIcon } from '../../components/ui/Icon';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { BottomSheet } from '../../components/ui/BottomSheet';
-import { Cap } from '../../components/ui/V2';
 import { Colors, Fonts } from '../../constants/theme';
 import { DashboardShell } from '../../components/layout/WebSidebar';
 import { isDevAuthUserId } from '../../lib/devAuth';
+
+function receiptNum(month: string, index: number): string {
+  const [y, m] = month.split('-');
+  return `#${y}-${m}-${String(100 + index).padStart(3, '0')}`;
+}
 
 export default function RentHistoryScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
   const { showToast } = useUIStore();
   const isLocalDevUser = isDevAuthUserId(profile?.id);
-  const [exportYear, setExportYear] = useState<number | null>(null);
+  const [exportVisible, setExportVisible] = useState(false);
 
   const { data: payments, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['tenant-payments', profile?.id],
@@ -42,416 +43,204 @@ export default function RentHistoryScreen() {
     enabled: !!profile?.id && !isLocalDevUser,
   });
 
-  const allPaid = payments?.filter((p) => p.status === 'paid') ?? [];
-  const totalPaid = allPaid.reduce((s, p) => s + p.amount, 0);
-  const paidCount = allPaid.length;
-  const onTimeCount = allPaid.filter((p) => (p.late_fee ?? 0) === 0).length;
-  const onTimePct = paidCount > 0 ? Math.round((onTimeCount / paidCount) * 100) : null;
+  const allPaid    = payments?.filter((p) => p.status === 'paid') ?? [];
+  const totalPaid  = allPaid.reduce((s, p) => s + p.amount, 0);
+  const paidCount  = allPaid.length;
 
-  // HRA-eligible amount = total rent paid (max they can claim)
-  const hraEligible = totalPaid;
-
-  // Group by financial year (April–March), then calendar year as fallback
-  const paymentsByYear = useMemo(() => {
-    if (!payments?.length) return [];
-    const map = new Map<number, RentPayment[]>();
-    for (const p of payments) {
-      const yr = new Date(p.month).getFullYear();
-      const list = map.get(yr) ?? [];
-      list.push(p);
-      map.set(yr, list);
-    }
-    return [...map.entries()].sort(([a], [b]) => b - a);
-  }, [payments]);
-
-  // Current FY (Apr–Mar) payments for YTD
-  const now = new Date();
+  const now    = new Date();
   const fyStart = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const fyLabel = `FY ${fyStart}–${String(fyStart + 1).slice(2)}`;
+
   const currentFyPayments = allPaid.filter((p) => {
     const d = new Date(p.month);
-    const payYear = d.getFullYear();
-    const payMonth = d.getMonth();
-    return (payYear === fyStart && payMonth >= 3) || (payYear === fyStart + 1 && payMonth < 3);
+    const py = d.getFullYear(); const pm = d.getMonth();
+    return (py === fyStart && pm >= 3) || (py === fyStart + 1 && pm < 3);
   });
-  const ytdAmount = currentFyPayments.reduce((s, p) => s + p.amount, 0);
+  const ytdAmount  = currentFyPayments.reduce((s, p) => s + p.amount, 0);
+  // Estimated tax saved at 30% slab (display only)
+  const taxSaved   = Math.round(ytdAmount * 0.3);
 
-  const handleExport = (year: number, yearPayments: RentPayment[]) => {
-    // In production: generate & download CSV/PDF from Edge Function
-    showToast(`Export initiated for ${year} — ${yearPayments.length} records`, 'success');
-    setExportYear(null);
+  const handleExport = () => {
+    showToast(`Export initiated — ${paidCount} records`, 'success');
+    setExportVisible(false);
   };
 
-  return (
-  <DashboardShell role="tenant">
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
-      <PageHeader title="Rent History" caption="Tenant" onBack={() => router.back()} />
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.action} />}
-        contentContainerStyle={{ paddingBottom: 48 }}
-      >
-        {/* ── Summary hero ── */}
-        {(isLoading || (payments && payments.length > 0)) && (
-          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4, gap: 10 }}>
-            <View style={{
-              backgroundColor: Colors.primary, borderRadius: 22, padding: 20,
-            }}>
-              {/* Top row: total + on-time ring */}
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                <View>
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>
-                    Total Paid (All Time)
-                  </Text>
-                  <Text style={{ color: '#fff', fontFamily: Fonts.sansBold, fontSize: 34, lineHeight: 38 }}>
-                    {isLoading ? '—' : formatCurrency(totalPaid, true)}
-                  </Text>
-                  {!isLoading && paidCount > 0 && (
-                    <Text style={{ color: 'rgba(255,255,255,0.42)', fontFamily: Fonts.sans, fontSize: 12, marginTop: 4 }}>
-                      {paidCount} payment{paidCount !== 1 ? 's' : ''} confirmed
-                    </Text>
-                  )}
-                </View>
-                {onTimePct !== null && (
-                  <View style={{ alignItems: 'center', gap: 4 }}>
-                    <View style={{
-                      width: 56, height: 56, borderRadius: 28,
-                      borderWidth: 3,
-                      borderColor: onTimePct >= 80 ? Colors.success : Colors.warning,
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Text style={{
-                        color: onTimePct >= 80 ? '#7AEFC0' : '#F6C47F',
-                        fontFamily: Fonts.sansBold, fontSize: 15,
-                      }}>
-                        {onTimePct}%
-                      </Text>
-                    </View>
-                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontFamily: Fonts.sans, fontSize: 10 }}>
-                      on time
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Stat grid */}
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <View style={{ flex: 1, minWidth: 0, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
-                  <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.45)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.5, marginBottom: 4 }}>
-                    FY {fyStart}–{String(fyStart + 1).slice(2)} YTD
-                  </Text>
-                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
-                    {formatCurrency(ytdAmount, true)}
-                  </Text>
-                  <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.38)', fontFamily: Fonts.sans, fontSize: 10, marginTop: 2 }}>
-                    {currentFyPayments.length} months this FY
-                  </Text>
-                </View>
-                <View style={{ flex: 1, minWidth: 0, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
-                  <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.45)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.5, marginBottom: 4 }}>
-                    HRA ELIGIBLE
-                  </Text>
-                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: '#7AEFC0', fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
-                    {formatCurrency(hraEligible, true)}
-                  </Text>
-                  <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.38)', fontFamily: Fonts.sans, fontSize: 10, marginTop: 2 }}>
-                    Claim with employer
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* ── Payment list ── */}
-        <View style={{ paddingHorizontal: 20, paddingBottom: 8, paddingTop: 12 }}>
-          {isLoading ? (
-            <Card padded={false}>
-              <View style={{ paddingHorizontal: 16 }}>
-                <PaymentRowSkeleton />
-                <PaymentRowSkeleton />
-                <PaymentRowSkeleton />
-              </View>
-            </Card>
-          ) : !payments?.length ? (
-            <EmptyState
-              title="No payments yet"
-              subtitle={
-                isLocalDevUser
-                  ? 'Local demo mode skips live payment records.'
-                  : 'Your rent payment history will appear here once you start paying.'
-              }
-              icon={<AppIcon name="receipt-outline" size={48} color={Colors.muted} />}
-            />
-          ) : (
-            <View style={{ gap: 24 }}>
-              {paymentsByYear.map(([year, yearPayments]) => {
-                const yearPaid = yearPayments.filter((p) => p.status === 'paid');
-                const yearTotal = yearPaid.reduce((s, p) => s + p.amount, 0);
-                return (
-                  <View key={year}>
-                    {/* Year header */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                      <Text style={{ color: Colors.ink2, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
-                        {year}
-                      </Text>
-                      <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
-                      <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
-                        {formatCurrency(yearTotal, true)}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => setExportYear(year)}
-                        activeOpacity={0.75}
-                        style={{
-                          flexDirection: 'row', alignItems: 'center', gap: 4,
-                          paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
-                          backgroundColor: Colors.fill2,
-                        }}
-                      >
-                        <Ionicons name="download-outline" size={12} color={Colors.ink3} />
-                        <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansMedium, fontSize: 11 }}>Export</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Payment rows */}
-                    <Card padded={false}>
-                      {yearPayments.map((payment, index) => (
-                        <PaymentRow
-                          key={payment.id}
-                          payment={payment}
-                          isLast={index === yearPayments.length - 1}
-                          onReceipt={() => router.push({ pathname: '/receipt/[paymentId]', params: { paymentId: payment.id } })}
-                        />
-                      ))}
-                    </Card>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
-      </ScrollView>
-
-      {/* Export year sheet */}
-      <BottomSheet visible={exportYear !== null} onClose={() => setExportYear(null)}>
-        {exportYear !== null && (
-          <ExportYearContent
-            year={exportYear}
-            payments={paymentsByYear.find(([yr]) => yr === exportYear)?.[1] ?? []}
-            onExport={() => handleExport(exportYear, paymentsByYear.find(([yr]) => yr === exportYear)?.[1] ?? [])}
-            onClose={() => setExportYear(null)}
-          />
-        )}
-      </BottomSheet>
-    </SafeAreaView>
-  </DashboardShell>
-  );
-}
-
-// ── Payment row ───────────────────────────────────────────────────────────────
-
-function PaymentRow({
-  payment,
-  isLast,
-  onReceipt,
-}: {
-  payment: RentPayment;
-  isLast: boolean;
-  onReceipt: () => void;
-}) {
-  const isOverdue = payment.status === 'overdue';
-  const isPending = payment.status === 'pending_verification';
-  const isPaid = payment.status === 'paid';
-  const hasLateFee = (payment.late_fee ?? 0) > 0;
-  const [expanded, setExpanded] = useState(false);
+  if (isLoading) return <LoadingScreen />;
 
   return (
-    <TouchableOpacity
-      onPress={() => setExpanded((v) => !v)}
-      activeOpacity={0.82}
-      style={{
-        paddingHorizontal: 16, paddingVertical: 14,
-        borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: Colors.border,
-        backgroundColor: isOverdue ? Colors.dangerSoft : Colors.surface,
-      }}
-    >
-      {/* Main row */}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <View style={{ flex: 1, marginRight: 12 }}>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginBottom: 2 }}>
-            {formatMonth(payment.month)}
-          </Text>
-          {isPaid && payment.paid_at && (
-            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
-              Paid {formatDate(payment.paid_at)}
-            </Text>
-          )}
-          {isPending && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="time-outline" size={12} color={Colors.muted} />
-              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
-                Awaiting confirmation
-              </Text>
-            </View>
-          )}
-          {!payment.paid_at && !isPending && (
-            <Text style={{ color: isOverdue ? Colors.danger : Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>
-              {isOverdue ? 'Overdue' : 'Not paid yet'}
-            </Text>
-          )}
-        </View>
-
-        <View style={{ alignItems: 'flex-end', gap: 4 }}>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
-            {formatCurrency(payment.amount)}
-          </Text>
-          <StatusPill kind="payment" value={payment.status} />
-        </View>
-      </View>
-
-      {/* Secondary row: late fee + receipt */}
-      {(hasLateFee || isPaid) && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-          {hasLateFee ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="alert-circle" size={13} color={Colors.danger} />
-              <Text style={{ color: Colors.danger, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-                Late fee: {formatCurrency(payment.late_fee)}
-              </Text>
-            </View>
-          ) : <View />}
-          {isPaid && (
-            <TouchableOpacity
-              onPress={(e) => { e.stopPropagation?.(); onReceipt(); }}
-              activeOpacity={0.75}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 5,
-                paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16,
-                backgroundColor: Colors.actionSoft, borderWidth: 1, borderColor: '#C7D7FF',
-              }}
-            >
-              <AppIcon name="document-text-outline" size={13} color={Colors.action} />
-              <Text style={{ color: Colors.action, fontFamily: Fonts.sansSemiBold, fontSize: 12 }}>
-                HRA Receipt
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-
-      {/* Expanded detail: method + UTR */}
-      {expanded && (payment.payment_method || payment.utr_number || payment.payment_note) && (
-        <View style={{
-          marginTop: 10, backgroundColor: Colors.fill, borderRadius: 10, padding: 10, gap: 6,
-        }}>
-          {payment.payment_method && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>Method</Text>
-              <Text style={{ color: Colors.ink2, fontFamily: Fonts.sansMedium, fontSize: 12 }}>
-                {payment.payment_method.replace('_', ' ').toUpperCase()}
-              </Text>
-            </View>
-          )}
-          {payment.utr_number && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12 }}>UTR / Ref</Text>
-              <Text style={{ color: Colors.ink2, fontFamily: Fonts.mono, fontSize: 12 }}>{payment.utr_number}</Text>
-            </View>
-          )}
-          {payment.payment_note && (
-            <View>
-              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginBottom: 2 }}>Note</Text>
-              <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 12, lineHeight: 16 }}>
-                {payment.payment_note}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-}
-
-// ── Export year bottom sheet ──────────────────────────────────────────────────
-
-function ExportYearContent({
-  year,
-  payments,
-  onExport,
-  onClose,
-}: {
-  year: number;
-  payments: RentPayment[];
-  onExport: () => void;
-  onClose: () => void;
-}) {
-  const paidRows = payments.filter((p) => p.status === 'paid');
-  const yearTotal = paidRows.reduce((s, p) => s + p.amount, 0);
-
-  return (
-    <View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <View style={{
-          width: 44, height: 44, borderRadius: 14,
-          backgroundColor: Colors.actionSoft, alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Ionicons name="download-outline" size={22} color={Colors.action} />
-        </View>
-        <View>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>Export {year}</Text>
-          <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>
-            {paidRows.length} paid · {formatCurrency(yearTotal, true)}
-          </Text>
-        </View>
-      </View>
-
-      {/* What's included */}
-      <View style={{ backgroundColor: Colors.fill, borderRadius: 14, padding: 14, marginBottom: 16, gap: 10 }}>
-        <Cap style={{ marginBottom: 0 }}>What's included</Cap>
-        {[
-          'Month-by-month rent summary',
-          'Payment dates and UTR references',
-          'HRA receipt links for each paid month',
-          'Late fee breakdown (if any)',
-        ].map((item, i) => (
-          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
-            <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 13 }}>{item}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Format selector */}
-      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-        {['CSV', 'PDF'].map((fmt) => (
-          <TouchableOpacity
-            key={fmt}
-            onPress={onExport}
-            activeOpacity={0.8}
-            style={{
-              flex: 1, paddingVertical: 14, borderRadius: 14,
-              borderWidth: 1.5, borderColor: Colors.border,
-              backgroundColor: Colors.surface,
-              alignItems: 'center', gap: 4,
-            }}
-          >
-            <Ionicons name={fmt === 'PDF' ? 'document-text-outline' : 'grid-outline'} size={20} color={Colors.action} />
-            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>Export {fmt}</Text>
-            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
-              {fmt === 'PDF' ? 'Formatted report' : 'Spreadsheet data'}
-            </Text>
+    <DashboardShell role="tenant">
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.canvas }}>
+        {/* Header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.fill, alignItems: 'center', justifyContent: 'center', marginRight: 12 }} activeOpacity={0.75}>
+            <Ionicons name="chevron-back" size={20} color={Colors.primary} />
           </TouchableOpacity>
-        ))}
-      </View>
+          <View>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' }}>Section 10(13A)</Text>
+            <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 17, marginTop: 1 }}>HRA receipts</Text>
+          </View>
+        </View>
 
-      <TouchableOpacity
-        onPress={onClose}
-        activeOpacity={0.75}
-        style={{ paddingVertical: 13, alignItems: 'center' }}
-      >
-        <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 14 }}>Cancel</Text>
-      </TouchableOpacity>
-    </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.action} />}
+          contentContainerStyle={{ paddingBottom: 48 }}
+        >
+          {/* ── Hero card (teal) ── */}
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 }}>
+            <View style={{ backgroundColor: Colors.action, borderRadius: 22, padding: 22 }}>
+              <Text style={{ color: 'rgba(246,244,238,0.6)', fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 1.4, textTransform: 'uppercase' }}>
+                SAVED ON TAX · {fyLabel}
+              </Text>
+              <Text style={{ color: '#F6F4EE', fontFamily: Fonts.serif, fontSize: 44, letterSpacing: -1.5, lineHeight: 50, marginTop: 4 }}>
+                {formatCurrency(taxSaved)}
+              </Text>
+
+              {/* 3-col stat row */}
+              <View style={{ flexDirection: 'row', gap: 0, marginTop: 16 }}>
+                {[
+                  { l: 'Receipts', v: String(paidCount) },
+                  { l: 'Total rent', v: formatCurrency(ytdAmount, true) },
+                  { l: 'Slab', v: '30%' },
+                ].map(({ l, v }, i) => (
+                  <View key={l} style={{ flex: 1, borderLeftWidth: i > 0 ? 1 : 0, borderLeftColor: 'rgba(246,244,238,0.15)', paddingLeft: i > 0 ? 14 : 0 }}>
+                    <Text style={{ color: 'rgba(246,244,238,0.5)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>{l}</Text>
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: '#F6F4EE', fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>{v}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Export row */}
+              <TouchableOpacity onPress={() => setExportVisible(true)} activeOpacity={0.8}
+                style={{ marginTop: 16, padding: 10, backgroundColor: 'rgba(246,244,238,0.1)', borderRadius: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: 'rgba(246,244,238,0.85)' }}>Annual bundle · ready to file</Text>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: Colors.accent }}>Export →</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ── Monthly list ── */}
+          <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 16, color: Colors.primary }}>Monthly</Text>
+              {paidCount > 0 && (
+                <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 12, color: Colors.action }}>All {paidCount} →</Text>
+              )}
+            </View>
+
+            {!payments?.length ? (
+              <EmptyState
+                title="No payments yet"
+                subtitle={
+                  isLocalDevUser
+                    ? 'Local demo mode skips live payment records.'
+                    : 'Your rent payment history will appear here once you start paying.'
+                }
+                icon={<AppIcon name="receipt-outline" size={48} color={Colors.muted} />}
+              />
+            ) : (
+              <View style={{ gap: 0, backgroundColor: Colors.surface, borderRadius: 18, borderWidth: 1, borderColor: Colors.borderSoft, overflow: 'hidden' }}>
+                {payments.map((payment, index) => {
+                  const isPaid    = payment.status === 'paid';
+                  const isPending = payment.status === 'pending_verification';
+                  const isFirst   = index === 0;
+                  const isLast    = index === payments.length - 1;
+
+                  return (
+                    <TouchableOpacity
+                      key={payment.id}
+                      onPress={() => isPaid && router.push({ pathname: '/receipt/[paymentId]', params: { paymentId: payment.id } })}
+                      activeOpacity={isPaid ? 0.8 : 1}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: isLast ? 0 : 1, borderBottomColor: Colors.borderSoft, position: 'relative' }}
+                    >
+                      {/* Icon */}
+                      <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: isPaid ? Colors.accentSoft : Colors.fill, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Ionicons
+                          name={isPaid ? 'checkmark' : isPending ? 'time-outline' : 'ellipse-outline'}
+                          size={18}
+                          color={isPaid ? Colors.accent : isPending ? Colors.action : Colors.muted}
+                        />
+                      </View>
+
+                      {/* Meta */}
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text numberOfLines={1} style={{ fontFamily: Fonts.mono, fontSize: 11, letterSpacing: 0.8, fontWeight: '700', color: Colors.ink3 }}>
+                            {formatMonth(payment.month).toUpperCase()}
+                          </Text>
+                          {isFirst && isPaid && (
+                            <View style={{ backgroundColor: Colors.actionSoft, borderRadius: 10, paddingHorizontal: 5, paddingVertical: 1 }}>
+                              <Text style={{ color: Colors.action, fontFamily: Fonts.mono, fontSize: 8, fontWeight: '700' }}>NEW</Text>
+                            </View>
+                          )}
+                        </View>
+                        {isPaid ? (
+                          <Text numberOfLines={1} style={{ fontFamily: Fonts.mono, fontSize: 11, color: Colors.ink3, marginTop: 2 }}>
+                            {receiptNum(payment.month, paidCount - index)}
+                          </Text>
+                        ) : isPending ? (
+                          <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: Colors.action, marginTop: 2 }}>Awaiting confirmation</Text>
+                        ) : (
+                          <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: Colors.muted, marginTop: 2 }}>Not yet paid</Text>
+                        )}
+                      </View>
+
+                      {/* Amount + action */}
+                      <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
+                        <Text numberOfLines={1} style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: Colors.primary }}>
+                          {formatCurrency(payment.amount)}
+                        </Text>
+                        {isPaid && (
+                          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 11, color: Colors.action, marginTop: 2 }}>PDF →</Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </ScrollView>
+
+        {/* Export sheet */}
+        <BottomSheet visible={exportVisible} onClose={() => setExportVisible(false)}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: Colors.actionSoft, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="download-outline" size={22} color={Colors.action} />
+            </View>
+            <View>
+              <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>Export {fyLabel}</Text>
+              <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>{paidCount} paid · {formatCurrency(totalPaid, true)}</Text>
+            </View>
+          </View>
+
+          <View style={{ backgroundColor: Colors.fill, borderRadius: 14, padding: 14, marginBottom: 16, gap: 8 }}>
+            {['Month-by-month rent summary', 'Payment dates and UTR references', 'HRA receipt links for each paid month', 'Late fee breakdown (if any)'].map((item) => (
+              <View key={item} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
+                <Text style={{ color: Colors.ink2, fontFamily: Fonts.sans, fontSize: 13 }}>{item}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+            {(['CSV', 'PDF'] as const).map((fmt) => (
+              <TouchableOpacity key={fmt} onPress={handleExport} activeOpacity={0.8}
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surface, alignItems: 'center', gap: 4 }}>
+                <Ionicons name={fmt === 'PDF' ? 'document-text-outline' : 'grid-outline'} size={20} color={Colors.action} />
+                <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>Export {fmt}</Text>
+                <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
+                  {fmt === 'PDF' ? 'Formatted report' : 'Spreadsheet data'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity onPress={() => setExportVisible(false)} activeOpacity={0.75} style={{ paddingVertical: 13, alignItems: 'center' }}>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 14 }}>Cancel</Text>
+          </TouchableOpacity>
+        </BottomSheet>
+      </SafeAreaView>
+    </DashboardShell>
   );
 }

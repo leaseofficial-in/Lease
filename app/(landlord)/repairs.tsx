@@ -8,7 +8,6 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { RepairRequest } from '../../types';
 import { formatRelativeTime, repairPriorityLabel } from '../../lib/formatters';
-import { Card } from '../../components/ui/Card';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Cap, Chip } from '../../components/ui/V2';
@@ -88,8 +87,18 @@ export default function AllRepairsScreen() {
 
         {/* Stats */}
         <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 16 }}>
-          <StatPill label="New" value={openCount} color={Colors.danger} bg={Colors.dangerSoft} />
-          <StatPill label="In Progress" value={inProgressCount} color={Colors.warning} bg={Colors.warningSoft} />
+          <View style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16 }}>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>In Progress</Text>
+            <Text style={{ color: Colors.warning, fontFamily: Fonts.serif, fontSize: 36, lineHeight: 40, letterSpacing: -1 }}>{inProgressCount}</Text>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11, marginTop: 4 }}>{openCount} new · awaiting</Text>
+          </View>
+          <View style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16 }}>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Avg Response</Text>
+            <Text style={{ color: Colors.action, fontFamily: Fonts.serif, fontSize: 36, lineHeight: 40, letterSpacing: -1 }}>
+              {openCount + inProgressCount > 0 ? '< 24' : '—'}
+            </Text>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11, marginTop: 4 }}>hours to first reply</Text>
+          </View>
         </View>
 
         {/* Filters */}
@@ -148,56 +157,59 @@ export default function AllRepairsScreen() {
               icon={<Ionicons name="construct-outline" size={40} color={Colors.muted} />}
             />
           ) : (
-            filtered.map((repair) => (
-              <TouchableOpacity
-                key={repair.id}
-                onPress={() => router.push({
-                  pathname: '/(landlord)/repairs/[rentalId]',
-                  params: { rentalId: repair.rental.id },
-                })}
-                activeOpacity={0.82}
-              >
-                <Card style={{ marginBottom: 12 }}>
-                  <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11, marginBottom: 6 }}>
-                    {repair.rental?.property?.name ?? 'Property'} · {repair.rental?.property?.city}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15, flex: 1, marginRight: 10 }}>
-                      {repair.title}
+            filtered.map((repair, idx) => {
+              const isFeatured = repair.status === 'in_progress' && idx === 0;
+              return (
+                <TouchableOpacity
+                  key={repair.id}
+                  onPress={() => router.push({
+                    pathname: '/(landlord)/repairs/[rentalId]',
+                    params: { rentalId: repair.rental.id },
+                  })}
+                  activeOpacity={0.82}
+                >
+                  <View style={{
+                    marginBottom: 12,
+                    backgroundColor: Colors.surface,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: isFeatured ? Colors.accent : Colors.border,
+                    borderLeftWidth: isFeatured ? 4 : 1,
+                    borderLeftColor: isFeatured ? Colors.accent : Colors.border,
+                    padding: 14,
+                  }}>
+                    <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11, marginBottom: 6 }}>
+                      {repair.rental?.property?.name ?? 'Property'} · {repair.rental?.property?.city}
                     </Text>
-                    <StatusPill kind="repair" value={repair.status} />
-                  </View>
-                  <Text
-                    numberOfLines={2}
-                    style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 10 }}
-                  >
-                    {repair.description}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <PriorityChip priority={repair.priority} />
-                    <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
-                      {formatRelativeTime(repair.created_at)}
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 15, flex: 1, marginRight: 10 }}>
+                        {repair.title}
+                      </Text>
+                      <StatusPill kind="repair" value={repair.status} />
+                    </View>
+                    <Text
+                      numberOfLines={2}
+                      style={{ color: Colors.ink3, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, marginBottom: 10 }}
+                    >
+                      {repair.description}
                     </Text>
-                    <View style={{ flex: 1 }} />
-                    <Ionicons name="chevron-forward" size={14} color={Colors.muted} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <PriorityChip priority={repair.priority} />
+                      <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11 }}>
+                        {formatRelativeTime(repair.created_at)}
+                      </Text>
+                      <View style={{ flex: 1 }} />
+                      <Ionicons name="chevron-forward" size={14} color={Colors.muted} />
+                    </View>
                   </View>
-                </Card>
-              </TouchableOpacity>
-            ))
+                </TouchableOpacity>
+              );
+            })
           )}
         </View>
       </ScrollView>
     </SafeAreaView>
   </DashboardShell>
-  );
-}
-
-function StatPill({ label, value, color, bg }: { label: string; value: number; color: string; bg: string }) {
-  return (
-    <View style={{ flex: 1, minWidth: 0, backgroundColor: bg, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center' }}>
-      <Text numberOfLines={1} style={{ color, fontFamily: Fonts.sansSemiBold, fontSize: 26, lineHeight: 28 }}>{value}</Text>
-      <Text numberOfLines={1} style={{ color, fontFamily: Fonts.sansMedium, fontSize: 11, marginTop: 3 }}>{label}</Text>
-    </View>
   );
 }
 
