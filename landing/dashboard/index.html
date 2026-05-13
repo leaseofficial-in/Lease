@@ -1194,27 +1194,26 @@
       const tenantName = r.tenant?.full_name || (noTenant ? 'Awaiting tenant' : 'No tenant');
       const tone = THUMB_COLORS[i % THUMB_COLORS.length];
       const invToken = (r.invite_token || '').replace(/'/g, '');
+      // Action row spans all 3 grid columns using grid-column:1/-1
       let actionHtml = '';
       if (noTenant && invToken) {
-        actionHtml = `<div class="act-row"><button class="act-btn accent" onclick="showInviteLink('${r.id}','${invToken}')">Share invite link</button></div>`;
+        actionHtml = `<div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--rb-border-soft);display:flex;gap:8px"><button class="act-btn accent" onclick="showInviteLink('${r.id}','${invToken}')">Share invite link</button></div>`;
       } else if (isPending && pmt?.id) {
-        actionHtml = `<div class="act-row"><button class="act-btn success" onclick="confirmPayment('${pmt.id}')">✓ Confirm receipt</button><button class="act-btn ghost" onclick="rejectPayment('${pmt.id}')">Reject</button></div>`;
+        actionHtml = `<div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--rb-border-soft);display:flex;gap:8px"><button class="act-btn success" onclick="confirmPayment('${pmt.id}')">✓ Confirm receipt</button><button class="act-btn ghost" onclick="rejectPayment('${pmt.id}')">Reject</button></div>`;
       } else if (!isPaid && !noPmt && pmt?.id) {
-        actionHtml = `<div class="act-row"><button class="act-btn success" onclick="confirmPayment('${pmt.id}')">✓ Mark as paid</button></div>`;
+        actionHtml = `<div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--rb-border-soft);display:flex;gap:8px"><button class="act-btn success" onclick="confirmPayment('${pmt.id}')">✓ Mark as paid</button></div>`;
       }
       return `
-        <div class="d-prop" style="flex-direction:column;align-items:stretch;gap:0;padding-bottom:${actionHtml ? '14px' : '12px'}">
-          <div style="display:grid;grid-template-columns:56px 1fr auto;gap:14px;align-items:center;padding:2px 0">
-            <div class="d-prop-thumb" style="background:linear-gradient(135deg,${tone},#2c1c0e)"></div>
-            <div class="d-prop-body">
-              <div class="d-prop-city">${city}</div>
-              <div class="d-prop-addr">${propName}</div>
-              <div class="d-prop-tenant">Tenant · ${tenantName}</div>
-            </div>
-            <div class="d-prop-r">
-              <div class="d-prop-rent">${inr(r.monthly_rent)}<span>/mo</span></div>
-              <div class="d-prop-pill ${pillCls}">${pillLabel}</div>
-            </div>
+        <div class="d-prop">
+          <div class="d-prop-thumb" style="background:linear-gradient(135deg,${tone},#2c1c0e)"></div>
+          <div class="d-prop-body">
+            <div class="d-prop-city">${city}</div>
+            <div class="d-prop-addr">${propName}</div>
+            <div class="d-prop-tenant">Tenant · ${tenantName}</div>
+          </div>
+          <div class="d-prop-r">
+            <div class="d-prop-rent">${inr(r.monthly_rent)}<span>/mo</span></div>
+            <div class="d-prop-pill ${pillCls}">${pillLabel}</div>
           </div>
           ${actionHtml}
         </div>`;
@@ -1235,16 +1234,14 @@
         btns = `<button class="act-btn success" onclick="updateRepairStatus('${r.id}','resolved')">✓ Mark resolved</button>`;
       }
       return `
-        <div class="d-req" style="flex-direction:column;align-items:stretch;gap:0">
-          <div style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center">
-            <div class="d-req-dot ${dotCls}"></div>
-            <div class="d-req-body">
-              <div class="d-req-t">${r.title || 'Repair request'}</div>
-              <div class="d-req-m">${r.description ? r.description.slice(0, 80) + (r.description.length > 80 ? '…' : '') : ''} ${propName ? '· ' + propName : ''} · ${relDate(r.created_at)}</div>
-            </div>
-            <div class="d-req-st ${stPill}">${stLabel}</div>
+        <div class="d-req">
+          <div class="d-req-dot ${dotCls}"></div>
+          <div class="d-req-body">
+            <div class="d-req-t">${r.title || 'Repair request'}</div>
+            <div class="d-req-m">${r.description ? r.description.slice(0, 80) + (r.description.length > 80 ? '…' : '') : ''} ${propName ? '· ' + propName : ''} · ${relDate(r.created_at)}</div>
           </div>
-          ${btns ? `<div class="act-row">${btns}</div>` : ''}
+          <div class="d-req-st ${stPill}">${stLabel}</div>
+          ${btns ? `<div style="grid-column:1/-1;display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--rb-border-soft)">${btns}</div>` : ''}
         </div>`;
     }
 
