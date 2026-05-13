@@ -1014,7 +1014,7 @@
             ${isPaid
               ? `<div style="margin-top:18px"><span class="d-rent-paid-badge">✓ Paid this month · Open app for receipt</span></div>`
               : `<div class="d-rent-cta">
-                  <a href="#" class="btn btn-primary" onclick="alert('Open the RentyBase mobile app to pay your rent.');return false;">Pay via UPI in app</a>
+                  <button class="btn btn-primary" onclick="openPayRent('${rental.id}','${currentPayment?.id||''}',${rental.monthly_rent})">Pay / record payment →</button>
                  </div>`}
             <div class="d-rent-foot">
               <span>${propLine}</span>
@@ -1437,6 +1437,23 @@
     }
     function closeModal() { $('modal-bg').style.display = 'none'; }
 
+    function showConfirm(message, onConfirm, { title = 'Are you sure?', confirmLabel = 'Confirm', danger = false } = {}) {
+      showModal(`
+        <button class="modal-close" type="button">×</button>
+        <h2 style="margin-bottom:10px">${title}</h2>
+        <p style="font-size:14px;color:var(--rb-ink-3);line-height:1.6;margin-bottom:22px">${message}</p>
+        <div class="modal-foot">
+          <button type="button" class="act-btn ghost" onclick="closeModal()">Cancel</button>
+          <button type="button" class="act-btn ${danger ? 'danger' : 'primary'}" id="sc-ok">${confirmLabel}</button>
+        </div>`);
+      $('sc-ok').addEventListener('click', async () => {
+        const btn = $('sc-ok');
+        btn.disabled = true; btn.textContent = '…';
+        closeModal();
+        await onConfirm();
+      });
+    }
+
     // ── Toast helper ──────────────────────────────
     function showToast(msg, type = '') {
       const wrap = $('toast-wrap');
@@ -1529,29 +1546,33 @@
     }
 
     // ── Landlord: Confirm / reject payment ────────
-    async function confirmPayment(paymentId) {
-      if (!confirm('Confirm this rent payment as received?')) return;
-      const { error } = await sb.from('rent_payments').update({ status: 'paid' }).eq('id', paymentId);
-      if (error) { showToast(error.message, 'error'); return; }
-      showToast('Payment confirmed!', 'success');
-      setTimeout(() => location.reload(), 1200);
+    function confirmPayment(paymentId) {
+      showConfirm('Mark this rent payment as received and confirmed?', async () => {
+        const { error } = await sb.from('rent_payments').update({ status: 'paid' }).eq('id', paymentId);
+        if (error) { showToast(error.message, 'error'); return; }
+        showToast('Payment confirmed!', 'success');
+        setTimeout(() => location.reload(), 1200);
+      }, { title: 'Confirm payment', confirmLabel: '✓ Confirm receipt' });
     }
-    async function rejectPayment(paymentId) {
-      if (!confirm('Reject this payment submission? Tenant will need to resubmit.')) return;
-      const { error } = await sb.from('rent_payments').update({ status: 'pending', utr_number: null, payment_note: null }).eq('id', paymentId);
-      if (error) { showToast(error.message, 'error'); return; }
-      showToast('Payment rejected — tenant notified.', 'success');
-      setTimeout(() => location.reload(), 1200);
+    function rejectPayment(paymentId) {
+      showConfirm('Reject this submission? The tenant will need to resubmit their payment details.', async () => {
+        const { error } = await sb.from('rent_payments').update({ status: 'pending', utr_number: null, payment_note: null }).eq('id', paymentId);
+        if (error) { showToast(error.message, 'error'); return; }
+        showToast('Payment rejected.', 'success');
+        setTimeout(() => location.reload(), 1200);
+      }, { title: 'Reject payment', confirmLabel: 'Reject', danger: true });
     }
 
     // ── Landlord: Update repair status ────────────
-    async function updateRepairStatus(repairId, newStatus) {
+    function updateRepairStatus(repairId, newStatus) {
       const labels = { in_progress: 'In Progress', resolved: 'Resolved' };
-      if (!confirm(`Mark this repair as ${labels[newStatus] || newStatus}?`)) return;
-      const { error } = await sb.from('repair_requests').update({ status: newStatus }).eq('id', repairId);
-      if (error) { showToast(error.message, 'error'); return; }
-      showToast('Repair updated!', 'success');
-      setTimeout(() => location.reload(), 1200);
+      const label = labels[newStatus] || newStatus;
+      showConfirm(`Mark this repair request as <b>${label}</b>?`, async () => {
+        const { error } = await sb.from('repair_requests').update({ status: newStatus }).eq('id', repairId);
+        if (error) { showToast(error.message, 'error'); return; }
+        showToast('Repair updated!', 'success');
+        setTimeout(() => location.reload(), 1200);
+      }, { title: 'Update repair', confirmLabel: `Mark ${label}` });
     }
 
     // ── Tenant: Submit rent payment ───────────────
@@ -1722,15 +1743,14 @@
       });
     }
 
-    async function deleteProperty(rentalId, propertyId) {
-      if (!confirm('Delete this property and its rental record? This cannot be undone.')) return;
-      const { error: rErr } = await sb.from('rentals').delete().eq('id', rentalId);
-      if (rErr) { showToast(rErr.message, 'error'); return; }
-      if (propertyId) {
-        await sb.from('properties').delete().eq('id', propertyId);
-      }
-      showToast('Property deleted.', 'success');
-      setTimeout(() => location.reload(), 1200);
+    function deleteProperty(rentalId, propertyId) {
+      showConfirm('This will permanently delete the property and its rental record. All payment history will be lost.', async () => {
+        const { error: rErr } = await sb.from('rentals').delete().eq('id', rentalId);
+        if (rErr) { showToast(rErr.message, 'error'); return; }
+        if (propertyId) await sb.from('properties').delete().eq('id', propertyId);
+        showToast('Property deleted.', 'success');
+        setTimeout(() => location.reload(), 1200);
+      }, { title: 'Delete property', confirmLabel: 'Delete permanently', danger: true });
     }
 
     // ── Profile view (shared both roles) ──────────
@@ -1765,7 +1785,7 @@
             ${profileRow('PAN number', profile?.pan_number || 'Not set')}
           </div>
         </section>
-        <button class="act-btn danger" style="width:100%;justify-content:center" onclick="if(confirm('Sign out?')){sb.auth.signOut().then(()=>window.location.href='/signin')}">Sign out</button>`;
+        <button class="act-btn danger" style="width:100%;justify-content:center" onclick="showConfirm('You will be signed out of RentyBase.',()=>sb.auth.signOut().then(()=>window.location.href='/signin'),{title:'Sign out',confirmLabel:'Sign out',danger:true})">Sign out</button>`;
     }
 
     function profileRow(label, value) {
@@ -1946,33 +1966,35 @@
     }
 
     // ── Tenant: Sign agreement ───────────────────
-    async function signAgreement(rentalId) {
-      if (!confirm('By confirming, you agree to the rental terms listed. This cannot be undone.')) return;
-      const { error } = await sb.from('rentals').update({ agreement_signed_at: new Date().toISOString() }).eq('id', rentalId);
-      if (error) { showToast(error.message, 'error'); return; }
-      showToast('Agreement signed!', 'success');
-      setTimeout(() => location.reload(), 1200);
+    function signAgreement(rentalId) {
+      showConfirm('By signing, you confirm you have read and agree to all the rental terms listed above. This action cannot be undone.', async () => {
+        const { error } = await sb.from('rentals').update({ agreement_signed_at: new Date().toISOString() }).eq('id', rentalId);
+        if (error) { showToast(error.message, 'error'); return; }
+        showToast('Agreement signed!', 'success');
+        setTimeout(() => location.reload(), 1200);
+      }, { title: 'Sign agreement', confirmLabel: 'Sign agreement' });
     }
 
     // ── Landlord: End rental ──────────────────────
-    async function endRental(rentalId) {
-      if (!confirm('End this rental? The tenant will lose access. This cannot be undone.')) return;
-      const { error } = await sb.from('rentals').update({ status: 'ended' }).eq('id', rentalId);
-      if (error) { showToast(error.message, 'error'); return; }
-      showToast('Rental ended.', 'success');
-      setTimeout(() => location.reload(), 1200);
+    function endRental(rentalId) {
+      showConfirm('The tenant will lose access immediately. All records are preserved but the rental will be marked as ended. This cannot be undone.', async () => {
+        const { error } = await sb.from('rentals').update({ status: 'ended' }).eq('id', rentalId);
+        if (error) { showToast(error.message, 'error'); return; }
+        showToast('Rental ended.', 'success');
+        setTimeout(() => location.reload(), 1200);
+      }, { title: 'End rental', confirmLabel: 'End rental', danger: true });
     }
 
     // ── Landlord: Regenerate invite link ─────────
-    async function regenerateInvite(rentalId) {
-      if (!confirm('Generate a new invite link? The old link will stop working immediately.')) return;
-      const token = crypto.randomUUID();
-      const exp = new Date(Date.now() + 72 * 3600000).toISOString();
-      const { error } = await sb.from('rentals').update({ invite_token: token, invite_expires_at: exp }).eq('id', rentalId);
-      if (error) { showToast(error.message, 'error'); return; }
-      showToast('New link generated!', 'success');
-      closeModal();
-      setTimeout(() => { location.reload(); }, 800);
+    function regenerateInvite(rentalId) {
+      showConfirm('The current invite link will stop working immediately. Share the new link with your tenant.', async () => {
+        const token = crypto.randomUUID();
+        const exp = new Date(Date.now() + 72 * 3600000).toISOString();
+        const { error } = await sb.from('rentals').update({ invite_token: token, invite_expires_at: exp }).eq('id', rentalId);
+        if (error) { showToast(error.message, 'error'); return; }
+        showToast('New link generated!', 'success');
+        setTimeout(() => location.reload(), 800);
+      }, { title: 'Regenerate invite link', confirmLabel: 'Generate new link' });
     }
 
     // ── Repair detail modal ───────────────────────
@@ -2009,11 +2031,12 @@
       await sb.from('notifications').update({ read: true }).eq('id', notifId);
       setTimeout(() => location.reload(), 400);
     }
-    async function markAllRead() {
-      if (!confirm('Mark all notifications as read?')) return;
-      await sb.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
-      showToast('All marked as read.', 'success');
-      setTimeout(() => location.reload(), 800);
+    function markAllRead() {
+      showConfirm('Mark all notifications as read?', async () => {
+        await sb.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
+        showToast('All marked as read.', 'success');
+        setTimeout(() => location.reload(), 800);
+      }, { title: 'Mark all read', confirmLabel: 'Mark all read' });
     }
 
     // ── HRA CSV download ──────────────────────────
@@ -2037,7 +2060,7 @@
     // Expose onclick-referenced functions to global scope (they live inside the IIFE)
     Object.assign(window, {
       openAddProperty, showInviteLink, confirmPayment, rejectPayment,
-      updateRepairStatus, openPayRent, openRaiseRepair, closeModal, showToast,
+      updateRepairStatus, openPayRent, openRaiseRepair, closeModal, showToast, showConfirm,
       openPropertyDetail, openEditProperty, deleteProperty,
       signAgreement, endRental, regenerateInvite, openRepairDetail,
       markNotifRead, markAllRead, downloadHRACSV,
