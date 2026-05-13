@@ -499,15 +499,17 @@
       { k: 'profile', icon: '👤', label: 'Profile',     short: 'Profile' },
     ];
     const tNavItems = [
+      // ── Bottom 5 (mobile tabs) ──────────────────────
       { k: 'home',    icon: '⌂',  label: 'My place',      short: 'Home' },
       { k: 'pay',     icon: '₹',  label: 'Pay rent',       short: 'Pay' },
-      { k: 'agree',   icon: '📋', label: 'Agreement',      short: 'Agree' },
-      { k: 'dep',     icon: '🔒', label: 'Deposit',        short: 'Deposit' },
-      { k: 'hra',     icon: '📄', label: 'HRA receipts',   short: 'HRA' },
-      { k: 'proof',   icon: '📷', label: 'Move-in proof',  short: 'Proof' },
       { k: 'rep',     icon: '⚙',  label: 'Repairs',        short: 'Repairs' },
-      { k: 'score',   icon: '★',  label: 'My score',       short: 'Score' },
+      { k: 'hra',     icon: '📄', label: 'HRA receipts',   short: 'HRA' },
       { k: 'profile', icon: '👤', label: 'Profile',        short: 'Profile' },
+      // ── Sidebar-only (desktop) / accessible via Profile ──
+      { k: 'agree',   icon: '📋', label: 'Agreement',      short: 'Agree' },
+      { k: 'proof',   icon: '📷', label: 'Move-in proof',  short: 'Proof' },
+      { k: 'dep',     icon: '🔒', label: 'Deposit',        short: 'Deposit' },
+      { k: 'score',   icon: '★',  label: 'Renter score',   short: 'Score' },
     ];
 
     let activeView = 'home';
@@ -2044,6 +2046,24 @@
       const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url;
       const initial = (profile?.full_name || name || '?').charAt(0).toUpperCase();
       const avatarBg = role === 'tenant' ? 'linear-gradient(135deg,#c9b388,#7a6042)' : 'linear-gradient(135deg,#0F4C5C,#163A47)';
+
+      // Tenant: derive status badges for each feature card
+      const td = tenantData || {};
+      const proofStatus   = td.proofs ? (td.proofs.status === 'approved' ? '✅ Approved' : td.proofs.status === 'pending' ? '⏳ Pending review' : '⚠️ ' + td.proofs.status) : '📷 Not submitted';
+      const agreeStatus   = td.rental?.agreement_signed_at ? '✅ Signed' : td.rental?.agreement_url ? '📋 Uploaded · sign now' : '📋 Not uploaded';
+      const depositBal    = (td.depositTransactions || []).reduce((s, t) => s + (t.type === 'received' ? 1 : -1) * Number(t.amount || 0), 0);
+      const depStatus     = td.rental ? `🔒 ${inr(depositBal)} held` : '🔒 No rental';
+      const scoreVal      = td.score || 0;
+      const scoreBandStr  = scoreVal >= 850 ? '🟢 Excellent' : scoreVal >= 750 ? '🟢 Trusted' : scoreVal >= 650 ? '🟡 Good' : '🟠 Building';
+
+      const featureCard = (key, icon, title, subtitle, badge) => `
+        <button onclick="navigate('${key}')" style="text-align:left;background:var(--rb-surface);border:1.5px solid var(--rb-border-soft);border-radius:14px;padding:16px;cursor:pointer;transition:all .2s var(--rb-ease);font-family:inherit;color:inherit;display:flex;flex-direction:column;gap:4px" onmouseover="this.style.borderColor='var(--rb-border-strong)';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='var(--rb-border-soft)';this.style.transform=''">
+          <div style="font-size:22px;margin-bottom:2px">${icon}</div>
+          <div style="font-size:14px;font-weight:600;color:var(--rb-ink)">${title}</div>
+          <div style="font-size:11px;color:var(--rb-ink-3);line-height:1.4">${subtitle}</div>
+          <div style="margin-top:6px;font-size:11px;font-weight:600;color:var(--rb-ink-2)">${badge}</div>
+        </button>`;
+
       $('main-content').innerHTML = `
         <div class="d-top">
           <div>
@@ -2052,8 +2072,9 @@
           </div>
           <button class="act-btn primary" onclick="openEditProfile()" style="flex-shrink:0;margin-top:8px">Edit profile</button>
         </div>
+
         <section class="card" style="margin-bottom:14px">
-          <div style="display:flex;align-items:center;gap:18px;margin-bottom:24px">
+          <div style="display:flex;align-items:center;gap:18px;margin-bottom:20px">
             <div style="width:72px;height:72px;border-radius:36px;background:${avatarBg};display:grid;place-items:center;font-size:28px;font-weight:600;color:#fff;flex-shrink:0;overflow:hidden">
               ${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover"/>` : initial}
             </div>
@@ -2071,7 +2092,19 @@
             ${profileRow('PAN number', profile?.pan_number || 'Not set')}
           </div>
         </section>
-        <button class="act-btn danger" style="width:100%;justify-content:center" onclick="showConfirm('You will be signed out of RentyBase.',()=>sb.auth.signOut().then(()=>window.location.href='/signin'),{title:'Sign out',confirmLabel:'Sign out',danger:true})">Sign out</button>`;
+
+        ${role === 'tenant' ? `
+        <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--rb-ink-3);margin-bottom:10px;padding-left:2px">More features</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          ${featureCard('agree', '📋', 'Agreement', 'View or sign your lease', agreeStatus)}
+          ${featureCard('proof', '📷', 'Move-in proof', 'Room photos & condition record', proofStatus)}
+          ${featureCard('dep',   '🔒', 'Deposit', 'Security deposit & deductions', depStatus)}
+          ${featureCard('score', '★',  'Renter score', 'Your portable trust rating', `${scoreBandStr} · ${scoreVal}/900`)}
+        </div>` : ''}
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="act-btn ghost" style="width:100%;justify-content:center" onclick="showConfirm('You will be signed out of RentyBase.',()=>sb.auth.signOut().then(()=>window.location.href=\'/signin\'),{title:\'Sign out\',confirmLabel:\'Sign out\',danger:true})">Sign out</button>
+        </div>`;
     }
 
     function profileRow(label, value) {
