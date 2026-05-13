@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { SpeedInsights } from '@vercel/speed-insights/react';
+import { Analytics } from '@vercel/analytics/react';
 import {
   Geist_400Regular,
   Geist_500Medium,
@@ -167,7 +168,12 @@ export default function RootLayout() {
             <ConfirmHost />
             <ToastHost />
           </QueryClientProvider>
-          {Platform.OS === 'web' && <SpeedInsights />}
+          {Platform.OS === 'web' && (
+            <>
+              <SpeedInsights />
+              <Analytics />
+            </>
+          )}
         </WebContainer>
       </GestureHandlerRootView>
     </AppErrorBoundary>
