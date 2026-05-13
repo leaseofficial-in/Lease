@@ -98,11 +98,11 @@ export default function TenantDepositScreen() {
               <View style={{ backgroundColor: Colors.primary, borderRadius: 22, padding: 22, overflow: 'hidden' }}>
                 {/* Retained percentage ring hint */}
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <View>
-                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>
+                  <View style={{ flex: 1, minWidth: 0, marginRight: 10 }}>
+                    <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>
                       Balance held by landlord
                     </Text>
-                    <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 40, lineHeight: 44 }}>
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 36, lineHeight: 42 }}>
                       {formatCurrency(balance)}
                     </Text>
                   </View>

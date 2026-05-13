@@ -56,11 +56,11 @@ const DepositStat: React.FC<{ label: string; value: number; color: string }> = (
   value,
   color,
 }) => (
-  <View className="items-center" style={{ flex: 1 }}>
-    <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11, marginBottom: 2 }}>
+  <View className="items-center" style={{ flex: 1, minWidth: 0 }}>
+    <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11, marginBottom: 2 }}>
       {label}
     </Text>
-    <Text style={{ color, fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
+    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color, fontFamily: Fonts.sansSemiBold, fontSize: 15 }}>
       {formatCurrency(value, true)}
     </Text>
   </View>
@@ -75,27 +75,27 @@ const DepositRow: React.FC<{ txn: DepositTransaction }> = ({ txn }) => {
   const methodLabel = txn.payment_method === 'upi' ? 'UPI' : txn.payment_method === 'bank_transfer' ? 'Bank' : txn.payment_method === 'cash' ? 'Cash' : null;
 
   return (
-    <View className="flex-row items-start py-2 border-b border-border">
-      <View className="flex-1 pr-3">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E6E2D7' }}>
+      <View style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
+          <Text numberOfLines={1} style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, flexShrink: 1 }}>
             {txn.note || txn.type}
           </Text>
           {catColors && (
-            <View style={{ backgroundColor: catColors.bg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+            <View style={{ backgroundColor: catColors.bg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1, flexShrink: 0 }}>
               <Text style={{ color: catColors.text, fontFamily: Fonts.sansSemiBold, fontSize: 10 }}>
                 {categoryLabel(txn.category)}
               </Text>
             </View>
           )}
         </View>
-        <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11, marginTop: 1 }}>
+        <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 11, marginTop: 1 }}>
           {formatDate(txn.created_at)}
           {methodLabel ? ` · ${methodLabel}` : ''}
           {txn.reference ? ` · ${txn.reference}` : ''}
         </Text>
       </View>
-      <Text style={{ color: amountColor, fontFamily: Fonts.sansSemiBold, fontSize: 13 }}>
+      <Text style={{ color: amountColor, fontFamily: Fonts.sansSemiBold, fontSize: 13, flexShrink: 0 }}>
         {prefix}{formatCurrency(txn.amount)}
       </Text>
     </View>

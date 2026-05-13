@@ -456,7 +456,7 @@ export default function PayRentScreen() {
                 }}
               >
                 <Ionicons name={m.icon} size={16} color={active ? Colors.action : Colors.muted} />
-                <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 14, color: active ? Colors.action : Colors.primary }}>
+                <Text numberOfLines={1} style={{ fontFamily: Fonts.sansMedium, fontSize: 13, color: active ? Colors.action : Colors.primary }}>
                   {m.label}
                 </Text>
               </TouchableOpacity>

@@ -207,18 +207,18 @@ export default function LandlordPaymentsScreen() {
         {/* Summary stats */}
         <View style={{ paddingHorizontal: 20, paddingBottom: 16, flexDirection: 'row', gap: 12 }}>
           <Card style={{ flex: 1, backgroundColor: Colors.success }} elevated>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.sans, fontSize: 12, marginBottom: 4 }}>
+            <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.sans, fontSize: 12, marginBottom: 4 }}>
               Received
             </Text>
-            <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
               {formatCurrency(totalReceived, true)}
             </Text>
           </Card>
           <Card style={{ flex: 1, backgroundColor: Colors.warning }} elevated>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.sans, fontSize: 12, marginBottom: 4 }}>
+            <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.sans, fontSize: 12, marginBottom: 4 }}>
               Pending
             </Text>
-            <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 20 }}>
               {formatCurrency(totalPending, true)}
             </Text>
           </Card>
@@ -460,12 +460,13 @@ function ConfirmRow({
   mono?: boolean;
 }) {
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13 }}>{label}</Text>
-      <Text style={{
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+      <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, flexShrink: 0 }}>{label}</Text>
+      <Text numberOfLines={1} style={{
         color: highlight ? Colors.primary : Colors.ink2,
         fontFamily: mono ? Fonts.mono : highlight ? Fonts.sansSemiBold : Fonts.sansMedium,
         fontSize: highlight ? 16 : 13,
+        flexShrink: 1, textAlign: 'right',
       }}>
         {value}
       </Text>

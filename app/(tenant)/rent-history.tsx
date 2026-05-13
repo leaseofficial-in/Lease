@@ -136,25 +136,25 @@ export default function RentHistoryScreen() {
 
               {/* Stat grid */}
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.45)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.5, marginBottom: 4 }}>
+                <View style={{ flex: 1, minWidth: 0, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
+                  <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.45)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.5, marginBottom: 4 }}>
                     FY {fyStart}–{String(fyStart + 1).slice(2)} YTD
                   </Text>
-                  <Text style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: '#fff', fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
                     {formatCurrency(ytdAmount, true)}
                   </Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.38)', fontFamily: Fonts.sans, fontSize: 10, marginTop: 2 }}>
+                  <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.38)', fontFamily: Fonts.sans, fontSize: 10, marginTop: 2 }}>
                     {currentFyPayments.length} months this FY
                   </Text>
                 </View>
-                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.45)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.5, marginBottom: 4 }}>
+                <View style={{ flex: 1, minWidth: 0, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
+                  <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.45)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.5, marginBottom: 4 }}>
                     HRA ELIGIBLE
                   </Text>
-                  <Text style={{ color: '#7AEFC0', fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: '#7AEFC0', fontFamily: Fonts.sansSemiBold, fontSize: 16 }}>
                     {formatCurrency(hraEligible, true)}
                   </Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.38)', fontFamily: Fonts.sans, fontSize: 10, marginTop: 2 }}>
+                  <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.38)', fontFamily: Fonts.sans, fontSize: 10, marginTop: 2 }}>
                     Claim with employer
                   </Text>
                 </View>

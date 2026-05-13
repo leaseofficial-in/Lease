@@ -621,7 +621,7 @@ function ActionTile({
           </View>
         )}
       </View>
-      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12 }}>{label}</Text>
+      <Text numberOfLines={1} style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 12 }}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -636,9 +636,9 @@ function InfoItem({
   align?: 'left' | 'right';
 }) {
   return (
-    <View style={{ flex: 1, alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
-      <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11 }}>{label}</Text>
-      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginTop: 2 }}>
+    <View style={{ flex: 1, minWidth: 0, alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
+      <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11 }}>{label}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14, marginTop: 2 }}>
         {value}
       </Text>
     </View>

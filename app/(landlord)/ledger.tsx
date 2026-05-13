@@ -470,11 +470,11 @@ function StatTile({ label, value, dotColor, sub }: { label: string; value: strin
   return (
     <View style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dotColor }} />
-        <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.5 }}>{label}</Text>
+        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dotColor, flexShrink: 0 }} />
+        <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 0.5 }}>{label}</Text>
       </View>
-      <Text style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 16, lineHeight: 20 }}>{value}</Text>
-      <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 10, marginTop: 2 }}>{sub}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: Colors.primary, fontFamily: Fonts.sansBold, fontSize: 16, lineHeight: 20 }}>{value}</Text>
+      <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 10, marginTop: 2 }}>{sub}</Text>
     </View>
   );
 }

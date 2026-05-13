@@ -71,11 +71,11 @@ function MetricCell({
   align?: 'left' | 'center' | 'right';
 }) {
   return (
-    <View style={{ flex: 1, alignItems: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start' }}>
-      <Text style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 0.6, marginBottom: 3 }}>
+    <View style={{ flex: 1, minWidth: 0, alignItems: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start' }}>
+      <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.mono, fontSize: 10, letterSpacing: 0.6, marginBottom: 3 }}>
         {label.toUpperCase()}
       </Text>
-      <Text numberOfLines={1} style={{ color: valueColor ?? Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ color: valueColor ?? Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 14 }}>
         {value}
       </Text>
     </View>

@@ -151,8 +151,8 @@ export function CollectionRing({
   sublabel?: string;
   inverse?: boolean;
 }) {
-  const size = 108;
-  const stroke = 9;
+  const size = 82;
+  const stroke = 8;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c * (1 - Math.max(0, Math.min(value, 100)) / 100);
@@ -160,7 +160,7 @@ export function CollectionRing({
   const bg = inverse ? 'rgba(255,255,255,0.15)' : Colors.borderSoft;
 
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: [{ rotate: '-90deg' }] }}>
         <Circle cx={size / 2} cy={size / 2} r={r} stroke={bg} strokeWidth={stroke} fill="none" />
         <Circle
@@ -176,7 +176,7 @@ export function CollectionRing({
         />
       </Svg>
       <View className="absolute items-center">
-        <Text style={{ color: fg, fontFamily: Fonts.sansSemiBold, fontSize: 24 }}>
+        <Text style={{ color: fg, fontFamily: Fonts.sansSemiBold, fontSize: 18 }}>
           {label ?? `${Math.round(value)}%`}
         </Text>
         {sublabel && (

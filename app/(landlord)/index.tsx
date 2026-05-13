@@ -453,11 +453,16 @@ export default function LandlordDashboard() {
             </View>
             <View className="flex-row items-center mt-4">
               <CollectionRing value={collectionRate} label={`${collectionRate}%`} sublabel="Collected" inverse />
-              <View className="ml-5 flex-1">
+              <View style={{ marginLeft: 14, flex: 1, minWidth: 0 }}>
                 <Text style={{ color: 'rgba(255,255,255,0.55)', fontFamily: Fonts.mono, fontSize: 10 }}>
                   EXPECTED THIS MONTH
                 </Text>
-                <DisplayText style={{ color: Colors.surface, fontSize: 38, lineHeight: 40 }}>
+                <DisplayText
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.65}
+                  style={{ color: Colors.surface, fontSize: 32, lineHeight: 36 }}
+                >
                   {formatCurrency(totalExpected, true)}
                 </DisplayText>
                 <View className="flex-row gap-5 mt-3">
@@ -668,6 +673,7 @@ export default function LandlordDashboard() {
                     }}
                   >
                     <Text
+                      numberOfLines={1}
                       style={{
                         color: selected ? Colors.surface : Colors.primary,
                         fontFamily: Fonts.sansSemiBold,
@@ -767,9 +773,16 @@ function CollectionForecast({
 
 function MiniPanel({ label, value, children }: { label: string; value: string; children?: React.ReactNode }) {
   return (
-    <Card className="flex-1" style={{ minHeight: 126 }}>
-      <Cap>{label}</Cap>
-      <DisplayText style={{ fontSize: 34, lineHeight: 38, marginTop: 6 }}>{value}</DisplayText>
+    <Card className="flex-1" style={{ minHeight: 118 }}>
+      <Cap numberOfLines={1}>{label}</Cap>
+      <DisplayText
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
+        style={{ fontSize: 28, lineHeight: 32, marginTop: 6 }}
+      >
+        {value}
+      </DisplayText>
       {children}
     </Card>
   );

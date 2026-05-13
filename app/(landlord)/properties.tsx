@@ -250,15 +250,20 @@ function SummaryTile({
         padding: 16,
       }}
     >
-      <Text style={{ fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 1.4, color: Colors.muted, textTransform: 'uppercase' }}>
+      <Text numberOfLines={1} style={{ fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 1.4, color: Colors.muted, textTransform: 'uppercase' }}>
         {label}
       </Text>
-      <Text style={{ fontFamily: Fonts.serif, fontSize: 28, lineHeight: 32, letterSpacing: -0.5, color: Colors.primary, marginTop: 8 }}>
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
+        style={{ fontFamily: Fonts.serif, fontSize: 26, lineHeight: 30, letterSpacing: -0.5, color: Colors.primary, marginTop: 8 }}
+      >
         {value}
-        {unit ? <Text style={{ fontFamily: Fonts.sans, fontSize: 14, color: Colors.ink3 }}> {unit}</Text> : null}
+        {unit ? <Text style={{ fontFamily: Fonts.sans, fontSize: 13, color: Colors.ink3 }}> {unit}</Text> : null}
       </Text>
       {sub ? (
-        <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: Colors.ink3, marginTop: 6, lineHeight: 16 }}>{sub}</Text>
+        <Text numberOfLines={2} style={{ fontFamily: Fonts.sans, fontSize: 11, color: Colors.ink3, marginTop: 6, lineHeight: 16 }}>{sub}</Text>
       ) : null}
       {progress !== undefined ? (
         <View style={{ height: 3, backgroundColor: Colors.fill2, borderRadius: 2, marginTop: 10, overflow: 'hidden' }}>

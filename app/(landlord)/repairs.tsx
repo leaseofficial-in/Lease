@@ -158,7 +158,7 @@ export default function AllRepairsScreen() {
                 activeOpacity={0.82}
               >
                 <Card style={{ marginBottom: 12 }}>
-                  <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11, marginBottom: 6 }}>
+                  <Text numberOfLines={1} style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 11, marginBottom: 6 }}>
                     {repair.rental?.property?.name ?? 'Property'} · {repair.rental?.property?.city}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -194,9 +194,9 @@ export default function AllRepairsScreen() {
 
 function StatPill({ label, value, color, bg }: { label: string; value: number; color: string; bg: string }) {
   return (
-    <View style={{ flex: 1, backgroundColor: bg, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center' }}>
-      <Text style={{ color, fontFamily: Fonts.sansSemiBold, fontSize: 26, lineHeight: 28 }}>{value}</Text>
-      <Text style={{ color, fontFamily: Fonts.sansMedium, fontSize: 11, marginTop: 3 }}>{label}</Text>
+    <View style={{ flex: 1, minWidth: 0, backgroundColor: bg, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center' }}>
+      <Text numberOfLines={1} style={{ color, fontFamily: Fonts.sansSemiBold, fontSize: 26, lineHeight: 28 }}>{value}</Text>
+      <Text numberOfLines={1} style={{ color, fontFamily: Fonts.sansMedium, fontSize: 11, marginTop: 3 }}>{label}</Text>
     </View>
   );
 }
