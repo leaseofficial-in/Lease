@@ -401,7 +401,8 @@
     const $ = id => document.getElementById(id);
     const inr = n => '₹' + Number(n || 0).toLocaleString('en-IN');
     const now = new Date();
-    const currentMonth = now.toISOString().slice(0, 7);
+    const currentMonth = now.toISOString().slice(0, 7);       // "2026-05" — display only
+    const currentMonthDate = currentMonth + '-01';             // "2026-05-01" — DB DATE column
 
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const monthLabel = s => {
@@ -567,7 +568,7 @@
           sb.from('rent_payments')
             .select('id, amount, month, status, rental_id, created_at, rental:rentals!inner(landlord_id, property:properties(name, city))')
             .eq('rental.landlord_id', user.id)
-            .gte('month', `${now.getFullYear()}-01`)
+            .gte('month', `${now.getFullYear()}-01-01`)
             .order('created_at', { ascending: false })
         ]);
 
@@ -581,7 +582,7 @@
             sb.from('rent_payments')
               .select('*')
               .in('rental_id', rentalIds)
-              .eq('month', currentMonth),
+              .eq('month', currentMonthDate),
             sb.from('repair_requests')
               .select('*, rental:rentals(property:properties(name, city))')
               .in('rental_id', rentalIds)
@@ -647,7 +648,7 @@
         let currentPayment = null, recentPayments = [], openRepairs = [], proofs = null, depositTransactions = [], notifications = [];
         if (rental) {
           const [pmtRes, histRes, repRes, proofRes, depRes, notifRes] = await Promise.all([
-            sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('month', currentMonth).maybeSingle(),
+            sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('month', currentMonthDate).maybeSingle(),
             sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('status', 'paid').order('month', { ascending: false }).limit(12),
             sb.from('repair_requests').select('*').eq('rental_id', rental.id).in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(10),
             sb.from('proofs').select('*, proof_photos(id, room_label)').eq('rental_id', rental.id).eq('type', 'move_in').maybeSingle(),
@@ -1605,7 +1606,7 @@
         if (paymentId) {
           ({ error } = await sb.from('rent_payments').update(upd).eq('id', paymentId));
         } else {
-          ({ error } = await sb.from('rent_payments').insert({ rental_id: rentalId, month: currentMonth, amount: amount, ...upd }));
+          ({ error } = await sb.from('rent_payments').insert({ rental_id: rentalId, month: currentMonthDate, amount: amount, ...upd }));
         }
         if (error) throw error;
         showToast('Payment submitted! Awaiting landlord confirmation.', 'success');
