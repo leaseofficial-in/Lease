@@ -10,7 +10,7 @@ type Building = { id: string; name: string; address_line1: string; address_line2
 type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; landlord_signed_at?: string; agreement_status?: string; agreement_custom_clauses?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; start_date?: string; end_date?: string; notice_given_at?: string; move_out_date?: string; escalation_applied_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
 type Message = { id: string; rental_id: string; sender_id: string; body: string; read_at?: string; created_at: string; sender?: { full_name?: string; avatar_url?: string } }
 type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string; bedrooms?: number; bathrooms?: number; area_sqft?: number; floor_number?: number; parking?: boolean; building_id?: string; unit_number?: string; building?: Building }
-type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; created_at: string; updated_at?: string }
+type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; late_fee?: number; created_at: string; updated_at?: string }
 type RepairRequest = { id: string; rental_id: string; title: string; description?: string; status: string; cost?: number; category?: string; urgency?: string; photo_url?: string; landlord_note?: string; scheduled_date?: string; deduct_from_deposit?: boolean; vendor_name?: string; vendor_phone?: string; resolved_confirmed_at?: string; created_at: string; rental?: { property?: Property } }
 type Proof = { id: string; rental_id: string; type: string; status: string; proof_photos?: ProofPhoto[] }
 type ProofPhoto = { id: string; room_label?: string; public_url?: string; annotation?: string; created_at: string }
@@ -61,6 +61,9 @@ function escalationDueDays(rental: Rental): number | null {
   if (ann <= now) ann.setFullYear(ann.getFullYear() + 1)
   const d = Math.ceil((ann.getTime() - now.getTime()) / 86400000)
   return d <= 90 ? d : null
+}
+function computeLateFee(rental: Rental): number {
+  return Math.round(Number(rental.monthly_rent) * (Number(rental.late_fee_percent || 5) / 100))
 }
 function scoreNudge(score: number, months: number): string {
   if (score >= 850) return 'Excellent! Keep paying on time to maintain your top rating.'
@@ -170,7 +173,7 @@ export default function DashboardPage() {
         if (role === 'landlord') {
           const [rentalsRes, ytdRes, buildingsRes] = await Promise.all([
             sb.from('rentals').select('*, property:properties(*, building:buildings(*)), tenant:profiles!rentals_tenant_id_fkey(id, full_name, phone, avatar_url, pan_number)').eq('landlord_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }),
-            sb.from('rent_payments').select('id, amount, month, status, rental_id, created_at, rental:rentals!inner(landlord_id, tenant:profiles!rentals_tenant_id_fkey(full_name), property:properties(name, city))').eq('rental.landlord_id', u.id).gte('month', `${now.getFullYear()}-01-01`).order('month', { ascending: false }),
+            sb.from('rent_payments').select('id, amount, month, status, rental_id, late_fee, created_at, rental:rentals!inner(landlord_id, tenant:profiles!rentals_tenant_id_fkey(full_name), property:properties(name, city))').eq('rental.landlord_id', u.id).gte('month', `${now.getFullYear()}-01-01`).order('month', { ascending: false }),
             sb.from('buildings').select('*').eq('landlord_id', u.id).order('created_at', { ascending: false }),
           ])
           const rentals: Rental[] = rentalsRes.data || []
@@ -231,6 +234,18 @@ export default function DashboardPage() {
       }
     })()
   }, [])
+
+  // Auto-apply late fee when tenant has an overdue payment without one yet
+  useEffect(() => {
+    const pmt = tenantData?.currentPayment
+    const rental = tenantData?.rental
+    if (!pmt || !rental || pmt.status !== 'overdue' || pmt.late_fee) return
+    const fee = computeLateFee(rental)
+    if (fee <= 0) return
+    sb.from('rent_payments').update({ late_fee: fee }).eq('id', pmt.id).then(({ error }) => {
+      if (!error) setTenantData((d: any) => ({ ...d, currentPayment: { ...d.currentPayment, late_fee: fee } }))
+    })
+  }, [tenantData?.currentPayment?.id])
 
   const handleSignOut = async () => { await sb.auth.signOut(); window.location.href = '/signin' }
 
@@ -474,6 +489,32 @@ export default function DashboardPage() {
             )}
           </section>
 
+          {(() => {
+            const escalating = activeRentals.filter((r: Rental) => escalationDueDays(r) !== null)
+            if (escalating.length === 0) return null
+            return (
+              <section style={{ ...cardStyle, gridColumn: 'span 2', padding: '16px 20px' }}>
+                <h3 style={{ ...cardH3Style, marginBottom: 14, fontSize: 18 }}>Rent revisions due</h3>
+                {escalating.map((r: Rental) => {
+                  const days = escalationDueDays(r)!
+                  const newRent = Math.round(Number(r.monthly_rent) * (1 + Number(r.rent_increment_percent || 5) / 100))
+                  return (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>📈</div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{r.property?.name || '—'}</div>
+                          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || '—'} · {inr(r.monthly_rent)} → {inr(newRent)} · in {days} day{days !== 1 ? 's' : ''}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => { setSelectedRental(r); setModal('apply-escalation') }} style={{ padding: '5px 14px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>Apply now</button>
+                    </div>
+                  )
+                })}
+              </section>
+            )
+          })()}
+
           <section style={cardStyle}>
             <h3 style={cardH3Style}>Quick actions</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14 }}>
@@ -713,6 +754,7 @@ export default function DashboardPage() {
                             <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, padding: '3px 9px', borderRadius: 999, letterSpacing: '.05em', whiteSpace: 'nowrap' as const, background: st.bg, color: st.c }}>{st.t}</span>
                             <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 16, fontWeight: 600, textAlign: 'right' as const, color: amtColor, minWidth: 72 }}>
                               {p.status === 'paid' ? '+' : ''}{inr(p.amount)}
+                              {p.status === 'overdue' && Number(p.late_fee) > 0 && <div style={{ fontSize: 10, color: 'var(--rb-danger)', fontFamily: 'var(--rb-font-mono)', fontWeight: 700, marginTop: 2 }}>+{inr(p.late_fee)} fee</div>}
                             </div>
                             <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 10, color: 'var(--rb-ink-3)', textAlign: 'right' as const, minWidth: 68 }}>
                               {bal !== undefined ? <span title="Running balance collected">{inr(bal)}</span> : <span style={{ opacity: .3 }}>—</span>}
@@ -762,6 +804,11 @@ export default function DashboardPage() {
             {isPaid ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(31,122,85,.25)', border: '1px solid rgba(31,122,85,.35)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#A8E6C8' }}>✓ Paid this month</span></div>
               : isPending ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(201,122,58,.15)', border: '1px solid rgba(201,122,58,.3)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: 'var(--rb-accent)' }}>⏳ Awaiting landlord confirmation</span></div>
               : <div style={{ marginTop: 18, display: 'flex', gap: 10 }}><button onClick={() => setModal('pay-rent')} style={{ ...actBtnPrimary, background: '#fff', color: 'var(--rb-action)' }}>Pay / record payment →</button></div>}
+            {currentPayment?.status === 'overdue' && (currentPayment?.late_fee || 0) > 0 && (
+              <div style={{ marginTop: 12, padding: '9px 14px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#ffaaaa', display: 'flex', gap: 8, alignItems: 'center' }}>
+                ⚠ Overdue · {inr(rental.monthly_rent)} rent + {inr(currentPayment.late_fee!)} late fee = <strong style={{ color: '#fff' }}>{inr(Number(rental.monthly_rent) + currentPayment.late_fee!)} total due</strong>
+              </div>
+            )}
             {Number(rental.monthly_rent) > 50000 && <div style={{ marginTop: 12, padding: '7px 12px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#ffaaaa' }}>⚠ Rent &gt;₹50,000/mo — you must deduct 2% TDS and file Form 26QC.</div>}
             <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid rgba(246,244,238,.12)', display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 12, color: 'rgba(246,244,238,.65)' }}>
               <span>{propLine}</span>
@@ -797,6 +844,23 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
+              </section>
+            )
+          })()}
+
+          {rental.escalation_applied_at && (() => {
+            const appliedDate = new Date(rental.escalation_applied_at)
+            const daysSince = Math.floor((now.getTime() - appliedDate.getTime()) / 86400000)
+            if (daysSince > 60) return null
+            return (
+              <section style={{ ...cardStyle, gridColumn: 'span 2', padding: '12px 18px', background: 'var(--rb-action-soft)', border: '1px solid rgba(15,76,92,.15)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ fontSize: 22, flexShrink: 0 }}>📩</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--rb-action)' }}>Rent revised to {inr(rental.monthly_rent)}/month</div>
+                    <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Your landlord applied the annual increment {daysSince === 0 ? 'today' : `${daysSince} day${daysSince !== 1 ? 's' : ''} ago`}. Future payments will reflect the new amount.</div>
+                  </div>
+                </div>
               </section>
             )
           })()}
@@ -877,6 +941,19 @@ export default function DashboardPage() {
         <section style={{ ...cardStyle, background: 'linear-gradient(135deg,#14403E,#0F2A2D)', color: '#F6F4EE', border: 0, marginBottom: 18 }}>
           <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, letterSpacing: '.14em', color: 'rgba(246,244,238,.6)' }}>RENT · {monthLabel(currentMonth).toUpperCase()}</div>
           <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 64, lineHeight: 1, letterSpacing: '-.03em', marginTop: 14 }}>{inr(rental.monthly_rent)}</div>
+          {currentPayment?.status === 'overdue' && (currentPayment?.late_fee || 0) > 0 && (
+            <div style={{ marginTop: 14, padding: '12px 16px', background: 'rgba(239,68,68,.18)', borderRadius: 10, fontSize: 13, color: 'rgba(246,244,238,.9)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ color: 'rgba(246,244,238,.7)' }}>Rent</span><span>{inr(rental.monthly_rent)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, color: '#ffaaaa' }}>
+                <span>Late fee ({rental.late_fee_percent ?? 5}%)</span><span>+{inr(currentPayment.late_fee!)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 15, borderTop: '1px solid rgba(246,244,238,.12)', paddingTop: 10 }}>
+                <span>Total due</span><span>{inr(Number(rental.monthly_rent) + currentPayment.late_fee!)}</span>
+              </div>
+            </div>
+          )}
           {isPaid ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(31,122,85,.25)', border: '1px solid rgba(31,122,85,.35)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#A8E6C8' }}>✓ Paid · {relDate(currentPayment?.updated_at || currentPayment?.created_at)}</span></div>
             : isPending ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(201,122,58,.15)', border: '1px solid rgba(201,122,58,.3)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: 'var(--rb-accent)' }}>⏳ Pending landlord confirmation</span>
               {currentPayment?.payment_method && <div style={{ marginTop: 14, padding: 14, background: 'rgba(246,244,238,.06)', borderRadius: 12 }}>
@@ -2905,6 +2982,70 @@ export default function DashboardPage() {
     )
   }
 
+  // ── Apply escalation modal (landlord) ────────────────────────────────────
+  function ApplyEscalationModal() {
+    const rental: Rental | null = selectedRental
+    const [saving, setSaving] = useState(false)
+    if (!rental) return null
+    const increment = Number(rental.rent_increment_percent || 5)
+    const currentRent = Number(rental.monthly_rent)
+    const newRent = Math.round(currentRent * (1 + increment / 100))
+    const effectiveDate = new Date()
+    effectiveDate.setDate(1)
+    effectiveDate.setMonth(effectiveDate.getMonth() + 1)
+    const effectiveDateStr = effectiveDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    const handleApply = async () => {
+      setSaving(true)
+      try {
+        const { error } = await sb.from('rentals').update({
+          monthly_rent: newRent,
+          escalation_applied_at: new Date().toISOString().split('T')[0],
+        }).eq('id', rental.id)
+        if (error) throw error
+        if (rental.tenant_id) {
+          try {
+            await sb.from('notifications').insert({
+              user_id: rental.tenant_id,
+              title: 'Rent revised',
+              body: `Your monthly rent has been revised from ${inr(currentRent)} to ${inr(newRent)}, effective ${effectiveDateStr}.`,
+              type: 'info',
+            })
+          } catch { /* non-fatal */ }
+        }
+        toast('Escalation applied — tenant notified', 'success')
+        setModal(null)
+        window.location.reload()
+      } catch (e: any) { console.error('[Escalation]', e); toast(e?.message || 'Failed', 'error'); setSaving(false) }
+    }
+
+    return (
+      <Modal title="Apply rent escalation" onClose={() => setModal(null)}>
+        <div style={{ marginBottom: 20, padding: '16px 18px', background: 'var(--rb-action-soft)', borderRadius: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>Current rent</span>
+            <span style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22 }}>{inr(currentRent)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>Annual increment</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--rb-action)' }}>+{increment}%</span>
+          </div>
+          <div style={{ borderTop: '1px dashed rgba(15,76,92,.2)', paddingTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>New rent</span>
+            <span style={{ fontFamily: 'var(--rb-font-display)', fontSize: 32, color: 'var(--rb-action)', letterSpacing: '-.025em' }}>{inr(newRent)}</span>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 20, lineHeight: 1.6 }}>
+          This updates monthly rent to <strong>{inr(newRent)}</strong> effective from <strong>{effectiveDateStr}</strong>. The tenant will be notified in-app.
+        </p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={() => setModal(null)} style={{ flex: 1, padding: '10px 0', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>Cancel</button>
+          <button onClick={handleApply} disabled={saving} style={{ flex: 1, padding: '10px 0', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Applying…' : `Apply ${inr(newRent)} →`}</button>
+        </div>
+      </Modal>
+    )
+  }
+
   // ── Give notice modal (tenant) ───────────────────────────────────────────
   function GiveNoticeModal() {
     const rental: Rental | null = selectedRental || tenantData?.rental || null
@@ -3084,6 +3225,7 @@ export default function DashboardPage() {
       {modal === 'end-lease' && <EndLeaseModal />}
       {modal === 'sign-agreement' && <SignAgreementModal />}
       {modal === 'dispute-tx' && <DisputeTxModal />}
+      {modal === 'apply-escalation' && <ApplyEscalationModal />}
       {modal === 'give-notice' && <GiveNoticeModal />}
       {modal === 'custom-clauses' && <CustomClausesModal />}
       {modal === 'landlord-sign' && <LandlordSignModal />}
