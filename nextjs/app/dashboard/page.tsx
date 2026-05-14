@@ -636,7 +636,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Summary strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
+        <div className="stat-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
           {[
             { l: 'Collected',     v: inr(collected), c: 'var(--rb-action)' },
             { l: 'Pending review', v: inr(pending),  c: pending > 0 ? 'var(--rb-accent)' : 'var(--rb-ink-3)' },
@@ -1022,7 +1022,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Account fields: 3-col strip */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderTop: '1px solid var(--rb-border-soft)', marginTop: 20 }}>
+            <div className="inner-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderTop: '1px solid var(--rb-border-soft)', marginTop: 20 }}>
               {[
                 { l: 'Phone', v: profile?.phone || '—', mono: false },
                 { l: 'PAN number', v: profile?.pan_number || '—', mono: true },
@@ -1099,7 +1099,7 @@ export default function DashboardPage() {
           {!isTenant && (
             <section style={{ ...cardStyle, gridColumn: 'span 3' }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 16 }}>Portfolio snapshot</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 0 }}>
+              <div className="inner-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 0 }}>
                 {[
                   { l: 'Buildings', v: String(landlordData?.buildings?.length || 0) },
                   { l: 'Units', v: String(landlordData?.rentals?.length || 0) },
@@ -2325,6 +2325,11 @@ export default function DashboardPage() {
           .m-head{display:flex!important}
           .m-tabs{display:flex!important}
           .d-grid-inner{grid-template-columns:1fr!important;gap:14px!important}
+          .d-grid-inner>*{grid-column:1/-1!important}
+          .inner-stats{grid-template-columns:1fr!important}
+          .inner-stats>*{border-right:none!important;border-bottom:1px solid var(--rb-border-soft)}
+          .inner-stats>*:last-child{border-bottom:none!important}
+          .stat-4{grid-template-columns:repeat(2,1fr)!important}
         }
         @media(min-width:768px){
           .m-head{display:none!important}
