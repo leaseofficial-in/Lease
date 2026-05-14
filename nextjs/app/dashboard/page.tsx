@@ -2036,6 +2036,7 @@ export default function DashboardPage() {
     })
     const [saving, setSaving] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [copiedCode, setCopiedCode] = useState(false)
     const inviteLink = r.invite_token ? `${window.location.origin}/join/${r.invite_token}` : null
     const inviteExpired = r.invite_expires_at ? new Date(r.invite_expires_at) < new Date() : true
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -2052,6 +2053,21 @@ export default function DashboardPage() {
       if (!inviteLink) return
       navigator.clipboard.writeText(inviteLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
     }
+    const handleCopyCode = () => {
+      if (!r.invite_token) return
+      navigator.clipboard.writeText(r.invite_token).then(() => { setCopiedCode(true); setTimeout(() => setCopiedCode(false), 2000) })
+    }
+    const waMsg = inviteLink ? encodeURIComponent(
+      `Hi! I've added your unit on RentyBase 🏠\n\n` +
+      `*Property:* ${r.property?.name || 'Your unit'}\n` +
+      `*Rent:* ₹${Number(r.monthly_rent).toLocaleString('en-IN')}/mo, due ${r.rent_due_day}th of each month\n\n` +
+      `Tap to join: ${inviteLink}\n\n` +
+      `Or enter code *${r.invite_token}* at the app.\n\n_(Link valid for 72 hours)_`
+    ) : ''
+    const smsMsg = inviteLink ? encodeURIComponent(
+      `Join your rental on RentyBase. Code: ${r.invite_token}. Link: ${inviteLink}`
+    ) : ''
+    const canShare = typeof navigator !== 'undefined' && !!navigator.share
 
     const handleRegenerateLink = async () => {
       setSaving(true)
@@ -2133,21 +2149,83 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Invite link */}
+        {/* Invite card */}
         {!r.tenant_id && (
-          <div style={{ marginBottom: 20, padding: 14, background: 'var(--rb-fill)', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 8 }}>Invite tenant</div>
+          <div style={{ marginBottom: 22 }}>
             {inviteLink && !inviteExpired ? (
-              <>
-                <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, padding: '8px 10px', background: 'var(--rb-surface)', borderRadius: 8, border: '1px solid var(--rb-border)', wordBreak: 'break-all' as const, color: 'var(--rb-ink-2)', marginBottom: 8 }}>{inviteLink}</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-                  <button onClick={handleCopyLink} style={actBtnPrimary}>{copied ? '✓ Copied!' : '📋 Copy link'}</button>
-                  <button onClick={handleRegenerateLink} disabled={saving} style={{ padding: '10px 18px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, color: 'var(--rb-ink-3)' }}>↺ New link</button>
+              <div style={{ borderRadius: 18, overflow: 'hidden', border: '1px solid rgba(14,20,19,.12)' }}>
+
+                {/* Dark header — code + property */}
+                <div style={{ background: 'linear-gradient(135deg,#0E1413 0%,#163A47 100%)', padding: '18px 18px 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.16em', color: 'rgba(246,244,238,.45)', textTransform: 'uppercase' as const }}>INVITE TENANT</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#F6F4EE', marginTop: 3 }}>{r.property?.name || 'Your unit'}</div>
+                    </div>
+                    <div style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(246,244,238,.1)', fontSize: 10, color: 'rgba(246,244,238,.5)', fontFamily: 'var(--rb-font-mono)', flexShrink: 0 }}>
+                      Expires {relDate(r.invite_expires_at)}
+                    </div>
+                  </div>
+
+                  {/* Token code — prominent */}
+                  <div style={{ marginTop: 18, marginBottom: 18 }}>
+                    <div style={{ fontSize: 10, color: 'rgba(246,244,238,.4)', letterSpacing: '.1em', marginBottom: 8, textTransform: 'uppercase' as const }}>INVITE CODE</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 32, fontWeight: 700, letterSpacing: '.18em', color: '#F6F4EE', lineHeight: 1 }}>{r.invite_token}</span>
+                      <button onClick={handleCopyCode} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(246,244,238,.2)', background: copiedCode ? 'rgba(0,200,150,.2)' : 'rgba(246,244,238,.08)', color: copiedCode ? '#00C896' : 'rgba(246,244,238,.65)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, transition: 'all .2s' }}>
+                        {copiedCode ? '✓ Copied' : 'Copy code'}
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'rgba(246,244,238,.35)', marginTop: 6 }}>Tenant enters this at the app or website</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 6 }}>Expires {relDate(r.invite_expires_at)}</div>
-              </>
+
+                {/* Share actions */}
+                <div style={{ background: '#0a1110', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: 'rgba(246,244,238,.3)', textTransform: 'uppercase' as const }}>Share via</div>
+
+                  {/* WhatsApp — primary */}
+                  <a href={`https://wa.me/?text=${waMsg}`} target="_blank" rel="noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '13px 20px', borderRadius: 12, background: '#25D366', color: '#fff', textDecoration: 'none', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, letterSpacing: '-.01em' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.529 5.858L.057 23.999l6.304-1.654A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.798 9.798 0 01-4.964-1.348l-.356-.211-3.741.981.999-3.649-.232-.374A9.786 9.786 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182c5.43 0 9.818 4.388 9.818 9.818 0 5.43-4.388 9.818-9.818 9.818z"/></svg>
+                    Send on WhatsApp
+                  </a>
+
+                  {/* Copy link + SMS row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <button onClick={handleCopyLink} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: copied ? '#00C896' : 'rgba(246,244,238,.8)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'color .2s' }}>
+                      {copied ? '✓ Copied!' : '🔗 Copy link'}
+                    </button>
+                    <a href={`sms:?body=${smsMsg}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: 'rgba(246,244,238,.8)', textDecoration: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>
+                      💬 Send SMS
+                    </a>
+                  </div>
+
+                  {/* Native share (mobile only) */}
+                  {canShare && (
+                    <button onClick={() => navigator.share({ title: 'Join your rental on RentyBase', text: `Your invite code: ${r.invite_token}`, url: inviteLink! })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(246,244,238,.1)', color: 'rgba(246,244,238,.45)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+                      ↗ More options
+                    </button>
+                  )}
+                </div>
+
+                {/* Footer — regenerate */}
+                <div style={{ background: '#080e0d', padding: '10px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 11, color: 'rgba(246,244,238,.25)' }}>Code and link expire together</div>
+                  <button onClick={handleRegenerateLink} disabled={saving} style={{ padding: '5px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(246,244,238,.15)', color: 'rgba(246,244,238,.45)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600 }}>
+                    {saving ? '…' : '↺ New link'}
+                  </button>
+                </div>
+
+              </div>
             ) : (
-              <button onClick={handleRegenerateLink} disabled={saving} style={actBtnPrimary}>{saving ? 'Generating…' : 'Generate invite link'}</button>
+              /* No valid link yet */
+              <div style={{ padding: '24px 20px', borderRadius: 16, border: '2px dashed var(--rb-border)', textAlign: 'center' }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>🔗</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--rb-ink)', marginBottom: 6 }}>No invite link yet</div>
+                <div style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 18, lineHeight: 1.5 }}>Generate a link to invite your tenant via WhatsApp, SMS, or any messaging app</div>
+                <button onClick={handleRegenerateLink} disabled={saving} style={actBtnPrimary}>{saving ? 'Generating…' : '🔗 Generate invite link'}</button>
+              </div>
             )}
           </div>
         )}
