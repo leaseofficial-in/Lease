@@ -217,6 +217,19 @@ export default function DashboardPage() {
         setProfile(prof)
         const role = prof?.role
 
+        // No role: check if there's a pending invite to redirect the user back to
+        if (!role) {
+          try {
+            const tok = sessionStorage.getItem('rb-invite-token')
+            if (tok) {
+              window.location.replace(`/signup?next=${encodeURIComponent(`/join/${tok}`)}`)
+              return
+            }
+          } catch {}
+          setLoading(false)
+          return
+        }
+
         if (role === 'landlord') {
           const [rentalsRes, ytdRes, buildingsRes] = await Promise.all([
             sb.from('rentals').select('*, property:properties(*, building:buildings(*)), tenant:profiles!rentals_tenant_id_fkey(id, full_name, phone, avatar_url, pan_number)').eq('landlord_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }),
@@ -3550,6 +3563,9 @@ export default function DashboardPage() {
   }
 
   function renderView() {
+    // Profile is accessible regardless of role (user may need to sign out)
+    if (activeView === 'profile') return <ProfileView />
+
     if (role === 'landlord') {
       switch (activeView) {
         case 'props': return <LandlordProperties />
@@ -3558,7 +3574,6 @@ export default function DashboardPage() {
         case 'rep': return <LandlordRepairs />
         case 'agree': return <LandlordAgreements />
         case 'msg': return <LandlordMessaging />
-        case 'profile': return <ProfileView />
         default: return <LandlordHome />
       }
     } else if (role === 'tenant') {
@@ -3571,10 +3586,10 @@ export default function DashboardPage() {
         case 'dep': return <TenantDeposit />
         case 'agree': return <TenantAgreement />
         case 'score': return <TenantScore />
-        case 'profile': return <ProfileView />
         default: return <TenantHome />
       }
     }
+    // No role — prompt user to finish setup
     return (
       <div>
         <div style={topStyle}><div><div style={eyebrowStyle}>Welcome</div><h1 style={h1Style}>Hi, {firstName}.</h1></div></div>

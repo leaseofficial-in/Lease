@@ -462,6 +462,8 @@ export default function SignUpPage() {
   const [displayName, setDisplayName] = useState('')
   // true when the user is authenticated but hasn't chosen a role yet (desktop path)
   const [hasSessionNoRole, setHasSessionNoRole] = useState(false)
+  // fallback next-destination recovered from sessionStorage invite token
+  const [pendingInviteNext, setPendingInviteNext] = useState('')
   const sb = createClient()
 
   const selectedRole = ROLES.find(r => r.id === role) || ROLES[0]
@@ -496,6 +498,9 @@ export default function SignUpPage() {
       // Show role picker on both mobile (step-through) and desktop (inline confirm).
       setGoogleEmail(session.user.email || '')
       setDisplayName(profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '')
+      // Recover invite token from sessionStorage as fallback if ?next was dropped by OAuth
+      const tok = sessionStorage.getItem('rb-invite-token')
+      if (tok) setPendingInviteNext(`/join/${tok}`)
       setMobileStep('role')
       setHasSessionNoRole(true)
     })
@@ -508,8 +513,16 @@ export default function SignUpPage() {
       const { data: { session } } = await sb.auth.getSession()
       if (!session) return
       await sb.from('profiles').update({ role }).eq('id', session.user.id)
-      const nextParam = new URLSearchParams(window.location.search).get('next')
-      const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard'
+      const urlNext = new URLSearchParams(window.location.search).get('next')
+      const tok = sessionStorage.getItem('rb-invite-token')
+      const dest = (urlNext && urlNext.startsWith('/'))
+        ? urlNext
+        : tok
+          ? `/join/${tok}`
+          : '/dashboard'
+      if (dest.startsWith('/join/')) {
+        try { sessionStorage.removeItem('rb-invite-token') } catch {}
+      }
       window.location.replace(dest)
     } finally {
       setSaving(false)
@@ -586,8 +599,8 @@ export default function SignUpPage() {
   }, [displayName, sb])
 
   const nextParam = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search).get('next') || ''
-    : ''
+    ? new URLSearchParams(window.location.search).get('next') || pendingInviteNext
+    : pendingInviteNext
 
   const firstName = displayName.split(' ')[0] || ''
 
