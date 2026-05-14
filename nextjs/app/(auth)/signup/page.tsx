@@ -460,6 +460,8 @@ export default function SignUpPage() {
   const [saving, setSaving] = useState(false)
   const [googleEmail, setGoogleEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
+  // true when the user is authenticated but hasn't chosen a role yet (desktop path)
+  const [hasSessionNoRole, setHasSessionNoRole] = useState(false)
   const sb = createClient()
 
   const selectedRole = ROLES.find(r => r.id === role) || ROLES[0]
@@ -490,13 +492,31 @@ export default function SignUpPage() {
         return
       }
 
-      // Mobile flow: step through onboarding screens
+      // Has session, no role, no pre-stored role.
+      // Show role picker on both mobile (step-through) and desktop (inline confirm).
       setGoogleEmail(session.user.email || '')
       setDisplayName(profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '')
       setMobileStep('role')
+      setHasSessionNoRole(true)
     })
   }, [])
 
+  // Desktop-only: user is already signed in, just save the chosen role directly.
+  const handleDesktopRoleConfirm = useCallback(async () => {
+    setSaving(true)
+    try {
+      const { data: { session } } = await sb.auth.getSession()
+      if (!session) return
+      await sb.from('profiles').update({ role }).eq('id', session.user.id)
+      const nextParam = new URLSearchParams(window.location.search).get('next')
+      const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard'
+      window.location.replace(dest)
+    } finally {
+      setSaving(false)
+    }
+  }, [role, sb])
+
+  // Desktop Google button: pre-save role so the callback can skip the picker on return.
   const handleGoogle = useCallback(async () => {
     if (loading) return
     setLoading(true)
@@ -517,6 +537,28 @@ export default function SignUpPage() {
       setError('Could not connect to Google. Check your connection and try again.')
     }
   }, [role, loading, sb.auth])
+
+  // Mobile splash Google button: do NOT pre-save role — role picker runs after auth.
+  const handleMobileSplashGoogle = useCallback(async () => {
+    if (loading) return
+    setLoading(true)
+    setError('')
+    try {
+      sessionStorage.removeItem('rb-signup-role')
+      const nextParam = new URLSearchParams(window.location.search).get('next')
+      const callbackUrl = nextParam
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`
+        : `${window.location.origin}/auth/callback`
+      const { error: oauthError } = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: callbackUrl },
+      })
+      if (oauthError) throw oauthError
+    } catch {
+      setLoading(false)
+      setError('Could not connect to Google. Check your connection and try again.')
+    }
+  }, [loading, sb.auth])
 
   const handleRoleConfirm = useCallback(async () => {
     setSaving(true)
@@ -554,7 +596,7 @@ export default function SignUpPage() {
       {/* Mobile layout (< 768px) */}
       <div className="m-auth-only">
         {mobileStep === 'splash' && (
-          <MA2Splash onGoogle={handleGoogle} loading={loading} error={error} />
+          <MA2Splash onGoogle={handleMobileSplashGoogle} loading={loading} error={error} />
         )}
         {mobileStep === 'role' && (
           <MA2Role
@@ -627,10 +669,10 @@ export default function SignUpPage() {
           {/* Progress */}
           <div style={{ marginBottom: 48 }}>
             <div className="progress-track">
-              <div className="progress-fill" style={{ width: loading ? '80%' : '33%' }} />
+              <div className="progress-fill" style={{ width: (loading || saving) ? '80%' : '33%' }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 12, color: 'var(--rb-ink-3)', fontFamily: 'var(--rb-font-mono)', letterSpacing: '.04em' }}>
-              <span>{loading ? 'Connecting to Google…' : 'Step 1 · Choose your role'}</span>
+              <span>{loading ? 'Connecting to Google…' : saving ? 'Saving your role…' : 'Step 1 · Choose your role'}</span>
               <a href="/signin" style={{ color: 'var(--rb-ink-3)' }}>
                 Already a member? <strong style={{ color: 'var(--rb-accent)', fontWeight: 700 }}>Sign in</strong>
               </a>
@@ -665,19 +707,36 @@ export default function SignUpPage() {
                 ))}
               </div>
 
-              <button
-                className="google-btn"
-                style={{ marginTop: 28 }}
-                onClick={handleGoogle}
-                disabled={loading}
-                type="button"
-              >
-                {loading ? (
-                  <><span className="spinner" style={{ borderColor: 'rgba(14,20,19,.2)', borderTopColor: 'var(--rb-ink)' }} />Connecting to Google…</>
-                ) : (
-                  <><GoogleIcon />Continue with Google</>
-                )}
-              </button>
+              {hasSessionNoRole ? (
+                // Already authenticated — save role directly, no second OAuth round-trip
+                <button
+                  className="google-btn"
+                  style={{ marginTop: 28 }}
+                  onClick={handleDesktopRoleConfirm}
+                  disabled={saving}
+                  type="button"
+                >
+                  {saving
+                    ? <><span className="spinner" style={{ borderColor: 'rgba(14,20,19,.2)', borderTopColor: 'var(--rb-ink)' }} />Saving…</>
+                    : <>Continue as {selectedRole.label} <span style={{ marginLeft: 4 }}>→</span></>
+                  }
+                </button>
+              ) : (
+                // Not yet authenticated — trigger Google OAuth
+                <button
+                  className="google-btn"
+                  style={{ marginTop: 28 }}
+                  onClick={handleGoogle}
+                  disabled={loading}
+                  type="button"
+                >
+                  {loading ? (
+                    <><span className="spinner" style={{ borderColor: 'rgba(14,20,19,.2)', borderTopColor: 'var(--rb-ink)' }} />Connecting to Google…</>
+                  ) : (
+                    <><GoogleIcon />Continue with Google</>
+                  )}
+                </button>
+              )}
 
               {error && (
                 <div className="error-banner" style={{ marginTop: 16 }}>
@@ -688,19 +747,23 @@ export default function SignUpPage() {
                 </div>
               )}
 
-              <div style={{ margin: '24px 0 16px', textAlign: 'center', position: 'relative', color: 'var(--rb-ink-3)', fontSize: 12 }}>
-                <span style={{ background: 'var(--rb-canvas)', padding: '0 14px', position: 'relative', zIndex: 1 }}>or continue with</span>
-                <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--rb-border)', zIndex: 0 }} />
-              </div>
+              {!hasSessionNoRole && (
+                <>
+                  <div style={{ margin: '24px 0 16px', textAlign: 'center', position: 'relative', color: 'var(--rb-ink-3)', fontSize: 12 }}>
+                    <span style={{ background: 'var(--rb-canvas)', padding: '0 14px', position: 'relative', zIndex: 1 }}>or continue with</span>
+                    <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--rb-border)', zIndex: 0 }} />
+                  </div>
 
-              <div className="soon-wrap">
-                <div className="soon-inner">
-                  {['Phone', 'Apple', 'DigiLocker'].map(m => (
-                    <button key={m} className="soon-btn" tabIndex={-1} type="button">{m}</button>
-                  ))}
-                </div>
-                <span className="soon-badge">Coming soon</span>
-              </div>
+                  <div className="soon-wrap">
+                    <div className="soon-inner">
+                      {['Phone', 'Apple', 'DigiLocker'].map(m => (
+                        <button key={m} className="soon-btn" tabIndex={-1} type="button">{m}</button>
+                      ))}
+                    </div>
+                    <span className="soon-badge">Coming soon</span>
+                  </div>
+                </>
+              )}
 
               <p className="fineprint">
                 By creating an account you agree to our{' '}
