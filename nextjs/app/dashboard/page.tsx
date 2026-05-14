@@ -5,9 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string; pan_number?: string }
+type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string; pan_number?: string; email?: string }
 type Building = { id: string; name: string; address_line1: string; address_line2?: string; city: string; state: string; pincode: string; property_type?: string; total_units?: number; created_at: string }
-type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; start_date?: string; end_date?: string; notice_given_at?: string; move_out_date?: string; escalation_applied_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
+type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; landlord_signed_at?: string; agreement_status?: string; agreement_custom_clauses?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; start_date?: string; end_date?: string; notice_given_at?: string; move_out_date?: string; escalation_applied_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
 type Message = { id: string; rental_id: string; sender_id: string; body: string; read_at?: string; created_at: string; sender?: { full_name?: string; avatar_url?: string } }
 type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string; bedrooms?: number; bathrooms?: number; area_sqft?: number; floor_number?: number; parking?: boolean; building_id?: string; unit_number?: string; building?: Building }
 type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; created_at: string; updated_at?: string }
@@ -169,7 +169,7 @@ export default function DashboardPage() {
 
         if (role === 'landlord') {
           const [rentalsRes, ytdRes, buildingsRes] = await Promise.all([
-            sb.from('rentals').select('*, property:properties(*, building:buildings(*)), tenant:profiles!rentals_tenant_id_fkey(full_name, phone, avatar_url)').eq('landlord_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }),
+            sb.from('rentals').select('*, property:properties(*, building:buildings(*)), tenant:profiles!rentals_tenant_id_fkey(id, full_name, phone, avatar_url, pan_number)').eq('landlord_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }),
             sb.from('rent_payments').select('id, amount, month, status, rental_id, created_at, rental:rentals!inner(landlord_id, tenant:profiles!rentals_tenant_id_fkey(full_name), property:properties(name, city))').eq('rental.landlord_id', u.id).gte('month', `${now.getFullYear()}-01-01`).order('month', { ascending: false }),
             sb.from('buildings').select('*').eq('landlord_id', u.id).order('created_at', { ascending: false }),
           ])
@@ -197,7 +197,7 @@ export default function DashboardPage() {
           const score = Math.min(900, Math.round(600 + (collectionRate / 100) * 180 + (rentals.length > 0 ? 20 : 0)))
           setLandlordData({ rentals, buildings, currentPayments, allLedgerPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs, ytdPayments })
         } else if (role === 'tenant') {
-          const { data: rental } = await sb.from('rentals').select('*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(full_name, avatar_url)').eq('tenant_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
+          const { data: rental } = await sb.from('rentals').select('*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(id, full_name, avatar_url, phone, pan_number)').eq('tenant_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
           let currentPayment: RentPayment | null = null, recentPayments: RentPayment[] = [], openRepairs: RepairRequest[] = [], proofs: Proof | null = null, depositTransactions: DepositTx[] = []
           if (rental) {
             const [pmtRes, histRes, repRes, proofRes, depRes] = await Promise.all([
@@ -264,6 +264,7 @@ export default function DashboardPage() {
     { k: 'led', label: 'Ledger', short: 'Ledger' },
     { k: 'hra', label: 'Receipts', short: 'HRA' },
     { k: 'rep', label: 'Repairs', short: 'Repairs' },
+    { k: 'agree', label: 'Agreements', short: 'Agree' },
     { k: 'msg', label: 'Messages', short: 'Msgs' },
     { k: 'profile', label: 'Profile', short: 'Profile' },
   ]
@@ -1001,39 +1002,69 @@ export default function DashboardPage() {
 
   function TenantAgreement() {
     const rental: Rental | null = tenantData?.rental || null
-    return (
+    if (!rental) return (
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · Agreement</div><h1 style={h1Style}>Rental agreement.</h1></div></div>
-        <section style={cardStyle}>
-          {rental ? <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                { l: 'Property', v: rental.property?.name || '—' },
-                ...(rental.property?.bedrooms ? [{ l: 'Configuration', v: `${rental.property.bedrooms} BHK · ${rental.property.bathrooms || 1} Bath${rental.property.area_sqft ? ` · ${rental.property.area_sqft} sq ft` : ''}` }] : []),
-                { l: 'Furnishing', v: rental.furnished_status ? rental.furnished_status.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : '—' },
-                { l: 'Monthly rent', v: inr(rental.monthly_rent) },
-                { l: 'Security deposit', v: inr(rental.security_deposit) },
-                ...(rental.maintenance_charges ? [{ l: 'Maintenance', v: `${inr(rental.maintenance_charges)}/mo` }] : []),
-                { l: 'Rent due day', v: `${rental.rent_due_day}th of every month` },
-                { l: 'Notice period', v: `${rental.notice_period_days ?? 30} days` },
-                { l: 'Lock-in period', v: `${rental.lock_in_period_months ?? 11} months` },
-                { l: 'Late fee', v: `${rental.late_fee_percent ?? 5}% of monthly rent` },
-                { l: 'Annual increment', v: `${rental.rent_increment_percent ?? 5}%` },
-                { l: 'Status', v: rental.status },
-                { l: 'Agreement signed', v: rental.agreement_signed_at ? relDate(rental.agreement_signed_at) : 'Not signed' },
-              ].map(f => (
-                <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
-                  <span style={{ fontSize: 13, color: 'var(--rb-ink-3)', flexShrink: 0, marginRight: 12 }}>{f.l}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', textTransform: f.l === 'Status' ? 'capitalize' as const : undefined }}>{f.v}</span>
-                </div>
-              ))}
+        <section style={cardStyle}><div style={emptyStyle}><p>No active rental found.</p></div></section>
+      </>
+    )
+
+    const tenantSigned = !!rental.agreement_signed_at
+    const landlordSigned = !!rental.landlord_signed_at
+    const isExecuted = tenantSigned && landlordSigned
+    const isPending = rental.agreement_status === 'pending_signature' || (tenantSigned && !landlordSigned)
+    const isDraft = !rental.agreement_status || rental.agreement_status === 'draft'
+
+    const statusBanner = () => {
+      if (isExecuted) return { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)', icon: '✅', text: `Fully executed · Tenant signed ${relDate(rental.agreement_signed_at)} · Landlord countersigned ${relDate(rental.landlord_signed_at)}` }
+      if (tenantSigned) return { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)', icon: '⏳', text: `You signed on ${relDate(rental.agreement_signed_at)} — awaiting landlord countersignature.` }
+      if (rental.agreement_status === 'pending_signature') return { bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)', icon: '📋', text: 'Your landlord has sent this agreement for your signature. Read it fully before signing.' }
+      return { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)', icon: '📝', text: 'Agreement is being prepared by your landlord.' }
+    }
+    const banner = statusBanner()
+
+    return (
+      <>
+        <div style={topStyle}>
+          <div><div style={eyebrowStyle}>Tenant · Agreement</div><h1 style={h1Style}>Rental agreement.</h1></div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {isExecuted && <button onClick={() => window.print()} style={actBtnSm}>⬇ Print / PDF</button>}
+            {!tenantSigned && rental.agreement_status === 'pending_signature' && <button onClick={() => setModal('sign-agreement')} style={actBtnPrimary}>✍ Sign agreement</button>}
+            {rental.status === 'active' && <button onClick={() => { setSelectedRental(rental); setModal('end-lease') }} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-danger)', fontWeight: 600 }}>Give notice</button>}
+          </div>
+        </div>
+
+        {/* Status banner */}
+        <div style={{ marginBottom: 16, padding: '12px 18px', borderRadius: 12, background: banner.bg, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>{banner.icon}</span>
+          <span style={{ fontSize: 13, color: banner.c, fontWeight: 500, lineHeight: 1.55 }}>{banner.text}</span>
+        </div>
+
+        {/* Full agreement document */}
+        {(rental.agreement_status === 'pending_signature' || tenantSigned) ? (
+          <section style={{ ...cardStyle, padding: 0 }}>
+            <div id="agreement-print-area">
+              <AgreementDocument rental={rental} landlordProf={rental.landlord || null} tenantProf={profile} />
             </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' as const }}>
-              {!rental.agreement_signed_at && <button onClick={() => setModal('sign-agreement')} style={actBtnPrimary}>✍ Sign agreement</button>}
-              {rental.status === 'active' && <button onClick={() => { setSelectedRental(rental); setModal('end-lease') }} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-danger)', fontWeight: 600 }}>Request lease termination</button>}
+            {!tenantSigned && (
+              <div style={{ padding: '20px 28px', borderTop: '2px solid var(--rb-border)', background: 'var(--rb-fill)' }}>
+                <p style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.6, marginBottom: 16 }}>
+                  By clicking "Sign agreement" you confirm you have read and understood all terms above.
+                  Your name, timestamp, and unique session ID will be recorded as your digital signature.
+                </p>
+                <button onClick={() => setModal('sign-agreement')} style={{ ...actBtnPrimary, width: '100%', justifyContent: 'center', padding: '13px 0', fontSize: 15 }}>✍ Sign agreement</button>
+              </div>
+            )}
+          </section>
+        ) : (
+          <section style={cardStyle}>
+            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--rb-ink)' }}>Agreement being prepared</div>
+              <p style={{ fontSize: 14, color: 'var(--rb-ink-3)', marginTop: 8, lineHeight: 1.6 }}>Your landlord is finalising the agreement. You'll be able to read and sign it here once it's sent.</p>
             </div>
-          </> : <div style={emptyStyle}><p>No active rental found.</p></div>}
-        </section>
+          </section>
+        )}
       </>
     )
   }
@@ -2045,43 +2076,49 @@ export default function DashboardPage() {
   function SignAgreementModal() {
     const rental: Rental | null = tenantData?.rental || null
     if (!rental) return null
+    const [confirmed, setConfirmed] = useState(false)
     const [saving, setSaving] = useState(false)
 
     const handleSign = async () => {
+      if (!confirmed) { toast('Confirm you have read the full agreement', 'error'); return }
       setSaving(true)
       try {
-        const { error } = await sb.from('rentals').update({ agreement_signed_at: new Date().toISOString() }).eq('id', rental.id)
+        const { error } = await sb.from('rentals').update({
+          agreement_signed_at: new Date().toISOString(),
+          agreement_status: 'tenant_signed',
+        }).eq('id', rental.id)
         if (error) throw error
-        toast('Agreement signed ✓', 'success')
+        toast('Agreement signed ✓ Landlord will countersign.', 'success')
         setModal(null); window.location.reload()
       } catch (e: any) { console.error('[SignAgreement]', e); toast(e?.message || 'Failed to sign agreement', 'error') } finally { setSaving(false) }
     }
 
     return (
-      <Modal title="Sign rental agreement" onClose={() => setModal(null)}>
-        <div style={{ padding: 16, background: 'var(--rb-fill)', borderRadius: 12, marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 12 }}>Rental terms</div>
-          {[
-            { l: 'Property', v: rental.property?.name || '—' },
-            { l: 'Address', v: rental.property?.address_line1 || '—' },
-            { l: 'Monthly rent', v: inr(rental.monthly_rent) },
-            { l: 'Security deposit', v: inr(rental.security_deposit) },
-            { l: 'Rent due', v: `${rental.rent_due_day || '—'}th of every month` },
-          ].map(f => (
-            <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
-              <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>{f.l}</span>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{f.v}</span>
-            </div>
-          ))}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(14,20,19,.55)', backdropFilter: 'blur(5px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ background: 'var(--rb-canvas)', borderBottom: '1px solid var(--rb-border)', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, fontWeight: 400 }}>Sign rental agreement</div>
+            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Read the full document before signing</div>
+          </div>
+          <button onClick={() => setModal(null)} style={{ width: 32, height: 32, border: 0, background: 'var(--rb-fill-2)', borderRadius: '50%', cursor: 'pointer', fontSize: 18, display: 'grid', placeItems: 'center', color: 'var(--rb-ink-3)' }}>×</button>
         </div>
-        <p style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.6, marginBottom: 16 }}>
-          By signing, you confirm you have read and agree to the terms above. Your digital signature will be timestamped and stored on record.
-        </p>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => setModal(null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
-          <button onClick={handleSign} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Signing…' : '✍ Sign agreement'}</button>
+        {/* Scrollable agreement */}
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--rb-surface)' }}>
+          <AgreementDocument rental={rental} landlordProf={rental.landlord || null} tenantProf={profile} />
         </div>
-      </Modal>
+        {/* Sign footer */}
+        <div style={{ background: 'var(--rb-canvas)', borderTop: '2px solid var(--rb-border)', padding: '18px 24px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
+            <button onClick={() => setConfirmed(c => !c)} style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${confirmed ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: confirmed ? 'var(--rb-action)' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 14, marginTop: 2 }}>{confirmed ? '✓' : ''}</button>
+            <label style={{ fontSize: 13, color: 'var(--rb-ink-2)', cursor: 'pointer', lineHeight: 1.55 }} onClick={() => setConfirmed(c => !c)}>I have read and understood the full agreement above. I agree to all terms and conditions.</label>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setModal(null)} style={{ flex: 1, padding: '11px 0', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>Cancel</button>
+            <button onClick={handleSign} disabled={saving || !confirmed} style={{ flex: 2, padding: '11px 0', borderRadius: 999, background: confirmed ? 'var(--rb-action)' : 'var(--rb-border)', color: '#fff', border: 0, cursor: confirmed ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'background .2s' }}>{saving ? 'Signing…' : '✍ Sign agreement'}</button>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -2388,6 +2425,353 @@ export default function DashboardPage() {
   }
 
   // ── View router ──────────────────────────────────────────────────────────
+  // ── Agreement document renderer ─────────────────────────────────────────
+  function AgreementDocument({ rental, landlordProf, tenantProf, printMode = false }: {
+    rental: Rental; landlordProf: Profile | null; tenantProf: Profile | null; printMode?: boolean
+  }) {
+    const p = rental.property
+    const execDate = rental.agreement_signed_at
+      ? new Date(rental.agreement_signed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    const startFmt = rental.start_date ? new Date(rental.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
+    const endFmt = rental.end_date ? new Date(rental.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Month-to-month'
+    const lName = landlordProf?.full_name || 'Landlord'
+    const tName = tenantProf?.full_name || 'Tenant'
+    const docStyle: React.CSSProperties = { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 14, lineHeight: 1.75, color: '#1a1a1a', maxWidth: 720, margin: '0 auto', padding: printMode ? '0' : '32px 28px' }
+    const h1s: React.CSSProperties = { fontSize: 22, fontWeight: 700, textAlign: 'center', letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 4 }
+    const h2s: React.CSSProperties = { fontSize: 15, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 28, marginBottom: 10, paddingBottom: 6, borderBottom: '2px solid #1a1a1a' }
+    const clauseStyle: React.CSSProperties = { marginBottom: 10, paddingLeft: 20 }
+    const bold = (t: string) => <strong>{t}</strong>
+    const tenantSigTs = rental.agreement_signed_at ? new Date(rental.agreement_signed_at).toLocaleString('en-IN') : null
+    const landlordSigTs = rental.landlord_signed_at ? new Date(rental.landlord_signed_at).toLocaleString('en-IN') : null
+
+    return (
+      <div style={docStyle} id="agreement-document">
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={h1s}>RENTAL AGREEMENT</div>
+          <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>This agreement is executed on {bold(execDate)}</div>
+        </div>
+
+        {/* Parties */}
+        <div style={h2s}>1. Parties</div>
+        <p style={clauseStyle}>This Rental Agreement ("Agreement") is entered into between:</p>
+        <div style={{ background: '#f9f8f4', border: '1px solid #e8e4d8', borderRadius: 8, padding: '14px 18px', marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>LANDLORD</div>
+          <div>{bold(lName)}{landlordProf?.phone ? ` · ${landlordProf.phone}` : ''}{landlordProf?.pan_number ? ` · PAN: ${landlordProf.pan_number}` : ''}</div>
+          <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>(hereinafter referred to as "Landlord")</div>
+        </div>
+        <div style={{ background: '#f9f8f4', border: '1px solid #e8e4d8', borderRadius: 8, padding: '14px 18px', marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>TENANT</div>
+          <div>{bold(tName)}{tenantProf?.phone ? ` · ${tenantProf.phone}` : ''}{tenantProf?.pan_number ? ` · PAN: ${tenantProf.pan_number}` : ''}</div>
+          <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>(hereinafter referred to as "Tenant")</div>
+        </div>
+
+        {/* Property */}
+        <div style={h2s}>2. Premises</div>
+        <p style={clauseStyle}>
+          The Landlord agrees to let and the Tenant agrees to take on rent the residential premises described as:
+          {bold(` ${p?.name || '—'}`)}
+          {p?.address_line1 ? `, ${p.address_line1}` : ''}{p?.address_line2 ? `, ${p.address_line2}` : ''}
+          {p?.city ? `, ${p.city}` : ''}{p?.state ? `, ${p.state}` : ''}{p?.pincode ? ` — ${p.pincode}` : ''}.
+          {p?.bedrooms ? ` Configuration: ${p.bedrooms} BHK${p.bathrooms ? ` · ${p.bathrooms} Bath` : ''}${p.area_sqft ? ` · ${p.area_sqft} sq ft` : ''}.` : ''}
+          {p?.floor_number !== undefined && p?.floor_number !== null ? ` Floor: ${p.floor_number}.` : ''}
+          {` Furnishing: ${(rental.furnished_status || 'unfurnished').replace('_', ' ')}.`}
+        </p>
+
+        {/* Term */}
+        <div style={h2s}>3. Term</div>
+        <p style={clauseStyle}>
+          The tenancy shall commence on {bold(startFmt)} and {rental.end_date ? <>end on {bold(endFmt)}</> : <>continue on a month-to-month basis</>}.
+          {rental.lock_in_period_months ? <> A lock-in period of {bold(`${rental.lock_in_period_months} months`)} applies from the commencement date, during which neither party may terminate this Agreement.</> : ''}
+        </p>
+
+        {/* Financial Terms */}
+        <div style={h2s}>4. Rent and Payment</div>
+        <p style={clauseStyle}>
+          4.1 The monthly rent is {bold(inr(rental.monthly_rent))} payable on or before the {bold(`${rental.rent_due_day || 1}th`)} day of each calendar month.
+        </p>
+        {rental.maintenance_charges ? <p style={clauseStyle}>4.2 Maintenance charges of {bold(inr(rental.maintenance_charges))}/month are payable in addition to rent.</p> : null}
+        <p style={clauseStyle}>
+          {rental.maintenance_charges ? '4.3' : '4.2'} A late payment fee of {bold(`${rental.late_fee_percent ?? 5}%`)} of the monthly rent shall be levied for each month of delayed payment, with a grace period of 5 days from the due date.
+        </p>
+        <p style={clauseStyle}>
+          {rental.maintenance_charges ? '4.4' : '4.3'} Rent shall be revised annually by {bold(`${rental.rent_increment_percent ?? 5}%`)} on each anniversary of the commencement date.
+        </p>
+
+        {/* Security Deposit */}
+        <div style={h2s}>5. Security Deposit</div>
+        <p style={clauseStyle}>
+          5.1 The Tenant has paid a refundable security deposit of {bold(inr(rental.security_deposit))} to the Landlord.
+        </p>
+        <p style={clauseStyle}>
+          5.2 The deposit shall be refunded within {bold('30 days')} of the Tenant vacating the premises, after deducting any amounts due for unpaid rent, documented damage beyond normal wear and tear, or unreturned keys/items.
+        </p>
+        <p style={clauseStyle}>
+          5.3 The Landlord shall provide itemised deduction receipts with photographic evidence before making any deductions.
+        </p>
+
+        {/* Notice Period */}
+        <div style={h2s}>6. Termination and Notice</div>
+        <p style={clauseStyle}>
+          6.1 Either party may terminate this Agreement by giving {bold(`${rental.notice_period_days ?? 30} days`)} written notice to the other party.
+        </p>
+        <p style={clauseStyle}>
+          6.2 The Tenant agrees to vacate the premises on or before the agreed move-out date and return the keys in the condition specified at move-in.
+        </p>
+        <p style={clauseStyle}>
+          6.3 The Landlord reserves the right to terminate this Agreement immediately in the event of non-payment of rent for two consecutive months, or breach of any material term.
+        </p>
+
+        {/* Tenant Obligations */}
+        <div style={h2s}>7. Tenant Obligations</div>
+        {[
+          'Pay rent by the due date each month without demand.',
+          'Maintain the premises in clean and good condition, and return it in the same state (fair wear and tear excepted).',
+          'Not make any structural alterations, additions, or improvements without prior written consent from the Landlord.',
+          'Not sublet, assign, or license the premises or any part thereof without prior written consent.',
+          'Not use the premises for any commercial, illegal, or immoral purpose.',
+          'Allow the Landlord or their representative to inspect the premises with at least 24 hours\' prior notice.',
+          'Report any damage, defect, or required repair promptly to the Landlord.',
+          'Not keep pets on the premises without prior written consent from the Landlord.',
+          'Pay for electricity, water, gas, and other utility charges as applicable.',
+          'Not cause nuisance or disturbance to neighbours.',
+        ].map((c, i) => <p key={i} style={clauseStyle}>{`7.${i + 1} ${c}`}</p>)}
+
+        {/* Landlord Obligations */}
+        <div style={h2s}>8. Landlord Obligations</div>
+        {[
+          'Ensure the premises are in habitable condition at the time of handover.',
+          'Maintain the structural integrity, plumbing, and electrical systems in working order.',
+          'Not enter the premises without prior notice (except in genuine emergency situations).',
+          'Provide rent receipts for all payments received.',
+          'Refund the security deposit within 30 days of move-out, less documented deductions.',
+          'Not interfere with the Tenant\'s peaceful enjoyment of the premises.',
+        ].map((c, i) => <p key={i} style={clauseStyle}>{`8.${i + 1} ${c}`}</p>)}
+
+        {/* Prohibited Activities */}
+        <div style={h2s}>9. Prohibited Activities</div>
+        <p style={clauseStyle}>The Tenant shall not: store hazardous or flammable materials on the premises; conduct any activity that increases the insurance risk of the property; block common areas or exits; tamper with electrical, plumbing, or gas installations; or install any fixture without prior written approval.</p>
+
+        {/* Dispute Resolution */}
+        <div style={h2s}>10. Governing Law and Disputes</div>
+        <p style={clauseStyle}>
+          This Agreement shall be governed by and construed in accordance with the laws of India, including the Transfer of Property Act 1882 and the Indian Contract Act 1872.
+          Any dispute arising out of or in connection with this Agreement shall first be resolved through mutual negotiation.
+          If unresolved within 30 days, the dispute shall be subject to the jurisdiction of the courts in {bold(p?.city || 'the applicable jurisdiction')}.
+        </p>
+
+        {/* Custom Clauses */}
+        {rental.agreement_custom_clauses && (
+          <>
+            <div style={h2s}>11. Special Conditions</div>
+            {rental.agreement_custom_clauses.split('\n').filter(Boolean).map((c, i) => (
+              <p key={i} style={clauseStyle}>{`11.${i + 1} ${c}`}</p>
+            ))}
+          </>
+        )}
+
+        {/* Signature Block */}
+        <div style={{ marginTop: 40, borderTop: '2px solid #1a1a1a', paddingTop: 28 }}>
+          <p style={{ fontSize: 13, color: '#555', marginBottom: 24, textAlign: 'center' }}>
+            Both parties confirm they have read, understood, and agree to all terms of this Agreement.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+            {/* Landlord signature */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: '#555', marginBottom: 12 }}>Landlord</div>
+              {landlordSigTs
+                ? <><div style={{ padding: '10px 14px', background: '#f0f8ef', border: '1px solid #b6d9b3', borderRadius: 8 }}><div style={{ fontFamily: '"Dancing Script", cursive, Georgia', fontSize: 22, color: '#1a5e17' }}>{lName}</div><div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>{landlordSigTs}</div><div style={{ fontSize: 10, color: '#888' }}>Digital signature · RentyBase</div></div></>
+                : <div style={{ height: 70, border: '1px dashed #ccc', borderRadius: 8, display: 'grid', placeItems: 'center', color: '#aaa', fontSize: 13 }}>Pending</div>}
+              <div style={{ marginTop: 10, fontSize: 13 }}><div>{bold(lName)}</div>{landlordProf?.pan_number && <div style={{ fontSize: 11, color: '#666' }}>PAN: {landlordProf.pan_number}</div>}</div>
+            </div>
+            {/* Tenant signature */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: '#555', marginBottom: 12 }}>Tenant</div>
+              {tenantSigTs
+                ? <><div style={{ padding: '10px 14px', background: '#f0f8ef', border: '1px solid #b6d9b3', borderRadius: 8 }}><div style={{ fontFamily: '"Dancing Script", cursive, Georgia', fontSize: 22, color: '#1a5e17' }}>{tName}</div><div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>{tenantSigTs}</div><div style={{ fontSize: 10, color: '#888' }}>Digital signature · RentyBase</div></div></>
+                : <div style={{ height: 70, border: '1px dashed #ccc', borderRadius: 8, display: 'grid', placeItems: 'center', color: '#aaa', fontSize: 13 }}>Pending</div>}
+              <div style={{ marginTop: 10, fontSize: 13 }}><div>{bold(tName)}</div>{tenantProf?.pan_number && <div style={{ fontSize: 11, color: '#666' }}>PAN: {tenantProf.pan_number}</div>}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 24, textAlign: 'center', fontSize: 11, color: '#aaa' }}>
+          Generated by RentyBase · Agreement ID: {rental.id.slice(0, 8).toUpperCase()}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Landlord: agreements view ────────────────────────────────────────────
+  function LandlordAgreements() {
+    const rentals: Rental[] = landlordData?.rentals || []
+    const [activeRental, setActiveRental] = useState<Rental | null>(null)
+
+    const statusPill = (r: Rental) => {
+      const s = r.agreement_status || 'draft'
+      if (s === 'executed' || (r.agreement_signed_at && r.landlord_signed_at)) return { t: 'EXECUTED', bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }
+      if (s === 'tenant_signed' || r.agreement_signed_at) return { t: 'TENANT SIGNED', bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' }
+      if (s === 'pending_signature') return { t: 'SENT', bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)' }
+      return { t: 'DRAFT', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
+    }
+
+    if (activeRental) {
+      const pill = statusPill(activeRental)
+      const tenantProf: Profile | null = activeRental.tenant || null
+      const isExecuted = activeRental.agreement_signed_at && activeRental.landlord_signed_at
+      const tenantSigned = !!activeRental.agreement_signed_at
+      return (
+        <>
+          <div style={topStyle}>
+            <div>
+              <button onClick={() => setActiveRental(null)} style={{ background: 'none', border: 0, cursor: 'pointer', fontSize: 13, color: 'var(--rb-ink-3)', fontFamily: 'inherit', padding: 0, marginBottom: 8 }}>← All agreements</button>
+              <div style={eyebrowStyle}>Landlord · Agreement</div>
+              <h1 style={h1Style}>{activeRental.property?.name || 'Agreement'}</h1>
+              <p style={subStyle}>{tenantProf?.full_name || 'Tenant'} · <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: pill.bg, color: pill.c }}>{pill.t}</span></p>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
+              {!isExecuted && <button onClick={() => { setSelectedRental(activeRental); setModal('custom-clauses') }} style={actBtnSm}>Edit clauses</button>}
+              {!isExecuted && activeRental.agreement_status !== 'pending_signature' && !activeRental.agreement_signed_at && (
+                <button onClick={async () => {
+                  await sb.from('rentals').update({ agreement_status: 'pending_signature' }).eq('id', activeRental.id)
+                  toast('Agreement sent to tenant for signature', 'success')
+                  window.location.reload()
+                }} style={actBtnPrimary}>Send to tenant →</button>
+              )}
+              {tenantSigned && !activeRental.landlord_signed_at && (
+                <button onClick={() => { setSelectedRental(activeRental); setModal('landlord-sign') }} style={{ ...actBtnPrimary, background: 'var(--rb-success)' }}>✍ Countersign</button>
+              )}
+              <button onClick={() => window.print()} style={actBtnSm}>⬇ Print / PDF</button>
+            </div>
+          </div>
+          <section style={{ ...cardStyle, padding: '0' }}>
+            <div id="agreement-print-area" style={{ padding: '28px 24px' }}>
+              <AgreementDocument rental={activeRental} landlordProf={profile} tenantProf={tenantProf} />
+            </div>
+          </section>
+        </>
+      )
+    }
+
+    return (
+      <>
+        <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Agreements</div><h1 style={h1Style}>Agreements.</h1><p style={subStyle}>{rentals.length} rental{rentals.length !== 1 ? 's' : ''}</p></div></div>
+        <section style={cardStyle}>
+          {rentals.length === 0 ? <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>📋</div><p>No rentals yet. Create a rental to generate an agreement.</p></div>
+            : rentals.map((r: Rental) => {
+                const pill = statusPill(r)
+                const isExecuted = r.agreement_signed_at && r.landlord_signed_at
+                const needsAction = r.agreement_signed_at && !r.landlord_signed_at
+                return (
+                  <div key={r.id} onClick={() => setActiveRental(r)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--rb-border-soft)', cursor: 'pointer' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: isExecuted ? 'var(--rb-action-soft)' : needsAction ? 'var(--rb-warning-soft)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', fontSize: 20, flexShrink: 0 }}>
+                      {isExecuted ? '✅' : needsAction ? '✍' : '📋'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--rb-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.property?.name || '—'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || 'No tenant yet'}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {needsAction && <span style={{ fontSize: 12, color: 'var(--rb-warning)', fontWeight: 600 }}>Needs your signature</span>}
+                      <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: pill.bg, color: pill.c, whiteSpace: 'nowrap' }}>{pill.t}</span>
+                      <span style={{ fontSize: 18, color: 'var(--rb-ink-3)' }}>›</span>
+                    </div>
+                  </div>
+                )
+              })}
+        </section>
+      </>
+    )
+  }
+
+  // ── Landlord: custom clauses modal ───────────────────────────────────────
+  function CustomClausesModal() {
+    const r = selectedRental || landlordData?.rentals?.[0]
+    const [clauses, setClauses] = useState(r?.agreement_custom_clauses || '')
+    const [saving, setSaving] = useState(false)
+    if (!r) return null
+
+    const EXAMPLES = [
+      'Pets allowed with prior written approval from the Landlord.',
+      'Parking space number [X] is included in the rent.',
+      'Generator backup charges of ₹[X]/month to be paid separately.',
+      'Tenant is responsible for pest control.',
+      'Society maintenance charges are borne by the Landlord.',
+    ]
+
+    const handleSave = async () => {
+      setSaving(true)
+      try {
+        const { error } = await sb.from('rentals').update({ agreement_custom_clauses: clauses || null }).eq('id', r.id)
+        if (error) throw error
+        toast('Custom clauses saved', 'success')
+        setModal(null); window.location.reload()
+      } catch (e: any) { console.error('[CustomClauses]', e); toast(e?.message || 'Failed to save', 'error'); setSaving(false) }
+    }
+
+    return (
+      <Modal title="Special conditions" onClose={() => setModal(null)}>
+        <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 14, lineHeight: 1.55 }}>Add custom clauses that apply to this rental. Each line becomes a numbered clause in the agreement.</p>
+        <Field label="Custom clauses (one per line)">
+          <textarea style={{ ...inputStyle, minHeight: 160, resize: 'vertical' as const }} value={clauses} onChange={e => setClauses(e.target.value)} placeholder="e.g. Pets allowed with prior written approval…" />
+        </Field>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 8 }}>Common examples (tap to add)</div>
+          {EXAMPLES.map((ex, i) => (
+            <button key={i} onClick={() => setClauses((cur: string) => cur ? cur + '\n' + ex : ex)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', marginBottom: 5, borderRadius: 8, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-ink-2)' }}>+ {ex}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 14, borderTop: '1px solid var(--rb-border)' }}>
+          <button onClick={() => setModal(null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+          <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Saving…' : 'Save clauses'}</button>
+        </div>
+      </Modal>
+    )
+  }
+
+  // ── Landlord: countersign modal ──────────────────────────────────────────
+  function LandlordSignModal() {
+    const r = selectedRental
+    const [confirmed, setConfirmed] = useState(false)
+    const [saving, setSaving] = useState(false)
+    if (!r) return null
+
+    const handleSign = async () => {
+      if (!confirmed) { toast('Confirm you have read the agreement', 'error'); return }
+      setSaving(true)
+      try {
+        const { error } = await sb.from('rentals').update({
+          landlord_signed_at: new Date().toISOString(),
+          agreement_status: 'executed',
+        }).eq('id', r.id)
+        if (error) throw error
+        toast('Agreement fully executed ✓', 'success')
+        setModal(null); window.location.reload()
+      } catch (e: any) { console.error('[LandlordSign]', e); toast(e?.message || 'Failed to sign', 'error'); setSaving(false) }
+    }
+
+    return (
+      <Modal title="Countersign agreement" onClose={() => setModal(null)}>
+        <div style={{ padding: '12px 16px', background: 'var(--rb-action-soft)', borderRadius: 10, marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--rb-action)' }}>Tenant has signed ✓</div>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name} signed on {r.agreement_signed_at ? new Date(r.agreement_signed_at).toLocaleDateString('en-IN') : '—'}</div>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.6, marginBottom: 16 }}>
+          By countersigning, you confirm that you have reviewed the agreement, all terms are correct, and you authorise the tenancy for <strong>{r.tenant?.full_name || 'the tenant'}</strong> at <strong>{r.property?.name || 'the property'}</strong>.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0', borderTop: '1px solid var(--rb-border)', marginBottom: 20 }}>
+          <button onClick={() => setConfirmed(c => !c)} style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${confirmed ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: confirmed ? 'var(--rb-action)' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 14, marginTop: 1 }}>{confirmed ? '✓' : ''}</button>
+          <label style={{ fontSize: 13, color: 'var(--rb-ink-2)', cursor: 'pointer', lineHeight: 1.55 }} onClick={() => setConfirmed(c => !c)}>I have read the full agreement and confirm all terms are accurate.</label>
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={() => setModal(null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+          <button onClick={handleSign} disabled={saving || !confirmed} style={{ padding: '8px 18px', borderRadius: 999, background: confirmed ? 'var(--rb-action)' : 'var(--rb-border)', color: '#fff', border: 0, cursor: confirmed ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'background .2s' }}>{saving ? 'Signing…' : '✍ Countersign'}</button>
+        </div>
+      </Modal>
+    )
+  }
+
   // ── Shared: realtime message thread ────────────────────────────────────
   function MessageThread({ rental, onBack }: { rental: Rental; onBack?: () => void }) {
     const [msgs, setMsgs] = useState<Message[]>([])
@@ -2567,6 +2951,7 @@ export default function DashboardPage() {
         case 'led': return <LandlordLedger />
         case 'hra': return <LandlordHRA />
         case 'rep': return <LandlordRepairs />
+        case 'agree': return <LandlordAgreements />
         case 'msg': return <LandlordMessaging />
         case 'profile': return <ProfileView />
         default: return <LandlordHome />
@@ -2603,6 +2988,12 @@ export default function DashboardPage() {
     <>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
+        @media print{
+          .d-shell,.d-side,.m-head,.m-tabs{display:none!important}
+          .d-main{padding:0!important;background:#fff!important;max-width:none!important}
+          #agreement-print-area{padding:32px!important}
+          body{background:#fff!important}
+        }
         @media(max-width:767px){
           .d-shell{display:block!important}
           .d-side{display:none!important}
@@ -2694,6 +3085,8 @@ export default function DashboardPage() {
       {modal === 'sign-agreement' && <SignAgreementModal />}
       {modal === 'dispute-tx' && <DisputeTxModal />}
       {modal === 'give-notice' && <GiveNoticeModal />}
+      {modal === 'custom-clauses' && <CustomClausesModal />}
+      {modal === 'landlord-sign' && <LandlordSignModal />}
 
       {/* Lightbox */}
       {lightbox && (
