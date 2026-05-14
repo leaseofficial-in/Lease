@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { LogoLockup } from '@/components/brand'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string }
@@ -378,7 +379,7 @@ export default function DashboardPage() {
               <div style={{ width: 56, height: 56, borderRadius: 8, background: `linear-gradient(135deg,${colors[i%colors.length]},#2c1c0e)`, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 22 }}>🏠</div>
               <div>
                 <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', fontWeight: 600 }}>{r.property?.city || 'City'}</div>
-                <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, lineHeight: 1.15, letterSpacing: '-.01em', marginTop: 2 }}>{r.property?.name || r.property?.address || 'Property'}</div>
+                <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, lineHeight: 1.15, letterSpacing: '-.01em', marginTop: 2 }}>{r.property?.name || r.property?.address_line1 || 'Property'}</div>
                 <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || 'No tenant yet'}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -1196,7 +1197,7 @@ export default function DashboardPage() {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 12 }}>Rental terms</div>
           {[
             { l: 'Property', v: rental.property?.name || '—' },
-            { l: 'Address', v: rental.property?.address || '—' },
+            { l: 'Address', v: rental.property?.address_line1 || '—' },
             { l: 'Monthly rent', v: inr(rental.monthly_rent) },
             { l: 'Security deposit', v: inr(rental.security_deposit) },
             { l: 'Rent due', v: `${rental.rent_due_day || '—'}th of every month` },
@@ -1276,9 +1277,8 @@ export default function DashboardPage() {
 
       {/* Mobile fixed header */}
       <div className="m-head" style={{ display: 'none', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: 'var(--rb-canvas)', borderBottom: '1px solid var(--rb-border)', padding: '13px 18px', alignItems: 'center', justifyContent: 'space-between' }}>
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--rb-font-display)', fontSize: 18, color: 'var(--rb-ink)', textDecoration: 'none' }}>
-          <svg viewBox="0 0 40 40" width="26" height="26" fill="none"><rect width="40" height="40" rx="9" fill="#0E1413"/><path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/><path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/><rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/></svg>
-          Renty<span style={{ color: '#C97A3A' }}>Base</span>
+        <a href="/" style={{ textDecoration: 'none' }}>
+          <LogoLockup size={26} fontSize={18} gap={9} />
         </a>
         <button onClick={() => navigate('profile')} style={{ width: 32, height: 32, borderRadius: '50%', background: avatarBg, border: 0, cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 13, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden' }}>
           {avatarUrl ? <img src={avatarUrl} alt={firstName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : firstName.charAt(0).toUpperCase()}
@@ -1289,9 +1289,8 @@ export default function DashboardPage() {
       <div className="d-shell" style={{ display: 'grid', gridTemplateColumns: '240px 1fr', minHeight: '100vh' }}>
         {/* Sidebar */}
         <aside className="d-side" style={{ padding: '28px 18px', background: 'var(--rb-canvas)', borderRight: '1px solid var(--rb-border)', display: 'flex', flexDirection: 'column', gap: 28, position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
-          <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--rb-font-display)', fontWeight: 800, fontSize: 19, letterSpacing: '-.02em', color: 'var(--rb-ink)', padding: '0 8px', textDecoration: 'none' }}>
-            <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="9" fill="#0E1413"/><path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/><path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/><rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/></svg>
-            Renty<span style={{ color: 'var(--rb-accent)' }}>Base</span>
+          <a href="/" style={{ textDecoration: 'none', padding: '0 8px' }}>
+            <LogoLockup size={28} fontSize={19} gap={10} />
           </a>
 
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>

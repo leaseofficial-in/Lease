@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { LogoLockup } from '@/components/brand'
 
 function GoogleIcon() {
   return (
@@ -64,12 +65,8 @@ export default function SignInPage() {
     <div className="sb-shell">
       {/* Brand pane */}
       <div className="sb-pane">
-        <a href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 11 }}>
-          <svg viewBox="0 0 40 40" width="32" height="32" fill="none">
-            <rect width="40" height="40" rx="10" fill="#C97A3A"/>
-            <path d="M10 28V16l10-8 10 8v12M15 28v-8h10v8" stroke="#F6F4EE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, color: '#F6F4EE', letterSpacing: '-.01em' }}>RentyBase</span>
+        <a href="/" style={{ textDecoration: 'none' }}>
+          <LogoLockup size={32} fontSize={20} gap={11} dark />
         </a>
 
         <div style={{ marginTop: 60 }}>

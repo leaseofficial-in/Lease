@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { LogoLockup } from '@/components/brand'
 
 export default function JoinPage({ params }: { params: Promise<{ token: string }> }) {
   const [token, setToken] = useState('')
@@ -49,9 +50,8 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--rb-canvas)', padding: 24 }}>
       <div style={{ maxWidth: 440, width: '100%' }}>
-        <a href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 40 }}>
-          <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="9" fill="#0E1413"/><path d="M20 7 L34 19 V31 a3 3 0 0 1-3 3 H9 a3 3 0 0 1-3-3 V19 Z" fill="#F6F4EE"/><path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/><rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/></svg>
-          <span style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, color: 'var(--rb-ink)' }}>RentyBase</span>
+        <a href="/" style={{ textDecoration: 'none', display: 'inline-flex', marginBottom: 40 }}>
+          <LogoLockup size={28} fontSize={20} gap={10} />
         </a>
 
         {state === 'loading' && (
@@ -71,7 +71,7 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
             <div style={{ marginTop: 28, background: 'var(--rb-surface)', border: '1px solid var(--rb-border)', borderRadius: 16, padding: 20 }}>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--rb-ink-3)', marginBottom: 14 }}>Property details</div>
               {[
-                { l: 'Property', v: rental.property?.name || rental.property?.address || 'Property' },
+                { l: 'Property', v: rental.property?.name || rental.property?.address_line1 || 'Property' },
                 { l: 'City', v: rental.property?.city || '—' },
                 { l: 'Monthly rent', v: inr(rental.monthly_rent) },
                 { l: 'Security deposit', v: inr(rental.security_deposit) },
