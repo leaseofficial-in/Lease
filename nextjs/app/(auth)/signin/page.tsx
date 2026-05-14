@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { LogoMark, LogoLockup } from '@/components/brand'
+import { LogoLockup } from '@/components/brand'
 
 function GoogleIcon() {
   return (
@@ -35,11 +35,8 @@ function MobileSplash({ onGoogle, loading, error }: { onGoogle: () => void; load
   return (
     <div className="m-screen">
       <div className="a2-splash">
-        {/* Hero: real logo + wordmark */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 4 }}>
-          <LogoMark size={72} />
-          <LogoLockup size={36} fontSize={26} gap={12} />
-        </div>
+        {/* Hero: logo + wordmark lockup */}
+        <LogoLockup size={72} fontSize={32} gap={16} />
 
         <h1 className="lede" style={{ marginTop: 28 }}>
           The rent record,<br />
