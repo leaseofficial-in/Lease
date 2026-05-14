@@ -24,10 +24,45 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://rentybase.in')
+
 export const metadata: Metadata = {
-  title: 'RentyBase — India\'s Rental OS',
+  metadataBase: new URL(siteUrl),
+  title: "RentyBase — India's Rental OS",
   description: 'Manage rent, deposits, repairs and agreements — all in one place.',
-  icons: { icon: '/favicon.svg' },
+  applicationName: 'RentyBase',
+  keywords: ['rental management', 'rent payment', 'HRA receipt', 'India rental', 'landlord app', 'tenant app', 'deposit', 'repair tracking'],
+  authors: [{ name: 'RentyBase' }],
+  creator: 'RentyBase',
+  openGraph: {
+    type: 'website',
+    siteName: 'RentyBase',
+    title: "RentyBase — India's Rental OS",
+    description: 'Manage rent, deposits, repairs and agreements — all in one place.',
+    locale: 'en_IN',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "RentyBase — India's Rental OS",
+    description: 'Manage rent, deposits, repairs and agreements — all in one place.',
+  },
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', type: 'image/x-icon' },
+    ],
+    apple: [{ url: '/apple-icon', sizes: '180x180', type: 'image/png' }],
+    other: [{ rel: 'mask-icon', url: '/favicon.svg', color: '#0E1413' }],
+  },
+  manifest: '/manifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'RentyBase',
+  },
+  formatDetection: { telephone: false },
 }
 
 export const viewport: Viewport = {
@@ -35,6 +70,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: '#0E1413',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
