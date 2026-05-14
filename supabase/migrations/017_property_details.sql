@@ -1,0 +1,10 @@
+-- Property physical details + rental financial terms
+
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS bedrooms INTEGER;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS bathrooms INTEGER;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS area_sqft INTEGER;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS floor_number INTEGER;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS parking BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE rentals ADD COLUMN IF NOT EXISTS lock_in_period_months INTEGER NOT NULL DEFAULT 11;
+ALTER TABLE rentals ADD COLUMN IF NOT EXISTS rent_increment_percent NUMERIC NOT NULL DEFAULT 5;

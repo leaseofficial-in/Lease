@@ -6,8 +6,8 @@ import { LogoLockup } from '@/components/brand'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string }
-type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
-type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string }
+type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
+type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string; bedrooms?: number; bathrooms?: number; area_sqft?: number; floor_number?: number; parking?: boolean }
 type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; created_at: string; updated_at?: string }
 type RepairRequest = { id: string; rental_id: string; title: string; description?: string; status: string; cost?: number; category?: string; urgency?: string; photo_url?: string; landlord_note?: string; scheduled_date?: string; deduct_from_deposit?: boolean; created_at: string; rental?: { property?: Property } }
 type Proof = { id: string; rental_id: string; type: string; status: string; proof_photos?: ProofPhoto[] }
@@ -391,7 +391,12 @@ export default function DashboardPage() {
               <div>
                 <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', fontWeight: 600 }}>{r.property?.city || 'City'}</div>
                 <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, lineHeight: 1.15, letterSpacing: '-.01em', marginTop: 2 }}>{r.property?.name || r.property?.address_line1 || 'Property'}</div>
-                <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || 'No tenant yet'}</div>
+                <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {r.property?.bedrooms && <span>{r.property.bedrooms} BHK</span>}
+                  {r.property?.area_sqft && <span>{r.property.area_sqft} sq ft</span>}
+                  {r.furnished_status && <span style={{ textTransform: 'capitalize' }}>{r.furnished_status.replace('_', ' ')}</span>}
+                  {!r.property?.bedrooms && <span>{r.tenant?.full_name || 'No tenant yet'}</span>}
+                </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, letterSpacing: '-.015em' }}>{inr(r.monthly_rent)}<span style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginLeft: 2 }}>/mo</span></div>
@@ -697,9 +702,24 @@ export default function DashboardPage() {
         <section style={cardStyle}>
           {rental ? <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[{ l: 'Monthly rent', v: inr(rental.monthly_rent) }, { l: 'Security deposit', v: inr(rental.security_deposit) }, { l: 'Rent due day', v: `${rental.rent_due_day}th of every month` }, { l: 'Status', v: rental.status }, { l: 'Agreement signed', v: rental.agreement_signed_at ? relDate(rental.agreement_signed_at) : 'Not signed' }].map(f => (
+              {[
+                { l: 'Property', v: rental.property?.name || '—' },
+                ...(rental.property?.bedrooms ? [{ l: 'Configuration', v: `${rental.property.bedrooms} BHK · ${rental.property.bathrooms || 1} Bath${rental.property.area_sqft ? ` · ${rental.property.area_sqft} sq ft` : ''}` }] : []),
+                { l: 'Furnishing', v: rental.furnished_status ? rental.furnished_status.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : '—' },
+                { l: 'Monthly rent', v: inr(rental.monthly_rent) },
+                { l: 'Security deposit', v: inr(rental.security_deposit) },
+                ...(rental.maintenance_charges ? [{ l: 'Maintenance', v: `${inr(rental.maintenance_charges)}/mo` }] : []),
+                { l: 'Rent due day', v: `${rental.rent_due_day}th of every month` },
+                { l: 'Notice period', v: `${rental.notice_period_days ?? 30} days` },
+                { l: 'Lock-in period', v: `${rental.lock_in_period_months ?? 11} months` },
+                { l: 'Late fee', v: `${rental.late_fee_percent ?? 5}% of monthly rent` },
+                { l: 'Annual increment', v: `${rental.rent_increment_percent ?? 5}%` },
+                { l: 'Status', v: rental.status },
+                { l: 'Agreement signed', v: rental.agreement_signed_at ? relDate(rental.agreement_signed_at) : 'Not signed' },
+              ].map(f => (
                 <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
-                  <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>{f.l}</span><span style={{ fontSize: 13, fontWeight: 600 }}>{f.v}</span>
+                  <span style={{ fontSize: 13, color: 'var(--rb-ink-3)', flexShrink: 0, marginRight: 12 }}>{f.l}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', textTransform: f.l === 'Status' ? 'capitalize' as const : undefined }}>{f.v}</span>
                 </div>
               ))}
             </div>
@@ -780,9 +800,23 @@ export default function DashboardPage() {
 
   // ── Modal actions ────────────────────────────────────────────────────────
   function AddPropertyModal() {
-    const [form, setForm] = useState({ name: '', address_line1: '', city: '', state: '', pincode: '', monthly_rent: '', security_deposit: '', rent_due_day: '5' })
+    const [form, setForm] = useState({
+      property_type: 'apartment', bedrooms: '2', bathrooms: '1', area_sqft: '', floor_number: '', parking: false,
+      name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '',
+      monthly_rent: '', security_deposit: '', maintenance_charges: '0', rent_due_day: '5',
+      furnished_status: 'unfurnished', notice_period_days: '30', lock_in_period_months: '11',
+      late_fee_percent: '5', rent_increment_percent: '5',
+    })
     const [saving, setSaving] = useState(false)
-    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+    const toggle = (k: string) => setForm(f => ({ ...f, [k]: !(f as any)[k] }))
+    const chip = (k: string, v: string) => {
+      const active = (form as any)[k] === v
+      return { padding: '7px 14px', borderRadius: 999, border: `1.5px solid ${active ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: active ? 'var(--rb-action)' : 'transparent', color: active ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all .15s' }
+    }
+    const SectionHead = ({ label }: { label: string }) => (
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginTop: 22, marginBottom: 12, paddingTop: 18, borderTop: '1px solid var(--rb-border)' }}>{label}</div>
+    )
 
     const handleSubmit = async () => {
       if (!form.name || !form.address_line1 || !form.city || !form.state || !form.pincode || !form.monthly_rent) {
@@ -791,42 +825,104 @@ export default function DashboardPage() {
       setSaving(true)
       try {
         const { data: prop, error: propErr } = await sb.from('properties').insert({
-          name: form.name, address_line1: form.address_line1, city: form.city,
-          state: form.state, pincode: form.pincode, landlord_id: user.id,
+          name: form.name, address_line1: form.address_line1, address_line2: form.address_line2 || null,
+          city: form.city, state: form.state, pincode: form.pincode, landlord_id: user.id,
+          property_type: form.property_type,
+          bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
+          bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
+          area_sqft: form.area_sqft ? Number(form.area_sqft) : null,
+          floor_number: form.floor_number ? Number(form.floor_number) : null,
+          parking: form.parking,
         }).select().single()
         if (propErr) throw propErr
         if (!prop) throw new Error('Property insert returned no data')
         const { error: rentalErr } = await sb.from('rentals').insert({
-          property_id: prop.id, landlord_id: user.id,
+          property_id: prop.id, landlord_id: user.id, status: 'pending_tenant',
+          start_date: new Date().toISOString().slice(0, 10),
           monthly_rent: Number(form.monthly_rent),
           security_deposit: Number(form.security_deposit || 0),
+          maintenance_charges: Number(form.maintenance_charges || 0),
           rent_due_day: Number(form.rent_due_day),
-          status: 'pending_tenant',
-          start_date: new Date().toISOString().slice(0, 10),
+          furnished_status: form.furnished_status,
+          notice_period_days: Number(form.notice_period_days || 30),
+          lock_in_period_months: Number(form.lock_in_period_months || 11),
+          late_fee_percent: Number(form.late_fee_percent || 5),
+          rent_increment_percent: Number(form.rent_increment_percent || 5),
         })
         if (rentalErr) throw rentalErr
         toast('Property added! Share the invite link with your tenant.', 'success')
-        setModal(null)
-        window.location.reload()
+        setModal(null); window.location.reload()
       } catch (e: any) { console.error('[AddProperty]', e); toast(e?.message || 'Failed to add property', 'error'); setSaving(false) }
     }
 
     return (
       <Modal title="Add property" onClose={() => setModal(null)}>
-        <Field label="Property name *"><input style={inputStyle} value={form.name} onChange={set('name')} placeholder="e.g. 2BHK Apartment" /></Field>
+        {/* ── Property details ── */}
+        <Field label="Property type">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[['apartment','Apartment'],['house','House'],['pg','PG'],['commercial','Commercial']].map(([v,l]) => (
+              <button key={v} style={chip('property_type', v)} onClick={() => setForm(f => ({ ...f, property_type: v }))}>{l}</button>
+            ))}
+          </div>
+        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Field label="Bedrooms (BHK)">
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['1','2','3','4'].map(v => <button key={v} style={chip('bedrooms', v)} onClick={() => setForm(f => ({ ...f, bedrooms: v }))}>{v === '4' ? '4+' : v}</button>)}
+            </div>
+          </Field>
+          <Field label="Bathrooms">
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['1','2','3'].map(v => <button key={v} style={chip('bathrooms', v)} onClick={() => setForm(f => ({ ...f, bathrooms: v }))}>{v === '3' ? '3+' : v}</button>)}
+            </div>
+          </Field>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Area (sq ft)"><input style={inputStyle} type="number" value={form.area_sqft} onChange={set('area_sqft')} placeholder="850" /></Field>
+          <Field label="Floor number"><input style={inputStyle} type="number" value={form.floor_number} onChange={set('floor_number')} placeholder="3" /></Field>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+          <span style={{ fontSize: 14, color: 'var(--rb-ink)' }}>Parking available</span>
+          <button onClick={() => toggle('parking')} style={{ width: 44, height: 24, borderRadius: 999, background: form.parking ? 'var(--rb-action)' : 'var(--rb-border)', border: 0, cursor: 'pointer', position: 'relative', transition: 'background .2s' }}>
+            <span style={{ position: 'absolute', top: 2, left: form.parking ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
+          </button>
+        </div>
+
+        <SectionHead label="Address" />
+        <Field label="Property name / label *"><input style={inputStyle} value={form.name} onChange={set('name')} placeholder="e.g. Sunrise Apt 4B" /></Field>
         <Field label="Street address *"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} placeholder="Flat no., building, street" /></Field>
+        <Field label="Landmark / area (optional)"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} placeholder="Near Metro station" /></Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <Field label="City *"><input style={inputStyle} value={form.city} onChange={set('city')} placeholder="Hyderabad" /></Field>
           <Field label="State *"><input style={inputStyle} value={form.state} onChange={set('state')} placeholder="Telangana" /></Field>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Pincode *"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} placeholder="500001" /></Field>
-          <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
-        </div>
+        <Field label="Pincode *"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} placeholder="500001" /></Field>
+
+        <SectionHead label="Rental terms" />
+        <Field label="Furnishing">
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[['unfurnished','Unfurnished'],['semi_furnished','Semi'],['fully_furnished','Fully furnished']].map(([v,l]) => (
+              <button key={v} style={chip('furnished_status', v)} onClick={() => setForm(f => ({ ...f, furnished_status: v }))}>{l}</button>
+            ))}
+          </div>
+        </Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <Field label="Monthly rent (₹) *"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} placeholder="25000" /></Field>
           <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
         </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Maintenance / society (₹/mo)"><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
+          <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Notice period (days)"><input style={inputStyle} type="number" value={form.notice_period_days} onChange={set('notice_period_days')} placeholder="30" /></Field>
+          <Field label="Lock-in period (months)"><input style={inputStyle} type="number" value={form.lock_in_period_months} onChange={set('lock_in_period_months')} placeholder="11" /></Field>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Late fee (% of rent)"><input style={inputStyle} type="number" value={form.late_fee_percent} onChange={set('late_fee_percent')} placeholder="5" /></Field>
+          <Field label="Annual rent increment (%)"><input style={inputStyle} type="number" value={form.rent_increment_percent} onChange={set('rent_increment_percent')} placeholder="5" /></Field>
+        </div>
+
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
           <button onClick={() => setModal(null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
           <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Saving…' : 'Add property'}</button>
@@ -1208,12 +1304,38 @@ export default function DashboardPage() {
     const currentPmt = landlordData?.currentPayments?.find((p: RentPayment) => p.rental_id === r.id)
     const hasPending = currentPmt?.status === 'pending_verification'
     const [editMode, setEditMode] = useState(false)
-    const [form, setForm] = useState({ name: r.property?.name || '', address_line1: r.property?.address_line1 || '', city: r.property?.city || '', state: r.property?.state || '', pincode: r.property?.pincode || '', monthly_rent: String(r.monthly_rent), security_deposit: String(r.security_deposit), rent_due_day: String(r.rent_due_day || 5) })
+    const [form, setForm] = useState({
+      property_type: r.property?.property_type || 'apartment',
+      bedrooms: r.property?.bedrooms ? String(r.property.bedrooms) : '2',
+      bathrooms: r.property?.bathrooms ? String(r.property.bathrooms) : '1',
+      area_sqft: r.property?.area_sqft ? String(r.property.area_sqft) : '',
+      floor_number: r.property?.floor_number ? String(r.property.floor_number) : '',
+      parking: r.property?.parking || false,
+      name: r.property?.name || '', address_line1: r.property?.address_line1 || '',
+      address_line2: r.property?.address_line2 || '',
+      city: r.property?.city || '', state: r.property?.state || '', pincode: r.property?.pincode || '',
+      monthly_rent: String(r.monthly_rent), security_deposit: String(r.security_deposit),
+      maintenance_charges: String(r.maintenance_charges ?? 0),
+      rent_due_day: String(r.rent_due_day || 5),
+      furnished_status: r.furnished_status || 'unfurnished',
+      notice_period_days: String(r.notice_period_days ?? 30),
+      lock_in_period_months: String(r.lock_in_period_months ?? 11),
+      late_fee_percent: String(r.late_fee_percent ?? 5),
+      rent_increment_percent: String(r.rent_increment_percent ?? 5),
+    })
     const [saving, setSaving] = useState(false)
     const [copied, setCopied] = useState(false)
     const inviteLink = r.invite_token ? `${window.location.origin}/join/${r.invite_token}` : null
     const inviteExpired = r.invite_expires_at ? new Date(r.invite_expires_at) < new Date() : true
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+    const toggle = (k: string) => setForm(f => ({ ...f, [k]: !(f as any)[k] }))
+    const chip = (k: string, v: string) => {
+      const active = (form as any)[k] === v
+      return { padding: '6px 12px', borderRadius: 999, border: `1.5px solid ${active ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: active ? 'var(--rb-action)' : 'transparent', color: active ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, transition: 'all .15s' }
+    }
+    const SectionHead = ({ label }: { label: string }) => (
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginTop: 20, marginBottom: 10, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>{label}</div>
+    )
 
     const handleCopyLink = () => {
       if (!inviteLink) return
@@ -1236,10 +1358,26 @@ export default function DashboardPage() {
       setSaving(true)
       try {
         if (r.property?.id) {
-          const { error } = await sb.from('properties').update({ name: form.name, address_line1: form.address_line1, city: form.city, state: form.state, pincode: form.pincode }).eq('id', r.property.id)
+          const { error } = await sb.from('properties').update({
+            name: form.name, address_line1: form.address_line1, address_line2: form.address_line2 || null,
+            city: form.city, state: form.state, pincode: form.pincode, property_type: form.property_type,
+            bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
+            bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
+            area_sqft: form.area_sqft ? Number(form.area_sqft) : null,
+            floor_number: form.floor_number ? Number(form.floor_number) : null,
+            parking: form.parking,
+          }).eq('id', r.property.id)
           if (error) throw error
         }
-        const { error } = await sb.from('rentals').update({ monthly_rent: Number(form.monthly_rent), security_deposit: Number(form.security_deposit), rent_due_day: Number(form.rent_due_day) }).eq('id', r.id)
+        const { error } = await sb.from('rentals').update({
+          monthly_rent: Number(form.monthly_rent), security_deposit: Number(form.security_deposit),
+          maintenance_charges: Number(form.maintenance_charges || 0),
+          rent_due_day: Number(form.rent_due_day), furnished_status: form.furnished_status,
+          notice_period_days: Number(form.notice_period_days || 30),
+          lock_in_period_months: Number(form.lock_in_period_months || 11),
+          late_fee_percent: Number(form.late_fee_percent || 5),
+          rent_increment_percent: Number(form.rent_increment_percent || 5),
+        }).eq('id', r.id)
         if (error) throw error
         toast('Property updated!', 'success')
         setModal(null); setSelectedRental(null); window.location.reload()
@@ -1308,19 +1446,67 @@ export default function DashboardPage() {
         {/* Details or edit form */}
         {editMode ? (
           <>
-            <Field label="Property name"><input style={inputStyle} value={form.name} onChange={set('name')} /></Field>
+            <Field label="Property type">
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[['apartment','Apartment'],['house','House'],['pg','PG'],['commercial','Commercial']].map(([v,l]) => (
+                  <button key={v} style={chip('property_type', v)} onClick={() => setForm(f => ({ ...f, property_type: v }))}>{l}</button>
+                ))}
+              </div>
+            </Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <Field label="Bedrooms">
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {['1','2','3','4'].map(v => <button key={v} style={chip('bedrooms', v)} onClick={() => setForm(f => ({ ...f, bedrooms: v }))}>{v === '4' ? '4+' : v}</button>)}
+                </div>
+              </Field>
+              <Field label="Bathrooms">
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {['1','2','3'].map(v => <button key={v} style={chip('bathrooms', v)} onClick={() => setForm(f => ({ ...f, bathrooms: v }))}>{v === '3' ? '3+' : v}</button>)}
+                </div>
+              </Field>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Area (sq ft)"><input style={inputStyle} type="number" value={form.area_sqft} onChange={set('area_sqft')} placeholder="850" /></Field>
+              <Field label="Floor number"><input style={inputStyle} type="number" value={form.floor_number} onChange={set('floor_number')} placeholder="3" /></Field>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+              <span style={{ fontSize: 14 }}>Parking available</span>
+              <button onClick={() => toggle('parking')} style={{ width: 44, height: 24, borderRadius: 999, background: form.parking ? 'var(--rb-action)' : 'var(--rb-border)', border: 0, cursor: 'pointer', position: 'relative', transition: 'background .2s' }}>
+                <span style={{ position: 'absolute', top: 2, left: form.parking ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
+              </button>
+            </div>
+            <SectionHead label="Address" />
+            <Field label="Property name / label"><input style={inputStyle} value={form.name} onChange={set('name')} /></Field>
             <Field label="Street address"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} /></Field>
+            <Field label="Landmark / area"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} /></Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="City"><input style={inputStyle} value={form.city} onChange={set('city')} /></Field>
               <Field label="State"><input style={inputStyle} value={form.state} onChange={set('state')} /></Field>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Pincode"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} /></Field>
-              <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
-            </div>
+            <Field label="Pincode"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} /></Field>
+            <SectionHead label="Rental terms" />
+            <Field label="Furnishing">
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[['unfurnished','Unfurnished'],['semi_furnished','Semi'],['fully_furnished','Fully']].map(([v,l]) => (
+                  <button key={v} style={chip('furnished_status', v)} onClick={() => setForm(f => ({ ...f, furnished_status: v }))}>{l}</button>
+                ))}
+              </div>
+            </Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="Monthly rent (₹)"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} /></Field>
               <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} /></Field>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Maintenance (₹/mo)"><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} /></Field>
+              <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Notice period (days)"><input style={inputStyle} type="number" value={form.notice_period_days} onChange={set('notice_period_days')} /></Field>
+              <Field label="Lock-in (months)"><input style={inputStyle} type="number" value={form.lock_in_period_months} onChange={set('lock_in_period_months')} /></Field>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Late fee (%)"><input style={inputStyle} type="number" value={form.late_fee_percent} onChange={set('late_fee_percent')} /></Field>
+              <Field label="Annual increment (%)"><input style={inputStyle} type="number" value={form.rent_increment_percent} onChange={set('rent_increment_percent')} /></Field>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
               <button onClick={() => setEditMode(false)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
@@ -1331,18 +1517,27 @@ export default function DashboardPage() {
           <>
             {[
               { l: 'Property', v: r.property?.name || '—' },
-              { l: 'Address', v: r.property?.address_line1 || '—' },
-              { l: 'City', v: `${r.property?.city || '—'}${r.property?.state ? ', ' + r.property.state : ''}` },
+              { l: 'Type', v: r.property?.property_type ? (r.property.property_type.charAt(0).toUpperCase() + r.property.property_type.slice(1)) : '—' },
+              ...(r.property?.bedrooms ? [{ l: 'Configuration', v: `${r.property.bedrooms} BHK · ${r.property.bathrooms || 1} Bath${r.property.area_sqft ? ` · ${r.property.area_sqft} sq ft` : ''}` }] : []),
+              ...(r.property?.floor_number ? [{ l: 'Floor', v: `Floor ${r.property.floor_number}` }] : []),
+              { l: 'Parking', v: r.property?.parking ? 'Yes' : 'No' },
+              { l: 'Address', v: [r.property?.address_line1, r.property?.address_line2, r.property?.city, r.property?.state].filter(Boolean).join(', ') || '—' },
+              { l: 'Furnishing', v: r.furnished_status ? r.furnished_status.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—' },
               { l: 'Monthly rent', v: inr(r.monthly_rent) },
               { l: 'Security deposit', v: inr(r.security_deposit) },
+              ...(r.maintenance_charges ? [{ l: 'Maintenance', v: `${inr(r.maintenance_charges)}/mo` }] : []),
               { l: 'Rent due', v: `${r.rent_due_day || '—'}th of month` },
+              { l: 'Notice period', v: `${r.notice_period_days ?? 30} days` },
+              { l: 'Lock-in period', v: `${r.lock_in_period_months ?? 11} months` },
+              { l: 'Late fee', v: `${r.late_fee_percent ?? 5}% of rent` },
+              { l: 'Annual increment', v: `${r.rent_increment_percent ?? 5}%` },
               { l: 'Tenant', v: r.tenant?.full_name || 'No tenant yet' },
               { l: 'Status', v: r.status },
               { l: 'Agreement', v: r.agreement_signed_at ? `Signed ${relDate(r.agreement_signed_at)}` : 'Not signed' },
             ].map(f => (
               <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
-                <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>{f.l}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, textTransform: f.l === 'Status' ? 'capitalize' as const : undefined }}>{f.v}</span>
+                <span style={{ fontSize: 13, color: 'var(--rb-ink-3)', flexShrink: 0, marginRight: 12 }}>{f.l}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', textTransform: f.l === 'Status' ? 'capitalize' as const : undefined }}>{f.v}</span>
               </div>
             ))}
             <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const }}>
