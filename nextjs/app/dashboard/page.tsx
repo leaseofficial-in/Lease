@@ -72,6 +72,14 @@ function scoreNudge(score: number, months: number): string {
   return `Each on-time payment adds ~12 points. You need ${Math.max(1, Math.ceil((650 - score) / 12))} more months to reach Good (650+).`
 }
 
+// ── Invite token helper ───────────────────────────────────────────────────
+function genToken() {
+  const buf = new Uint8Array(6)
+  crypto.getRandomValues(buf)
+  return Array.from(buf, b => b.toString(36).padStart(2, '0')).join('').toUpperCase().slice(0, 8)
+}
+function tokenExpiry() { return new Date(Date.now() + 72 * 3600000).toISOString() }
+
 // ── Nav icons (Lucide-style SVG paths) ────────────────────────────────────
 const NAV_PATHS: Record<string, string> = {
   home:    `<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7m-2 2v7a1 1 0 01-1 1H5a1 1 0 01-1-1v-7m5 8v-5a1 1 0 011-1h2a1 1 0 011 1v5"/>`,
@@ -1493,6 +1501,7 @@ export default function DashboardPage() {
         const { error: rentalErr } = await sb.from('rentals').insert({
           property_id: prop.id, landlord_id: user.id, status: 'pending_tenant',
           start_date: new Date().toISOString().slice(0, 10),
+          invite_token: genToken(), invite_expires_at: tokenExpiry(),
           monthly_rent: Number(form.monthly_rent),
           security_deposit: Number(form.security_deposit || 0),
           maintenance_charges: Number(form.maintenance_charges || 0),
@@ -2047,9 +2056,7 @@ export default function DashboardPage() {
     const handleRegenerateLink = async () => {
       setSaving(true)
       try {
-        const token = Math.random().toString(36).slice(2, 10).toUpperCase()
-        const expires = new Date(Date.now() + 72 * 3600000).toISOString()
-        const { error } = await sb.from('rentals').update({ invite_token: token, invite_expires_at: expires }).eq('id', r.id)
+        const { error } = await sb.from('rentals').update({ invite_token: genToken(), invite_expires_at: tokenExpiry() }).eq('id', r.id)
         if (error) throw error
         toast('New invite link generated!', 'success')
         setModal(null); setSelectedRental(null); window.location.reload()
@@ -2441,6 +2448,7 @@ export default function DashboardPage() {
         const { error: rentalErr } = await sb.from('rentals').insert({
           property_id: prop.id, landlord_id: user.id, status: 'pending_tenant',
           start_date: new Date().toISOString().slice(0, 10),
+          invite_token: genToken(), invite_expires_at: tokenExpiry(),
           monthly_rent: Number(form.monthly_rent), security_deposit: Number(form.security_deposit || 0),
           maintenance_charges: Number(form.maintenance_charges || 0), rent_due_day: Number(form.rent_due_day),
           furnished_status: form.furnished_status, notice_period_days: Number(form.notice_period_days || 30),
@@ -2517,6 +2525,7 @@ export default function DashboardPage() {
         if (propErr) throw propErr
         const rentalRows = (props || []).map(p => ({
           property_id: p.id, landlord_id: user.id, status: 'pending_tenant', start_date: today,
+          invite_token: genToken(), invite_expires_at: tokenExpiry(),
           monthly_rent: Number(bulk.monthly_rent), security_deposit: Number(bulk.security_deposit || 0),
           maintenance_charges: Number(bulk.maintenance_charges || 0), rent_due_day: Number(bulk.rent_due_day),
           furnished_status: bulk.furnished_status, notice_period_days: Number(bulk.notice_period_days || 30),
