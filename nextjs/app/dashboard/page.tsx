@@ -298,7 +298,7 @@ export default function DashboardPage() {
             <p style={subStyle}>You have <strong>{activeRentals.length} active propert{activeRentals.length === 1 ? 'y' : 'ies'}</strong>{dueThisMonth > 0 ? <> — <strong>{inr(dueThisMonth)} pending</strong> this month</> : ' — all collections up to date'}. Score <strong>{score}/900</strong>.</p>
           </div>
         </div>
-        <div style={gridStyle}>
+        <div className="d-grid-inner" style={gridStyle}>
           <section style={{ ...cardStyle, gridColumn: 'span 2', background: 'linear-gradient(135deg,#0F4C5C,#163A47)', color: '#F6F4EE', border: 0 }}>
             <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, letterSpacing: '.14em', color: 'rgba(246,244,238,.6)' }}>COLLECTED · {monthLabel(currentMonth).toUpperCase()}</div>
             <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 56, lineHeight: 1, letterSpacing: '-.025em', marginTop: 10 }}>{inr(paidThisMonth)} <span style={{ fontSize: 24, color: 'rgba(246,244,238,.5)' }}>/ {inr(totalMonthlyRent)}</span></div>
@@ -481,7 +481,7 @@ export default function DashboardPage() {
           <h1 style={h1Style}>Hi, {firstName}.</h1>
           <p style={subStyle}>Rent for <strong>{monthLabel(currentMonth)}</strong> is {isPaid ? <strong style={{ color: 'var(--rb-success)' }}>paid & receipted ✓</strong> : isPending ? <strong style={{ color: 'var(--rb-accent)' }}>pending landlord review</strong> : <strong style={{ color: 'var(--rb-accent)' }}>pending</strong>}. Score <strong>{score}/900</strong>.</p>
         </div></div>
-        <div style={gridStyle}>
+        <div className="d-grid-inner" style={gridStyle}>
           <section style={{ ...cardStyle, gridColumn: 'span 2', background: 'linear-gradient(135deg,#14403E,#0F2A2D)', color: '#F6F4EE', border: 0 }}>
             <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, letterSpacing: '.14em', color: 'rgba(246,244,238,.6)' }}>{isPaid ? `CURRENT RENT · ${monthLabel(currentMonth).toUpperCase()}` : `NEXT RENT · ${nextMonthStr.toUpperCase()}`}</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 24, marginTop: 14, flexWrap: 'wrap' as const }}>
@@ -734,7 +734,7 @@ export default function DashboardPage() {
     return (
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Profile</div><h1 style={h1Style}>{firstName}.</h1></div></div>
-        <div style={gridStyle}>
+        <div className="d-grid-inner" style={gridStyle}>
           <section style={{ ...cardStyle, gridColumn: 'span 2' }}>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
               <div style={{ width: 56, height: 56, borderRadius: '50%', background: avatarBg, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 24, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden' }}>
@@ -772,15 +772,17 @@ export default function DashboardPage() {
       if (!form.name || !form.monthly_rent) { toast('Fill in property name and rent', 'error'); return }
       setSaving(true)
       try {
-        const { data: prop } = await sb.from('properties').insert({ name: form.name, city: form.city, address: form.address, landlord_id: user.id }).select().single()
-        if (!prop) throw new Error('Property insert failed')
+        const { data: prop, error: propErr } = await sb.from('properties').insert({ name: form.name, city: form.city, address: form.address, landlord_id: user.id }).select().single()
+        if (propErr) throw propErr
+        if (!prop) throw new Error('Property insert returned no data')
         const token = Math.random().toString(36).slice(2, 10).toUpperCase()
         const expires = new Date(Date.now() + 72 * 3600000).toISOString()
-        await sb.from('rentals').insert({ property_id: prop.id, landlord_id: user.id, monthly_rent: Number(form.monthly_rent), security_deposit: Number(form.security_deposit || 0), rent_due_day: Number(form.rent_due_day), status: 'pending', invite_token: token, invite_expires_at: expires })
+        const { error: rentalErr } = await sb.from('rentals').insert({ property_id: prop.id, landlord_id: user.id, monthly_rent: Number(form.monthly_rent), security_deposit: Number(form.security_deposit || 0), rent_due_day: Number(form.rent_due_day), status: 'pending', invite_token: token, invite_expires_at: expires })
+        if (rentalErr) throw rentalErr
         toast('Property added! Share the invite link with your tenant.', 'success')
         setModal(null)
         window.location.reload()
-      } catch (e) { console.error(e); toast('Failed to add property', 'error'); setSaving(false) }
+      } catch (e: any) { console.error('[AddProperty]', e); toast(e?.message || 'Failed to add property', 'error'); setSaving(false) }
     }
 
     return (
@@ -827,20 +829,23 @@ export default function DashboardPage() {
           const ts = Date.now()
           const ext = file.name.split('.').pop()
           const path = `payment-receipts/${rental.id}/${ts}.${ext}`
-          await sb.storage.from('proof-photos').upload(path, file, { upsert: true })
+          const { error: uploadErr } = await sb.storage.from('proof-photos').upload(path, file, { upsert: true })
+          if (uploadErr) throw uploadErr
           const { data: urlData } = sb.storage.from('proof-photos').getPublicUrl(path)
           proofUrl = urlData?.publicUrl || ''
         }
         const pmtData = { payment_method: method, utr_number: utr, payment_note: note, payment_proof_url: proofUrl, status: 'pending_verification', updated_at: new Date().toISOString() }
         if (currentPayment) {
-          await sb.from('rent_payments').update(pmtData).eq('id', currentPayment.id)
+          const { error: updErr } = await sb.from('rent_payments').update(pmtData).eq('id', currentPayment.id)
+          if (updErr) throw updErr
         } else {
-          await sb.from('rent_payments').insert({ ...pmtData, rental_id: rental.id, month: currentMonthDate, amount: rental.monthly_rent })
+          const { error: insErr } = await sb.from('rent_payments').insert({ ...pmtData, rental_id: rental.id, month: currentMonthDate, amount: rental.monthly_rent })
+          if (insErr) throw insErr
         }
         toast('Payment recorded! Your landlord will confirm shortly.', 'success')
         setModal(null)
         window.location.reload()
-      } catch (e) { console.error(e); toast('Failed to record payment', 'error'); setSaving(false) }
+      } catch (e: any) { console.error('[PayRent]', e); toast(e?.message || 'Failed to record payment', 'error'); setSaving(false) }
     }
 
     return (
@@ -877,11 +882,12 @@ export default function DashboardPage() {
       if (!title || !rentalId) { toast('Enter a title', 'error'); return }
       setSaving(true)
       try {
-        await sb.from('repair_requests').insert({ rental_id: rentalId, title, description, status: 'open', raised_by: user.id })
+        const { error: repErr } = await sb.from('repair_requests').insert({ rental_id: rentalId, title, description, status: 'open', raised_by: user.id })
+        if (repErr) throw repErr
         toast('Repair request raised!', 'success')
         setModal(null)
         window.location.reload()
-      } catch { toast('Failed to raise request', 'error'); setSaving(false) }
+      } catch (e: any) { console.error('[NewRepair]', e); toast(e?.message || 'Failed to raise request', 'error'); setSaving(false) }
     }
 
     return (
@@ -944,7 +950,7 @@ export default function DashboardPage() {
           .d-main{padding:72px 16px 96px!important;max-width:100%!important}
           .m-head{display:flex!important}
           .m-tabs{display:flex!important}
-          .d-grid-inner{flex-direction:column!important;gap:14px!important}
+          .d-grid-inner{grid-template-columns:1fr!important;gap:14px!important}
         }
         @media(min-width:768px){
           .m-head{display:none!important}

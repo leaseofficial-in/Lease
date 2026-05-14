@@ -607,7 +607,7 @@ function Nav() {
 /* ── Page ──────────────────────────────────────────────────── */
 export default function Page() {
   return (
-    <>
+    <div className="lp-page">
       <Nav />
       <Hero />
       <Cinema />
@@ -645,6 +645,6 @@ export default function Page() {
           </div>
         </div>
       </footer>
-    </>
+    </div>
   )
 }
