@@ -3469,9 +3469,18 @@ export default function DashboardPage() {
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         @media print{
-          .d-shell,.d-side,.m-head,.m-tabs{display:none!important}
-          .d-main{padding:0!important;background:#fff!important;max-width:none!important}
-          #agreement-print-area{padding:32px!important}
+          /* Hide everything, then reveal only the agreement */
+          body *{visibility:hidden!important}
+          #agreement-print-area,#agreement-print-area *{visibility:visible!important}
+          #agreement-print-area{
+            position:absolute!important;
+            top:0!important;left:0!important;
+            width:100%!important;
+            padding:32px!important;
+            background:#fff!important;
+            box-shadow:none!important;
+            border:none!important;
+          }
           body{background:#fff!important}
         }
         @media(max-width:767px){
