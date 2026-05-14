@@ -177,7 +177,7 @@ function Hero() {
             <div className="label">COLLECTED THIS MONTH · 3 PROPERTIES</div>
           </div>
           <p className="hero-tag">Rent in. Receipts out. Disputes never. One quiet ledger that handles every signature, photo, and rupee.</p>
-          <div className="hero-cta"><a className="btn btn-primary" href="/signin">Add a property <Icon name="arrow-right" size={16} /></a></div>
+          <div className="hero-cta"><a className="btn btn-primary" href="/signup">Add a property <Icon name="arrow-right" size={16} /></a></div>
         </div>
         <div className="hero-center" ref={stageRef}>
           <div className="hero-spotlight" />
@@ -557,8 +557,8 @@ function FinalCTA() {
         </div>
         <p>Free during beta. All features, no card. Export your data any time.</p>
         <div className="actions">
-          <a className="btn btn-primary" href="/signin">Add a property <Icon name="arrow-right" size={16} /></a>
-          <a className="btn btn-ghost" href="#proof">I&apos;m a tenant</a>
+          <a className="btn btn-primary" href="/signup">Add a property <Icon name="arrow-right" size={16} /></a>
+          <a className="btn btn-ghost" href="/signup">I&apos;m a tenant</a>
         </div>
       </div>
     </section>
@@ -589,7 +589,7 @@ function Nav() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <a href="/signin" style={{ fontSize: 14, fontWeight: 500, color: 'var(--rb-ink-3)' }}>Sign in</a>
-          <a className="btn btn-primary" href="/signin" style={{ padding: '8px 16px' }}>Start free</a>
+          <a className="btn btn-primary" href="/signup" style={{ padding: '8px 16px' }}>Start free</a>
           <button className={'nav-hamburger' + (menuOpen ? ' open' : '')} aria-label="Menu" onClick={() => setMenuOpen(o => !o)}>
             <span /><span /><span />
           </button>
