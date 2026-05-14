@@ -751,3 +751,38 @@ body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index
 
 /* Wax seal spin */
 @keyframes a2Spin { to { transform: rotate(360deg); } }
+
+/* ── Dashboard responsive ─────────────────────────────────── */
+/* The dashboard grid uses inline gridTemplateColumns: repeat(3,1fr).
+   On mobile we collapse it to a single column via !important. */
+@media (max-width: 767px) {
+  .d-grid-inner {
+    grid-template-columns: 1fr !important;
+  }
+  /* Force all child sections to single column, overriding inline gridColumn:span N */
+  .d-grid-inner > section,
+  .d-grid-inner > div {
+    grid-column: 1 !important;
+  }
+  /* Tighter heading on small screens */
+  .d-h1-responsive {
+    font-size: 28px !important;
+  }
+  /* Stat grid inside hero card: 2×2 on mobile instead of 4×1 */
+  .d-stat-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  /* Building card header: allow action buttons to wrap */
+  .d-bcard-actions {
+    flex-wrap: wrap !important;
+    margin-left: 0 !important;
+    margin-top: 8px !important;
+    justify-content: flex-end !important;
+  }
+  /* Hide text labels on toggle; show only icons */
+  .d-toggle-label { display: none; }
+}
+@media (min-width: 768px) {
+  .d-toggle-label { display: inline; }
+}

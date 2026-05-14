@@ -525,15 +525,15 @@ export default function DashboardPage() {
                 <div style={{ height: '100%', width: `${pct}%`, background: pct >= 80 ? 'var(--rb-success)' : 'var(--rb-warning)', borderRadius: 4, transition: 'width .4s' }} />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginLeft: 12, flexShrink: 0, alignItems: 'center' }}>
+            <div className="d-bcard-actions" style={{ display: 'flex', gap: 8, marginLeft: 8, flexShrink: 1, alignItems: 'center' }}>
               {rentals.length > 0 && (
-                <div style={{ display: 'flex', borderRadius: 999, border: '1px solid var(--rb-border)', overflow: 'hidden' }}>
-                  <button onClick={e => { e.stopPropagation(); setView('list') }} style={{ padding: '5px 10px', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, background: view === 'list' ? 'var(--rb-ink-1)' : 'transparent', color: view === 'list' ? '#fff' : 'var(--rb-ink-3)', transition: 'background .15s' }}>☰ List</button>
-                  <button onClick={e => { e.stopPropagation(); setView('map') }} style={{ padding: '5px 10px', border: 0, borderLeft: '1px solid var(--rb-border)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, background: view === 'map' ? 'var(--rb-ink-1)' : 'transparent', color: view === 'map' ? '#fff' : 'var(--rb-ink-3)', transition: 'background .15s' }}>⊞ Map</button>
+                <div style={{ display: 'flex', borderRadius: 999, border: '1px solid var(--rb-border)', overflow: 'hidden', flexShrink: 0 }}>
+                  <button onClick={e => { e.stopPropagation(); setView('list') }} style={{ padding: '5px 8px', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, background: view === 'list' ? 'var(--rb-ink-1)' : 'transparent', color: view === 'list' ? '#fff' : 'var(--rb-ink-3)', transition: 'background .15s' }}>☰<span className="d-toggle-label"> List</span></button>
+                  <button onClick={e => { e.stopPropagation(); setView('map') }} style={{ padding: '5px 8px', border: 0, borderLeft: '1px solid var(--rb-border)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, background: view === 'map' ? 'var(--rb-ink-1)' : 'transparent', color: view === 'map' ? '#fff' : 'var(--rb-ink-3)', transition: 'background .15s' }}>⊞<span className="d-toggle-label"> Map</span></button>
                 </div>
               )}
-              <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('add-unit') }} style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600 }}>+ Add unit</button>
-              <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('building-detail') }} style={{ padding: '6px 10px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-ink-3)' }}>Edit</button>
+              <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('add-unit') }} style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>+ Add</button>
+              <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('building-detail') }} style={{ padding: '6px 8px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, color: 'var(--rb-ink-3)' }}>Edit</button>
               <span style={{ fontSize: 18, color: 'var(--rb-ink-3)', lineHeight: 1 }}>{expanded ? '▾' : '▸'}</span>
             </div>
           </div>
@@ -591,7 +591,7 @@ export default function DashboardPage() {
             <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, letterSpacing: '.14em', color: 'rgba(246,244,238,.6)' }}>COLLECTED · {monthLabel(currentMonth).toUpperCase()}</div>
             <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 56, lineHeight: 1, letterSpacing: '-.025em', marginTop: 10 }}>{inr(paidThisMonth)} <span style={{ fontSize: 24, color: 'rgba(246,244,238,.5)' }}>/ {inr(totalMonthlyRent)}</span></div>
             <div style={{ height: 6, background: 'rgba(246,244,238,.12)', borderRadius: 999, marginTop: 18, overflow: 'hidden' }}><div style={{ height: '100%', width: `${pct}%`, background: 'var(--rb-accent)', borderRadius: 999 }} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginTop: 22, paddingTop: 20, borderTop: '1px solid rgba(246,244,238,.12)' }}>
+            <div className="d-stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginTop: 22, paddingTop: 20, borderTop: '1px solid rgba(246,244,238,.12)' }}>
               {[{ l: 'On time', v: `${onTimeCount} / ${activeRentals.length}` }, { l: 'Pending', v: dueThisMonth > 0 ? inr(dueThisMonth) : '—', accent: true }, { l: 'YTD income', v: ytdTotal > 100000 ? (ytdTotal/100000).toFixed(1)+'L' : inr(ytdTotal) }, { l: 'Score', v: `${score}`, of: '/900' }].map(s => (
                 <div key={s.l}><div style={{ fontSize: 11, color: 'rgba(246,244,238,.55)', letterSpacing: '.08em', textTransform: 'uppercase' as const }}>{s.l}</div><div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24, marginTop: 4, color: s.accent ? 'var(--rb-accent)' : undefined }}>{s.v}{s.of && <span style={{ fontSize: 14, color: 'rgba(246,244,238,.5)' }}>{s.of}</span>}</div></div>
               ))}
@@ -3398,7 +3398,7 @@ export default function DashboardPage() {
 // ── Shared style constants ─────────────────────────────────────────────────
 const topStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, marginBottom: 28, flexWrap: 'wrap' }
 const eyebrowStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--rb-ink-3)' }
-const h1Style: React.CSSProperties = { fontFamily: 'var(--rb-font-display)', fontSize: 40, fontWeight: 400, letterSpacing: '-.025em', lineHeight: 1.05, color: 'var(--rb-ink)', marginTop: 4 }
+const h1Style: React.CSSProperties = { fontFamily: 'var(--rb-font-display)', fontSize: 'clamp(24px, 5vw, 40px)', fontWeight: 400, letterSpacing: '-.025em', lineHeight: 1.05, color: 'var(--rb-ink)', marginTop: 4 }
 const subStyle: React.CSSProperties = { color: 'var(--rb-ink-2)', marginTop: 6, fontSize: 14, lineHeight: 1.55 }
 const gridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }
 const cardStyle: React.CSSProperties = { background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 16, padding: 22, boxShadow: '0 1px 3px rgba(20,18,12,.06)' }
