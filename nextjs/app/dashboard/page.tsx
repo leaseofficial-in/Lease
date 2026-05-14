@@ -366,9 +366,140 @@ export default function DashboardPage() {
     )
   }
 
+  // ── Floor-map tile ──────────────────────────────────────────
+  function UnitTile({ r, pmt }: { r: Rental; pmt?: RentPayment }) {
+    const isVacant = !r.tenant_id
+    const rawStatus = isVacant ? 'vacant' : (pmt?.status ?? 'pending')
+    const st = {
+      vacant:             { bg: 'var(--rb-fill)',        bd: '1.5px dashed var(--rb-border-strong)', lbl: 'VACANT', lc: 'var(--rb-ink-3)' },
+      paid:               { bg: 'var(--rb-action-soft)', bd: '1.5px solid var(--rb-action)',         lbl: 'PAID',   lc: 'var(--rb-action)' },
+      pending:            { bg: 'var(--rb-warning-soft)',bd: '1.5px solid var(--rb-warning)',         lbl: 'DUE',    lc: 'var(--rb-warning)' },
+      overdue:            { bg: 'var(--rb-danger-soft)', bd: '1.5px solid var(--rb-danger)',          lbl: 'OVER',   lc: 'var(--rb-danger)' },
+      pending_verification:{ bg: 'var(--rb-accent-soft)',bd: '1.5px solid var(--rb-accent)',          lbl: 'REVIEW', lc: 'var(--rb-accent)' },
+      partial:            { bg: 'var(--rb-warning-soft)',bd: '1.5px solid var(--rb-warning)',         lbl: 'PART',   lc: 'var(--rb-warning)' },
+    }[rawStatus] ?? { bg: 'var(--rb-fill)', bd: '1.5px solid var(--rb-border)', lbl: '—', lc: 'var(--rb-ink-3)' }
+    const unitId = r.property?.unit_number || r.property?.name?.split(' ').pop() || '?'
+    const initials = r.tenant?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'
+    return (
+      <div
+        onClick={() => { setSelectedRental(r); setModal('property-detail') }}
+        title={r.tenant?.full_name ? `${r.property?.unit_number || r.property?.name} · ${r.tenant.full_name}` : `Unit ${unitId} · Vacant`}
+        style={{ background: st.bg, border: st.bd, borderRadius: 12, padding: '10px 6px 8px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minHeight: 96, transition: 'transform .12s, box-shadow .12s' }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(14,20,19,.1)' }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = '' }}
+      >
+        <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--rb-ink)', lineHeight: 1 }}>{unitId}</span>
+        {isVacant
+          ? <div style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px dashed var(--rb-border-strong)', display: 'grid', placeItems: 'center', fontSize: 16, color: 'var(--rb-ink-3)' }}>+</div>
+          : <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#2a5298,#163A47)', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: '.02em' }}>{initials}</div>
+        }
+        <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 8, fontWeight: 700, letterSpacing: '.12em', color: st.lc }}>{st.lbl}</span>
+      </div>
+    )
+  }
+
+  // ── Floor-map grid — groups units by floor_number, highest floor first ──
+  function FloorMapGrid({ rentals, currentPayments }: { rentals: Rental[]; currentPayments: RentPayment[] }) {
+    const [filter, setFilter] = useState<'all' | 'vacant' | 'overdue' | 'paid'>('all')
+
+    const pmtOf = (r: Rental) => currentPayments.find(p => p.rental_id === r.id)
+    const statusOf = (r: Rental) => {
+      if (!r.tenant_id) return 'vacant'
+      const p = pmtOf(r)
+      return p ? p.status : 'pending'
+    }
+
+    const counts = {
+      paid:    rentals.filter(r => statusOf(r) === 'paid').length,
+      due:     rentals.filter(r => statusOf(r) === 'pending').length,
+      overdue: rentals.filter(r => statusOf(r) === 'overdue').length,
+      vacant:  rentals.filter(r => statusOf(r) === 'vacant').length,
+    }
+
+    const visible = filter === 'all'     ? rentals
+                  : filter === 'vacant'  ? rentals.filter(r => !r.tenant_id)
+                  : filter === 'overdue' ? rentals.filter(r => statusOf(r) === 'overdue')
+                  : rentals.filter(r => statusOf(r) === 'paid')
+
+    // group by floor_number (highest first, unassigned last)
+    const byFloor = new Map<number | '_', Rental[]>()
+    for (const r of visible) {
+      const fl = r.property?.floor_number ?? '_'
+      if (!byFloor.has(fl as any)) byFloor.set(fl as any, [])
+      byFloor.get(fl as any)!.push(r)
+    }
+    const floorKeys = [...byFloor.keys()].sort((a, b) => {
+      if (a === '_') return 1
+      if (b === '_') return -1
+      return (b as number) - (a as number)
+    })
+
+    const pillStyle = (active: boolean, bg: string, c: string): React.CSSProperties => ({
+      display: 'inline-flex', alignItems: 'center', padding: '5px 11px', borderRadius: 999,
+      fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, letterSpacing: '.1em',
+      cursor: 'pointer', border: 'none', transition: 'all .14s',
+      background: active ? bg : 'var(--rb-fill)', color: active ? c : 'var(--rb-ink-3)',
+      outline: active ? `1.5px solid ${c}` : 'none', outlineOffset: 0,
+    })
+
+    const hasMultipleFloors = floorKeys.some(f => f !== '_') && floorKeys.length > 1
+
+    return (
+      <div style={{ padding: '14px 18px 18px' }}>
+        {/* Summary + filter pills */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+          <button style={pillStyle(filter === 'all', 'var(--rb-ink)', '#fff')} onClick={() => setFilter('all')}>All {rentals.length}</button>
+          {counts.paid > 0    && <button style={pillStyle(filter === 'paid', 'var(--rb-action)', '#fff')} onClick={() => setFilter('paid')}>Paid {counts.paid}</button>}
+          {counts.due > 0     && <button style={pillStyle(false, 'var(--rb-warning-soft)', 'var(--rb-warning)')} onClick={() => setFilter('all')}>Due {counts.due}</button>}
+          {counts.overdue > 0 && <button style={pillStyle(filter === 'overdue', 'var(--rb-danger)', '#fff')} onClick={() => setFilter('overdue')}>Overdue {counts.overdue}</button>}
+          {counts.vacant > 0  && <button style={pillStyle(filter === 'vacant', 'var(--rb-fill-2)', 'var(--rb-ink-2)')} onClick={() => setFilter('vacant')}>Vacant {counts.vacant}</button>}
+        </div>
+
+        {/* Legend */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+          {[
+            { bg: 'var(--rb-action-soft)', bd: 'var(--rb-action)', label: 'Paid' },
+            { bg: 'var(--rb-warning-soft)', bd: 'var(--rb-warning)', label: 'Due' },
+            { bg: 'var(--rb-danger-soft)', bd: 'var(--rb-danger)', label: 'Overdue' },
+            { bg: 'var(--rb-fill)', bd: 'var(--rb-border-strong)', label: 'Vacant', dashed: true },
+          ].map(l => (
+            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 12, height: 12, borderRadius: 3, background: l.bg, border: `1.5px ${l.dashed ? 'dashed' : 'solid'} ${l.bd}`, flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: 'var(--rb-ink-3)', fontFamily: 'var(--rb-font-mono)', letterSpacing: '.06em' }}>{l.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* No results */}
+        {floorKeys.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--rb-ink-3)', fontSize: 13 }}>No units match this filter.</div>
+        )}
+
+        {/* Floor rows */}
+        {floorKeys.map(fl => (
+          <div key={String(fl)} style={{ marginBottom: 20 }}>
+            {hasMultipleFloors && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, letterSpacing: '.18em', color: 'var(--rb-ink-3)', flexShrink: 0 }}>
+                  {fl === '_' ? 'UNASSIGNED' : `FLOOR ${fl}`}
+                </span>
+                <span style={{ flex: 1, height: 1, background: 'var(--rb-border)' }} />
+                <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, color: 'var(--rb-ink-3)', flexShrink: 0 }}>{byFloor.get(fl)!.length} unit{byFloor.get(fl)!.length !== 1 ? 's' : ''}</span>
+              </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
+              {byFloor.get(fl)!.map(r => <UnitTile key={r.id} r={r} pmt={pmtOf(r)} />)}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   // Building card — shows occupancy stats + all its units
   function BuildingCard({ building, rentals, currentPayments }: { building: Building; rentals: Rental[]; currentPayments: RentPayment[] }) {
     const [expanded, setExpanded] = useState(true)
+    const [view, setView] = useState<'list' | 'map'>('list')
     const occupied = rentals.filter(r => r.tenant_id && r.status === 'active').length
     const totalRent = rentals.reduce((s, r) => s + Number(r.monthly_rent), 0)
     const collected = currentPayments.filter(p => p.status === 'paid' && rentals.some(r => r.id === p.rental_id)).reduce((s, p) => s + Number(p.amount), 0)
@@ -395,6 +526,12 @@ export default function DashboardPage() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, marginLeft: 12, flexShrink: 0, alignItems: 'center' }}>
+              {rentals.length > 0 && (
+                <div style={{ display: 'flex', borderRadius: 999, border: '1px solid var(--rb-border)', overflow: 'hidden' }}>
+                  <button onClick={e => { e.stopPropagation(); setView('list') }} style={{ padding: '5px 10px', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, background: view === 'list' ? 'var(--rb-ink-1)' : 'transparent', color: view === 'list' ? '#fff' : 'var(--rb-ink-3)', transition: 'background .15s' }}>☰ List</button>
+                  <button onClick={e => { e.stopPropagation(); setView('map') }} style={{ padding: '5px 10px', border: 0, borderLeft: '1px solid var(--rb-border)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, background: view === 'map' ? 'var(--rb-ink-1)' : 'transparent', color: view === 'map' ? '#fff' : 'var(--rb-ink-3)', transition: 'background .15s' }}>⊞ Map</button>
+                </div>
+              )}
               <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('add-unit') }} style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600 }}>+ Add unit</button>
               <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('building-detail') }} style={{ padding: '6px 10px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-ink-3)' }}>Edit</button>
               <span style={{ fontSize: 18, color: 'var(--rb-ink-3)', lineHeight: 1 }}>{expanded ? '▾' : '▸'}</span>
@@ -402,14 +539,16 @@ export default function DashboardPage() {
           </div>
           {openPmt && <div style={{ marginTop: 8, padding: '5px 10px', background: 'var(--rb-warning-soft)', borderRadius: 8, fontSize: 12, color: 'var(--rb-warning)', fontWeight: 600 }}>⏳ Payment awaiting review</div>}
         </div>
-        {/* Unit list */}
+        {/* Unit list / map */}
         {expanded && (
-          <div style={{ padding: '12px 18px 16px', background: 'var(--rb-canvas)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {rentals.length === 0
-              ? <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--rb-ink-3)', fontSize: 13 }}>No units added yet. <button onClick={() => { setSelectedBuilding(building); setModal('add-unit') }} style={{ color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>Add first unit →</button></div>
-              : rentals.map(r => <UnitRow key={r.id} r={r} currentPayments={currentPayments} />)
-            }
-          </div>
+          view === 'map' && rentals.length > 0
+            ? <FloorMapGrid rentals={rentals} currentPayments={currentPayments} />
+            : <div style={{ padding: '12px 18px 16px', background: 'var(--rb-canvas)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {rentals.length === 0
+                  ? <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--rb-ink-3)', fontSize: 13 }}>No units added yet. <button onClick={() => { setSelectedBuilding(building); setModal('add-unit') }} style={{ color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>Add first unit →</button></div>
+                  : rentals.map(r => <UnitRow key={r.id} r={r} currentPayments={currentPayments} />)
+                }
+              </div>
         )}
       </div>
     )
