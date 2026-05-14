@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string }
+type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string; pan_number?: string }
 type Building = { id: string; name: string; address_line1: string; address_line2?: string; city: string; state: string; pincode: string; property_type?: string; total_units?: number; created_at: string }
 type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
 type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string; bedrooms?: number; bathrooms?: number; area_sqft?: number; floor_number?: number; parking?: boolean; building_id?: string; unit_number?: string; building?: Building }
@@ -146,7 +146,7 @@ export default function DashboardPage() {
         if (role === 'landlord') {
           const [rentalsRes, ytdRes, buildingsRes] = await Promise.all([
             sb.from('rentals').select('*, property:properties(*, building:buildings(*)), tenant:profiles!rentals_tenant_id_fkey(full_name, phone, avatar_url)').eq('landlord_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }),
-            sb.from('rent_payments').select('id, amount, month, status, rental_id, created_at, rental:rentals!inner(landlord_id, property:properties(name, city))').eq('rental.landlord_id', u.id).gte('month', `${now.getFullYear()}-01-01`).order('created_at', { ascending: false }),
+            sb.from('rent_payments').select('id, amount, month, status, rental_id, created_at, rental:rentals!inner(landlord_id, tenant:profiles!rentals_tenant_id_fkey(full_name), property:properties(name, city))').eq('rental.landlord_id', u.id).gte('month', `${now.getFullYear()}-01-01`).order('month', { ascending: false }),
             sb.from('buildings').select('*').eq('landlord_id', u.id).order('created_at', { ascending: false }),
           ])
           const rentals: Rental[] = rentalsRes.data || []
@@ -161,7 +161,8 @@ export default function DashboardPage() {
             currentPayments = pmtRes.data || []
             recentRepairs = repRes.data || []
           }
-          const ytdPayments: RentPayment[] = ((ytdRes.data || []) as any[]).filter((p: any) => p.status === 'paid')
+          const allLedgerPayments: any[] = ytdRes.data || []
+          const ytdPayments: RentPayment[] = allLedgerPayments.filter((p: any) => p.status === 'paid')
           const activeRentals = rentals.filter(r => r.status === 'active')
           const totalMonthlyRent = activeRentals.reduce((s, r) => s + Number(r.monthly_rent), 0)
           const paidThisMonth = currentPayments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)
@@ -170,7 +171,7 @@ export default function DashboardPage() {
           const collectionRate = totalMonthlyRent > 0 ? Math.round((paidThisMonth / totalMonthlyRent) * 100) : 0
           const ytdTotal = ytdPayments.reduce((s, p) => s + Number(p.amount), 0)
           const score = Math.min(900, Math.round(600 + (collectionRate / 100) * 180 + (rentals.length > 0 ? 20 : 0)))
-          setLandlordData({ rentals, buildings, currentPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs, ytdPayments })
+          setLandlordData({ rentals, buildings, currentPayments, allLedgerPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs, ytdPayments })
         } else if (role === 'tenant') {
           const { data: rental } = await sb.from('rentals').select('*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(full_name, avatar_url)').eq('tenant_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
           let currentPayment: RentPayment | null = null, recentPayments: RentPayment[] = [], openRepairs: RepairRequest[] = [], proofs: Proof | null = null, depositTransactions: DepositTx[] = []
@@ -587,23 +588,118 @@ export default function DashboardPage() {
   }
 
   function LandlordLedger() {
-    const payments: RentPayment[] = landlordData?.ytdPayments || []
+    const allPayments: any[] = landlordData?.allLedgerPayments || []
+    const [filter, setFilter] = useState<'month' | 'ytd'>('ytd')
+
+    const filtered = filter === 'month'
+      ? allPayments.filter(p => p.month >= currentMonthDate)
+      : allPayments
+
+    // Group by YYYY-MM
+    const byMonth: Record<string, any[]> = {}
+    for (const p of filtered) {
+      const key = (p.month as string).slice(0, 7)
+      if (!byMonth[key]) byMonth[key] = []
+      byMonth[key].push(p)
+    }
+    const months = Object.keys(byMonth).sort((a, b) => b.localeCompare(a))
+
+    const sumBy = (pred: (p: any) => boolean) => filtered.filter(pred).reduce((s: number, p: any) => s + Number(p.amount), 0)
+    const collected = sumBy(p => p.status === 'paid')
+    const pending = sumBy(p => p.status === 'pending' || p.status === 'pending_verification')
+    const overdue = sumBy(p => p.status === 'overdue')
+    const total = sumBy(() => true)
+
+    const stMap: Record<string, { t: string; bg: string; c: string }> = {
+      paid:                 { t: 'PAID',    bg: 'var(--rb-action-soft)',       c: 'var(--rb-action)' },
+      pending_verification: { t: 'REVIEW',  bg: 'var(--rb-accent-soft)',       c: 'var(--rb-accent)' },
+      pending:              { t: 'DUE',     bg: 'var(--rb-warning-soft)',      c: 'var(--rb-warning)' },
+      overdue:              { t: 'OVERDUE', bg: 'rgba(239,68,68,.1)',          c: 'var(--rb-danger)' },
+      partial:              { t: 'PARTIAL', bg: 'var(--rb-warning-soft)',      c: 'var(--rb-warning)' },
+    }
+    const filterBtn = (f: string, label: string) => ({
+      padding: '6px 14px', borderRadius: 999,
+      background: filter === f ? 'var(--rb-ink)' : 'transparent',
+      color: filter === f ? 'var(--rb-canvas)' : 'var(--rb-ink-3)',
+      border: `1px solid ${filter === f ? 'var(--rb-ink)' : 'var(--rb-border)'}`,
+      cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, transition: 'all .15s',
+    })
+
     return (
       <>
-        <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Ledger</div><h1 style={h1Style}>Activity ledger.</h1><p style={subStyle}>Sealed record · {inr(landlordData?.ytdTotal)} collected YTD</p></div></div>
+        <div style={topStyle}>
+          <div>
+            <div style={eyebrowStyle}>Landlord · Ledger</div>
+            <h1 style={h1Style}>Activity ledger.</h1>
+            <p style={subStyle}>All rent payments · {filtered.length} entr{filtered.length === 1 ? 'y' : 'ies'} · {now.getFullYear()}</p>
+          </div>
+        </div>
+
+        {/* Summary strip */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
+          {[
+            { l: 'Collected',     v: inr(collected), c: 'var(--rb-action)' },
+            { l: 'Pending review', v: inr(pending),  c: pending > 0 ? 'var(--rb-accent)' : 'var(--rb-ink-3)' },
+            { l: 'Overdue',       v: inr(overdue),   c: overdue > 0 ? 'var(--rb-danger)' : 'var(--rb-ink-3)' },
+            { l: 'Total expected', v: inr(total),    c: 'var(--rb-ink)' },
+          ].map(s => (
+            <div key={s.l} style={{ ...cardStyle, padding: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>{s.l}</div>
+              <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, letterSpacing: '-.015em', marginTop: 6, color: s.c }}>{s.v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filter tabs */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button style={filterBtn('month', 'This month')} onClick={() => setFilter('month')}>This month</button>
+          <button style={filterBtn('ytd',   `Full year ${now.getFullYear()}`)} onClick={() => setFilter('ytd')}>Full year {now.getFullYear()}</button>
+        </div>
+
         <section style={cardStyle}>
-          {payments.length > 0 ? (
-            <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
-              <thead><tr>{['Date','Item','Amount'].map(h => <th key={h} style={{ textAlign: h === 'Amount' ? 'right' : 'left', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', fontWeight: 700, padding: '10px 8px', borderBottom: '1px solid var(--rb-border)' }}>{h}</th>)}</tr></thead>
-              <tbody>{payments.map(p => (
-                <tr key={p.id}>
-                  <td style={{ padding: '12px 8px', fontSize: 13, fontFamily: 'var(--rb-font-mono)', borderBottom: '1px solid var(--rb-border-soft)', color: 'var(--rb-ink-2)' }}>{relDate(p.created_at)}</td>
-                  <td style={{ padding: '12px 8px', fontSize: 13, borderBottom: '1px solid var(--rb-border-soft)', color: 'var(--rb-ink-2)' }}><span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, marginRight: 8, background: 'var(--rb-action-soft)', color: 'var(--rb-action)' }}>IN</span>Rent</td>
-                  <td style={{ padding: '12px 8px', fontSize: 13, borderBottom: '1px solid var(--rb-border-soft)', fontFamily: 'var(--rb-font-mono)', textAlign: 'right', color: 'var(--rb-action)', fontWeight: 600 }}>+{inr(p.amount)}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          ) : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>📋</div><p>No activity yet.</p></div>}
+          {filtered.length === 0
+            ? <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>📋</div><p>No entries for this period.</p></div>
+            : months.map(m => {
+                const mPayments = byMonth[m]
+                const mCollected = mPayments.filter(p => p.status === 'paid').reduce((s: number, p: any) => s + Number(p.amount), 0)
+                const mTotal    = mPayments.reduce((s: number, p: any) => s + Number(p.amount), 0)
+                const allPaid   = mCollected === mTotal
+                return (
+                  <div key={m} style={{ marginBottom: 26 }}>
+                    {/* Month header + subtotal */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0 10px', borderBottom: '2px solid var(--rb-border)' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'var(--rb-ink)' }}>{monthLabel(m + '-01')}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: allPaid ? 'var(--rb-action)' : 'var(--rb-ink-3)' }}>
+                        {inr(mCollected)}
+                        <span style={{ fontWeight: 400, color: 'var(--rb-ink-3)', fontSize: 12 }}> / {inr(mTotal)}</span>
+                      </span>
+                    </div>
+                    {/* Rows */}
+                    {mPayments.map((p: any) => {
+                      const st = stMap[p.status] || { t: p.status?.toUpperCase() || '?', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
+                      const payDate = new Date(p.created_at)
+                      const dateStr = payDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                      const propName   = p.rental?.property?.name || '—'
+                      const tenantName = p.rental?.tenant?.full_name || '—'
+                      const amtColor   = p.status === 'paid' ? 'var(--rb-action)' : p.status === 'overdue' ? 'var(--rb-danger)' : 'var(--rb-ink-2)'
+                      return (
+                        <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto auto', gap: 12, alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
+                          <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, color: 'var(--rb-ink-3)', textAlign: 'center' as const, lineHeight: 1.3 }}>{dateStr}</div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{propName}</div>
+                            <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2 }}>{tenantName}</div>
+                          </div>
+                          <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, padding: '3px 9px', borderRadius: 999, letterSpacing: '.05em', whiteSpace: 'nowrap' as const, background: st.bg, color: st.c }}>{st.t}</span>
+                          <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 16, fontWeight: 600, textAlign: 'right' as const, color: amtColor, minWidth: 88 }}>
+                            {p.status === 'paid' ? '+' : ''}{inr(p.amount)}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })
+          }
         </section>
       </>
     )
@@ -890,39 +986,135 @@ export default function DashboardPage() {
 
   function ProfileView() {
     const isTenant = role === 'tenant'
-    const d = tenantData
-    const featureCards = isTenant ? [
-      { k: 'agree', icon: '📋', title: 'Agreement', sub: 'View terms', badge: d?.rental?.agreement_signed_at ? '✅ Signed' : '⏳ Pending' },
-      { k: 'proof', icon: '📷', title: 'Move-in proof', sub: 'Photo record', badge: d?.proofs ? (d.proofs.status === 'approved' ? '✅ Approved' : '📷 Submitted') : '📷 Not submitted' },
-      { k: 'dep', icon: '🔒', title: 'Deposit', sub: 'Security deposit', badge: `🔒 Held` },
-      { k: 'score', icon: '★', title: 'Renter score', sub: 'Your rating', badge: `⭐ ${d?.score || 700}/900` },
-    ] : []
+    const [copied, setCopied] = useState(false)
+
+    const copyUpi = () => {
+      if (!profile?.upi_id) return
+      navigator.clipboard.writeText(profile.upi_id).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+    }
+
+    const score = isTenant ? (tenantData?.score || 700) : (landlordData?.score || 600)
+    const band = scoreBand(score)
+    const rental = isTenant ? tenantData?.rental : null
+    const depositBal = isTenant
+      ? (tenantData?.depositTransactions || []).reduce((s: number, t: DepositTx) => s + (t.type === 'received' ? Number(t.amount) : -Number(t.amount)), 0)
+      : 0
+
     return (
       <>
-        <div style={topStyle}><div><div style={eyebrowStyle}>Profile</div><h1 style={h1Style}>{firstName}.</h1></div></div>
+        <div style={topStyle}>
+          <div><div style={eyebrowStyle}>Profile</div><h1 style={h1Style}>{firstName}.</h1></div>
+          <button onClick={() => setModal('edit-profile')} style={actBtnPrimary}>Edit profile</button>
+        </div>
         <div className="d-grid-inner" style={gridStyle}>
+
+          {/* ── Identity card ── */}
           <section style={{ ...cardStyle, gridColumn: 'span 2' }}>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
-              <div style={{ width: 56, height: 56, borderRadius: '50%', background: avatarBg, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 24, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', gap: 18, alignItems: 'center' }}>
+              <div style={{ width: 68, height: 68, borderRadius: '50%', background: avatarBg, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 26, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden', flexShrink: 0 }}>
                 {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : firstName.charAt(0).toUpperCase()}
               </div>
-              <div><div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24, letterSpacing: '-.02em' }}>{name}</div><div style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginTop: 2 }}>{user?.email} · <span style={{ textTransform: 'capitalize' as const }}>{role}</span></div></div>
-            </div>
-            {[{ l: 'Email', v: user?.email }, { l: 'Role', v: role }, { l: 'Phone', v: profile?.phone || '—' }].map(f => (
-              <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
-                <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>{f.l}</span><span style={{ fontSize: 13, fontWeight: 600 }}>{f.v}</span>
+              <div>
+                <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 26, letterSpacing: '-.02em', lineHeight: 1.1 }}>{name}</div>
+                <div style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginTop: 3 }}>{user?.email}</div>
+                <span style={{ display: 'inline-block', marginTop: 8, padding: '3px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, background: isTenant ? 'var(--rb-action-soft)' : 'rgba(15,76,92,.1)', color: isTenant ? 'var(--rb-action)' : '#0F4C5C' }}>{role}</span>
               </div>
-            ))}
-            <button onClick={handleSignOut} style={{ marginTop: 20, padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontSize: 13, color: 'var(--rb-ink-3)', fontFamily: 'inherit' }}>Sign out</button>
+            </div>
+
+            {/* Account fields: 3-col strip */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderTop: '1px solid var(--rb-border-soft)', marginTop: 20 }}>
+              {[
+                { l: 'Phone', v: profile?.phone || '—', mono: false },
+                { l: 'PAN number', v: profile?.pan_number || '—', mono: true },
+                { l: isTenant ? 'UPI (refund)' : 'UPI ID', v: profile?.upi_id || '—', mono: true },
+              ].map((f, i) => (
+                <div key={f.l} style={{ padding: '14px 16px', borderRight: i < 2 ? '1px solid var(--rb-border-soft)' : undefined, ...(i === 0 ? { paddingLeft: 0 } : {}) }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>{f.l}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginTop: 5, color: f.v === '—' ? 'var(--rb-ink-3)' : 'var(--rb-ink)', fontFamily: f.mono ? 'var(--rb-font-mono)' : 'inherit' }}>
+                    {f.v === '—' ? <span style={{ color: 'var(--rb-ink-3)' }}>Not set · <button onClick={() => setModal('edit-profile')} style={{ color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 }}>Add →</button></span> : f.v}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid var(--rb-border-soft)', display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button onClick={() => setModal('edit-profile')} style={actBtnPrimary}>Edit profile</button>
+              <button onClick={handleSignOut} style={{ padding: '7px 14px', borderRadius: 999, border: '1.5px solid var(--rb-danger)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--rb-danger)', fontFamily: 'inherit', fontWeight: 600 }}>Sign out</button>
+            </div>
           </section>
-          {isTenant && featureCards.map(c => (
-            <section key={c.k} style={{ ...cardStyle, cursor: 'pointer' }} onClick={() => navigate(c.k)}>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>{c.icon}</div>
-              <h3 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, fontWeight: 400 }}>{c.title}</h3>
-              <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 4 }}>{c.sub}</div>
-              <div style={{ marginTop: 12, fontSize: 12, fontWeight: 600, color: 'var(--rb-action)' }}>{c.badge}</div>
+
+          {/* ── Score card ── */}
+          <section style={cardStyle}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>{isTenant ? 'Renter' : 'Landlord'} score</div>
+            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 64, lineHeight: 1, marginTop: 10, letterSpacing: '-.03em', color: 'var(--rb-action)' }}>{score}</div>
+            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 4 }}>out of 900</div>
+            <span style={{ display: 'inline-block', marginTop: 10, padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: '.12em', background: 'var(--rb-action-soft)', color: 'var(--rb-action)' }}>{band.label}</span>
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px dashed var(--rb-border)', fontSize: 12, color: 'var(--rb-ink-3)', lineHeight: 1.55 }}>
+              {isTenant ? 'Carries to your next rental. Pay on time to build toward 850+.' : `${landlordData?.collectionRate || 0}% collection rate this month.`}
+            </div>
+          </section>
+
+          {/* ── Landlord: UPI collection card ── */}
+          {!isTenant && (
+            <section style={{ ...cardStyle, background: profile?.upi_id ? 'var(--rb-surface)' : 'var(--rb-fill)', border: profile?.upi_id ? '1px solid var(--rb-border-soft)' : '1.5px dashed var(--rb-border)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 12 }}>Collect rent · UPI</div>
+              {profile?.upi_id ? (
+                <>
+                  <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 14, fontWeight: 600, padding: '10px 14px', background: 'var(--rb-fill)', borderRadius: 10, marginBottom: 12, wordBreak: 'break-all' as const, color: 'var(--rb-ink)' }}>{profile.upi_id}</div>
+                  <button onClick={copyUpi} style={{ ...actBtnPrimary, fontSize: 12 }}>{copied ? '✓ Copied!' : '📋 Copy UPI ID'}</button>
+                  <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 8, lineHeight: 1.5 }}>Share with tenants so they know where to send rent.</div>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', lineHeight: 1.55, marginBottom: 14 }}>Add your UPI ID so tenants know where to send rent. They'll see it on their pay screen.</p>
+                  <button onClick={() => setModal('edit-profile')} style={actBtnPrimary}>+ Add UPI ID</button>
+                </>
+              )}
             </section>
-          ))}
+          )}
+
+          {/* ── Tenant: Current rental card ── */}
+          {isTenant && rental && (
+            <section style={{ ...cardStyle, gridColumn: 'span 1' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 14 }}>Current rental</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {[
+                  { l: 'Property', v: rental.property?.name || '—' },
+                  { l: 'Landlord', v: rental.landlord?.full_name || '—' },
+                  { l: 'Monthly rent', v: inr(rental.monthly_rent) },
+                  { l: 'Due on', v: `${rental.rent_due_day}th of month` },
+                  { l: 'Deposit held', v: inr(depositBal) },
+                ].map(f => (
+                  <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--rb-ink-3)' }}>{f.l}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{f.v}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── Landlord: Portfolio strip ── */}
+          {!isTenant && (
+            <section style={{ ...cardStyle, gridColumn: 'span 3' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 16 }}>Portfolio snapshot</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 0 }}>
+                {[
+                  { l: 'Buildings', v: String(landlordData?.buildings?.length || 0) },
+                  { l: 'Units', v: String(landlordData?.rentals?.length || 0) },
+                  { l: 'Active tenants', v: String(landlordData?.activeRentals?.length || 0) },
+                  { l: monthLabel(currentMonth) + ' collected', v: inr(landlordData?.paidThisMonth || 0) },
+                  { l: 'Collection rate', v: `${landlordData?.collectionRate || 0}%` },
+                ].map((s, i) => (
+                  <div key={s.l} style={{ padding: '0 20px', borderRight: i < 4 ? '1px solid var(--rb-border-soft)' : undefined, ...(i === 0 ? { paddingLeft: 0 } : {}) }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>{s.l}</div>
+                    <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, letterSpacing: '-.015em', marginTop: 6 }}>{s.v}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </>
     )
@@ -2037,6 +2229,53 @@ export default function DashboardPage() {
     )
   }
 
+  // ── Edit profile modal ───────────────────────────────────────────────────
+  function EditProfileModal() {
+    const [form, setForm] = useState({
+      full_name:   profile?.full_name   || '',
+      phone:       profile?.phone       || '',
+      upi_id:      profile?.upi_id      || '',
+      pan_number:  profile?.pan_number  || '',
+    })
+    const [saving, setSaving] = useState(false)
+    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+    const handleSave = async () => {
+      setSaving(true)
+      try {
+        const { error } = await sb.from('profiles').update({
+          full_name:  form.full_name  || null,
+          phone:      form.phone      || null,
+          upi_id:     form.upi_id     || null,
+          pan_number: form.pan_number ? form.pan_number.toUpperCase() : null,
+        }).eq('id', user.id)
+        if (error) throw error
+        toast('Profile updated!', 'success')
+        setModal(null); window.location.reload()
+      } catch (e: any) { console.error('[EditProfile]', e); toast(e?.message || 'Failed to update', 'error') } finally { setSaving(false) }
+    }
+
+    return (
+      <Modal title="Edit profile" onClose={() => setModal(null)}>
+        <Field label="Full name"><input style={inputStyle} value={form.full_name} onChange={set('full_name')} placeholder="Your full name" /></Field>
+        <Field label="Phone number"><input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder="+91 98765 43210" /></Field>
+        <Field label={role === 'landlord' ? 'UPI ID — tenants pay you here' : 'UPI ID — for deposit refunds'}>
+          <input style={{ ...inputStyle, fontFamily: 'var(--rb-font-mono)' }} value={form.upi_id} onChange={set('upi_id')} placeholder="yourname@upi" />
+        </Field>
+        <Field label="PAN number (for HRA receipts)">
+          <input style={{ ...inputStyle, textTransform: 'uppercase' as const, fontFamily: 'var(--rb-font-mono)' }} value={form.pan_number} onChange={set('pan_number')} placeholder="ABCDE1234F" maxLength={10} />
+        </Field>
+        <div style={{ padding: 12, background: 'var(--rb-fill)', borderRadius: 10, fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 4, lineHeight: 1.55 }}>
+          Your name and email come from Google and cannot be changed here.
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+          <button onClick={() => setModal(null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+          <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Saving…' : 'Save changes'}</button>
+        </div>
+      </Modal>
+    )
+  }
+
   // ── View router ──────────────────────────────────────────────────────────
   function renderView() {
     if (role === 'landlord') {
@@ -2150,6 +2389,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Modals */}
+      {modal === 'edit-profile' && <EditProfileModal />}
       {modal === 'add-property' && <AddPropertyModal />}
       {modal === 'add-building' && <AddBuildingModal />}
       {modal === 'add-unit' && <AddUnitModal />}
