@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const next = searchParams.get('next') // destination preserved through OAuth round-trip
 
   if (code) {
     const supabase = await createClient()
@@ -24,9 +25,15 @@ export async function GET(request: Request) {
         .single()
 
       if (profile?.role) {
-        return NextResponse.redirect(`${origin}/dashboard`)
+        // Existing user — honour the next param (e.g. /join/TOKEN) or fall back to dashboard
+        const dest = next && next.startsWith('/') ? next : '/dashboard'
+        return NextResponse.redirect(`${origin}${dest}`)
       } else {
-        return NextResponse.redirect(`${origin}/signup`)
+        // New user — needs role selection; forward next so signup can redirect after
+        const signupDest = next
+          ? `/signup?next=${encodeURIComponent(next)}`
+          : '/signup'
+        return NextResponse.redirect(`${origin}${signupDest}`)
       }
     }
 

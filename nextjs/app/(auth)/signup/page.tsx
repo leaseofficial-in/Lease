@@ -359,7 +359,7 @@ function MA2About({
 }
 
 // ─── mobile screen 4: sealed (welcome) ───────────────────────
-function MA2Sealed({ firstName, role }: { firstName: string; role: string }) {
+function MA2Sealed({ firstName, role, next }: { firstName: string; role: string; next?: string }) {
   const isLandlord = role === 'landlord' || role === 'pg'
   const nextStep = isLandlord
     ? { action: 'Add your first property', detail: 'Takes about 2 minutes' }
@@ -367,6 +367,7 @@ function MA2Sealed({ firstName, role }: { firstName: string; role: string }) {
   const laterStep = isLandlord
     ? 'Invite your first tenant'
     : 'Set up UPI auto-pay'
+  const dest = next && next.startsWith('/') ? next : '/dashboard'
 
   return (
     <div className="m-screen">
@@ -375,8 +376,8 @@ function MA2Sealed({ firstName, role }: { firstName: string; role: string }) {
           <div>
             <LogoLockup size={22} fontSize={17} gap={9} />
           </div>
-          <button className="skip" type="button" onClick={() => window.location.replace('/dashboard')}>
-            Skip tour →
+          <button className="skip" type="button" onClick={() => window.location.replace(dest)}>
+            Skip →
           </button>
         </div>
 
@@ -438,9 +439,9 @@ function MA2Sealed({ firstName, role }: { firstName: string; role: string }) {
           <button
             className="a2-cta ochre"
             type="button"
-            onClick={() => window.location.replace('/dashboard')}
+            onClick={() => window.location.replace(dest)}
           >
-            {isLandlord ? 'Add my property' : 'Go to my dashboard'} <span className="arr">→</span>
+            {next ? (isLandlord ? 'Continue setup' : 'Join my rental') : (isLandlord ? 'Add my property' : 'Go to my dashboard')} <span className="arr">→</span>
           </button>
         </div>
       </div>
@@ -467,17 +468,29 @@ export default function SignUpPage() {
     sb.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return
 
-      // Check if role already exists in DB
       const { data: profile } = await sb.from('profiles').select('role, full_name').eq('id', session.user.id).single()
 
       if (profile?.role) {
-        // Returning user with role — go to dashboard
-        window.location.replace('/dashboard')
+        // Returning user — honour next param or go to dashboard
+        const nextParam = new URLSearchParams(window.location.search).get('next')
+        const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard'
+        window.location.replace(dest)
         return
       }
 
-      // New user: no role yet — show mobile onboarding, desktop redirects to dashboard
-      // (desktop flow: user already picked role before OAuth, sessionStorage handles it)
+      // New user: no role yet.
+      // Desktop flow stores role in sessionStorage before triggering OAuth; read it back now.
+      const storedRole = sessionStorage.getItem('rb-signup-role')
+      if (storedRole && ['landlord', 'tenant', 'pg'].includes(storedRole)) {
+        await sb.from('profiles').update({ role: storedRole }).eq('id', session.user.id)
+        sessionStorage.removeItem('rb-signup-role')
+        const nextParam = new URLSearchParams(window.location.search).get('next')
+        const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard'
+        window.location.replace(dest)
+        return
+      }
+
+      // Mobile flow: step through onboarding screens
       setGoogleEmail(session.user.email || '')
       setDisplayName(profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '')
       setMobileStep('role')
@@ -490,9 +503,13 @@ export default function SignUpPage() {
     setError('')
     try {
       sessionStorage.setItem('rb-signup-role', role)
+      const nextParam = new URLSearchParams(window.location.search).get('next')
+      const callbackUrl = nextParam
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`
+        : `${window.location.origin}/auth/callback`
       const { error: oauthError } = await sb.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { redirectTo: callbackUrl },
       })
       if (oauthError) throw oauthError
     } catch {
@@ -526,6 +543,10 @@ export default function SignUpPage() {
     }
   }, [displayName, sb])
 
+  const nextParam = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('next') || ''
+    : ''
+
   const firstName = displayName.split(' ')[0] || ''
 
   return (
@@ -553,7 +574,7 @@ export default function SignUpPage() {
           />
         )}
         {mobileStep === 'sealed' && (
-          <MA2Sealed firstName={firstName} role={role} />
+          <MA2Sealed firstName={firstName} role={role} next={nextParam} />
         )}
       </div>
 

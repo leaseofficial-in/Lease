@@ -3579,8 +3579,13 @@ export default function DashboardPage() {
       <div>
         <div style={topStyle}><div><div style={eyebrowStyle}>Welcome</div><h1 style={h1Style}>Hi, {firstName}.</h1></div></div>
         <div style={{ background: 'var(--rb-action)', borderRadius: 16, padding: '28px 32px', color: '#F6F4EE' }}>
-          <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28 }}>Complete setup.</h2>
-          <p style={{ fontSize: 14, marginTop: 8, lineHeight: 1.55, color: 'rgba(246,244,238,.8)' }}>Open the RentyBase app to choose your role and complete setup.</p>
+          <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28 }}>One more step.</h2>
+          <p style={{ fontSize: 14, marginTop: 8, lineHeight: 1.55, color: 'rgba(246,244,238,.8)', marginBottom: 20 }}>
+            Tell us which side of the lease you&apos;re on to set up your dashboard.
+          </p>
+          <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, background: '#fff', color: 'var(--rb-action)', fontFamily: 'inherit', fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>
+            Choose your role →
+          </a>
         </div>
       </div>
     )

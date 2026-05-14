@@ -138,9 +138,13 @@ export default function SignInPage() {
     setLoading(true)
     setError('')
     try {
+      const nextParam = new URLSearchParams(window.location.search).get('next')
+      const callbackUrl = nextParam
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`
+        : `${window.location.origin}/auth/callback`
       const { error: oauthError } = await sb.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { redirectTo: callbackUrl },
       })
       if (oauthError) throw oauthError
     } catch {
