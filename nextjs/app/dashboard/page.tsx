@@ -7,13 +7,14 @@ import { LogoLockup } from '@/components/brand'
 // ── Types ─────────────────────────────────────────────────────────────────
 type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string; pan_number?: string }
 type Building = { id: string; name: string; address_line1: string; address_line2?: string; city: string; state: string; pincode: string; property_type?: string; total_units?: number; created_at: string }
-type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
+type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; start_date?: string; end_date?: string; notice_given_at?: string; move_out_date?: string; escalation_applied_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
+type Message = { id: string; rental_id: string; sender_id: string; body: string; read_at?: string; created_at: string; sender?: { full_name?: string; avatar_url?: string } }
 type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string; bedrooms?: number; bathrooms?: number; area_sqft?: number; floor_number?: number; parking?: boolean; building_id?: string; unit_number?: string; building?: Building }
 type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; created_at: string; updated_at?: string }
-type RepairRequest = { id: string; rental_id: string; title: string; description?: string; status: string; cost?: number; category?: string; urgency?: string; photo_url?: string; landlord_note?: string; scheduled_date?: string; deduct_from_deposit?: boolean; created_at: string; rental?: { property?: Property } }
+type RepairRequest = { id: string; rental_id: string; title: string; description?: string; status: string; cost?: number; category?: string; urgency?: string; photo_url?: string; landlord_note?: string; scheduled_date?: string; deduct_from_deposit?: boolean; vendor_name?: string; vendor_phone?: string; resolved_confirmed_at?: string; created_at: string; rental?: { property?: Property } }
 type Proof = { id: string; rental_id: string; type: string; status: string; proof_photos?: ProofPhoto[] }
 type ProofPhoto = { id: string; room_label?: string; public_url?: string; annotation?: string; created_at: string }
-type DepositTx = { id: string; rental_id: string; type: string; amount: number; description?: string; created_at: string }
+type DepositTx = { id: string; rental_id: string; type: string; amount: number; note?: string; description?: string; tenant_dispute_note?: string; dispute_status?: string; created_at: string }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 const inr = (n: number | undefined | null) => '₹' + Number(n || 0).toLocaleString('en-IN')
@@ -47,6 +48,26 @@ function scoreBand(score: number) {
   return { label: 'BUILDING', color: 'var(--rb-ink-3)' }
 }
 const methodLabel = (m?: string) => ({ upi: 'UPI', bank_transfer: 'Bank Transfer', cheque: 'Cheque', cash: 'Cash' } as Record<string, string>)[m || ''] || m || '—'
+function leaseExpiryDays(rental: Rental): number | null {
+  if (!rental.end_date) return null
+  const d = Math.ceil((new Date(rental.end_date).getTime() - now.getTime()) / 86400000)
+  return d >= 0 ? d : null
+}
+function escalationDueDays(rental: Rental): number | null {
+  if (!rental.start_date) return null
+  const start = new Date(rental.start_date)
+  const ann = new Date(start)
+  ann.setFullYear(now.getFullYear())
+  if (ann <= now) ann.setFullYear(ann.getFullYear() + 1)
+  const d = Math.ceil((ann.getTime() - now.getTime()) / 86400000)
+  return d <= 90 ? d : null
+}
+function scoreNudge(score: number, months: number): string {
+  if (score >= 850) return 'Excellent! Keep paying on time to maintain your top rating.'
+  if (score >= 750) return `Pay on time for ${Math.max(1, Math.ceil((850 - score) / 12))} more month${Math.ceil((850 - score) / 12) === 1 ? '' : 's'} to reach Excellent (850+).`
+  if (score >= 650) return `${Math.max(1, Math.ceil((750 - score) / 12))} more on-time payments to reach Trusted (750+).`
+  return `Each on-time payment adds ~12 points. You need ${Math.max(1, Math.ceil((650 - score) / 12))} more months to reach Good (650+).`
+}
 
 // ── Nav icons (Lucide-style SVG paths) ────────────────────────────────────
 const NAV_PATHS: Record<string, string> = {
@@ -118,6 +139,9 @@ export default function DashboardPage() {
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null)
   const [selectedRepair, setSelectedRepair] = useState<RepairRequest | null>(null)
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null)
+  const [selectedDepositTx, setSelectedDepositTx] = useState<DepositTx | null>(null)
+  const [messagingRental, setMessagingRental] = useState<Rental | null>(null)
+  const msgChannelRef = useRef<any>(null)
 
   const toast = useCallback((msg: string, type: Toast['type'] = 'info') => {
     const id = ++toastId
@@ -181,7 +205,7 @@ export default function DashboardPage() {
               sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('status', 'paid').order('month', { ascending: false }).limit(12),
               sb.from('repair_requests').select('*').eq('rental_id', rental.id).in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(10),
               sb.from('proofs').select('*, proof_photos(id, room_label, public_url, annotation, created_at)').eq('rental_id', rental.id).eq('type', 'move_in').maybeSingle(),
-              sb.from('deposit_transactions').select('*').eq('rental_id', rental.id).order('created_at', { ascending: false }),
+              sb.from('deposit_transactions').select('id,rental_id,type,amount,note,category,payment_method,reference,tenant_dispute_note,dispute_status,created_at').eq('rental_id', rental.id).order('created_at', { ascending: false }),
             ])
             currentPayment = pmtRes.data
             recentPayments = histRes.data || []
@@ -240,12 +264,14 @@ export default function DashboardPage() {
     { k: 'led', label: 'Ledger', short: 'Ledger' },
     { k: 'hra', label: 'Receipts', short: 'HRA' },
     { k: 'rep', label: 'Repairs', short: 'Repairs' },
+    { k: 'msg', label: 'Messages', short: 'Msgs' },
     { k: 'profile', label: 'Profile', short: 'Profile' },
   ]
   const tNavItems = [
     { k: 'home', label: 'My place', short: 'Home' },
     { k: 'pay', label: 'Pay rent', short: 'Pay' },
     { k: 'rep', label: 'Repairs', short: 'Repairs' },
+    { k: 'msg', label: 'Messages', short: 'Msgs' },
     { k: 'hra', label: 'HRA receipts', short: 'HRA' },
     { k: 'profile', label: 'Profile', short: 'Profile' },
     { k: 'agree', label: 'Agreement', short: 'Agree' },
@@ -648,47 +674,57 @@ export default function DashboardPage() {
         <section style={cardStyle}>
           {filtered.length === 0
             ? <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>📋</div><p>No entries for this period.</p></div>
-            : months.map(m => {
-                const mPayments = byMonth[m]
-                const mCollected = mPayments.filter(p => p.status === 'paid').reduce((s: number, p: any) => s + Number(p.amount), 0)
-                const mTotal    = mPayments.reduce((s: number, p: any) => s + Number(p.amount), 0)
-                const allPaid   = mCollected === mTotal
-                return (
-                  <div key={m} style={{ marginBottom: 26 }}>
-                    {/* Month header + subtotal */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0 10px', borderBottom: '2px solid var(--rb-border)' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'var(--rb-ink)' }}>{monthLabel(m + '-01')}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: allPaid ? 'var(--rb-action)' : 'var(--rb-ink-3)' }}>
-                        {inr(mCollected)}
-                        <span style={{ fontWeight: 400, color: 'var(--rb-ink-3)', fontSize: 12 }}> / {inr(mTotal)}</span>
-                      </span>
+            : (() => {
+                // Compute running balance across all filtered entries (oldest→newest for accumulation)
+                const sorted = [...filtered].sort((a, b) => a.month.localeCompare(b.month))
+                const runningBal: Record<string, number> = {}
+                let cum = 0
+                for (const p of sorted) { if (p.status === 'paid') { cum += Number(p.amount); runningBal[p.id] = cum } }
+                return months.map(m => {
+                  const mPayments = byMonth[m]
+                  const mCollected = mPayments.filter((p: any) => p.status === 'paid').reduce((s: number, p: any) => s + Number(p.amount), 0)
+                  const mTotal    = mPayments.reduce((s: number, p: any) => s + Number(p.amount), 0)
+                  const allPaid   = mCollected === mTotal
+                  return (
+                    <div key={m} style={{ marginBottom: 26 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0 10px', borderBottom: '2px solid var(--rb-border)' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'var(--rb-ink)' }}>{monthLabel(m + '-01')}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: allPaid ? 'var(--rb-action)' : 'var(--rb-ink-3)' }}>
+                          {inr(mCollected)}<span style={{ fontWeight: 400, color: 'var(--rb-ink-3)', fontSize: 12 }}> / {inr(mTotal)}</span>
+                          {!allPaid && mTotal > mCollected && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--rb-danger)' }}>–{inr(mTotal - mCollected)} gap</span>}
+                        </span>
+                      </div>
+                      {mPayments.map((p: any) => {
+                        const st = stMap[p.status] || { t: p.status?.toUpperCase() || '?', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
+                        const payDate = new Date(p.created_at)
+                        const dateStr = payDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                        const propName   = p.rental?.property?.name || '—'
+                        const tenantName = p.rental?.tenant?.full_name || '—'
+                        const amtColor   = p.status === 'paid' ? 'var(--rb-action)' : p.status === 'overdue' ? 'var(--rb-danger)' : 'var(--rb-ink-2)'
+                        const bal = runningBal[p.id]
+                        return (
+                          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto auto auto', gap: 10, alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
+                            <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, color: 'var(--rb-ink-3)', textAlign: 'center' as const, lineHeight: 1.3 }}>{dateStr}</div>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{propName}</div>
+                              <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2 }}>{tenantName}</div>
+                            </div>
+                            <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, padding: '3px 9px', borderRadius: 999, letterSpacing: '.05em', whiteSpace: 'nowrap' as const, background: st.bg, color: st.c }}>{st.t}</span>
+                            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 16, fontWeight: 600, textAlign: 'right' as const, color: amtColor, minWidth: 72 }}>
+                              {p.status === 'paid' ? '+' : ''}{inr(p.amount)}
+                            </div>
+                            <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 10, color: 'var(--rb-ink-3)', textAlign: 'right' as const, minWidth: 68 }}>
+                              {bal !== undefined ? <span title="Running balance collected">{inr(bal)}</span> : <span style={{ opacity: .3 }}>—</span>}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
-                    {/* Rows */}
-                    {mPayments.map((p: any) => {
-                      const st = stMap[p.status] || { t: p.status?.toUpperCase() || '?', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
-                      const payDate = new Date(p.created_at)
-                      const dateStr = payDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-                      const propName   = p.rental?.property?.name || '—'
-                      const tenantName = p.rental?.tenant?.full_name || '—'
-                      const amtColor   = p.status === 'paid' ? 'var(--rb-action)' : p.status === 'overdue' ? 'var(--rb-danger)' : 'var(--rb-ink-2)'
-                      return (
-                        <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto auto', gap: 12, alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
-                          <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, color: 'var(--rb-ink-3)', textAlign: 'center' as const, lineHeight: 1.3 }}>{dateStr}</div>
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{propName}</div>
-                            <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2 }}>{tenantName}</div>
-                          </div>
-                          <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, padding: '3px 9px', borderRadius: 999, letterSpacing: '.05em', whiteSpace: 'nowrap' as const, background: st.bg, color: st.c }}>{st.t}</span>
-                          <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 16, fontWeight: 600, textAlign: 'right' as const, color: amtColor, minWidth: 88 }}>
-                            {p.status === 'paid' ? '+' : ''}{inr(p.amount)}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })
+                  )
+                })
+              })()
           }
+          {filtered.length > 0 && <div style={{ paddingTop: 14, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--rb-ink-3)' }}><span>Running total: <strong style={{ color: 'var(--rb-action)', fontFamily: 'var(--rb-font-display)', fontSize: 16 }}>{inr(collected)}</strong> collected</span><span>{filtered.filter((p: any) => p.status === 'overdue').length} overdue</span></div>}
         </section>
       </>
     )
@@ -725,10 +761,44 @@ export default function DashboardPage() {
             {isPaid ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(31,122,85,.25)', border: '1px solid rgba(31,122,85,.35)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#A8E6C8' }}>✓ Paid this month</span></div>
               : isPending ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(201,122,58,.15)', border: '1px solid rgba(201,122,58,.3)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: 'var(--rb-accent)' }}>⏳ Awaiting landlord confirmation</span></div>
               : <div style={{ marginTop: 18, display: 'flex', gap: 10 }}><button onClick={() => setModal('pay-rent')} style={{ ...actBtnPrimary, background: '#fff', color: 'var(--rb-action)' }}>Pay / record payment →</button></div>}
+            {Number(rental.monthly_rent) > 50000 && <div style={{ marginTop: 12, padding: '7px 12px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#ffaaaa' }}>⚠ Rent &gt;₹50,000/mo — you must deduct 2% TDS and file Form 26QC.</div>}
             <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid rgba(246,244,238,.12)', display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 12, color: 'rgba(246,244,238,.65)' }}>
-              <span>{propLine}</span><span>Landlord · {landlordName}</span>
+              <span>{propLine}</span>
+              <button onClick={() => { setMessagingRental(rental); navigate('msg') }} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'rgba(246,244,238,.65)', fontSize: 12, fontFamily: 'inherit' }}>💬 Message landlord</button>
             </div>
           </section>
+
+          {/* Lease alerts — expiry + escalation */}
+          {(() => {
+            const exDays = leaseExpiryDays(rental)
+            const escDays = escalationDueDays(rental)
+            if (!exDays && !escDays) return null
+            return (
+              <section style={{ ...cardStyle, gridColumn: 'span 2', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {exDays !== null && exDays <= 60 && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 8, background: exDays <= 30 ? 'rgba(239,68,68,.1)' : 'var(--rb-warning-soft)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{exDays <= 30 ? '🔴' : '🟡'}</div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: exDays <= 30 ? 'var(--rb-danger)' : 'var(--rb-warning)' }}>Lease expires in {exDays} day{exDays !== 1 ? 's' : ''}</div>
+                        <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{new Date(rental.end_date!).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · Talk to your landlord about renewal.</div>
+                      </div>
+                    </div>
+                    <button onClick={() => { setSelectedRental(rental); setModal('give-notice') }} style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', color: 'var(--rb-danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>Give notice</button>
+                  </div>
+                )}
+                {escDays !== null && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>📈</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--rb-action)' }}>Annual rent revision in {escDays} day{escDays !== 1 ? 's' : ''}</div>
+                      <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Your lease has a {rental.rent_increment_percent ?? 5}% annual increment clause. Discuss with your landlord.</div>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )
+          })()}
 
           <section style={cardStyle}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>Tenant score</div>
@@ -894,16 +964,36 @@ export default function DashboardPage() {
   function TenantDeposit() {
     const transactions: DepositTx[] = tenantData?.depositTransactions || []
     const balance = transactions.reduce((s: number, t: DepositTx) => s + (t.type === 'received' ? Number(t.amount) : -Number(t.amount)), 0)
+    const deductions = transactions.filter(t => t.type === 'deduction')
+    const disputed = deductions.filter(t => t.dispute_status === 'disputed').length
     return (
       <>
-        <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · Deposit</div><h1 style={h1Style}>Security deposit.</h1><p style={subStyle}>{inr(balance)} held</p></div></div>
+        <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · Deposit</div><h1 style={h1Style}>Security deposit.</h1><p style={subStyle}>{inr(balance)} held{disputed > 0 ? ` · ${disputed} disputed` : ''}</p></div></div>
+        {deductions.length > 0 && <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--rb-warning-soft)', borderRadius: 12, fontSize: 13, color: 'var(--rb-warning)', fontWeight: 500 }}>
+          <strong>Deductions from your deposit</strong> — tap any deduction to view details or file a dispute.
+        </div>}
         <section style={cardStyle}>
           {transactions.length > 0 ? transactions.map(t => (
-            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
-              <div><div style={{ fontSize: 13, fontWeight: 600 }}>{t.description || t.type}</div><div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2 }}>{relDate(t.created_at)}</div></div>
-              <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, color: t.type === 'received' ? 'var(--rb-action)' : 'var(--rb-warning)' }}>{t.type === 'received' ? '+' : '-'}{inr(t.amount)}</div>
+            <div key={t.id}
+              onClick={() => t.type === 'deduction' ? (setSelectedDepositTx(t), setModal('dispute-tx')) : undefined}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--rb-border-soft)', cursor: t.type === 'deduction' ? 'pointer' : 'default' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{t.note || t.description || t.type}</span>
+                  {t.type === 'deduction' && t.dispute_status === 'disputed' && <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(239,68,68,.1)', color: 'var(--rb-danger)', letterSpacing: '.06em' }}>DISPUTED</span>}
+                  {t.type === 'deduction' && !t.dispute_status || t.dispute_status === 'none' ? <span style={{ fontSize: 10, color: 'var(--rb-ink-3)' }}>Tap to dispute →</span> : null}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2 }}>{relDate(t.created_at)}</div>
+              </div>
+              <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, color: t.type === 'received' ? 'var(--rb-action)' : 'var(--rb-danger)', flexShrink: 0 }}>{t.type === 'received' ? '+' : '-'}{inr(t.amount)}</div>
             </div>
           )) : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div><p>No deposit transactions yet.</p></div>}
+          {transactions.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 0', marginTop: 6, fontSize: 13, color: 'var(--rb-ink-2)', alignItems: 'center' }}>
+              <span>Estimated refund at move-out</span>
+              <strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: balance > 0 ? 'var(--rb-action)' : 'var(--rb-danger)' }}>{inr(balance)}</strong>
+            </div>
+          )}
         </section>
       </>
     )
@@ -967,7 +1057,11 @@ export default function DashboardPage() {
               <div key={b.l}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><span style={{ fontSize: 13, color: 'var(--rb-ink-2)' }}>{b.l}</span><span style={{ fontSize: 13, fontWeight: 600 }}>{b.w}%</span></div><div style={{ height: 6, background: 'var(--rb-fill-2)', borderRadius: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: `${b.w}%`, background: 'var(--rb-action)', borderRadius: 4 }} /></div></div>
             ))}
           </div>
-          <div style={{ marginTop: 24, padding: 16, background: 'var(--rb-fill)', borderRadius: 12, fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.55 }}>This score carries to your next rental. Pay on time every month to build toward Excellent (850+).</div>
+          <div style={{ marginTop: 24, padding: 16, background: 'var(--rb-action-soft)', borderRadius: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-action)', marginBottom: 6 }}>Next step</div>
+            <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.55 }}>{scoreNudge(score, r.length)}</div>
+            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 8 }}>Score carries to your next rental — landlords see this.</div>
+          </div>
         </section>
       </>
     )
@@ -1426,6 +1520,8 @@ export default function DashboardPage() {
     const [landlordNote, setLandlordNote] = useState(r?.landlord_note || '')
     const [scheduledDate, setScheduledDate] = useState(r?.scheduled_date || '')
     const [deductFromDeposit, setDeductFromDeposit] = useState(r?.deduct_from_deposit || false)
+    const [vendorName, setVendorName] = useState(r?.vendor_name || '')
+    const [vendorPhone, setVendorPhone] = useState(r?.vendor_phone || '')
     const [saving, setSaving] = useState(false)
     if (!r) return null
 
@@ -1439,6 +1535,8 @@ export default function DashboardPage() {
           landlord_note: landlordNote || null,
           scheduled_date: scheduledDate || null,
           deduct_from_deposit: deductFromDeposit,
+          vendor_name: vendorName || null,
+          vendor_phone: vendorPhone || null,
         }).eq('id', r.id)
         if (error) throw error
         // Auto-create deposit deduction when resolving with cost
@@ -1482,6 +1580,14 @@ export default function DashboardPage() {
         <Field label="Scheduled repair date (optional)">
           <input style={inputStyle} type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
         </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <Field label="Vendor / contractor name">
+            <input style={inputStyle} value={vendorName} onChange={e => setVendorName(e.target.value)} placeholder="e.g. Ram Plumbing" />
+          </Field>
+          <Field label="Vendor phone">
+            <input style={inputStyle} value={vendorPhone} onChange={e => setVendorPhone(e.target.value)} placeholder="98765 43210" />
+          </Field>
+        </div>
         <Field label="Estimated cost (₹, optional)">
           <input style={inputStyle} type="number" value={cost} onChange={e => setCost(e.target.value)} placeholder="0" />
         </Field>
@@ -1529,9 +1635,21 @@ export default function DashboardPage() {
       ...(r.category ? [{ l: 'Category', v: r.category }] : []),
       ...(r.urgency === 'emergency' ? [{ l: 'Urgency', v: 'Emergency' }] : []),
       ...(r.scheduled_date ? [{ l: 'Scheduled', v: new Date(r.scheduled_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) }] : []),
+      ...(r.vendor_name ? [{ l: 'Contractor', v: r.vendor_name + (r.vendor_phone ? ` · ${r.vendor_phone}` : '') }] : []),
       ...(r.cost ? [{ l: 'Estimated cost', v: '₹' + Number(r.cost).toLocaleString('en-IN') }] : []),
       ...(r.deduct_from_deposit ? [{ l: 'Deposit impact', v: 'Will be deducted from deposit' }] : []),
     ]
+
+    const handleConfirmResolved = async () => {
+      setSaving(true)
+      try {
+        const { error } = await sb.from('repair_requests').update({ resolved_confirmed_at: new Date().toISOString() }).eq('id', r.id)
+        if (error) throw error
+        toast('Confirmed as resolved ✓', 'success')
+        setModal(null)
+        window.location.reload()
+      } catch (e: any) { console.error('[RepairConfirm]', e); toast(e?.message || 'Failed', 'error'); setSaving(false) }
+    }
 
     return (
       <Modal title="Repair request" onClose={() => setModal(null)}>
@@ -1557,11 +1675,15 @@ export default function DashboardPage() {
             <div style={{ fontSize: 14, color: 'var(--rb-ink)', lineHeight: 1.55 }}>{r.landlord_note}</div>
           </div>
         )}
-        {canCancel && (
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {r.status === 'resolved' && !r.resolved_confirmed_at && (
+            <button onClick={handleConfirmResolved} disabled={saving} style={{ width: '100%', padding: '10px 0', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Confirming…' : '✓ Confirm issue is fixed'}</button>
+          )}
+          {r.resolved_confirmed_at && <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--rb-success)', fontWeight: 600 }}>✓ You confirmed this as fixed on {relDate(r.resolved_confirmed_at)}</div>}
+          {canCancel && (
             <button onClick={handleCancel} disabled={saving} style={{ width: '100%', padding: '10px 0', borderRadius: 999, border: '1.5px solid var(--rb-danger)', background: 'transparent', color: 'var(--rb-danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Closing…' : 'Close / cancel request'}</button>
-          </div>
-        )}
+          )}
+        </div>
       </Modal>
     )
   }
@@ -2266,6 +2388,178 @@ export default function DashboardPage() {
   }
 
   // ── View router ──────────────────────────────────────────────────────────
+  // ── Shared: realtime message thread ────────────────────────────────────
+  function MessageThread({ rental, onBack }: { rental: Rental; onBack?: () => void }) {
+    const [msgs, setMsgs] = useState<Message[]>([])
+    const [input, setInput] = useState('')
+    const [sending, setSending] = useState(false)
+    const bottomRef = useRef<HTMLDivElement>(null)
+    const otherName = role === 'landlord' ? (rental.tenant?.full_name || 'Tenant') : (rental.landlord?.full_name || 'Landlord')
+
+    useEffect(() => {
+      sb.from('messages').select('*, sender:profiles!messages_sender_id_fkey(full_name)').eq('rental_id', rental.id).order('created_at', { ascending: true })
+        .then(({ data }) => { setMsgs((data as Message[]) || []); setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80) })
+      const ch = sb.channel(`msg-${rental.id}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `rental_id=eq.${rental.id}` }, ({ new: m }: any) => {
+          setMsgs(p => [...p, m as Message]); setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80)
+        }).subscribe()
+      msgChannelRef.current = ch
+      return () => { sb.removeChannel(ch) }
+    }, [rental.id])
+
+    const send = async () => {
+      if (!input.trim() || sending) return
+      setSending(true)
+      await sb.from('messages').insert({ rental_id: rental.id, sender_id: user.id, body: input.trim() })
+      setInput(''); setSending(false)
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 400 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 14, borderBottom: '1px solid var(--rb-border)' }}>
+          {onBack && <button onClick={onBack} style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: 16, color: 'var(--rb-ink-2)', flexShrink: 0 }}>←</button>}
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: avatarBg, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>{otherName.charAt(0).toUpperCase()}</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--rb-ink)' }}>{otherName}</div>
+            <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 1 }}>{rental.property?.name || 'Rental'}</div>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 2 }}>
+          {msgs.length === 0 && <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--rb-ink-3)', fontSize: 14 }}>Start the conversation. Messages stay in-app.</div>}
+          {msgs.map(m => {
+            const isMine = m.sender_id === user?.id
+            return (
+              <div key={m.id} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
+                <div style={{ maxWidth: '75%', padding: '9px 14px', borderRadius: isMine ? '16px 16px 4px 16px' : '16px 16px 16px 4px', background: isMine ? 'var(--rb-action)' : 'var(--rb-surface)', color: isMine ? '#fff' : 'var(--rb-ink)', fontSize: 14, lineHeight: 1.45, border: isMine ? 0 : '1px solid var(--rb-border-soft)' }}>
+                  <div>{m.body}</div>
+                  <div style={{ fontSize: 10, marginTop: 4, opacity: .6, textAlign: 'right' }}>{relDate(m.created_at)}</div>
+                </div>
+              </div>
+            )
+          })}
+          <div ref={bottomRef} />
+        </div>
+        <div style={{ paddingTop: 12, display: 'flex', gap: 8 }}>
+          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()} placeholder="Type a message…" style={{ ...inputStyle, flex: 1 }} />
+          <button onClick={send} disabled={!input.trim() || sending} style={{ padding: '10px 18px', borderRadius: 10, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: input.trim() ? 'pointer' : 'default', fontFamily: 'inherit', fontWeight: 600, opacity: input.trim() ? 1 : .5 }}>{sending ? '…' : 'Send'}</button>
+        </div>
+      </div>
+    )
+  }
+
+  function LandlordMessaging() {
+    const rentals: Rental[] = (landlordData?.rentals || []).filter((r: Rental) => r.tenant_id)
+    const [activeThread, setActiveThread] = useState<Rental | null>(messagingRental)
+    if (activeThread) return (
+      <>
+        <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Messages</div><h1 style={h1Style}>Chat.</h1></div></div>
+        <section style={cardStyle}><MessageThread rental={activeThread} onBack={() => setActiveThread(null)} /></section>
+      </>
+    )
+    return (
+      <>
+        <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Messages</div><h1 style={h1Style}>Messages.</h1><p style={subStyle}>{rentals.length} active tenant{rentals.length !== 1 ? 's' : ''}</p></div></div>
+        <section style={cardStyle}>
+          {rentals.length === 0 ? <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>💬</div><p>No active tenants yet. Add a tenant to start messaging.</p></div>
+            : rentals.map((r: Rental) => (
+              <div key={r.id} onClick={() => setActiveThread(r)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--rb-border-soft)', cursor: 'pointer' }}>
+                <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg,#c9b388,#7a6042)', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 16, fontWeight: 700, flexShrink: 0 }}>{(r.tenant?.full_name || 'T').charAt(0).toUpperCase()}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--rb-ink)' }}>{r.tenant?.full_name || 'Tenant'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.property?.name || '—'}</div>
+                </div>
+                <span style={{ fontSize: 18, color: 'var(--rb-ink-3)' }}>›</span>
+              </div>
+            ))}
+        </section>
+      </>
+    )
+  }
+
+  function TenantMessaging() {
+    const rental: Rental | null = tenantData?.rental || null
+    if (!rental) return <TenantEmpty />
+    return (
+      <>
+        <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · Messages</div><h1 style={h1Style}>Chat.</h1><p style={subStyle}>{rental.landlord?.full_name || 'Your landlord'}</p></div></div>
+        <section style={cardStyle}><MessageThread rental={messagingRental || rental} /></section>
+      </>
+    )
+  }
+
+  // ── Deposit dispute modal ────────────────────────────────────────────────
+  function DisputeTxModal() {
+    const t = selectedDepositTx
+    const [note, setNote] = useState(t?.tenant_dispute_note || '')
+    const [saving, setSaving] = useState(false)
+    if (!t) return null
+    const alreadyDisputed = t.dispute_status === 'disputed'
+
+    const handleSubmit = async () => {
+      if (!note.trim()) { toast('Add a note explaining your dispute', 'error'); return }
+      setSaving(true)
+      try {
+        const { error } = await sb.from('deposit_transactions').update({ tenant_dispute_note: note, dispute_status: 'disputed' }).eq('id', t.id)
+        if (error) throw error
+        toast('Dispute filed — your landlord will be notified', 'success')
+        setModal(null)
+        window.location.reload()
+      } catch (e: any) { console.error('[Dispute]', e); toast(e?.message || 'Failed', 'error'); setSaving(false) }
+    }
+
+    return (
+      <Modal title={alreadyDisputed ? 'Dispute filed' : 'Dispute deduction'} onClose={() => setModal(null)}>
+        <div style={{ marginBottom: 18, padding: '12px 16px', background: 'var(--rb-danger-soft,rgba(239,68,68,.08))', borderRadius: 10 }}>
+          <div style={{ fontSize: 13, color: 'var(--rb-danger)', fontWeight: 600 }}>Deduction: {inr(t.amount)}</div>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 3 }}>{t.note || t.description || '—'} · {relDate(t.created_at)}</div>
+        </div>
+        {alreadyDisputed
+          ? <><div style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginBottom: 12 }}>Your dispute note:</div><div style={{ padding: 12, background: 'var(--rb-surface)', borderRadius: 10, fontSize: 14, lineHeight: 1.55 }}>{t.tenant_dispute_note}</div><div style={{ marginTop: 14, fontSize: 12, color: 'var(--rb-ink-3)' }}>Your landlord can see this. Disputes are resolved through direct discussion.</div></>
+          : <><Field label="Explain your dispute"><textarea style={{ ...inputStyle, minHeight: 90, resize: 'vertical' as const }} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. The damage was pre-existing and documented in my move-in photos…" /></Field><p style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginBottom: 16 }}>Your note will be visible to your landlord. Disputes are resolved through discussion — this creates a written record.</p><button onClick={handleSubmit} disabled={saving || !note.trim()} style={{ width: '100%', padding: '11px 0', borderRadius: 999, background: 'var(--rb-danger,#EF4444)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Filing…' : 'File dispute'}</button></>
+        }
+      </Modal>
+    )
+  }
+
+  // ── Give notice modal (tenant) ───────────────────────────────────────────
+  function GiveNoticeModal() {
+    const rental: Rental | null = selectedRental || tenantData?.rental || null
+    const [moveOutDate, setMoveOutDate] = useState('')
+    const [saving, setSaving] = useState(false)
+    if (!rental) return null
+    const noticeDays = rental.notice_period_days ?? 30
+    const minDate = new Date(); minDate.setDate(minDate.getDate() + noticeDays)
+    const minDateStr = minDate.toISOString().split('T')[0]
+
+    const handleSubmit = async () => {
+      if (!moveOutDate) { toast('Select a move-out date', 'error'); return }
+      setSaving(true)
+      try {
+        const { error } = await sb.from('rentals').update({ notice_given_at: new Date().toISOString(), move_out_date: moveOutDate }).eq('id', rental.id)
+        if (error) throw error
+        toast('Notice given — landlord will be informed', 'success')
+        setModal(null)
+        window.location.reload()
+      } catch (e: any) { console.error('[GiveNotice]', e); toast(e?.message || 'Failed', 'error'); setSaving(false) }
+    }
+
+    return (
+      <Modal title="Give notice" onClose={() => setModal(null)}>
+        <div style={{ marginBottom: 18, padding: '12px 16px', background: 'var(--rb-warning-soft)', borderRadius: 10, fontSize: 13, color: 'var(--rb-warning)', lineHeight: 1.55 }}>
+          Your lease requires <strong>{noticeDays} days notice</strong>. Your move-out date must be at least {noticeDays} days from today.
+        </div>
+        <Field label="Intended move-out date">
+          <input style={inputStyle} type="date" value={moveOutDate} onChange={e => setMoveOutDate(e.target.value)} min={minDateStr} />
+        </Field>
+        <p style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginBottom: 16, lineHeight: 1.6 }}>This will notify your landlord and begin the move-out process. Your deposit refund timeline starts from the actual move-out date.</p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={() => setModal(null)} style={{ flex: 1, padding: '10px 0', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={saving || !moveOutDate} style={{ flex: 1, padding: '10px 0', borderRadius: 999, background: 'var(--rb-danger,#EF4444)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Submitting…' : 'Give notice'}</button>
+        </div>
+      </Modal>
+    )
+  }
+
   function renderView() {
     if (role === 'landlord') {
       switch (activeView) {
@@ -2273,6 +2567,7 @@ export default function DashboardPage() {
         case 'led': return <LandlordLedger />
         case 'hra': return <LandlordHRA />
         case 'rep': return <LandlordRepairs />
+        case 'msg': return <LandlordMessaging />
         case 'profile': return <ProfileView />
         default: return <LandlordHome />
       }
@@ -2281,6 +2576,7 @@ export default function DashboardPage() {
         case 'pay': return <TenantPay />
         case 'hra': return <TenantHRA />
         case 'rep': return <TenantRepairs />
+        case 'msg': return <TenantMessaging />
         case 'proof': return <TenantProof />
         case 'dep': return <TenantDeposit />
         case 'agree': return <TenantAgreement />
@@ -2396,6 +2692,8 @@ export default function DashboardPage() {
       {modal === 'property-detail' && <PropertyDetailModal />}
       {modal === 'end-lease' && <EndLeaseModal />}
       {modal === 'sign-agreement' && <SignAgreementModal />}
+      {modal === 'dispute-tx' && <DisputeTxModal />}
+      {modal === 'give-notice' && <GiveNoticeModal />}
 
       {/* Lightbox */}
       {lightbox && (
