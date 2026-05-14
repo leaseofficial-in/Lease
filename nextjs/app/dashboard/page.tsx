@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 // ── Types ─────────────────────────────────────────────────────────────────
 type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string }
 type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
-type Property = { id: string; name: string; city?: string; address?: string; property_type?: string }
+type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string }
 type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; created_at: string; updated_at?: string }
 type RepairRequest = { id: string; rental_id: string; title: string; description?: string; status: string; cost?: number; created_at: string; rental?: { property?: Property } }
 type Proof = { id: string; rental_id: string; type: string; status: string; proof_photos?: ProofPhoto[] }
@@ -768,20 +768,30 @@ export default function DashboardPage() {
 
   // ── Modal actions ────────────────────────────────────────────────────────
   function AddPropertyModal() {
-    const [form, setForm] = useState({ name: '', city: '', address: '', monthly_rent: '', security_deposit: '', rent_due_day: '5' })
+    const [form, setForm] = useState({ name: '', address_line1: '', city: '', state: '', pincode: '', monthly_rent: '', security_deposit: '', rent_due_day: '5' })
     const [saving, setSaving] = useState(false)
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
 
     const handleSubmit = async () => {
-      if (!form.name || !form.monthly_rent) { toast('Fill in property name and rent', 'error'); return }
+      if (!form.name || !form.address_line1 || !form.city || !form.state || !form.pincode || !form.monthly_rent) {
+        toast('Fill in all required fields', 'error'); return
+      }
       setSaving(true)
       try {
-        const { data: prop, error: propErr } = await sb.from('properties').insert({ name: form.name, city: form.city, address: form.address, landlord_id: user.id }).select().single()
+        const { data: prop, error: propErr } = await sb.from('properties').insert({
+          name: form.name, address_line1: form.address_line1, city: form.city,
+          state: form.state, pincode: form.pincode, landlord_id: user.id,
+        }).select().single()
         if (propErr) throw propErr
         if (!prop) throw new Error('Property insert returned no data')
-        const token = Math.random().toString(36).slice(2, 10).toUpperCase()
-        const expires = new Date(Date.now() + 72 * 3600000).toISOString()
-        const { error: rentalErr } = await sb.from('rentals').insert({ property_id: prop.id, landlord_id: user.id, monthly_rent: Number(form.monthly_rent), security_deposit: Number(form.security_deposit || 0), rent_due_day: Number(form.rent_due_day), status: 'pending', invite_token: token, invite_expires_at: expires })
+        const { error: rentalErr } = await sb.from('rentals').insert({
+          property_id: prop.id, landlord_id: user.id,
+          monthly_rent: Number(form.monthly_rent),
+          security_deposit: Number(form.security_deposit || 0),
+          rent_due_day: Number(form.rent_due_day),
+          status: 'pending_tenant',
+          start_date: new Date().toISOString().slice(0, 10),
+        })
         if (rentalErr) throw rentalErr
         toast('Property added! Share the invite link with your tenant.', 'success')
         setModal(null)
@@ -791,14 +801,18 @@ export default function DashboardPage() {
 
     return (
       <Modal title="Add property" onClose={() => setModal(null)}>
-        <Field label="Property name"><input style={inputStyle} value={form.name} onChange={set('name')} placeholder="e.g. 2BHK Apartment" /></Field>
+        <Field label="Property name *"><input style={inputStyle} value={form.name} onChange={set('name')} placeholder="e.g. 2BHK Apartment" /></Field>
+        <Field label="Street address *"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} placeholder="Flat no., building, street" /></Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="City"><input style={inputStyle} value={form.city} onChange={set('city')} placeholder="Hyderabad" /></Field>
+          <Field label="City *"><input style={inputStyle} value={form.city} onChange={set('city')} placeholder="Hyderabad" /></Field>
+          <Field label="State *"><input style={inputStyle} value={form.state} onChange={set('state')} placeholder="Telangana" /></Field>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Pincode *"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} placeholder="500001" /></Field>
           <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
         </div>
-        <Field label="Address"><input style={inputStyle} value={form.address} onChange={set('address')} placeholder="Full address" /></Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Monthly rent (₹)"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} placeholder="25000" /></Field>
+          <Field label="Monthly rent (₹) *"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} placeholder="25000" /></Field>
           <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
@@ -843,7 +857,7 @@ export default function DashboardPage() {
           const { error: updErr } = await sb.from('rent_payments').update(pmtData).eq('id', currentPayment.id)
           if (updErr) throw updErr
         } else {
-          const { error: insErr } = await sb.from('rent_payments').insert({ ...pmtData, rental_id: rental.id, month: currentMonthDate, amount: rental.monthly_rent })
+          const { error: insErr } = await sb.from('rent_payments').insert({ ...pmtData, rental_id: rental.id, tenant_id: user.id, month: currentMonthDate, amount: rental.monthly_rent })
           if (insErr) throw insErr
         }
         toast('Payment recorded! Your landlord will confirm shortly.', 'success')
@@ -906,6 +920,69 @@ export default function DashboardPage() {
     )
   }
 
+  // ── Add move-in proof photo modal (tenant) ──────────────────────────────
+  function AddProofPhotoModal() {
+    const rental = tenantData?.rental
+    const existingProof = tenantData?.proofs
+    const ROOM_LABELS = ['Living Room', 'Bedroom', 'Kitchen', 'Bathroom', 'Balcony', 'Other']
+    const [roomLabel, setRoomLabel] = useState(ROOM_LABELS[0])
+    const [file, setFile] = useState<File | null>(null)
+    const [preview, setPreview] = useState('')
+    const [annotation, setAnnotation] = useState('')
+    const [saving, setSaving] = useState(false)
+
+    if (!rental) return null
+
+    const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0]
+      if (f) { setFile(f); const r = new FileReader(); r.onload = ev => setPreview(ev.target?.result as string); r.readAsDataURL(f) }
+    }
+
+    const handleSubmit = async () => {
+      if (!file) { toast('Select a photo first', 'error'); return }
+      setSaving(true)
+      try {
+        let proofId = existingProof?.id
+        if (!proofId) {
+          const { data: proof, error: proofErr } = await sb.from('proofs').insert({ rental_id: rental.id, type: 'move_in', submitted_by: user.id }).select().single()
+          if (proofErr) throw proofErr
+          proofId = proof.id
+        }
+        const ext = file.name.split('.').pop()
+        const path = `move-in/${rental.id}/${Date.now()}.${ext}`
+        const { error: upErr } = await sb.storage.from('proof-photos').upload(path, file, { upsert: true })
+        if (upErr) throw upErr
+        const { data: urlData } = sb.storage.from('proof-photos').getPublicUrl(path)
+        const { error: photoErr } = await sb.from('proof_photos').insert({ proof_id: proofId, room_label: roomLabel, storage_path: path, public_url: urlData.publicUrl, annotation, uploaded_by: user.id })
+        if (photoErr) throw photoErr
+        toast('Photo added ✓', 'success')
+        setModal(null)
+        window.location.reload()
+      } catch (e: any) { console.error('[AddProofPhoto]', e); toast(e?.message || 'Failed to upload photo', 'error') } finally { setSaving(false) }
+    }
+
+    return (
+      <Modal title="Add move-in photo" onClose={() => setModal(null)}>
+        <Field label="Room">
+          <select style={inputStyle} value={roomLabel} onChange={e => setRoomLabel(e.target.value)}>
+            {ROOM_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </Field>
+        <Field label="Photo">
+          <div style={{ border: '1.5px dashed var(--rb-border)', borderRadius: 10, padding: '20px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
+            {preview ? <img src={preview} alt="Preview" style={{ maxHeight: 140, borderRadius: 8, maxWidth: '100%' }} /> : <div style={{ color: 'var(--rb-ink-3)', fontSize: 13 }}>📷 Tap to choose photo</div>}
+            <input type="file" accept="image/*" onChange={handleFile} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+          </div>
+        </Field>
+        <Field label="Note (optional)"><input style={inputStyle} value={annotation} onChange={e => setAnnotation(e.target.value)} placeholder="e.g. crack on wall, pre-existing damage" /></Field>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+          <button onClick={() => setModal(null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={saving || !file} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Uploading…' : 'Add photo'}</button>
+        </div>
+      </Modal>
+    )
+  }
+
   // ── Property detail modal (landlord) ────────────────────────────────────
   function PropertyDetailModal() {
     const r = selectedRental
@@ -913,7 +990,7 @@ export default function DashboardPage() {
     const currentPmt = landlordData?.currentPayments?.find((p: RentPayment) => p.rental_id === r.id)
     const hasPending = currentPmt?.status === 'pending_verification'
     const [editMode, setEditMode] = useState(false)
-    const [form, setForm] = useState({ name: r.property?.name || '', city: r.property?.city || '', address: r.property?.address || '', monthly_rent: String(r.monthly_rent), security_deposit: String(r.security_deposit), rent_due_day: String(r.rent_due_day || 5) })
+    const [form, setForm] = useState({ name: r.property?.name || '', address_line1: r.property?.address_line1 || '', city: r.property?.city || '', state: r.property?.state || '', pincode: r.property?.pincode || '', monthly_rent: String(r.monthly_rent), security_deposit: String(r.security_deposit), rent_due_day: String(r.rent_due_day || 5) })
     const [saving, setSaving] = useState(false)
     const [copied, setCopied] = useState(false)
     const inviteLink = r.invite_token ? `${window.location.origin}/join/${r.invite_token}` : null
@@ -941,7 +1018,7 @@ export default function DashboardPage() {
       setSaving(true)
       try {
         if (r.property?.id) {
-          const { error } = await sb.from('properties').update({ name: form.name, city: form.city, address: form.address }).eq('id', r.property.id)
+          const { error } = await sb.from('properties').update({ name: form.name, address_line1: form.address_line1, city: form.city, state: form.state, pincode: form.pincode }).eq('id', r.property.id)
           if (error) throw error
         }
         const { error } = await sb.from('rentals').update({ monthly_rent: Number(form.monthly_rent), security_deposit: Number(form.security_deposit), rent_due_day: Number(form.rent_due_day) }).eq('id', r.id)
@@ -955,7 +1032,7 @@ export default function DashboardPage() {
       if (!currentPmt) return
       setSaving(true)
       try {
-        const { error } = await sb.from('rent_payments').update({ status: 'paid', updated_at: new Date().toISOString() }).eq('id', currentPmt.id)
+        const { error } = await sb.rpc('confirm_rent_payment', { payment_id: currentPmt.id })
         if (error) throw error
         toast('Payment confirmed ✓', 'success')
         setModal(null); setSelectedRental(null); window.location.reload()
@@ -1014,11 +1091,15 @@ export default function DashboardPage() {
         {editMode ? (
           <>
             <Field label="Property name"><input style={inputStyle} value={form.name} onChange={set('name')} /></Field>
+            <Field label="Street address"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} /></Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="City"><input style={inputStyle} value={form.city} onChange={set('city')} /></Field>
+              <Field label="State"><input style={inputStyle} value={form.state} onChange={set('state')} /></Field>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Pincode"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} /></Field>
               <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
             </div>
-            <Field label="Address"><input style={inputStyle} value={form.address} onChange={set('address')} /></Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="Monthly rent (₹)"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} /></Field>
               <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} /></Field>
@@ -1032,8 +1113,8 @@ export default function DashboardPage() {
           <>
             {[
               { l: 'Property', v: r.property?.name || '—' },
-              { l: 'City', v: r.property?.city || '—' },
-              { l: 'Address', v: r.property?.address || '—' },
+              { l: 'Address', v: r.property?.address_line1 || '—' },
+              { l: 'City', v: `${r.property?.city || '—'}${r.property?.state ? ', ' + r.property.state : ''}` },
               { l: 'Monthly rent', v: inr(r.monthly_rent) },
               { l: 'Security deposit', v: inr(r.security_deposit) },
               { l: 'Rent due', v: `${r.rent_due_day || '—'}th of month` },
@@ -1255,6 +1336,7 @@ export default function DashboardPage() {
       {modal === 'add-property' && <AddPropertyModal />}
       {modal === 'pay-rent' && <PayRentModal />}
       {modal === 'new-repair' && <NewRepairModal />}
+      {modal === 'add-proof-photo' && <AddProofPhotoModal />}
       {modal === 'property-detail' && <PropertyDetailModal />}
       {modal === 'end-lease' && <EndLeaseModal />}
       {modal === 'sign-agreement' && <SignAgreementModal />}
