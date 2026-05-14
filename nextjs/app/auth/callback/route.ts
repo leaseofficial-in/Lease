@@ -9,7 +9,14 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
-    if (!error && data.user) {
+    if (error) {
+      console.error('[auth/callback] exchangeCodeForSession error:', error.message)
+      return NextResponse.redirect(
+        `${origin}/signin?error=auth_failed&reason=${encodeURIComponent(error.message)}`
+      )
+    }
+
+    if (data.user) {
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -22,7 +29,11 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/signup`)
       }
     }
+
+    console.error('[auth/callback] exchange succeeded but no user returned')
+    return NextResponse.redirect(`${origin}/signin?error=auth_failed&reason=no_user`)
   }
 
-  return NextResponse.redirect(`${origin}/signin?error=auth_failed`)
+  console.error('[auth/callback] no code in URL, params:', new URL(request.url).search)
+  return NextResponse.redirect(`${origin}/signin?error=auth_failed&reason=no_code`)
 }

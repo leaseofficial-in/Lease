@@ -36,7 +36,8 @@ export default function SignInPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('error') === 'auth_failed') {
-      setError('Sign-in failed. This usually means the redirect URL isn\'t configured in Supabase yet, or the link expired. Try again.')
+      const reason = params.get('reason') || 'unknown'
+      setError(`Sign-in failed (${reason}). Try again or contact support.`)
     }
     sb.auth.getSession().then(({ data: { session } }) => {
       if (session) window.location.replace('/dashboard')
