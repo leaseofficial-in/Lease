@@ -9,7 +9,7 @@ type Profile = { id: string; full_name?: string; avatar_url?: string; role?: str
 type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
 type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string }
 type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; created_at: string; updated_at?: string }
-type RepairRequest = { id: string; rental_id: string; title: string; description?: string; status: string; cost?: number; created_at: string; rental?: { property?: Property } }
+type RepairRequest = { id: string; rental_id: string; title: string; description?: string; status: string; cost?: number; category?: string; urgency?: string; photo_url?: string; landlord_note?: string; scheduled_date?: string; deduct_from_deposit?: boolean; created_at: string; rental?: { property?: Property } }
 type Proof = { id: string; rental_id: string; type: string; status: string; proof_photos?: ProofPhoto[] }
 type ProofPhoto = { id: string; room_label?: string; public_url?: string; annotation?: string; created_at: string }
 type DepositTx = { id: string; rental_id: string; type: string; amount: number; description?: string; created_at: string }
@@ -115,6 +115,7 @@ export default function DashboardPage() {
   const [modal, setModal] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null)
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null)
+  const [selectedRepair, setSelectedRepair] = useState<RepairRequest | null>(null)
 
   const toast = useCallback((msg: string, type: Toast['type'] = 'info') => {
     const id = ++toastId
@@ -252,17 +253,27 @@ export default function DashboardPage() {
   // ── Shared sub-components ────────────────────────────────────────────────
 
   function RepairRow({ r, isLandlord = false }: { r: RepairRequest; isLandlord?: boolean }) {
-    const dotColor = r.status === 'open' ? 'var(--rb-accent)' : r.status === 'in_progress' ? 'var(--rb-warning)' : 'var(--rb-action)'
+    const dotColor = r.urgency === 'emergency' ? 'var(--rb-danger)' : r.status === 'open' ? 'var(--rb-accent)' : r.status === 'in_progress' ? 'var(--rb-warning)' : 'var(--rb-action)'
     const stColor = r.status === 'open' ? { bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)' } : r.status === 'in_progress' ? { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' } : { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }
     const stLabel = r.status === 'open' ? 'OPEN' : r.status === 'in_progress' ? 'IN PROGRESS' : 'DONE'
+    const handleClick = () => {
+      setSelectedRepair(r)
+      setModal(isLandlord ? 'repair-update' : 'repair-detail')
+    }
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center', padding: 12, borderRadius: 10, background: 'var(--rb-surface)', marginBottom: 8 }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
+      <div onClick={handleClick} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center', padding: 12, borderRadius: 10, background: 'var(--rb-surface)', marginBottom: 8, cursor: 'pointer' }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--rb-ink)' }}>{r.title}</div>
-          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{isLandlord ? (r.rental?.property?.name || '') : relDate(r.created_at)}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--rb-ink)' }}>{r.title}</span>
+            {r.urgency === 'emergency' && <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(239,68,68,.12)', color: 'var(--rb-danger)', letterSpacing: '.06em' }}>EMERGENCY</span>}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>
+            {r.category && <span style={{ marginRight: 8 }}>{r.category}</span>}
+            {isLandlord ? (r.rental?.property?.name || '') : relDate(r.created_at)}
+          </div>
         </div>
-        <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, padding: '4px 9px', borderRadius: 999, letterSpacing: '.04em', background: stColor.bg, color: stColor.c }}>{stLabel}</span>
+        <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, padding: '4px 9px', borderRadius: 999, letterSpacing: '.04em', background: stColor.bg, color: stColor.c, whiteSpace: 'nowrap' as const }}>{stLabel}</span>
       </div>
     )
   }
@@ -892,16 +903,38 @@ export default function DashboardPage() {
   }
 
   function NewRepairModal() {
+    const CATEGORIES = ['Plumbing', 'Electrical', 'Carpentry', 'Appliance', 'Structural', 'Pest Control']
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
+    const [category, setCategory] = useState('')
+    const [urgency, setUrgency] = useState<'normal' | 'emergency'>('normal')
+    const [file, setFile] = useState<File | null>(null)
+    const [preview, setPreview] = useState('')
     const [saving, setSaving] = useState(false)
     const rentalId = role === 'tenant' ? tenantData?.rental?.id : null
+
+    const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0]
+      if (f) { setFile(f); const r2 = new FileReader(); r2.onload = ev => setPreview(ev.target?.result as string); r2.readAsDataURL(f) }
+    }
 
     const handleSubmit = async () => {
       if (!title || !rentalId) { toast('Enter a title', 'error'); return }
       setSaving(true)
       try {
-        const { error: repErr } = await sb.from('repair_requests').insert({ rental_id: rentalId, title, description, status: 'open', raised_by: user.id })
+        let photo_url: string | undefined
+        if (file) {
+          const ext = file.name.split('.').pop()
+          const path = `${rentalId}/${Date.now()}.${ext}`
+          const { error: upErr } = await sb.storage.from('repair-photos').upload(path, file, { upsert: true })
+          if (upErr) throw upErr
+          const { data: urlData } = sb.storage.from('repair-photos').getPublicUrl(path)
+          photo_url = urlData.publicUrl
+        }
+        const { error: repErr } = await sb.from('repair_requests').insert({
+          rental_id: rentalId, title, description, status: 'open', raised_by: user.id,
+          category: category || null, urgency, photo_url: photo_url || null,
+        })
         if (repErr) throw repErr
         toast('Repair request raised!', 'success')
         setModal(null)
@@ -909,14 +942,198 @@ export default function DashboardPage() {
       } catch (e: any) { console.error('[NewRepair]', e); toast(e?.message || 'Failed to raise request', 'error'); setSaving(false) }
     }
 
+    const catBtn = (c: string) => ({
+      padding: '7px 12px', borderRadius: 999, border: `1.5px solid ${category === c ? 'var(--rb-action)' : 'var(--rb-border)'}`,
+      background: category === c ? 'var(--rb-action)' : 'transparent', color: category === c ? '#fff' : 'var(--rb-ink-2)',
+      cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, transition: 'all .15s',
+    })
+    const urgBtn = (u: 'normal' | 'emergency') => ({
+      flex: 1, padding: '9px 0', borderRadius: 999,
+      border: `1.5px solid ${urgency === u ? (u === 'emergency' ? 'var(--rb-danger)' : 'var(--rb-action)') : 'var(--rb-border)'}`,
+      background: urgency === u ? (u === 'emergency' ? 'var(--rb-danger)' : 'var(--rb-action)') : 'transparent',
+      color: urgency === u ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all .15s',
+    })
+
     return (
       <Modal title="New repair request" onClose={() => setModal(null)}>
-        <Field label="Title"><input style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Leaking tap in bathroom" /></Field>
-        <Field label="Description (optional)"><textarea style={{ ...inputStyle, minHeight: 80, resize: 'vertical' as const }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the issue…" /></Field>
+        <Field label="Category">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {CATEGORIES.map(c => <button key={c} style={catBtn(c)} onClick={() => setCategory(category === c ? '' : c)}>{c}</button>)}
+          </div>
+        </Field>
+        <Field label="Urgency">
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button style={urgBtn('normal')} onClick={() => setUrgency('normal')}>Normal</button>
+            <button style={urgBtn('emergency')} onClick={() => setUrgency('emergency')}>Emergency</button>
+          </div>
+        </Field>
+        <Field label="Title *"><input style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Leaking tap in bathroom" /></Field>
+        <Field label="Description (optional)"><textarea style={{ ...inputStyle, minHeight: 72, resize: 'vertical' as const }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the issue…" /></Field>
+        <Field label="Photo of damage (optional)">
+          {preview
+            ? <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
+                <img src={preview} alt="preview" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
+                <button onClick={() => { setFile(null); setPreview('') }} style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,.6)', border: 0, color: '#fff', cursor: 'pointer', fontSize: 14, display: 'grid', placeItems: 'center' }}>×</button>
+              </div>
+            : <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, border: '1.5px dashed var(--rb-border)', cursor: 'pointer' }}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--rb-ink-3)" strokeWidth="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>Upload a photo</span>
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+              </label>
+          }
+        </Field>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
           <button onClick={() => setModal(null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Raising…' : 'Raise request'}</button>
+          <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: urgency === 'emergency' ? 'var(--rb-danger)' : 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Raising…' : 'Raise request'}</button>
         </div>
+      </Modal>
+    )
+  }
+
+  // ── Landlord: update repair status / cost ───────────────────────────────
+  function LandlordUpdateRepairModal() {
+    const r = selectedRepair
+    const [status, setStatus] = useState(r?.status || 'open')
+    const [cost, setCost] = useState(r?.cost ? String(r.cost) : '')
+    const [landlordNote, setLandlordNote] = useState(r?.landlord_note || '')
+    const [scheduledDate, setScheduledDate] = useState(r?.scheduled_date || '')
+    const [deductFromDeposit, setDeductFromDeposit] = useState(r?.deduct_from_deposit || false)
+    const [saving, setSaving] = useState(false)
+    if (!r) return null
+
+    const handleSave = async () => {
+      setSaving(true)
+      try {
+        const wasResolved = r.status !== 'resolved' && status === 'resolved'
+        const { error } = await sb.from('repair_requests').update({
+          status,
+          cost: cost ? Number(cost) : null,
+          landlord_note: landlordNote || null,
+          scheduled_date: scheduledDate || null,
+          deduct_from_deposit: deductFromDeposit,
+        }).eq('id', r.id)
+        if (error) throw error
+        // Auto-create deposit deduction when resolving with cost
+        if (wasResolved && deductFromDeposit && cost) {
+          await sb.from('deposit_transactions').insert({
+            rental_id: r.rental_id, type: 'deduction',
+            amount: Number(cost), description: `Repair: ${r.title}`,
+          })
+        }
+        toast('Repair updated', 'success')
+        setModal(null)
+        window.location.reload()
+      } catch (e: any) { console.error('[RepairUpdate]', e); toast(e?.message || 'Failed to update', 'error'); setSaving(false) }
+    }
+
+    const stBtn = (v: string) => ({ flex: 1, padding: '9px 0', borderRadius: 999, border: `1.5px solid ${status === v ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: status === v ? 'var(--rb-action)' : 'transparent', color: status === v ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all .15s' })
+
+    return (
+      <Modal title="Update repair" onClose={() => setModal(null)}>
+        <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: 'var(--rb-surface)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>{r.title}</span>
+            {r.urgency === 'emergency' && <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(239,68,68,.12)', color: 'var(--rb-danger)', letterSpacing: '.06em' }}>EMERGENCY</span>}
+            {r.category && <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, color: 'var(--rb-ink-3)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--rb-border)' }}>{r.category}</span>}
+          </div>
+          {r.description && <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginTop: 6, lineHeight: 1.5 }}>{r.description}</div>}
+          {r.photo_url && <img src={r.photo_url} alt="Damage photo" style={{ marginTop: 10, width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8, display: 'block' }} />}
+        </div>
+        <Field label="Status">
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['open', 'in_progress', 'resolved'] as const).map(s => (
+              <button key={s} style={stBtn(s)} onClick={() => setStatus(s)}>
+                {s === 'open' ? 'Open' : s === 'in_progress' ? 'In progress' : 'Resolved'}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label="Note to tenant (optional)">
+          <textarea style={{ ...inputStyle, minHeight: 64, resize: 'vertical' as const }} value={landlordNote} onChange={e => setLandlordNote(e.target.value)} placeholder="e.g. Plumber coming Friday 10am…" />
+        </Field>
+        <Field label="Scheduled repair date (optional)">
+          <input style={inputStyle} type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
+        </Field>
+        <Field label="Estimated cost (₹, optional)">
+          <input style={inputStyle} type="number" value={cost} onChange={e => setCost(e.target.value)} placeholder="0" />
+        </Field>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderTop: '1px solid var(--rb-border)', marginTop: 4 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Deduct from deposit</div>
+            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Creates a deposit ledger entry when resolved</div>
+          </div>
+          <button onClick={() => setDeductFromDeposit(d => !d)} style={{ width: 44, height: 24, borderRadius: 999, background: deductFromDeposit ? 'var(--rb-action)' : 'var(--rb-border)', border: 0, cursor: 'pointer', position: 'relative', transition: 'background .2s', flexShrink: 0 }}>
+            <span style={{ position: 'absolute', top: 2, left: deductFromDeposit ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+          <button onClick={() => setModal(null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+          <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Saving…' : 'Save'}</button>
+        </div>
+      </Modal>
+    )
+  }
+
+  // ── Tenant: view repair detail / cancel ─────────────────────────────────
+  function TenantRepairDetailModal() {
+    const r = selectedRepair
+    const [saving, setSaving] = useState(false)
+    if (!r) return null
+
+    const canCancel = r.status === 'open'
+    const stLabel = r.status === 'open' ? 'Open' : r.status === 'in_progress' ? 'In progress' : 'Resolved'
+
+    const handleCancel = async () => {
+      if (!confirm('Cancel this repair request?')) return
+      setSaving(true)
+      try {
+        const { error } = await sb.from('repair_requests').update({ status: 'resolved' }).eq('id', r.id)
+        if (error) throw error
+        toast('Repair request closed', 'success')
+        setModal(null)
+        window.location.reload()
+      } catch (e: any) { console.error('[RepairCancel]', e); toast(e?.message || 'Failed to close', 'error'); setSaving(false) }
+    }
+
+    const rows = [
+      { l: 'Status', v: stLabel },
+      { l: 'Raised', v: relDate(r.created_at) },
+      ...(r.category ? [{ l: 'Category', v: r.category }] : []),
+      ...(r.urgency === 'emergency' ? [{ l: 'Urgency', v: 'Emergency' }] : []),
+      ...(r.scheduled_date ? [{ l: 'Scheduled', v: new Date(r.scheduled_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) }] : []),
+      ...(r.cost ? [{ l: 'Estimated cost', v: '₹' + Number(r.cost).toLocaleString('en-IN') }] : []),
+      ...(r.deduct_from_deposit ? [{ l: 'Deposit impact', v: 'Will be deducted from deposit' }] : []),
+    ]
+
+    return (
+      <Modal title="Repair request" onClose={() => setModal(null)}>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 700, fontSize: 16 }}>{r.title}</span>
+            {r.urgency === 'emergency' && <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(239,68,68,.12)', color: 'var(--rb-danger)', letterSpacing: '.06em' }}>EMERGENCY</span>}
+          </div>
+          {r.description && <div style={{ fontSize: 14, color: 'var(--rb-ink-2)', marginTop: 6, lineHeight: 1.55 }}>{r.description}</div>}
+          {r.photo_url && <img src={r.photo_url} alt="Damage photo" style={{ marginTop: 10, width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, display: 'block', cursor: 'pointer' }} onClick={() => setLightbox({ url: r.photo_url!, label: r.title })} />}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {rows.map(f => (
+            <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '9px 0', borderBottom: '1px solid var(--rb-border)' }}>
+              <span style={{ color: 'var(--rb-ink-3)' }}>{f.l}</span>
+              <span style={{ fontWeight: 600, textAlign: 'right', maxWidth: '60%' }}>{f.v}</span>
+            </div>
+          ))}
+        </div>
+        {r.landlord_note && (
+          <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--rb-surface)', borderLeft: '3px solid var(--rb-action)' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--rb-action)', marginBottom: 4 }}>Landlord note</div>
+            <div style={{ fontSize: 14, color: 'var(--rb-ink)', lineHeight: 1.55 }}>{r.landlord_note}</div>
+          </div>
+        )}
+        {canCancel && (
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+            <button onClick={handleCancel} disabled={saving} style={{ width: '100%', padding: '10px 0', borderRadius: 999, border: '1.5px solid var(--rb-danger)', background: 'transparent', color: 'var(--rb-danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Closing…' : 'Close / cancel request'}</button>
+          </div>
+        )}
       </Modal>
     )
   }
@@ -1335,6 +1552,8 @@ export default function DashboardPage() {
       {modal === 'add-property' && <AddPropertyModal />}
       {modal === 'pay-rent' && <PayRentModal />}
       {modal === 'new-repair' && <NewRepairModal />}
+      {modal === 'repair-update' && <LandlordUpdateRepairModal />}
+      {modal === 'repair-detail' && <TenantRepairDetailModal />}
       {modal === 'add-proof-photo' && <AddProofPhotoModal />}
       {modal === 'property-detail' && <PropertyDetailModal />}
       {modal === 'end-lease' && <EndLeaseModal />}
