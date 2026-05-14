@@ -276,11 +276,11 @@ export default function DashboardPage() {
   const lNavItems = [
     { k: 'home', label: 'Overview', short: 'Home' },
     { k: 'props', label: 'Properties', short: 'Props' },
+    { k: 'msg', label: 'Messages', short: 'Msgs' },
+    { k: 'agree', label: 'Agreements', short: 'Agree' },
+    { k: 'rep', label: 'Repairs', short: 'Repairs' },
     { k: 'led', label: 'Ledger', short: 'Ledger' },
     { k: 'hra', label: 'Receipts', short: 'HRA' },
-    { k: 'rep', label: 'Repairs', short: 'Repairs' },
-    { k: 'agree', label: 'Agreements', short: 'Agree' },
-    { k: 'msg', label: 'Messages', short: 'Msgs' },
     { k: 'profile', label: 'Profile', short: 'Profile' },
   ]
   const tNavItems = [
@@ -2862,7 +2862,8 @@ export default function DashboardPage() {
         .then(({ data }) => { setMsgs((data as Message[]) || []); setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80) })
       const ch = sb.channel(`msg-${rental.id}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `rental_id=eq.${rental.id}` }, ({ new: m }: any) => {
-          setMsgs(p => [...p, m as Message]); setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80)
+          setMsgs(p => p.find(x => x.id === m.id) ? p : [...p, m as Message])
+          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80)
         }).subscribe()
       msgChannelRef.current = ch
       return () => { sb.removeChannel(ch) }
@@ -2870,9 +2871,16 @@ export default function DashboardPage() {
 
     const send = async () => {
       if (!input.trim() || sending) return
+      const body = input.trim()
       setSending(true)
-      await sb.from('messages').insert({ rental_id: rental.id, sender_id: user.id, body: input.trim() })
-      setInput(''); setSending(false)
+      setInput('')
+      const optimisticId = `opt-${Date.now()}`
+      const optimistic: Message = { id: optimisticId, rental_id: rental.id, sender_id: user.id, body, created_at: new Date().toISOString() }
+      setMsgs(p => [...p, optimistic])
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      const { data } = await sb.from('messages').insert({ rental_id: rental.id, sender_id: user.id, body }).select('*, sender:profiles!messages_sender_id_fkey(full_name)')
+      if (data?.[0]) setMsgs(p => p.map(m => m.id === optimisticId ? data[0] as Message : m))
+      setSending(false)
     }
 
     return (
