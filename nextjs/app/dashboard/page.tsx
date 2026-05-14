@@ -335,41 +335,30 @@ export default function DashboardPage() {
     return (
       <div style={{ border: '1px solid var(--rb-border)', borderRadius: 16, overflow: 'hidden', marginBottom: 16 }}>
         {/* Building header */}
-        <div style={{ padding: '16px 18px', background: 'var(--rb-surface)', cursor: 'pointer' }} onClick={() => setExpanded(e => !e)}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#0E1413,#2a3a38)', display: 'grid', placeItems: 'center', fontSize: 18, flexShrink: 0 }}>🏢</div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--rb-ink)' }}>{building.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{building.address_line1}, {building.city}</div>
+        <div style={{ padding: '10px 14px', background: 'var(--rb-surface)', cursor: 'pointer' }} onClick={() => setExpanded(e => !e)}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#0E1413,#2a3a38)', display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0 }}>🏢</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--rb-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{building.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 1 }}>{building.address_line1}, {building.city}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
-                {[
-                  { l: 'Units', v: `${rentals.length}` },
-                  { l: 'Occupied', v: `${occupied}` },
-                  { l: 'Vacant', v: `${rentals.length - occupied}` },
-                  { l: 'Collection', v: `${pct}%` },
-                  { l: 'Total rent', v: inr(totalRent) + '/mo' },
-                ].map(s => (
-                  <div key={s.l}>
-                    <div style={{ fontSize: 10, color: 'var(--rb-ink-3)', fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' as const }}>{s.l}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--rb-ink)', marginTop: 1 }}>{s.v}</div>
-                  </div>
-                ))}
+              <div style={{ marginTop: 5, fontSize: 12, color: 'var(--rb-ink-2)' }}>
+                <span style={{ fontWeight: 600 }}>{occupied}/{rentals.length}</span> occupied · <span style={{ fontWeight: 600 }}>{inr(totalRent)}/mo</span> · <span style={{ color: pct >= 80 ? 'var(--rb-success)' : 'var(--rb-warning)', fontWeight: 600 }}>{pct}% collected</span>
               </div>
-              <div style={{ height: 4, background: 'var(--rb-fill-2)', borderRadius: 4, marginTop: 10, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${pct}%`, background: 'var(--rb-action)', borderRadius: 4, transition: 'width .4s' }} />
+              <div style={{ height: 3, background: 'var(--rb-fill-2)', borderRadius: 4, marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: pct >= 80 ? 'var(--rb-success)' : 'var(--rb-warning)', borderRadius: 4, transition: 'width .4s' }} />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginLeft: 12, flexShrink: 0, alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 8, marginLeft: 12, flexShrink: 0, alignItems: 'center' }}>
               <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('add-unit') }} style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600 }}>+ Add unit</button>
               <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('building-detail') }} style={{ padding: '6px 10px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-ink-3)' }}>Edit</button>
-              <span style={{ fontSize: 18, color: 'var(--rb-ink-3)', lineHeight: 1, marginTop: 4 }}>{expanded ? '▾' : '▸'}</span>
+              <span style={{ fontSize: 18, color: 'var(--rb-ink-3)', lineHeight: 1 }}>{expanded ? '▾' : '▸'}</span>
             </div>
           </div>
-          {openPmt && <div style={{ marginTop: 10, padding: '6px 12px', background: 'var(--rb-warning-soft)', borderRadius: 8, fontSize: 12, color: 'var(--rb-warning)', fontWeight: 600 }}>⏳ Payment awaiting review</div>}
+          {openPmt && <div style={{ marginTop: 8, padding: '5px 10px', background: 'var(--rb-warning-soft)', borderRadius: 8, fontSize: 12, color: 'var(--rb-warning)', fontWeight: 600 }}>⏳ Payment awaiting review</div>}
         </div>
         {/* Unit list */}
         {expanded && (
@@ -2321,7 +2310,7 @@ export default function DashboardPage() {
         @media(max-width:767px){
           .d-shell{display:block!important}
           .d-side{display:none!important}
-          .d-main{padding:72px 16px 96px!important;max-width:100%!important}
+          .d-main{padding:72px 16px 96px!important;max-width:100%!important;background:var(--rb-fill)!important}
           .m-head{display:flex!important}
           .m-tabs{display:flex!important}
           .d-grid-inner{grid-template-columns:1fr!important;gap:14px!important}
@@ -2376,7 +2365,7 @@ export default function DashboardPage() {
         </aside>
 
         {/* Main */}
-        <main className="d-main" style={{ padding: '32px 36px 60px', maxWidth: 1200, minWidth: 0 }}>
+        <main className="d-main" style={{ padding: '32px 36px 60px', maxWidth: 1200, minWidth: 0, background: 'var(--rb-fill)' }}>
           {renderView()}
         </main>
       </div>
@@ -2432,7 +2421,7 @@ const eyebrowStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, lette
 const h1Style: React.CSSProperties = { fontFamily: 'var(--rb-font-display)', fontSize: 40, fontWeight: 400, letterSpacing: '-.025em', lineHeight: 1.05, color: 'var(--rb-ink)', marginTop: 4 }
 const subStyle: React.CSSProperties = { color: 'var(--rb-ink-2)', marginTop: 6, fontSize: 14, lineHeight: 1.55 }
 const gridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }
-const cardStyle: React.CSSProperties = { background: 'var(--rb-canvas)', border: '1px solid var(--rb-border-soft)', borderRadius: 16, padding: 22, boxShadow: '0 1px 2px rgba(20,18,12,.03)' }
+const cardStyle: React.CSSProperties = { background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 16, padding: 22, boxShadow: '0 1px 3px rgba(20,18,12,.06)' }
 const cardH3Style: React.CSSProperties = { fontFamily: 'var(--rb-font-display)', fontSize: 22, fontWeight: 400, letterSpacing: '-.015em', lineHeight: 1.1 }
 const emptyStyle: React.CSSProperties = { textAlign: 'center', padding: '40px 20px', color: 'var(--rb-ink-3)' }
 const actBtnPrimary: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, fontFamily: 'inherit', fontSize: 12, fontWeight: 600, cursor: 'pointer' }
