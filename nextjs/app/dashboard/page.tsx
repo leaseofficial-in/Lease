@@ -2399,6 +2399,10 @@ export default function DashboardPage() {
   function AddUnitModal() {
     const building = selectedBuilding
     if (!building) return null
+
+    const [mode, setMode] = useState<'single' | 'bulk'>('single')
+
+    // ── Single unit form ──────────────────────────────────────────────────
     const [form, setForm] = useState({
       unit_number: '', bedrooms: '2', bathrooms: '1', area_sqft: '', floor_number: '', parking: false,
       monthly_rent: '', security_deposit: '', maintenance_charges: '0', rent_due_day: '5',
@@ -2408,17 +2412,16 @@ export default function DashboardPage() {
     const [saving, setSaving] = useState(false)
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
     const toggle = (k: string) => setForm(f => ({ ...f, [k]: !(f as any)[k] }))
-    const chip = (k: string, v: string) => {
-      const active = (form as any)[k] === v
-      return { padding: '6px 12px', borderRadius: 999, border: `1.5px solid ${active ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: active ? 'var(--rb-action)' : 'transparent', color: active ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, transition: 'all .15s' }
-    }
+    const chip = (active: boolean) => ({
+      padding: '6px 12px', borderRadius: 999, border: `1.5px solid ${active ? 'var(--rb-action)' : 'var(--rb-border)'}`,
+      background: active ? 'var(--rb-action)' : 'transparent', color: active ? '#fff' : 'var(--rb-ink-2)',
+      cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, transition: 'all .15s',
+    })
     const SectionHead = ({ label }: { label: string }) => (
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginTop: 22, marginBottom: 12, paddingTop: 18, borderTop: '1px solid var(--rb-border)' }}>{label}</div>
     )
     const handleSubmit = async () => {
-      if (!form.unit_number || !form.monthly_rent) {
-        toast('Enter unit number and monthly rent', 'error'); return
-      }
+      if (!form.unit_number || !form.monthly_rent) { toast('Enter unit number and monthly rent', 'error'); return }
       setSaving(true)
       try {
         const { data: prop, error: propErr } = await sb.from('properties').insert({
@@ -2448,62 +2451,250 @@ export default function DashboardPage() {
         setModal(null); window.location.reload()
       } catch (e: any) { console.error('[AddUnit]', e); toast(e?.message || 'Failed to add unit', 'error'); setSaving(false) }
     }
+
+    // ── Bulk generate form ────────────────────────────────────────────────
+    const [bulk, setBulk] = useState({
+      floorFrom: '0', floorTo: '2', unitsPerFloor: '10',
+      pattern: 'floor',   // 'floor' | 'sequential' | 'custom'
+      customPrefix: 'Room ', startNum: '1',
+      monthly_rent: '', security_deposit: '', maintenance_charges: '0',
+      rent_due_day: '5', furnished_status: 'unfurnished',
+      bedrooms: '1', notice_period_days: '30', lock_in_period_months: '11',
+      late_fee_percent: '5', rent_increment_percent: '5',
+    })
+    const setB = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setBulk(b => ({ ...b, [k]: e.target.value }))
+
+    // Compute preview unit list
+    const bulkUnits: { unitNum: string; floor: number | null }[] = (() => {
+      const fFrom = parseInt(bulk.floorFrom) || 0
+      const fTo   = parseInt(bulk.floorTo)   || 0
+      const uPF   = Math.min(Math.max(parseInt(bulk.unitsPerFloor) || 1, 1), 50)
+      const start = parseInt(bulk.startNum) || 1
+      const units: { unitNum: string; floor: number | null }[] = []
+      if (bulk.pattern === 'sequential') {
+        for (let i = 0; i < (fTo - fFrom + 1) * uPF; i++) {
+          units.push({ unitNum: String(start + i), floor: null })
+        }
+      } else if (bulk.pattern === 'custom') {
+        let n = start
+        for (let f = fFrom; f <= fTo; f++) {
+          for (let u = 0; u < uPF; u++) {
+            units.push({ unitNum: `${bulk.customPrefix}${n}`, floor: f })
+            n++
+          }
+        }
+      } else {
+        // floor prefix: Floor 1 → 101, 102…  Floor 2 → 201, 202…
+        for (let f = fFrom; f <= fTo; f++) {
+          for (let u = 1; u <= uPF; u++) {
+            const num = (f + 1) * 100 + u
+            units.push({ unitNum: String(num), floor: f })
+          }
+        }
+      }
+      return units
+    })()
+
+    const handleBulkSubmit = async () => {
+      if (!bulk.monthly_rent) { toast('Enter monthly rent', 'error'); return }
+      if (bulkUnits.length === 0) { toast('No units to generate', 'error'); return }
+      if (bulkUnits.length > 100) { toast('Maximum 100 units at once', 'error'); return }
+      setSaving(true)
+      try {
+        const today = new Date().toISOString().slice(0, 10)
+        const propRows = bulkUnits.map(u => ({
+          name: `${building.name} – Unit ${u.unitNum}`,
+          unit_number: u.unitNum, building_id: building.id, landlord_id: user.id,
+          address_line1: building.address_line1, address_line2: building.address_line2 || null,
+          city: building.city, state: building.state, pincode: building.pincode,
+          property_type: building.property_type || 'apartment',
+          bedrooms: bulk.bedrooms ? Number(bulk.bedrooms) : null,
+          floor_number: u.floor,
+        }))
+        const { data: props, error: propErr } = await sb.from('properties').insert(propRows).select('id, unit_number')
+        if (propErr) throw propErr
+        const rentalRows = (props || []).map(p => ({
+          property_id: p.id, landlord_id: user.id, status: 'pending_tenant', start_date: today,
+          monthly_rent: Number(bulk.monthly_rent), security_deposit: Number(bulk.security_deposit || 0),
+          maintenance_charges: Number(bulk.maintenance_charges || 0), rent_due_day: Number(bulk.rent_due_day),
+          furnished_status: bulk.furnished_status, notice_period_days: Number(bulk.notice_period_days || 30),
+          lock_in_period_months: Number(bulk.lock_in_period_months || 11),
+          late_fee_percent: Number(bulk.late_fee_percent || 5), rent_increment_percent: Number(bulk.rent_increment_percent || 5),
+        }))
+        const { error: rentalErr } = await sb.from('rentals').insert(rentalRows)
+        if (rentalErr) throw rentalErr
+        toast(`${bulkUnits.length} units created!`, 'success')
+        setModal(null); window.location.reload()
+      } catch (e: any) { console.error('[BulkAdd]', e); toast(e?.message || 'Failed to create units', 'error'); setSaving(false) }
+    }
+
+    // ── Shared styles ─────────────────────────────────────────────────────
+    const tabBtn = (active: boolean): React.CSSProperties => ({
+      flex: 1, padding: '8px 0', border: 0, borderRadius: 10, cursor: 'pointer',
+      fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all .15s',
+      background: active ? 'var(--rb-action)' : 'transparent',
+      color: active ? '#fff' : 'var(--rb-ink-3)',
+    })
+
     return (
       <Modal title={`Add unit · ${building.name}`} onClose={() => { setModal(null); setSelectedBuilding(null) }}>
-        <div style={{ padding: '10px 12px', background: 'var(--rb-surface)', borderRadius: 10, marginBottom: 18, fontSize: 13, color: 'var(--rb-ink-3)' }}>
+        {/* Building address strip */}
+        <div style={{ padding: '8px 12px', background: 'var(--rb-surface)', borderRadius: 10, marginBottom: 16, fontSize: 13, color: 'var(--rb-ink-3)' }}>
           🏢 {building.address_line1}, {building.city}
         </div>
-        <Field label="Unit number *"><input style={inputStyle} value={form.unit_number} onChange={set('unit_number')} placeholder="e.g. 4B, 201, G1" /></Field>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <Field label="Bedrooms (BHK)">
-            <div style={{ display: 'flex', gap: 6 }}>
-              {['1','2','3','4'].map(v => <button key={v} style={chip('bedrooms', v)} onClick={() => setForm(f => ({ ...f, bedrooms: v }))}>{v === '4' ? '4+' : v}</button>)}
+
+        {/* Mode toggle */}
+        <div style={{ display: 'flex', background: 'var(--rb-fill-2)', borderRadius: 12, padding: 4, marginBottom: 20, gap: 4 }}>
+          <button style={tabBtn(mode === 'single')} onClick={() => setMode('single')}>Single unit</button>
+          <button style={tabBtn(mode === 'bulk')} onClick={() => setMode('bulk')}>⚡ Bulk generate</button>
+        </div>
+
+        {/* ── SINGLE UNIT FORM ── */}
+        {mode === 'single' && (<>
+          <Field label="Unit number *"><input style={inputStyle} value={form.unit_number} onChange={set('unit_number')} placeholder="e.g. 4B, 201, G1" /></Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Field label="Bedrooms (BHK)">
+              <div style={{ display: 'flex', gap: 6 }}>
+                {['1','2','3','4'].map(v => <button key={v} style={chip((form as any).bedrooms === v)} onClick={() => setForm(f => ({ ...f, bedrooms: v }))}>{v === '4' ? '4+' : v}</button>)}
+              </div>
+            </Field>
+            <Field label="Bathrooms">
+              <div style={{ display: 'flex', gap: 6 }}>
+                {['1','2','3'].map(v => <button key={v} style={chip((form as any).bathrooms === v)} onClick={() => setForm(f => ({ ...f, bathrooms: v }))}>{v === '3' ? '3+' : v}</button>)}
+              </div>
+            </Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Area (sq ft)"><input style={inputStyle} type="number" value={form.area_sqft} onChange={set('area_sqft')} placeholder="850" /></Field>
+            <Field label="Floor number"><input style={inputStyle} type="number" value={form.floor_number} onChange={set('floor_number')} placeholder="3" /></Field>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+            <span style={{ fontSize: 14, color: 'var(--rb-ink)' }}>Parking available</span>
+            <button onClick={() => toggle('parking')} style={{ width: 44, height: 24, borderRadius: 999, background: form.parking ? 'var(--rb-action)' : 'var(--rb-border)', border: 0, cursor: 'pointer', position: 'relative', transition: 'background .2s' }}>
+              <span style={{ position: 'absolute', top: 2, left: form.parking ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
+            </button>
+          </div>
+          <SectionHead label="Rental terms" />
+          <Field label="Furnishing">
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[['unfurnished','Unfurnished'],['semi_furnished','Semi'],['fully_furnished','Fully furnished']].map(([v,l]) => (
+                <button key={v} style={chip((form as any).furnished_status === v)} onClick={() => setForm(f => ({ ...f, furnished_status: v }))}>{l}</button>
+              ))}
             </div>
           </Field>
-          <Field label="Bathrooms">
-            <div style={{ display: 'flex', gap: 6 }}>
-              {['1','2','3'].map(v => <button key={v} style={chip('bathrooms', v)} onClick={() => setForm(f => ({ ...f, bathrooms: v }))}>{v === '3' ? '3+' : v}</button>)}
-            </div>
-          </Field>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Area (sq ft)"><input style={inputStyle} type="number" value={form.area_sqft} onChange={set('area_sqft')} placeholder="850" /></Field>
-          <Field label="Floor number"><input style={inputStyle} type="number" value={form.floor_number} onChange={set('floor_number')} placeholder="3" /></Field>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
-          <span style={{ fontSize: 14, color: 'var(--rb-ink)' }}>Parking available</span>
-          <button onClick={() => toggle('parking')} style={{ width: 44, height: 24, borderRadius: 999, background: form.parking ? 'var(--rb-action)' : 'var(--rb-border)', border: 0, cursor: 'pointer', position: 'relative', transition: 'background .2s' }}>
-            <span style={{ position: 'absolute', top: 2, left: form.parking ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
-          </button>
-        </div>
-        <SectionHead label="Rental terms" />
-        <Field label="Furnishing">
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {[['unfurnished','Unfurnished'],['semi_furnished','Semi'],['fully_furnished','Fully furnished']].map(([v,l]) => (
-              <button key={v} style={chip('furnished_status', v)} onClick={() => setForm(f => ({ ...f, furnished_status: v }))}>{l}</button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Monthly rent (₹) *"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} placeholder="25000" /></Field>
+            <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Maintenance (₹/mo)"><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
+            <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Notice period (days)"><input style={inputStyle} type="number" value={form.notice_period_days} onChange={set('notice_period_days')} placeholder="30" /></Field>
+            <Field label="Lock-in (months)"><input style={inputStyle} type="number" value={form.lock_in_period_months} onChange={set('lock_in_period_months')} placeholder="11" /></Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Late fee (% of rent)"><input style={inputStyle} type="number" value={form.late_fee_percent} onChange={set('late_fee_percent')} placeholder="5" /></Field>
+            <Field label="Annual increment (%)"><input style={inputStyle} type="number" value={form.rent_increment_percent} onChange={set('rent_increment_percent')} placeholder="5" /></Field>
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+            <button onClick={() => { setModal(null); setSelectedBuilding(null) }} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+            <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Adding…' : 'Add unit'}</button>
+          </div>
+        </>)}
+
+        {/* ── BULK GENERATE FORM ── */}
+        {mode === 'bulk' && (<>
+          {/* Unit naming pattern */}
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 10 }}>Unit naming</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 18 }}>
+            {[
+              ['floor',      '🏢 Floor prefix',  'Floor 1 → 101, 102 … Floor 2 → 201, 202 …'],
+              ['sequential', '🔢 Sequential',    'Simple numbers — 1, 2, 3 … 30'],
+              ['custom',     '✏️ Custom prefix',  'e.g. "Room " → Room 1, Room 2 …'],
+            ].map(([val, label, hint]) => (
+              <label key={val} onClick={() => setBulk(b => ({ ...b, pattern: val }))} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${bulk.pattern === val ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: bulk.pattern === val ? 'var(--rb-action-soft)' : 'transparent', cursor: 'pointer', transition: 'all .15s' }}>
+                <span style={{ marginTop: 1, width: 16, height: 16, borderRadius: '50%', border: `2px solid ${bulk.pattern === val ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: bulk.pattern === val ? 'var(--rb-action)' : 'transparent', flexShrink: 0, display: 'grid', placeItems: 'center' }}>
+                  {bulk.pattern === val && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+                </span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2 }}>{hint}</div>
+                </div>
+              </label>
             ))}
           </div>
-        </Field>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Monthly rent (₹) *"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} placeholder="25000" /></Field>
-          <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Maintenance (₹/mo)"><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
-          <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Notice period (days)"><input style={inputStyle} type="number" value={form.notice_period_days} onChange={set('notice_period_days')} placeholder="30" /></Field>
-          <Field label="Lock-in (months)"><input style={inputStyle} type="number" value={form.lock_in_period_months} onChange={set('lock_in_period_months')} placeholder="11" /></Field>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Late fee (% of rent)"><input style={inputStyle} type="number" value={form.late_fee_percent} onChange={set('late_fee_percent')} placeholder="5" /></Field>
-          <Field label="Annual increment (%)"><input style={inputStyle} type="number" value={form.rent_increment_percent} onChange={set('rent_increment_percent')} placeholder="5" /></Field>
-        </div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => { setModal(null); setSelectedBuilding(null) }} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Adding…' : 'Add unit'}</button>
-        </div>
+
+          {bulk.pattern === 'custom' && (
+            <Field label="Custom prefix"><input style={inputStyle} value={bulk.customPrefix} onChange={setB('customPrefix')} placeholder="Room " /></Field>
+          )}
+          {bulk.pattern === 'sequential' && (
+            <Field label="Starting number"><input style={inputStyle} type="number" value={bulk.startNum} onChange={setB('startNum')} placeholder="1" /></Field>
+          )}
+
+          {/* Floor & unit count */}
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginTop: 18, marginBottom: 10, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>Layout</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 4 }}>
+            <Field label="From floor"><input style={inputStyle} type="number" value={bulk.floorFrom} onChange={setB('floorFrom')} placeholder="0" /></Field>
+            <Field label="To floor"><input style={inputStyle} type="number" value={bulk.floorTo} onChange={setB('floorTo')} placeholder="3" /></Field>
+            <Field label="Units / floor"><input style={inputStyle} type="number" value={bulk.unitsPerFloor} onChange={setB('unitsPerFloor')} placeholder="10" /></Field>
+          </div>
+
+          {/* Preview */}
+          {bulkUnits.length > 0 && (
+            <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--rb-surface)', borderRadius: 12, border: '1px solid var(--rb-border)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', color: 'var(--rb-ink-3)', marginBottom: 10 }}>
+                PREVIEW · {bulkUnits.length} UNIT{bulkUnits.length !== 1 ? 'S' : ''} WILL BE CREATED
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {bulkUnits.slice(0, 60).map((u, i) => (
+                  <span key={i} style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'var(--rb-fill-2)', color: 'var(--rb-ink-2)', border: '1px solid var(--rb-border)' }}>{u.unitNum}</span>
+                ))}
+                {bulkUnits.length > 60 && <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, padding: '3px 8px', borderRadius: 6, color: 'var(--rb-ink-3)' }}>+{bulkUnits.length - 60} more</span>}
+              </div>
+            </div>
+          )}
+
+          {/* Rental terms */}
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginTop: 20, marginBottom: 10, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>Rental terms (applied to all units)</div>
+          <Field label="Furnishing">
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[['unfurnished','Unfurnished'],['semi_furnished','Semi'],['fully_furnished','Fully furnished']].map(([v,l]) => (
+                <button key={v} style={chip(bulk.furnished_status === v)} onClick={() => setBulk(b => ({ ...b, furnished_status: v }))}>{l}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Bedrooms (BHK)">
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['1','2','3','4'].map(v => <button key={v} style={chip(bulk.bedrooms === v)} onClick={() => setBulk(b => ({ ...b, bedrooms: v }))}>{v === '4' ? '4+' : v}</button>)}
+            </div>
+          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Monthly rent (₹) *"><input style={inputStyle} type="number" value={bulk.monthly_rent} onChange={setB('monthly_rent')} placeholder="8000" /></Field>
+            <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={bulk.security_deposit} onChange={setB('security_deposit')} placeholder="16000" /></Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Maintenance (₹/mo)"><input style={inputStyle} type="number" value={bulk.maintenance_charges} onChange={setB('maintenance_charges')} placeholder="0" /></Field>
+            <Field label="Rent due day"><select style={inputStyle} value={bulk.rent_due_day} onChange={setB('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Notice period (days)"><input style={inputStyle} type="number" value={bulk.notice_period_days} onChange={setB('notice_period_days')} placeholder="30" /></Field>
+            <Field label="Lock-in (months)"><input style={inputStyle} type="number" value={bulk.lock_in_period_months} onChange={setB('lock_in_period_months')} placeholder="11" /></Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Late fee (% of rent)"><input style={inputStyle} type="number" value={bulk.late_fee_percent} onChange={setB('late_fee_percent')} placeholder="5" /></Field>
+            <Field label="Annual increment (%)"><input style={inputStyle} type="number" value={bulk.rent_increment_percent} onChange={setB('rent_increment_percent')} placeholder="5" /></Field>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+            <button onClick={() => { setModal(null); setSelectedBuilding(null) }} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+            <button onClick={handleBulkSubmit} disabled={saving || bulkUnits.length === 0} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>
+              {saving ? 'Creating…' : `Generate ${bulkUnits.length} unit${bulkUnits.length !== 1 ? 's' : ''} →`}
+            </button>
+          </div>
+        </>)}
       </Modal>
     )
   }
