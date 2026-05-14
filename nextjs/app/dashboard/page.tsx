@@ -106,6 +106,44 @@ function NavIcon({ k, size = 22, active = false }: { k: string; size?: number; a
   )
 }
 
+// ── Inline icons (Lucide-style SVG paths) ─────────────────────────────────
+const ICON_PATHS: Record<string, string> = {
+  warning:    `<path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
+  key:        `<path stroke-linecap="round" stroke-linejoin="round" d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.78 7.78 5.5 5.5 0 017.78-7.78m7.78-7.78L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>`,
+  unlock:     `<rect x="3" y="11" width="18" height="11" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a5 5 0 019.9-1"/>`,
+  building:   `<path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>`,
+  clock:      `<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`,
+  trending:   `<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>`,
+  home:       `<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7m-2 2v7a1 1 0 01-1 1H5a1 1 0 01-1-1v-7m5 8v-5a1 1 0 011-1h2a1 1 0 011 1v5"/>`,
+  wrench:     `<path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>`,
+  file:       `<path stroke-linecap="round" stroke-linejoin="round" d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>`,
+  clipboard:  `<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>`,
+  chat:       `<path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>`,
+  lock:       `<rect x="3" y="11" width="18" height="11" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a5 5 0 0110 0v4"/>`,
+  camera:     `<path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/>`,
+  link:       `<path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>`,
+  check:      `<path stroke-linecap="round" stroke-linejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>`,
+  'file-text':`<path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>`,
+  download:   `<path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`,
+  pen:        `<path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>`,
+  zap:        `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`,
+  paperclip:  `<path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>`,
+  hash:       `<line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>`,
+  edit:       `<path stroke-linecap="round" stroke-linejoin="round" d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>`,
+  mail:       `<path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>`,
+  list:       `<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>`,
+}
+
+function Icon({ k, size = 18, stroke = 1.8, color = 'currentColor' }: { k: string; size?: number; stroke?: number; color?: string }) {
+  const paths = ICON_PATHS[k] || ''
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color}
+      strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round"
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
+      dangerouslySetInnerHTML={{ __html: paths }} />
+  )
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────
 type Toast = { id: number; msg: string; type: 'success' | 'error' | 'info' }
 let toastId = 0
@@ -268,7 +306,7 @@ export default function DashboardPage() {
   if (authError) return (
     <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', padding: 24 }}>
       <div style={{ textAlign: 'center', maxWidth: 340 }}>
-        <div style={{ fontSize: 40, marginBottom: 16 }}>⚠</div>
+        <div style={{ marginBottom: 16, color: 'var(--rb-danger)' }}><Icon k="warning" size={40} stroke={1.5} /></div>
         <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28 }}>Not signed in</h2>
         <p style={{ fontSize: 14, color: 'var(--rb-ink-3)', marginTop: 8, lineHeight: 1.6 }}>Your session has expired. Please sign in again.</p>
         <a href="/signin" style={{ display: 'inline-flex', marginTop: 24, alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', fontWeight: 600, fontSize: 13 }}>Sign in →</a>
@@ -359,7 +397,7 @@ export default function DashboardPage() {
     const pill = (pmt && (pillMap as any)[pmt.status]) || (!r.tenant_id ? { t: 'Vacant', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' } : { t: 'Pending', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' })
     return (
       <div onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ display: 'grid', gridTemplateColumns: '48px 1fr auto', gap: 12, alignItems: 'center', padding: '10px 12px', background: 'var(--rb-surface)', borderRadius: 10, cursor: 'pointer', border: '1px solid var(--rb-border-soft)' }}>
-        <div style={{ width: 48, height: 48, borderRadius: 8, background: r.tenant_id ? 'linear-gradient(135deg,#2a5298,#1e3c72)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', fontSize: 18 }}>{r.tenant_id ? '🔑' : '🔓'}</div>
+        <div style={{ width: 48, height: 48, borderRadius: 8, background: r.tenant_id ? 'linear-gradient(135deg,#2a5298,#1e3c72)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', color: r.tenant_id ? '#fff' : 'var(--rb-ink-3)' }}>{r.tenant_id ? <Icon k="key" size={20} stroke={1.8} /> : <Icon k="unlock" size={20} stroke={1.8} />}</div>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--rb-ink)' }}>
             {r.property?.unit_number ? `Unit ${r.property.unit_number}` : r.property?.name || 'Unit'}
@@ -521,7 +559,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#0E1413,#2a3a38)', display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0 }}>🏢</div>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#0E1413,#2a3a38)', display: 'grid', placeItems: 'center', flexShrink: 0, color: '#fff' }}><Icon k="building" size={16} stroke={1.8} /></div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--rb-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{building.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 1 }}>{building.address_line1}, {building.city}</div>
@@ -546,7 +584,7 @@ export default function DashboardPage() {
               <span style={{ fontSize: 18, color: 'var(--rb-ink-3)', lineHeight: 1 }}>{expanded ? '▾' : '▸'}</span>
             </div>
           </div>
-          {openPmt && <div style={{ marginTop: 8, padding: '5px 10px', background: 'var(--rb-warning-soft)', borderRadius: 8, fontSize: 12, color: 'var(--rb-warning)', fontWeight: 600 }}>⏳ Payment awaiting review</div>}
+          {openPmt && <div style={{ marginTop: 8, padding: '5px 10px', background: 'var(--rb-warning-soft)', borderRadius: 8, fontSize: 12, color: 'var(--rb-warning)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}><Icon k="clock" size={13} stroke={2} /> Payment awaiting review</div>}
         </div>
         {/* Unit list / map */}
         {expanded && (
@@ -649,7 +687,7 @@ export default function DashboardPage() {
                   return (
                     <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>📈</div>
+                        <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', flexShrink: 0, color: 'var(--rb-action)' }}><Icon k="trending" size={17} stroke={2} /></div>
                         <div>
                           <div style={{ fontWeight: 600, fontSize: 13 }}>{r.property?.name || '—'}</div>
                           <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || '—'} · {inr(r.monthly_rent)} → {inr(newRent)} · in {days} day{days !== 1 ? 's' : ''}</div>
@@ -666,9 +704,9 @@ export default function DashboardPage() {
           <section style={cardStyle}>
             <h3 style={cardH3Style}>Quick actions</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14 }}>
-              {[{ icon: '🏢', label: 'Add building', sub: 'Multi-unit complex', fn: () => setModal('add-building') }, { icon: '🏠', label: 'Standalone unit', sub: 'Single property', fn: () => setModal('add-property') }, { icon: '🛠', label: 'Repairs', sub: 'Review open requests', fn: () => navigate('rep') }, { icon: '≡', label: 'Full ledger', sub: 'All transactions', fn: () => navigate('led') }].map(a => (
+              {[{ icon: 'building', label: 'Add building', sub: 'Multi-unit complex', fn: () => setModal('add-building') }, { icon: 'home', label: 'Standalone unit', sub: 'Single property', fn: () => setModal('add-property') }, { icon: 'wrench', label: 'Repairs', sub: 'Review open requests', fn: () => navigate('rep') }, { icon: 'list', label: 'Full ledger', sub: 'All transactions', fn: () => navigate('led') }].map(a => (
                 <button key={a.label} onClick={a.fn} style={{ padding: 14, background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 10, textAlign: 'left', cursor: 'pointer', transition: 'all .2s', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 18 }}>{a.icon}</span><strong style={{ fontSize: 13, color: 'var(--rb-ink)' }}>{a.label}</strong><span style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>{a.sub}</span>
+                  <span style={{ color: 'var(--rb-action)' }}><Icon k={a.icon} size={20} stroke={1.8} /></span><strong style={{ fontSize: 13, color: 'var(--rb-ink)' }}>{a.label}</strong><span style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>{a.sub}</span>
                 </button>
               ))}
             </div>
@@ -705,7 +743,7 @@ export default function DashboardPage() {
           const pillColor = { paid: { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }, due: { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' }, pending: { bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)' }, none: { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' } }[pill.cls] || { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
           return (
             <div key={r.id} onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ display: 'grid', gridTemplateColumns: '56px 1fr auto', gap: 16, alignItems: 'center', padding: 12, background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 12, cursor: 'pointer' }}>
-              <div style={{ width: 56, height: 56, borderRadius: 8, background: `linear-gradient(135deg,${colors[i%colors.length]},#2c1c0e)`, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 22 }}>🏠</div>
+              <div style={{ width: 56, height: 56, borderRadius: 8, background: `linear-gradient(135deg,${colors[i%colors.length]},#2c1c0e)`, display: 'grid', placeItems: 'center', color: '#fff' }}><Icon k="home" size={24} stroke={1.7} /></div>
               <div>
                 <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', fontWeight: 600 }}>{r.property?.city || 'City'}</div>
                 <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, lineHeight: 1.15, letterSpacing: '-.01em', marginTop: 2 }}>{r.property?.name || r.property?.address_line1 || 'Property'}</div>
@@ -762,7 +800,7 @@ export default function DashboardPage() {
     return (
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Repairs</div><h1 style={h1Style}>Repair requests.</h1><p style={subStyle}>{repairs.filter(r => r.status === 'open' || r.status === 'in_progress').length} open · {repairs.length} total</p></div></div>
-        <section style={cardStyle}>{repairs.length > 0 ? repairs.map(r => <RepairRow key={r.id} r={r} isLandlord />) : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>🛠</div><p>No repair requests.</p></div>}</section>
+        <section style={cardStyle}>{repairs.length > 0 ? repairs.map(r => <RepairRow key={r.id} r={r} isLandlord />) : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="wrench" size={32} stroke={1.5} /></div><p>No repair requests.</p></div>}</section>
       </>
     )
   }
@@ -786,7 +824,7 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--rb-border)', fontSize: 13, color: 'var(--rb-ink-2)', alignItems: 'center' }}>
               <span>YTD income</span><strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: 'var(--rb-action)', letterSpacing: '-.015em' }}>{inr(landlordData?.ytdTotal)}</strong>
             </div>
-          </> : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>📄</div><p>No receipts yet.</p></div>}
+          </> : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="file" size={32} stroke={1.5} /></div><p>No receipts yet.</p></div>}
         </section>
       </>
     )
@@ -863,7 +901,7 @@ export default function DashboardPage() {
 
         <section style={cardStyle}>
           {filtered.length === 0
-            ? <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>📋</div><p>No entries for this period.</p></div>
+            ? <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="clipboard" size={32} stroke={1.5} /></div><p>No entries for this period.</p></div>
             : (() => {
                 // Compute running balance across all filtered entries (oldest→newest for accumulation)
                 const sorted = [...filtered].sort((a, b) => a.month.localeCompare(b.month))
@@ -950,17 +988,17 @@ export default function DashboardPage() {
                 : daysLeft !== null ? <div style={{ color: 'rgba(246,244,238,.78)', fontSize: 15 }}>Due in <strong>{daysLeft} day{daysLeft !== 1 ? 's' : ''}</strong></div> : null}
             </div>
             {isPaid ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(31,122,85,.25)', border: '1px solid rgba(31,122,85,.35)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#A8E6C8' }}>✓ Paid this month</span></div>
-              : isPending ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(201,122,58,.15)', border: '1px solid rgba(201,122,58,.3)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: 'var(--rb-accent)' }}>⏳ Awaiting landlord confirmation</span></div>
+              : isPending ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(201,122,58,.15)', border: '1px solid rgba(201,122,58,.3)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: 'var(--rb-accent)' }}><Icon k="clock" size={14} stroke={2} /> Awaiting landlord confirmation</span></div>
               : <div style={{ marginTop: 18, display: 'flex', gap: 10 }}><button onClick={() => setModal('pay-rent')} style={{ ...actBtnPrimary, background: '#fff', color: 'var(--rb-action)' }}>Pay / record payment →</button></div>}
             {currentPayment?.status === 'overdue' && (currentPayment?.late_fee || 0) > 0 && (
               <div style={{ marginTop: 12, padding: '9px 14px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#ffaaaa', display: 'flex', gap: 8, alignItems: 'center' }}>
-                ⚠ Overdue · {inr(rental.monthly_rent)} rent + {inr(currentPayment.late_fee!)} late fee = <strong style={{ color: '#fff' }}>{inr(Number(rental.monthly_rent) + currentPayment.late_fee!)} total due</strong>
+                <Icon k="warning" size={14} stroke={2} /> Overdue · {inr(rental.monthly_rent)} rent + {inr(currentPayment.late_fee!)} late fee = <strong style={{ color: '#fff' }}>{inr(Number(rental.monthly_rent) + currentPayment.late_fee!)} total due</strong>
               </div>
             )}
-            {Number(rental.monthly_rent) > 50000 && <div style={{ marginTop: 12, padding: '7px 12px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#ffaaaa' }}>⚠ Rent &gt;₹50,000/mo — you must deduct 2% TDS and file Form 26QC.</div>}
+            {Number(rental.monthly_rent) > 50000 && <div style={{ marginTop: 12, padding: '7px 12px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#ffaaaa', display: 'flex', alignItems: 'center', gap: 6 }}><Icon k="warning" size={13} stroke={2} /> Rent &gt;₹50,000/mo — you must deduct 2% TDS and file Form 26QC.</div>}
             <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid rgba(246,244,238,.12)', display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 12, color: 'rgba(246,244,238,.65)' }}>
               <span>{propLine}</span>
-              <button onClick={() => { setMessagingRental(rental); navigate('msg') }} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'rgba(246,244,238,.65)', fontSize: 12, fontFamily: 'inherit' }}>💬 Message landlord</button>
+              <button onClick={() => { setMessagingRental(rental); navigate('msg') }} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'rgba(246,244,238,.65)', fontSize: 12, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon k="chat" size={13} stroke={1.8} /> Message landlord</button>
             </div>
           </section>
 
@@ -985,7 +1023,7 @@ export default function DashboardPage() {
                 )}
                 {escDays !== null && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>📈</div>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', flexShrink: 0, color: 'var(--rb-action)' }}><Icon k="trending" size={17} stroke={2} /></div>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--rb-action)' }}>Annual rent revision in {escDays} day{escDays !== 1 ? 's' : ''}</div>
                       <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Your lease has a {rental.rent_increment_percent ?? 5}% annual increment clause. Discuss with your landlord.</div>
@@ -1003,7 +1041,7 @@ export default function DashboardPage() {
             return (
               <section style={{ ...cardStyle, gridColumn: 'span 2', padding: '12px 18px', background: 'var(--rb-action-soft)', border: '1px solid rgba(15,76,92,.15)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ fontSize: 22, flexShrink: 0 }}>📩</div>
+                  <div style={{ flexShrink: 0, color: 'var(--rb-action)' }}><Icon k="mail" size={22} stroke={1.8} /></div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--rb-action)' }}>Rent revised to {inr(rental.monthly_rent)}/month</div>
                     <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Your landlord applied the annual increment {daysSince === 0 ? 'today' : `${daysSince} day${daysSince !== 1 ? 's' : ''} ago`}. Future payments will reflect the new amount.</div>
@@ -1050,7 +1088,7 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--rb-border)', fontSize: 13, color: 'var(--rb-ink-2)', alignItems: 'center' }}>
                 <span>YTD HRA eligible</span><strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: 'var(--rb-action)', letterSpacing: '-.015em' }}>{inr(ytdTotal)}</strong>
               </div>
-            </> : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>📄</div><p>Receipts appear after confirmed payments.</p></div>}
+            </> : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="file" size={32} stroke={1.5} /></div><p>Receipts appear after confirmed payments.</p></div>}
           </section>
 
           <section style={cardStyle}>
@@ -1103,7 +1141,7 @@ export default function DashboardPage() {
             </div>
           )}
           {isPaid ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(31,122,85,.25)', border: '1px solid rgba(31,122,85,.35)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#A8E6C8' }}>✓ Paid · {relDate(currentPayment?.updated_at || currentPayment?.created_at)}</span></div>
-            : isPending ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(201,122,58,.15)', border: '1px solid rgba(201,122,58,.3)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: 'var(--rb-accent)' }}>⏳ Pending landlord confirmation</span>
+            : isPending ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(201,122,58,.15)', border: '1px solid rgba(201,122,58,.3)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: 'var(--rb-accent)' }}><Icon k="clock" size={14} stroke={2} /> Pending landlord confirmation</span>
               {currentPayment?.payment_method && <div style={{ marginTop: 14, padding: 14, background: 'rgba(246,244,238,.06)', borderRadius: 12 }}>
                 <div style={{ fontSize: 12, color: 'rgba(246,244,238,.6)', marginBottom: 8 }}>Payment details</div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{methodLabel(currentPayment.payment_method)}</div>
@@ -1151,7 +1189,7 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--rb-border)', fontSize: 13, alignItems: 'center' }}>
               <span style={{ color: 'var(--rb-ink-2)' }}>YTD HRA eligible</span><strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: 'var(--rb-action)' }}>{inr(d?.ytdTotal)}</strong>
             </div>
-          </> : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>📄</div><p>No receipts yet. They appear after confirmed payments.</p></div>}
+          </> : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="file" size={32} stroke={1.5} /></div><p>No receipts yet. They appear after confirmed payments.</p></div>}
         </section>
       </>
     )
@@ -1181,7 +1219,7 @@ export default function DashboardPage() {
         </div>
         <section style={cardStyle}>
           {proofs?.status === 'approved' && <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--rb-action-soft)', border: '1px solid rgba(15,76,92,.2)', color: 'var(--rb-action)', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>✓ Approved by landlord</div>}
-          {photos.length > 0 ? <ProofGrid photos={photos} /> : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>📷</div><p>No photos yet. Document your room condition at move-in.</p><button onClick={() => setModal('add-proof-photo')} style={{ ...actBtnPrimary, marginTop: 12 }}>+ Add photos</button></div>}
+          {photos.length > 0 ? <ProofGrid photos={photos} /> : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="camera" size={32} stroke={1.5} /></div><p>No photos yet. Document your room condition at move-in.</p><button onClick={() => setModal('add-proof-photo')} style={{ ...actBtnPrimary, marginTop: 12 }}>+ Add photos</button></div>}
         </section>
       </>
     )
@@ -1213,7 +1251,7 @@ export default function DashboardPage() {
               </div>
               <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, color: t.type === 'received' ? 'var(--rb-action)' : 'var(--rb-danger)', flexShrink: 0 }}>{t.type === 'received' ? '+' : '-'}{inr(t.amount)}</div>
             </div>
-          )) : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div><p>No deposit transactions yet.</p></div>}
+          )) : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="lock" size={32} stroke={1.5} /></div><p>No deposit transactions yet.</p></div>}
           {transactions.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 0', marginTop: 6, fontSize: 13, color: 'var(--rb-ink-2)', alignItems: 'center' }}>
               <span>Estimated refund at move-out</span>
@@ -1241,10 +1279,10 @@ export default function DashboardPage() {
     const isDraft = !rental.agreement_status || rental.agreement_status === 'draft'
 
     const statusBanner = () => {
-      if (isExecuted) return { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)', icon: '✅', text: `Fully executed · Tenant signed ${relDate(rental.agreement_signed_at)} · Landlord countersigned ${relDate(rental.landlord_signed_at)}` }
-      if (tenantSigned) return { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)', icon: '⏳', text: `You signed on ${relDate(rental.agreement_signed_at)} — awaiting landlord countersignature.` }
-      if (rental.agreement_status === 'pending_signature') return { bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)', icon: '📋', text: 'Your landlord has sent this agreement for your signature. Read it fully before signing.' }
-      return { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)', icon: '📝', text: 'Agreement is being prepared by your landlord.' }
+      if (isExecuted) return { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)', icon: 'check', text: `Fully executed · Tenant signed ${relDate(rental.agreement_signed_at)} · Landlord countersigned ${relDate(rental.landlord_signed_at)}` }
+      if (tenantSigned) return { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)', icon: 'clock', text: `You signed on ${relDate(rental.agreement_signed_at)} — awaiting landlord countersignature.` }
+      if (rental.agreement_status === 'pending_signature') return { bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)', icon: 'clipboard', text: 'Your landlord has sent this agreement for your signature. Read it fully before signing.' }
+      return { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)', icon: 'file-text', text: 'Agreement is being prepared by your landlord.' }
     }
     const banner = statusBanner()
 
@@ -1253,15 +1291,15 @@ export default function DashboardPage() {
         <div style={topStyle}>
           <div><div style={eyebrowStyle}>Tenant · Agreement</div><h1 style={h1Style}>Rental agreement.</h1></div>
           <div style={{ display: 'flex', gap: 10 }}>
-            {isExecuted && <button onClick={() => window.print()} style={actBtnSm}>⬇ Print / PDF</button>}
-            {!tenantSigned && rental.agreement_status === 'pending_signature' && <button onClick={() => setModal('sign-agreement')} style={actBtnPrimary}>✍ Sign agreement</button>}
+            {isExecuted && <button onClick={() => window.print()} style={actBtnSm}><Icon k="download" size={13} stroke={2} /> Print / PDF</button>}
+            {!tenantSigned && rental.agreement_status === 'pending_signature' && <button onClick={() => setModal('sign-agreement')} style={actBtnPrimary}><Icon k="pen" size={14} stroke={2} /> Sign agreement</button>}
             {rental.status === 'active' && <button onClick={() => { setSelectedRental(rental); setModal('end-lease') }} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-danger)', fontWeight: 600 }}>Give notice</button>}
           </div>
         </div>
 
         {/* Status banner */}
         <div style={{ marginBottom: 16, padding: '12px 18px', borderRadius: 12, background: banner.bg, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-          <span style={{ fontSize: 18, flexShrink: 0 }}>{banner.icon}</span>
+          <span style={{ flexShrink: 0, color: banner.c }}><Icon k={banner.icon} size={18} stroke={1.8} /></span>
           <span style={{ fontSize: 13, color: banner.c, fontWeight: 500, lineHeight: 1.55 }}>{banner.text}</span>
         </div>
 
@@ -1277,14 +1315,14 @@ export default function DashboardPage() {
                   By clicking "Sign agreement" you confirm you have read and understood all terms above.
                   Your name, timestamp, and unique session ID will be recorded as your digital signature.
                 </p>
-                <button onClick={() => setModal('sign-agreement')} style={{ ...actBtnPrimary, width: '100%', justifyContent: 'center', padding: '13px 0', fontSize: 15 }}>✍ Sign agreement</button>
+                <button onClick={() => setModal('sign-agreement')} style={{ ...actBtnPrimary, width: '100%', justifyContent: 'center', padding: '13px 0', fontSize: 15 }}><Icon k="pen" size={15} stroke={2} /> Sign agreement</button>
               </div>
             )}
           </section>
         ) : (
           <section style={cardStyle}>
             <div style={{ textAlign: 'center', padding: '32px 0' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+              <div style={{ marginBottom: 16, color: 'var(--rb-ink-3)' }}><Icon k="clipboard" size={48} stroke={1.2} /></div>
               <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--rb-ink)' }}>Agreement being prepared</div>
               <p style={{ fontSize: 14, color: 'var(--rb-ink-3)', marginTop: 8, lineHeight: 1.6 }}>Your landlord is finalising the agreement. You'll be able to read and sign it here once it's sent.</p>
             </div>
@@ -1401,7 +1439,7 @@ export default function DashboardPage() {
               {profile?.upi_id ? (
                 <>
                   <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 14, fontWeight: 600, padding: '10px 14px', background: 'var(--rb-fill)', borderRadius: 10, marginBottom: 12, wordBreak: 'break-all' as const, color: 'var(--rb-ink)' }}>{profile.upi_id}</div>
-                  <button onClick={copyUpi} style={{ ...actBtnPrimary, fontSize: 12 }}>{copied ? '✓ Copied!' : '📋 Copy UPI ID'}</button>
+                  <button onClick={copyUpi} style={{ ...actBtnPrimary, fontSize: 12 }}>{copied ? '✓ Copied!' : <><Icon k="clipboard" size={13} stroke={2} /> Copy UPI ID</>}</button>
                   <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 8, lineHeight: 1.5 }}>Share with tenants so they know where to send rent.</div>
                 </>
               ) : (
@@ -1524,12 +1562,12 @@ export default function DashboardPage() {
           <p style={{ fontSize: 14, color: 'var(--rb-ink-2)', marginBottom: 22, lineHeight: 1.55 }}>What are you adding?</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <button onClick={() => setModal('add-building')} style={{ padding: 22, background: 'linear-gradient(135deg,#0E1413,#1a2e2c)', border: 0, borderRadius: 14, textAlign: 'left', cursor: 'pointer', color: '#F6F4EE' }}>
-              <div style={{ fontSize: 30, marginBottom: 10 }}>🏢</div>
+              <div style={{ marginBottom: 10, color: 'rgba(246,244,238,.85)' }}><Icon k="building" size={30} stroke={1.5} /></div>
               <div style={{ fontSize: 14, fontWeight: 700 }}>Building</div>
               <div style={{ fontSize: 12, color: 'rgba(246,244,238,.6)', marginTop: 6, lineHeight: 1.55 }}>Apartments, PGs, or multi-unit complexes — manage all units together</div>
             </button>
             <button onClick={() => setMode('standalone')} style={{ padding: 22, background: 'var(--rb-surface)', border: '1.5px solid var(--rb-border)', borderRadius: 14, textAlign: 'left', cursor: 'pointer', color: 'var(--rb-ink)' }}>
-              <div style={{ fontSize: 30, marginBottom: 10 }}>🏠</div>
+              <div style={{ marginBottom: 10, color: 'var(--rb-action)' }}><Icon k="home" size={30} stroke={1.5} /></div>
               <div style={{ fontSize: 14, fontWeight: 700 }}>Standalone</div>
               <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 6, lineHeight: 1.55 }}>A single property rented to one household</div>
             </button>
@@ -1668,7 +1706,7 @@ export default function DashboardPage() {
         <Field label="Note (optional)"><input style={inputStyle} value={note} onChange={e => setNote(e.target.value)} placeholder="Any note for your landlord" /></Field>
         <Field label="Upload receipt (optional)">
           <div style={{ border: '1.5px dashed var(--rb-border)', borderRadius: 10, padding: '20px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
-            {preview ? <img src={preview} alt="Receipt" style={{ maxHeight: 120, borderRadius: 8 }} /> : <div style={{ color: 'var(--rb-ink-3)', fontSize: 13 }}>📎 Tap to attach screenshot</div>}
+            {preview ? <img src={preview} alt="Receipt" style={{ maxHeight: 120, borderRadius: 8 }} /> : <div style={{ color: 'var(--rb-ink-3)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon k="paperclip" size={14} stroke={1.8} /> Tap to attach screenshot</div>}
             <input type="file" accept="image/*" onChange={handleFile} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
           </div>
         </Field>
@@ -1995,7 +2033,7 @@ export default function DashboardPage() {
         </Field>
         <Field label="Photo">
           <div style={{ border: '1.5px dashed var(--rb-border)', borderRadius: 10, padding: '20px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
-            {preview ? <img src={preview} alt="Preview" style={{ maxHeight: 140, borderRadius: 8, maxWidth: '100%' }} /> : <div style={{ color: 'var(--rb-ink-3)', fontSize: 13 }}>📷 Tap to choose photo</div>}
+            {preview ? <img src={preview} alt="Preview" style={{ maxHeight: 140, borderRadius: 8, maxWidth: '100%' }} /> : <div style={{ color: 'var(--rb-ink-3)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon k="camera" size={14} stroke={1.8} /> Tap to choose photo</div>}
             <input type="file" accept="image/*" onChange={handleFile} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
           </div>
         </Field>
@@ -2136,7 +2174,7 @@ export default function DashboardPage() {
         {/* Pending payment review */}
         {hasPending && currentPmt && (
           <div style={{ marginBottom: 20, padding: 16, background: 'var(--rb-warning-soft)', borderRadius: 12, border: '1px solid rgba(184,116,15,.25)' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-warning)', marginBottom: 8 }}>⏳ Payment awaiting review</div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-warning)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon k="clock" size={12} stroke={2} /> Payment awaiting review</div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{inr(currentPmt.amount)} · {monthLabel(currentPmt.month)}</div>
             {currentPmt.payment_method && <div style={{ fontSize: 12, color: 'var(--rb-ink-2)', marginTop: 4 }}>via {methodLabel(currentPmt.payment_method)}</div>}
             {currentPmt.utr_number && <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Ref: {currentPmt.utr_number}</div>}
@@ -2194,10 +2232,10 @@ export default function DashboardPage() {
                   {/* Copy link + SMS row */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <button onClick={handleCopyLink} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: copied ? '#00C896' : 'rgba(246,244,238,.8)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'color .2s' }}>
-                      {copied ? '✓ Copied!' : '🔗 Copy link'}
+                      {copied ? '✓ Copied!' : <><Icon k="link" size={14} stroke={2} /> Copy link</>}
                     </button>
                     <a href={`sms:?body=${smsMsg}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: 'rgba(246,244,238,.8)', textDecoration: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>
-                      💬 Send SMS
+                      <Icon k="chat" size={14} stroke={1.8} /> Send SMS
                     </a>
                   </div>
 
@@ -2221,10 +2259,10 @@ export default function DashboardPage() {
             ) : (
               /* No valid link yet */
               <div style={{ padding: '24px 20px', borderRadius: 16, border: '2px dashed var(--rb-border)', textAlign: 'center' }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🔗</div>
+                <div style={{ marginBottom: 10, color: 'var(--rb-ink-3)' }}><Icon k="link" size={36} stroke={1.3} /></div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--rb-ink)', marginBottom: 6 }}>No invite link yet</div>
                 <div style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 18, lineHeight: 1.5 }}>Generate a link to invite your tenant via WhatsApp, SMS, or any messaging app</div>
-                <button onClick={handleRegenerateLink} disabled={saving} style={actBtnPrimary}>{saving ? 'Generating…' : '🔗 Generate invite link'}</button>
+                <button onClick={handleRegenerateLink} disabled={saving} style={actBtnPrimary}>{saving ? 'Generating…' : <><Icon k="link" size={14} stroke={2} /> Generate invite link</>}</button>
               </div>
             )}
           </div>
@@ -2364,7 +2402,7 @@ export default function DashboardPage() {
             : <>This will send a lease termination request for <strong>{r.property?.name}</strong>. Your landlord will be notified.</>}
         </p>
         <div style={{ marginTop: 14, padding: 14, background: 'var(--rb-danger-soft)', borderRadius: 10, fontSize: 13, color: 'var(--rb-danger)', lineHeight: 1.5 }}>
-          ⚠ This action cannot be undone. All data will be archived.
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon k="warning" size={13} stroke={2} /> This action cannot be undone. All data will be archived.</span>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
           <button onClick={() => setModal(isLandlord ? 'property-detail' : null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
@@ -2417,7 +2455,7 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => setModal(null)} style={{ flex: 1, padding: '11px 0', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>Cancel</button>
-            <button onClick={handleSign} disabled={saving || !confirmed} style={{ flex: 2, padding: '11px 0', borderRadius: 999, background: confirmed ? 'var(--rb-action)' : 'var(--rb-border)', color: '#fff', border: 0, cursor: confirmed ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'background .2s' }}>{saving ? 'Signing…' : '✍ Sign agreement'}</button>
+            <button onClick={handleSign} disabled={saving || !confirmed} style={{ flex: 2, padding: '11px 0', borderRadius: 999, background: confirmed ? 'var(--rb-action)' : 'var(--rb-border)', color: '#fff', border: 0, cursor: confirmed ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'background .2s' }}>{saving ? 'Signing…' : <><Icon k="pen" size={14} stroke={2} /> Sign agreement</>}</button>
           </div>
         </div>
       </div>
@@ -2629,13 +2667,13 @@ export default function DashboardPage() {
       <Modal title={`Add unit · ${building.name}`} onClose={() => { setModal(null); setSelectedBuilding(null) }}>
         {/* Building address strip */}
         <div style={{ padding: '8px 12px', background: 'var(--rb-surface)', borderRadius: 10, marginBottom: 16, fontSize: 13, color: 'var(--rb-ink-3)' }}>
-          🏢 {building.address_line1}, {building.city}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon k="building" size={13} stroke={1.8} /> {building.address_line1}, {building.city}</span>
         </div>
 
         {/* Mode toggle */}
         <div style={{ display: 'flex', background: 'var(--rb-fill-2)', borderRadius: 12, padding: 4, marginBottom: 20, gap: 4 }}>
           <button style={tabBtn(mode === 'single')} onClick={() => setMode('single')}>Single unit</button>
-          <button style={tabBtn(mode === 'bulk')} onClick={() => setMode('bulk')}>⚡ Bulk generate</button>
+          <button style={tabBtn(mode === 'bulk')} onClick={() => setMode('bulk')}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon k="zap" size={13} stroke={2} /> Bulk generate</span></button>
         </div>
 
         {/* ── SINGLE UNIT FORM ── */}
@@ -2699,16 +2737,16 @@ export default function DashboardPage() {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 10 }}>Unit naming</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 18 }}>
             {[
-              ['floor',      '🏢 Floor prefix',  'Floor 1 → 101, 102 … Floor 2 → 201, 202 …'],
-              ['sequential', '🔢 Sequential',    'Simple numbers — 1, 2, 3 … 30'],
-              ['custom',     '✏️ Custom prefix',  'e.g. "Room " → Room 1, Room 2 …'],
-            ].map(([val, label, hint]) => (
+              ['floor',      'building', 'Floor prefix',  'Floor 1 → 101, 102 … Floor 2 → 201, 202 …'],
+              ['sequential', 'hash',     'Sequential',    'Simple numbers — 1, 2, 3 … 30'],
+              ['custom',     'edit',     'Custom prefix', 'e.g. "Room " → Room 1, Room 2 …'],
+            ].map(([val, iconKey, label, hint]) => (
               <label key={val} onClick={() => setBulk(b => ({ ...b, pattern: val }))} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${bulk.pattern === val ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: bulk.pattern === val ? 'var(--rb-action-soft)' : 'transparent', cursor: 'pointer', transition: 'all .15s' }}>
                 <span style={{ marginTop: 1, width: 16, height: 16, borderRadius: '50%', border: `2px solid ${bulk.pattern === val ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: bulk.pattern === val ? 'var(--rb-action)' : 'transparent', flexShrink: 0, display: 'grid', placeItems: 'center' }}>
                   {bulk.pattern === val && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
                 </span>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)', display: 'flex', alignItems: 'center', gap: 5 }}><Icon k={iconKey} size={13} stroke={1.8} />{label}</div>
                   <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2 }}>{hint}</div>
                 </div>
               </label>
@@ -3135,9 +3173,9 @@ export default function DashboardPage() {
                 }} style={actBtnPrimary}>Send to tenant →</button>
               )}
               {tenantSigned && !activeRental.landlord_signed_at && (
-                <button onClick={() => { setSelectedRental(activeRental); setModal('landlord-sign') }} style={{ ...actBtnPrimary, background: 'var(--rb-success)' }}>✍ Countersign</button>
+                <button onClick={() => { setSelectedRental(activeRental); setModal('landlord-sign') }} style={{ ...actBtnPrimary, background: 'var(--rb-success)' }}><Icon k="pen" size={14} stroke={2} /> Countersign</button>
               )}
-              <button onClick={() => window.print()} style={actBtnSm}>⬇ Print / PDF</button>
+              <button onClick={() => window.print()} style={actBtnSm}><Icon k="download" size={13} stroke={2} /> Print / PDF</button>
             </div>
           </div>
           <section style={{ ...cardStyle, padding: '0' }}>
@@ -3153,15 +3191,15 @@ export default function DashboardPage() {
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Agreements</div><h1 style={h1Style}>Agreements.</h1><p style={subStyle}>{rentals.length} rental{rentals.length !== 1 ? 's' : ''}</p></div></div>
         <section style={cardStyle}>
-          {rentals.length === 0 ? <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>📋</div><p>No rentals yet. Create a rental to generate an agreement.</p></div>
+          {rentals.length === 0 ? <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="clipboard" size={32} stroke={1.5} /></div><p>No rentals yet. Create a rental to generate an agreement.</p></div>
             : rentals.map((r: Rental) => {
                 const pill = statusPill(r)
                 const isExecuted = r.agreement_signed_at && r.landlord_signed_at
                 const needsAction = r.agreement_signed_at && !r.landlord_signed_at
                 return (
                   <div key={r.id} onClick={() => setActiveRental(r)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--rb-border-soft)', cursor: 'pointer' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: isExecuted ? 'var(--rb-action-soft)' : needsAction ? 'var(--rb-warning-soft)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', fontSize: 20, flexShrink: 0 }}>
-                      {isExecuted ? '✅' : needsAction ? '✍' : '📋'}
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: isExecuted ? 'var(--rb-action-soft)' : needsAction ? 'var(--rb-warning-soft)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', flexShrink: 0, color: isExecuted ? 'var(--rb-action)' : needsAction ? 'var(--rb-warning)' : 'var(--rb-ink-3)' }}>
+                      {isExecuted ? <Icon k="check" size={20} stroke={2} /> : needsAction ? <Icon k="pen" size={18} stroke={2} /> : <Icon k="clipboard" size={18} stroke={1.8} />}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--rb-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.property?.name || '—'}</div>
@@ -3261,7 +3299,7 @@ export default function DashboardPage() {
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
-          <button onClick={handleSign} disabled={saving || !confirmed} style={{ padding: '8px 18px', borderRadius: 999, background: confirmed ? 'var(--rb-action)' : 'var(--rb-border)', color: '#fff', border: 0, cursor: confirmed ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'background .2s' }}>{saving ? 'Signing…' : '✍ Countersign'}</button>
+          <button onClick={handleSign} disabled={saving || !confirmed} style={{ padding: '8px 18px', borderRadius: 999, background: confirmed ? 'var(--rb-action)' : 'var(--rb-border)', color: '#fff', border: 0, cursor: confirmed ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'background .2s' }}>{saving ? 'Signing…' : <><Icon k="pen" size={13} stroke={2} /> Countersign</>}</button>
         </div>
       </Modal>
     )
@@ -3347,7 +3385,7 @@ export default function DashboardPage() {
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Messages</div><h1 style={h1Style}>Messages.</h1><p style={subStyle}>{rentals.length} active tenant{rentals.length !== 1 ? 's' : ''}</p></div></div>
         <section style={cardStyle}>
-          {rentals.length === 0 ? <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>💬</div><p>No active tenants yet. Add a tenant to start messaging.</p></div>
+          {rentals.length === 0 ? <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="chat" size={32} stroke={1.5} /></div><p>No active tenants yet. Add a tenant to start messaging.</p></div>
             : rentals.map((r: Rental) => (
               <div key={r.id} onClick={() => setActiveThread(r)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--rb-border-soft)', cursor: 'pointer' }}>
                 <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg,#c9b388,#7a6042)', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 16, fontWeight: 700, flexShrink: 0 }}>{(r.tenant?.full_name || 'T').charAt(0).toUpperCase()}</div>
