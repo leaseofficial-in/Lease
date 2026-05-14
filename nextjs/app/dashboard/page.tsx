@@ -6,8 +6,9 @@ import { LogoLockup } from '@/components/brand'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string }
+type Building = { id: string; name: string; address_line1: string; address_line2?: string; city: string; state: string; pincode: string; property_type?: string; total_units?: number; created_at: string }
 type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
-type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string; bedrooms?: number; bathrooms?: number; area_sqft?: number; floor_number?: number; parking?: boolean }
+type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string; bedrooms?: number; bathrooms?: number; area_sqft?: number; floor_number?: number; parking?: boolean; building_id?: string; unit_number?: string; building?: Building }
 type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; created_at: string; updated_at?: string }
 type RepairRequest = { id: string; rental_id: string; title: string; description?: string; status: string; cost?: number; category?: string; urgency?: string; photo_url?: string; landlord_note?: string; scheduled_date?: string; deduct_from_deposit?: boolean; created_at: string; rental?: { property?: Property } }
 type Proof = { id: string; rental_id: string; type: string; status: string; proof_photos?: ProofPhoto[] }
@@ -116,6 +117,7 @@ export default function DashboardPage() {
   const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null)
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null)
   const [selectedRepair, setSelectedRepair] = useState<RepairRequest | null>(null)
+  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null)
 
   const toast = useCallback((msg: string, type: Toast['type'] = 'info') => {
     const id = ++toastId
@@ -142,11 +144,13 @@ export default function DashboardPage() {
         const role = prof?.role
 
         if (role === 'landlord') {
-          const [rentalsRes, ytdRes] = await Promise.all([
-            sb.from('rentals').select('*, property:properties(*), tenant:profiles!rentals_tenant_id_fkey(full_name, phone, avatar_url)').eq('landlord_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }).limit(10),
+          const [rentalsRes, ytdRes, buildingsRes] = await Promise.all([
+            sb.from('rentals').select('*, property:properties(*, building:buildings(*)), tenant:profiles!rentals_tenant_id_fkey(full_name, phone, avatar_url)').eq('landlord_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }),
             sb.from('rent_payments').select('id, amount, month, status, rental_id, created_at, rental:rentals!inner(landlord_id, property:properties(name, city))').eq('rental.landlord_id', u.id).gte('month', `${now.getFullYear()}-01-01`).order('created_at', { ascending: false }),
+            sb.from('buildings').select('*').eq('landlord_id', u.id).order('created_at', { ascending: false }),
           ])
           const rentals: Rental[] = rentalsRes.data || []
+          const buildings: Building[] = buildingsRes.data || []
           const rentalIds = rentals.map(r => r.id)
           let currentPayments: RentPayment[] = [], recentRepairs: RepairRequest[] = []
           if (rentalIds.length) {
@@ -166,7 +170,7 @@ export default function DashboardPage() {
           const collectionRate = totalMonthlyRent > 0 ? Math.round((paidThisMonth / totalMonthlyRent) * 100) : 0
           const ytdTotal = ytdPayments.reduce((s, p) => s + Number(p.amount), 0)
           const score = Math.min(900, Math.round(600 + (collectionRate / 100) * 180 + (rentals.length > 0 ? 20 : 0)))
-          setLandlordData({ rentals, currentPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs, ytdPayments })
+          setLandlordData({ rentals, buildings, currentPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs, ytdPayments })
         } else if (role === 'tenant') {
           const { data: rental } = await sb.from('rentals').select('*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(full_name, avatar_url)').eq('tenant_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
           let currentPayment: RentPayment | null = null, recentPayments: RentPayment[] = [], openRepairs: RepairRequest[] = [], proofs: Proof | null = null, depositTransactions: DepositTx[] = []
@@ -295,20 +299,120 @@ export default function DashboardPage() {
   }
 
   // ── Landlord views ───────────────────────────────────────────────────────
+
+  // Unit row inside a building card
+  function UnitRow({ r, currentPayments }: { r: Rental; currentPayments: RentPayment[] }) {
+    const pmt = currentPayments.find(p => p.rental_id === r.id)
+    const pillMap = { paid: { t: 'Paid', bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }, pending_verification: { t: 'Review', bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)' }, pending: { t: 'Due', bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' }, overdue: { t: 'Overdue', bg: 'rgba(239,68,68,.1)', c: 'var(--rb-danger)' } }
+    const pill = (pmt && (pillMap as any)[pmt.status]) || (!r.tenant_id ? { t: 'Vacant', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' } : { t: 'Pending', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' })
+    return (
+      <div onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ display: 'grid', gridTemplateColumns: '48px 1fr auto', gap: 12, alignItems: 'center', padding: '10px 12px', background: 'var(--rb-surface)', borderRadius: 10, cursor: 'pointer', border: '1px solid var(--rb-border-soft)' }}>
+        <div style={{ width: 48, height: 48, borderRadius: 8, background: r.tenant_id ? 'linear-gradient(135deg,#2a5298,#1e3c72)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', fontSize: 18 }}>{r.tenant_id ? '🔑' : '🔓'}</div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--rb-ink)' }}>
+            {r.property?.unit_number ? `Unit ${r.property.unit_number}` : r.property?.name || 'Unit'}
+            {r.property?.bedrooms && <span style={{ fontSize: 11, color: 'var(--rb-ink-3)', fontWeight: 400, marginLeft: 6 }}>{r.property.bedrooms} BHK{r.property.area_sqft ? ` · ${r.property.area_sqft} sqft` : ''}</span>}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || 'Vacant'}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{inr(r.monthly_rent)}<span style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>/mo</span></div>
+          <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 999, display: 'inline-block', marginTop: 3, letterSpacing: '.04em', background: pill.bg, color: pill.c }}>{pill.t}</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Building card — shows occupancy stats + all its units
+  function BuildingCard({ building, rentals, currentPayments }: { building: Building; rentals: Rental[]; currentPayments: RentPayment[] }) {
+    const [expanded, setExpanded] = useState(true)
+    const occupied = rentals.filter(r => r.tenant_id && r.status === 'active').length
+    const totalRent = rentals.reduce((s, r) => s + Number(r.monthly_rent), 0)
+    const collected = currentPayments.filter(p => p.status === 'paid' && rentals.some(r => r.id === p.rental_id)).reduce((s, p) => s + Number(p.amount), 0)
+    const pct = totalRent > 0 ? Math.round(collected / totalRent * 100) : 0
+    const openPmt = currentPayments.find(p => p.status === 'pending_verification' && rentals.some(r => r.id === p.rental_id))
+    return (
+      <div style={{ border: '1px solid var(--rb-border)', borderRadius: 16, overflow: 'hidden', marginBottom: 16 }}>
+        {/* Building header */}
+        <div style={{ padding: '16px 18px', background: 'var(--rb-surface)', cursor: 'pointer' }} onClick={() => setExpanded(e => !e)}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#0E1413,#2a3a38)', display: 'grid', placeItems: 'center', fontSize: 18, flexShrink: 0 }}>🏢</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--rb-ink)' }}>{building.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{building.address_line1}, {building.city}</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+                {[
+                  { l: 'Units', v: `${rentals.length}` },
+                  { l: 'Occupied', v: `${occupied}` },
+                  { l: 'Vacant', v: `${rentals.length - occupied}` },
+                  { l: 'Collection', v: `${pct}%` },
+                  { l: 'Total rent', v: inr(totalRent) + '/mo' },
+                ].map(s => (
+                  <div key={s.l}>
+                    <div style={{ fontSize: 10, color: 'var(--rb-ink-3)', fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' as const }}>{s.l}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--rb-ink)', marginTop: 1 }}>{s.v}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ height: 4, background: 'var(--rb-fill-2)', borderRadius: 4, marginTop: 10, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: 'var(--rb-action)', borderRadius: 4, transition: 'width .4s' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginLeft: 12, flexShrink: 0, alignItems: 'flex-start' }}>
+              <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('add-unit') }} style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600 }}>+ Add unit</button>
+              <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('building-detail') }} style={{ padding: '6px 10px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-ink-3)' }}>Edit</button>
+              <span style={{ fontSize: 18, color: 'var(--rb-ink-3)', lineHeight: 1, marginTop: 4 }}>{expanded ? '▾' : '▸'}</span>
+            </div>
+          </div>
+          {openPmt && <div style={{ marginTop: 10, padding: '6px 12px', background: 'var(--rb-warning-soft)', borderRadius: 8, fontSize: 12, color: 'var(--rb-warning)', fontWeight: 600 }}>⏳ Payment awaiting review</div>}
+        </div>
+        {/* Unit list */}
+        {expanded && (
+          <div style={{ padding: '12px 18px 16px', background: 'var(--rb-canvas)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {rentals.length === 0
+              ? <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--rb-ink-3)', fontSize: 13 }}>No units added yet. <button onClick={() => { setSelectedBuilding(building); setModal('add-unit') }} style={{ color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>Add first unit →</button></div>
+              : rentals.map(r => <UnitRow key={r.id} r={r} currentPayments={currentPayments} />)
+            }
+          </div>
+        )}
+      </div>
+    )
+  }
+
   function LandlordHome() {
     const d = landlordData
-    if (!d || d.rentals?.length === 0) return <LandlordEmpty />
-    const { rentals, currentPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs } = d
+    if (!d || (d.rentals?.length === 0 && d.buildings?.length === 0)) return <LandlordEmpty />
+    const { rentals, buildings, currentPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs } = d
     const band = scoreBand(score)
     const pct = totalMonthlyRent > 0 ? Math.min(100, Math.round(paidThisMonth / totalMonthlyRent * 100)) : 0
     const openRepairs = recentRepairs.filter((r: RepairRequest) => r.status === 'open' || r.status === 'in_progress')
+
+    // Group rentals by building
+    const buildingRentalsMap = new Map<string, Rental[]>()
+    const standaloneRentals: Rental[] = []
+    for (const r of rentals) {
+      const bid = r.property?.building_id
+      if (bid) {
+        if (!buildingRentalsMap.has(bid)) buildingRentalsMap.set(bid, [])
+        buildingRentalsMap.get(bid)!.push(r)
+      } else {
+        standaloneRentals.push(r)
+      }
+    }
+    // Include buildings that have no rentals yet
+    const allBuildings = buildings.filter((b: Building) => !buildingRentalsMap.has(b.id) ? true : true)
+
     return (
       <>
         <div style={topStyle}>
           <div>
             <div style={eyebrowStyle}>Landlord · Overview</div>
             <h1 style={h1Style}>Good morning, {firstName}.</h1>
-            <p style={subStyle}>You have <strong>{activeRentals.length} active propert{activeRentals.length === 1 ? 'y' : 'ies'}</strong>{dueThisMonth > 0 ? <> — <strong>{inr(dueThisMonth)} pending</strong> this month</> : ' — all collections up to date'}. Score <strong>{score}/900</strong>.</p>
+            <p style={subStyle}>You have <strong>{activeRentals.length} active unit{activeRentals.length === 1 ? '' : 's'}</strong>{dueThisMonth > 0 ? <> — <strong>{inr(dueThisMonth)} pending</strong> this month</> : ' — all collections up to date'}. Score <strong>{score}/900</strong>.</p>
           </div>
         </div>
         <div className="d-grid-inner" style={gridStyle}>
@@ -318,10 +422,7 @@ export default function DashboardPage() {
             <div style={{ height: 6, background: 'rgba(246,244,238,.12)', borderRadius: 999, marginTop: 18, overflow: 'hidden' }}><div style={{ height: '100%', width: `${pct}%`, background: 'var(--rb-accent)', borderRadius: 999 }} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginTop: 22, paddingTop: 20, borderTop: '1px solid rgba(246,244,238,.12)' }}>
               {[{ l: 'On time', v: `${onTimeCount} / ${activeRentals.length}` }, { l: 'Pending', v: dueThisMonth > 0 ? inr(dueThisMonth) : '—', accent: true }, { l: 'YTD income', v: ytdTotal > 100000 ? (ytdTotal/100000).toFixed(1)+'L' : inr(ytdTotal) }, { l: 'Score', v: `${score}`, of: '/900' }].map(s => (
-                <div key={s.l}>
-                  <div style={{ fontSize: 11, color: 'rgba(246,244,238,.55)', letterSpacing: '.08em', textTransform: 'uppercase' as const }}>{s.l}</div>
-                  <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24, marginTop: 4, color: s.accent ? 'var(--rb-accent)' : undefined }}>{s.v}{s.of && <span style={{ fontSize: 14, color: 'rgba(246,244,238,.5)' }}>{s.of}</span>}</div>
-                </div>
+                <div key={s.l}><div style={{ fontSize: 11, color: 'rgba(246,244,238,.55)', letterSpacing: '.08em', textTransform: 'uppercase' as const }}>{s.l}</div><div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24, marginTop: 4, color: s.accent ? 'var(--rb-accent)' : undefined }}>{s.v}{s.of && <span style={{ fontSize: 14, color: 'rgba(246,244,238,.5)' }}>{s.of}</span>}</div></div>
               ))}
             </div>
           </section>
@@ -331,24 +432,35 @@ export default function DashboardPage() {
             <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 64, lineHeight: 1, marginTop: 10, letterSpacing: '-.03em', color: 'var(--rb-accent)' }}>{score}</div>
             <span style={{ display: 'inline-block', marginTop: 8, padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: '.12em', background: 'var(--rb-accent-soft)', color: 'var(--rb-accent)' }}>{band.label}</span>
             <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[{ l: `Collection rate · ${collectionRate}%`, w: collectionRate }, { l: `${rentals.length} propert${rentals.length===1?'y':'ies'} managed`, w: Math.min(100, rentals.length * 25) }, { l: openRepairs.length === 0 ? 'No open repairs' : `${openRepairs.length} open repair${openRepairs.length>1?'s':''}`, w: openRepairs.length === 0 ? 100 : Math.max(10, 100 - openRepairs.length * 20) }].map(b => (
+              {[{ l: `Collection rate · ${collectionRate}%`, w: collectionRate }, { l: `${rentals.length} unit${rentals.length===1?'':'s'} · ${buildings.length} building${buildings.length===1?'':'s'}`, w: Math.min(100, rentals.length * 20) }, { l: openRepairs.length === 0 ? 'No open repairs' : `${openRepairs.length} open repair${openRepairs.length>1?'s':''}`, w: openRepairs.length === 0 ? 100 : Math.max(10, 100 - openRepairs.length * 20) }].map(b => (
                 <div key={b.l}><span style={{ fontSize: 12, color: 'var(--rb-ink-2)' }}>{b.l}</span><div style={{ height: 4, background: 'var(--rb-fill-2)', borderRadius: 4, marginTop: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: `${b.w}%`, background: 'var(--rb-accent)', borderRadius: 4 }} /></div></div>
               ))}
             </div>
           </section>
 
           <section style={{ ...cardStyle, gridColumn: 'span 2' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <div><h3 style={cardH3Style}>Properties</h3><span style={{ fontSize: 12, color: 'var(--rb-ink-3)', display: 'block', marginTop: 4 }}>{activeRentals.length} active · {rentals.length} total</span></div>
-              <button onClick={() => setModal('add-property')} style={actBtnPrimary}>+ Add property</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+              <div><h3 style={cardH3Style}>Portfolio</h3><span style={{ fontSize: 12, color: 'var(--rb-ink-3)', display: 'block', marginTop: 4 }}>{buildings.length} building{buildings.length!==1?'s':''} · {standaloneRentals.length} standalone · {activeRentals.length} active</span></div>
+              <button onClick={() => setModal('add-property')} style={actBtnPrimary}>+ Add</button>
             </div>
-            <PropList rentals={rentals} currentPayments={currentPayments} />
+            {allBuildings.map((b: Building) => (
+              <BuildingCard key={b.id} building={b} rentals={buildingRentalsMap.get(b.id) || []} currentPayments={currentPayments} />
+            ))}
+            {standaloneRentals.length > 0 && (
+              <>
+                {allBuildings.length > 0 && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', margin: '20px 0 12px' }}>Standalone properties</div>}
+                <StandaloneList rentals={standaloneRentals} currentPayments={currentPayments} />
+              </>
+            )}
+            {allBuildings.length === 0 && standaloneRentals.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--rb-ink-3)', fontSize: 14 }}>No properties yet.</div>
+            )}
           </section>
 
           <section style={cardStyle}>
             <h3 style={cardH3Style}>Quick actions</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14 }}>
-              {[{ icon: '🏠', label: 'Add property', sub: 'Create & invite tenant', fn: () => setModal('add-property') }, { icon: '📄', label: 'HRA receipts', sub: 'View all issued', fn: () => navigate('hra') }, { icon: '🛠', label: 'Repairs', sub: 'Review open requests', fn: () => navigate('rep') }, { icon: '≡', label: 'Full ledger', sub: 'All transactions', fn: () => navigate('led') }].map(a => (
+              {[{ icon: '🏢', label: 'Add building', sub: 'Multi-unit complex', fn: () => setModal('add-building') }, { icon: '🏠', label: 'Standalone unit', sub: 'Single property', fn: () => setModal('add-property') }, { icon: '🛠', label: 'Repairs', sub: 'Review open requests', fn: () => navigate('rep') }, { icon: '≡', label: 'Full ledger', sub: 'All transactions', fn: () => navigate('led') }].map(a => (
                 <button key={a.label} onClick={a.fn} style={{ padding: 14, background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 10, textAlign: 'left', cursor: 'pointer', transition: 'all .2s', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span style={{ fontSize: 18 }}>{a.icon}</span><strong style={{ fontSize: 13, color: 'var(--rb-ink)' }}>{a.label}</strong><span style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>{a.sub}</span>
                 </button>
@@ -365,9 +477,9 @@ export default function DashboardPage() {
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Overview</div><h1 style={h1Style}>Good to see you, {firstName}.</h1></div></div>
         <div style={{ background: 'linear-gradient(135deg,var(--rb-action),var(--rb-action-hover))', borderRadius: 16, padding: '28px 32px', color: '#F6F4EE', marginBottom: 18 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: 'rgba(246,244,238,.6)' }}>No properties yet</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: 'rgba(246,244,238,.6)' }}>Get started</div>
           <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-.02em', marginTop: 6 }}>Add your first property.</h2>
-          <p style={{ fontSize: 14, color: 'rgba(246,244,238,.8)', marginTop: 8, lineHeight: 1.55 }}>Create a property, set rent terms, and share the invite link with your tenant.</p>
+          <p style={{ fontSize: 14, color: 'rgba(246,244,238,.8)', marginTop: 8, lineHeight: 1.55 }}>Add a building with multiple units, or a single standalone property. Set rent terms and share the invite link.</p>
           <div style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
             <button onClick={() => setModal('add-property')} style={{ ...actBtnPrimary, background: 'rgba(246,244,238,.15)', border: '1px solid rgba(246,244,238,.3)' }}>+ Add property →</button>
           </div>
@@ -376,17 +488,17 @@ export default function DashboardPage() {
     )
   }
 
-  function PropList({ rentals, currentPayments }: { rentals: Rental[]; currentPayments: RentPayment[] }) {
-    if (rentals.length === 0) return <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--rb-ink-3)' }}>No properties yet.</div>
+  function StandaloneList({ rentals, currentPayments }: { rentals: Rental[]; currentPayments: RentPayment[] }) {
+    if (rentals.length === 0) return null
+    const colors = ['#a87a4f','#9aa6a3','#c9a878','#a89280']
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {rentals.map((r, i) => {
           const pmt = currentPayments.find(p => p.rental_id === r.id)
-          const pill = !pmt ? { t: 'No tenant', cls: 'none' } : pmt.status === 'paid' ? { t: 'Paid', cls: 'paid' } : pmt.status === 'pending_verification' ? { t: 'Pending review', cls: 'pending' } : { t: 'Due', cls: 'due' }
+          const pill = !r.tenant_id ? { t: 'No tenant', cls: 'none' } : pmt?.status === 'paid' ? { t: 'Paid', cls: 'paid' } : pmt?.status === 'pending_verification' ? { t: 'Pending review', cls: 'pending' } : { t: 'Due', cls: 'due' }
           const pillColor = { paid: { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }, due: { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' }, pending: { bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)' }, none: { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' } }[pill.cls] || { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
-          const colors = ['#a87a4f','#9aa6a3','#c9a878','#a89280']
           return (
-            <div key={r.id} onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ display: 'grid', gridTemplateColumns: '56px 1fr auto', gap: 16, alignItems: 'center', padding: 12, background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 12, cursor: 'pointer', transition: 'border-color .18s' }}>
+            <div key={r.id} onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ display: 'grid', gridTemplateColumns: '56px 1fr auto', gap: 16, alignItems: 'center', padding: 12, background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 12, cursor: 'pointer' }}>
               <div style={{ width: 56, height: 56, borderRadius: 8, background: `linear-gradient(135deg,${colors[i%colors.length]},#2c1c0e)`, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 22 }}>🏠</div>
               <div>
                 <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', fontWeight: 600 }}>{r.property?.city || 'City'}</div>
@@ -410,13 +522,31 @@ export default function DashboardPage() {
   }
 
   function LandlordProperties() {
+    const d = landlordData
+    const rentals: Rental[] = d?.rentals || []
+    const buildings: Building[] = d?.buildings || []
+    const currentPayments: RentPayment[] = d?.currentPayments || []
+    const buildingRentalsMap = new Map<string, Rental[]>()
+    const standaloneRentals: Rental[] = []
+    for (const r of rentals) {
+      const bid = r.property?.building_id
+      if (bid) { if (!buildingRentalsMap.has(bid)) buildingRentalsMap.set(bid, []); buildingRentalsMap.get(bid)!.push(r) }
+      else standaloneRentals.push(r)
+    }
     return (
       <>
         <div style={topStyle}>
-          <div><div style={eyebrowStyle}>Landlord · Properties</div><h1 style={h1Style}>Properties.</h1></div>
-          <button onClick={() => setModal('add-property')} style={actBtnPrimary}>+ Add property</button>
+          <div><div style={eyebrowStyle}>Landlord · Properties</div><h1 style={h1Style}>Portfolio.</h1></div>
+          <button onClick={() => setModal('add-property')} style={actBtnPrimary}>+ Add</button>
         </div>
-        <section style={cardStyle}><PropList rentals={landlordData?.rentals || []} currentPayments={landlordData?.currentPayments || []} /></section>
+        <section style={cardStyle}>
+          {buildings.map((b: Building) => <BuildingCard key={b.id} building={b} rentals={buildingRentalsMap.get(b.id) || []} currentPayments={currentPayments} />)}
+          {standaloneRentals.length > 0 && <>
+            {buildings.length > 0 && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', margin: '20px 0 12px' }}>Standalone</div>}
+            <StandaloneList rentals={standaloneRentals} currentPayments={currentPayments} />
+          </>}
+          {buildings.length === 0 && standaloneRentals.length === 0 && <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--rb-ink-3)' }}><p>No properties yet.</p><button onClick={() => setModal('add-property')} style={{ ...actBtnPrimary, marginTop: 16 }}>+ Add your first</button></div>}
+        </section>
       </>
     )
   }
@@ -800,6 +930,7 @@ export default function DashboardPage() {
 
   // ── Modal actions ────────────────────────────────────────────────────────
   function AddPropertyModal() {
+    const [mode, setMode] = useState<'pick' | 'standalone'>('pick')
     const [form, setForm] = useState({
       property_type: 'apartment', bedrooms: '2', bathrooms: '1', area_sqft: '', floor_number: '', parking: false,
       name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '',
@@ -855,8 +986,28 @@ export default function DashboardPage() {
       } catch (e: any) { console.error('[AddProperty]', e); toast(e?.message || 'Failed to add property', 'error'); setSaving(false) }
     }
 
+    if (mode === 'pick') {
+      return (
+        <Modal title="Add property" onClose={() => setModal(null)}>
+          <p style={{ fontSize: 14, color: 'var(--rb-ink-2)', marginBottom: 22, lineHeight: 1.55 }}>What are you adding?</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <button onClick={() => setModal('add-building')} style={{ padding: 22, background: 'linear-gradient(135deg,#0E1413,#1a2e2c)', border: 0, borderRadius: 14, textAlign: 'left', cursor: 'pointer', color: '#F6F4EE' }}>
+              <div style={{ fontSize: 30, marginBottom: 10 }}>🏢</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Building</div>
+              <div style={{ fontSize: 12, color: 'rgba(246,244,238,.6)', marginTop: 6, lineHeight: 1.55 }}>Apartments, PGs, or multi-unit complexes — manage all units together</div>
+            </button>
+            <button onClick={() => setMode('standalone')} style={{ padding: 22, background: 'var(--rb-surface)', border: '1.5px solid var(--rb-border)', borderRadius: 14, textAlign: 'left', cursor: 'pointer', color: 'var(--rb-ink)' }}>
+              <div style={{ fontSize: 30, marginBottom: 10 }}>🏠</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Standalone</div>
+              <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 6, lineHeight: 1.55 }}>A single property rented to one household</div>
+            </button>
+          </div>
+        </Modal>
+      )
+    }
+
     return (
-      <Modal title="Add property" onClose={() => setModal(null)}>
+      <Modal title="Add standalone property" onClose={() => setModal(null)}>
         {/* ── Property details ── */}
         <Field label="Property type">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1631,6 +1782,261 @@ export default function DashboardPage() {
     )
   }
 
+  // ── Add building modal ───────────────────────────────────────────────────
+  function AddBuildingModal() {
+    const [form, setForm] = useState({
+      name: '', property_type: 'apartment', total_units: '',
+      address_line1: '', address_line2: '', city: '', state: '', pincode: '',
+    })
+    const [saving, setSaving] = useState(false)
+    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+    const chip = (k: string, v: string) => {
+      const active = (form as any)[k] === v
+      return { padding: '7px 14px', borderRadius: 999, border: `1.5px solid ${active ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: active ? 'var(--rb-action)' : 'transparent', color: active ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all .15s' }
+    }
+    const handleSubmit = async () => {
+      if (!form.name || !form.address_line1 || !form.city || !form.state || !form.pincode) {
+        toast('Fill in all required fields', 'error'); return
+      }
+      setSaving(true)
+      try {
+        const { error } = await sb.from('buildings').insert({
+          name: form.name, landlord_id: user.id, property_type: form.property_type,
+          total_units: form.total_units ? Number(form.total_units) : null,
+          address_line1: form.address_line1, address_line2: form.address_line2 || null,
+          city: form.city, state: form.state, pincode: form.pincode,
+        })
+        if (error) throw error
+        toast('Building created! Now add units to it.', 'success')
+        setModal(null); window.location.reload()
+      } catch (e: any) { console.error('[AddBuilding]', e); toast(e?.message || 'Failed to create building', 'error'); setSaving(false) }
+    }
+    return (
+      <Modal title="Add building" onClose={() => setModal(null)}>
+        <Field label="Building type">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[['apartment','Apartments'],['house','Villas / Row houses'],['pg','PG / Hostel'],['commercial','Commercial']].map(([v,l]) => (
+              <button key={v} style={chip('property_type', v)} onClick={() => setForm(f => ({ ...f, property_type: v }))}>{l}</button>
+            ))}
+          </div>
+        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Building name *"><input style={inputStyle} value={form.name} onChange={set('name')} placeholder="e.g. Sunrise Heights" /></Field>
+          <Field label="Total units"><input style={inputStyle} type="number" value={form.total_units} onChange={set('total_units')} placeholder="12" /></Field>
+        </div>
+        <Field label="Street address *"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} placeholder="Building no., street name" /></Field>
+        <Field label="Landmark / area"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} placeholder="Near Metro station" /></Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="City *"><input style={inputStyle} value={form.city} onChange={set('city')} placeholder="Hyderabad" /></Field>
+          <Field label="State *"><input style={inputStyle} value={form.state} onChange={set('state')} placeholder="Telangana" /></Field>
+        </div>
+        <Field label="Pincode *"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} placeholder="500001" /></Field>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+          <button onClick={() => setModal(null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Creating…' : 'Create building'}</button>
+        </div>
+      </Modal>
+    )
+  }
+
+  // ── Add unit to a building ───────────────────────────────────────────────
+  function AddUnitModal() {
+    const building = selectedBuilding
+    if (!building) return null
+    const [form, setForm] = useState({
+      unit_number: '', bedrooms: '2', bathrooms: '1', area_sqft: '', floor_number: '', parking: false,
+      monthly_rent: '', security_deposit: '', maintenance_charges: '0', rent_due_day: '5',
+      furnished_status: 'unfurnished', notice_period_days: '30', lock_in_period_months: '11',
+      late_fee_percent: '5', rent_increment_percent: '5',
+    })
+    const [saving, setSaving] = useState(false)
+    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+    const toggle = (k: string) => setForm(f => ({ ...f, [k]: !(f as any)[k] }))
+    const chip = (k: string, v: string) => {
+      const active = (form as any)[k] === v
+      return { padding: '6px 12px', borderRadius: 999, border: `1.5px solid ${active ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: active ? 'var(--rb-action)' : 'transparent', color: active ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, transition: 'all .15s' }
+    }
+    const SectionHead = ({ label }: { label: string }) => (
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginTop: 22, marginBottom: 12, paddingTop: 18, borderTop: '1px solid var(--rb-border)' }}>{label}</div>
+    )
+    const handleSubmit = async () => {
+      if (!form.unit_number || !form.monthly_rent) {
+        toast('Enter unit number and monthly rent', 'error'); return
+      }
+      setSaving(true)
+      try {
+        const { data: prop, error: propErr } = await sb.from('properties').insert({
+          name: `${building.name} – Unit ${form.unit_number}`,
+          unit_number: form.unit_number, building_id: building.id, landlord_id: user.id,
+          address_line1: building.address_line1, address_line2: building.address_line2 || null,
+          city: building.city, state: building.state, pincode: building.pincode,
+          property_type: building.property_type || 'apartment',
+          bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
+          bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
+          area_sqft: form.area_sqft ? Number(form.area_sqft) : null,
+          floor_number: form.floor_number ? Number(form.floor_number) : null,
+          parking: form.parking,
+        }).select().single()
+        if (propErr) throw propErr
+        const { error: rentalErr } = await sb.from('rentals').insert({
+          property_id: prop.id, landlord_id: user.id, status: 'pending_tenant',
+          start_date: new Date().toISOString().slice(0, 10),
+          monthly_rent: Number(form.monthly_rent), security_deposit: Number(form.security_deposit || 0),
+          maintenance_charges: Number(form.maintenance_charges || 0), rent_due_day: Number(form.rent_due_day),
+          furnished_status: form.furnished_status, notice_period_days: Number(form.notice_period_days || 30),
+          lock_in_period_months: Number(form.lock_in_period_months || 11),
+          late_fee_percent: Number(form.late_fee_percent || 5), rent_increment_percent: Number(form.rent_increment_percent || 5),
+        })
+        if (rentalErr) throw rentalErr
+        toast('Unit added!', 'success')
+        setModal(null); window.location.reload()
+      } catch (e: any) { console.error('[AddUnit]', e); toast(e?.message || 'Failed to add unit', 'error'); setSaving(false) }
+    }
+    return (
+      <Modal title={`Add unit · ${building.name}`} onClose={() => { setModal(null); setSelectedBuilding(null) }}>
+        <div style={{ padding: '10px 12px', background: 'var(--rb-surface)', borderRadius: 10, marginBottom: 18, fontSize: 13, color: 'var(--rb-ink-3)' }}>
+          🏢 {building.address_line1}, {building.city}
+        </div>
+        <Field label="Unit number *"><input style={inputStyle} value={form.unit_number} onChange={set('unit_number')} placeholder="e.g. 4B, 201, G1" /></Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Field label="Bedrooms (BHK)">
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['1','2','3','4'].map(v => <button key={v} style={chip('bedrooms', v)} onClick={() => setForm(f => ({ ...f, bedrooms: v }))}>{v === '4' ? '4+' : v}</button>)}
+            </div>
+          </Field>
+          <Field label="Bathrooms">
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['1','2','3'].map(v => <button key={v} style={chip('bathrooms', v)} onClick={() => setForm(f => ({ ...f, bathrooms: v }))}>{v === '3' ? '3+' : v}</button>)}
+            </div>
+          </Field>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Area (sq ft)"><input style={inputStyle} type="number" value={form.area_sqft} onChange={set('area_sqft')} placeholder="850" /></Field>
+          <Field label="Floor number"><input style={inputStyle} type="number" value={form.floor_number} onChange={set('floor_number')} placeholder="3" /></Field>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+          <span style={{ fontSize: 14, color: 'var(--rb-ink)' }}>Parking available</span>
+          <button onClick={() => toggle('parking')} style={{ width: 44, height: 24, borderRadius: 999, background: form.parking ? 'var(--rb-action)' : 'var(--rb-border)', border: 0, cursor: 'pointer', position: 'relative', transition: 'background .2s' }}>
+            <span style={{ position: 'absolute', top: 2, left: form.parking ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
+          </button>
+        </div>
+        <SectionHead label="Rental terms" />
+        <Field label="Furnishing">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[['unfurnished','Unfurnished'],['semi_furnished','Semi'],['fully_furnished','Fully furnished']].map(([v,l]) => (
+              <button key={v} style={chip('furnished_status', v)} onClick={() => setForm(f => ({ ...f, furnished_status: v }))}>{l}</button>
+            ))}
+          </div>
+        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Monthly rent (₹) *"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} placeholder="25000" /></Field>
+          <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Maintenance (₹/mo)"><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
+          <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Notice period (days)"><input style={inputStyle} type="number" value={form.notice_period_days} onChange={set('notice_period_days')} placeholder="30" /></Field>
+          <Field label="Lock-in (months)"><input style={inputStyle} type="number" value={form.lock_in_period_months} onChange={set('lock_in_period_months')} placeholder="11" /></Field>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Late fee (% of rent)"><input style={inputStyle} type="number" value={form.late_fee_percent} onChange={set('late_fee_percent')} placeholder="5" /></Field>
+          <Field label="Annual increment (%)"><input style={inputStyle} type="number" value={form.rent_increment_percent} onChange={set('rent_increment_percent')} placeholder="5" /></Field>
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+          <button onClick={() => { setModal(null); setSelectedBuilding(null) }} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Adding…' : 'Add unit'}</button>
+        </div>
+      </Modal>
+    )
+  }
+
+  // ── Building detail / edit modal ─────────────────────────────────────────
+  function BuildingDetailModal() {
+    const building = selectedBuilding
+    if (!building) return null
+    const [editMode, setEditMode] = useState(false)
+    const [form, setForm] = useState({
+      name: building.name, property_type: building.property_type || 'apartment',
+      total_units: building.total_units ? String(building.total_units) : '',
+      address_line1: building.address_line1, address_line2: building.address_line2 || '',
+      city: building.city, state: building.state, pincode: building.pincode,
+    })
+    const [saving, setSaving] = useState(false)
+    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+    const chip = (k: string, v: string) => {
+      const active = (form as any)[k] === v
+      return { padding: '6px 12px', borderRadius: 999, border: `1.5px solid ${active ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: active ? 'var(--rb-action)' : 'transparent', color: active ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, transition: 'all .15s' }
+    }
+    const handleSave = async () => {
+      setSaving(true)
+      try {
+        const { error } = await sb.from('buildings').update({
+          name: form.name, property_type: form.property_type,
+          total_units: form.total_units ? Number(form.total_units) : null,
+          address_line1: form.address_line1, address_line2: form.address_line2 || null,
+          city: form.city, state: form.state, pincode: form.pincode,
+        }).eq('id', building.id)
+        if (error) throw error
+        toast('Building updated!', 'success')
+        setModal(null); setSelectedBuilding(null); window.location.reload()
+      } catch (e: any) { console.error('[EditBuilding]', e); toast(e?.message || 'Failed to update building', 'error') } finally { setSaving(false) }
+    }
+    const onClose = () => { setModal(null); setSelectedBuilding(null) }
+    const rentalsForBuilding = (landlordData?.rentals || []).filter((r: Rental) => r.property?.building_id === building.id)
+    return (
+      <Modal title={editMode ? 'Edit building' : building.name} onClose={onClose}>
+        {editMode ? (
+          <>
+            <Field label="Building type">
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[['apartment','Apartments'],['house','Villas'],['pg','PG / Hostel'],['commercial','Commercial']].map(([v,l]) => (
+                  <button key={v} style={chip('property_type', v)} onClick={() => setForm(f => ({ ...f, property_type: v }))}>{l}</button>
+                ))}
+              </div>
+            </Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Building name"><input style={inputStyle} value={form.name} onChange={set('name')} /></Field>
+              <Field label="Total units"><input style={inputStyle} type="number" value={form.total_units} onChange={set('total_units')} placeholder="12" /></Field>
+            </div>
+            <Field label="Street address"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} /></Field>
+            <Field label="Landmark / area"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} /></Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="City"><input style={inputStyle} value={form.city} onChange={set('city')} /></Field>
+              <Field label="State"><input style={inputStyle} value={form.state} onChange={set('state')} /></Field>
+            </div>
+            <Field label="Pincode"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} /></Field>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+              <button onClick={() => setEditMode(false)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+              <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Saving…' : 'Save changes'}</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {[
+              { l: 'Type', v: form.property_type.charAt(0).toUpperCase() + form.property_type.slice(1) },
+              { l: 'Address', v: [building.address_line1, building.address_line2, building.city, building.state].filter(Boolean).join(', ') },
+              { l: 'Pincode', v: building.pincode },
+              { l: 'Total units', v: building.total_units ? String(building.total_units) : 'Not set' },
+              { l: 'Units added', v: String(rentalsForBuilding.length) },
+              { l: 'Occupied', v: String(rentalsForBuilding.filter((r: Rental) => r.tenant_id && r.status === 'active').length) },
+            ].map(f => (
+              <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
+                <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>{f.l}</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{f.v}</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' as const }}>
+              <button onClick={() => setEditMode(true)} style={actBtnPrimary}>Edit details</button>
+              <button onClick={() => { setModal('add-unit') }} style={{ ...actBtnPrimary, background: 'var(--rb-surface)', color: 'var(--rb-action)', border: '1.5px solid var(--rb-action)' }}>+ Add unit</button>
+            </div>
+          </>
+        )}
+      </Modal>
+    )
+  }
+
   // ── View router ──────────────────────────────────────────────────────────
   function renderView() {
     if (role === 'landlord') {
@@ -1745,6 +2151,9 @@ export default function DashboardPage() {
 
       {/* Modals */}
       {modal === 'add-property' && <AddPropertyModal />}
+      {modal === 'add-building' && <AddBuildingModal />}
+      {modal === 'add-unit' && <AddUnitModal />}
+      {modal === 'building-detail' && <BuildingDetailModal />}
       {modal === 'pay-rent' && <PayRentModal />}
       {modal === 'new-repair' && <NewRepairModal />}
       {modal === 'repair-update' && <LandlordUpdateRepairModal />}
