@@ -113,6 +113,7 @@ export default function DashboardPage() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [modal, setModal] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null)
+  const [selectedRental, setSelectedRental] = useState<Rental | null>(null)
 
   const toast = useCallback((msg: string, type: Toast['type'] = 'info') => {
     const id = ++toastId
@@ -373,7 +374,7 @@ export default function DashboardPage() {
           const pillColor = { paid: { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }, due: { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' }, pending: { bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)' }, none: { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' } }[pill.cls] || { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
           const colors = ['#a87a4f','#9aa6a3','#c9a878','#a89280']
           return (
-            <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '56px 1fr auto', gap: 16, alignItems: 'center', padding: 12, background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 12 }}>
+            <div key={r.id} onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ display: 'grid', gridTemplateColumns: '56px 1fr auto', gap: 16, alignItems: 'center', padding: 12, background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 12, cursor: 'pointer', transition: 'border-color .18s' }}>
               <div style={{ width: 56, height: 56, borderRadius: 8, background: `linear-gradient(135deg,${colors[i%colors.length]},#2c1c0e)`, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 22 }}>🏠</div>
               <div>
                 <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', fontWeight: 600 }}>{r.property?.city || 'City'}</div>
@@ -690,7 +691,10 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            {!rental.agreement_signed_at && <button style={{ ...actBtnPrimary, marginTop: 18 }}>Sign agreement</button>}
+            <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' as const }}>
+              {!rental.agreement_signed_at && <button onClick={() => setModal('sign-agreement')} style={actBtnPrimary}>✍ Sign agreement</button>}
+              {rental.status === 'active' && <button onClick={() => { setSelectedRental(rental); setModal('end-lease') }} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-danger)', fontWeight: 600 }}>Request lease termination</button>}
+            </div>
           </> : <div style={emptyStyle}><p>No active rental found.</p></div>}
         </section>
       </>
@@ -902,6 +906,237 @@ export default function DashboardPage() {
     )
   }
 
+  // ── Property detail modal (landlord) ────────────────────────────────────
+  function PropertyDetailModal() {
+    const r = selectedRental
+    if (!r) return null
+    const currentPmt = landlordData?.currentPayments?.find((p: RentPayment) => p.rental_id === r.id)
+    const hasPending = currentPmt?.status === 'pending_verification'
+    const [editMode, setEditMode] = useState(false)
+    const [form, setForm] = useState({ name: r.property?.name || '', city: r.property?.city || '', address: r.property?.address || '', monthly_rent: String(r.monthly_rent), security_deposit: String(r.security_deposit), rent_due_day: String(r.rent_due_day || 5) })
+    const [saving, setSaving] = useState(false)
+    const [copied, setCopied] = useState(false)
+    const inviteLink = r.invite_token ? `${window.location.origin}/join/${r.invite_token}` : null
+    const inviteExpired = r.invite_expires_at ? new Date(r.invite_expires_at) < new Date() : true
+    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+    const handleCopyLink = () => {
+      if (!inviteLink) return
+      navigator.clipboard.writeText(inviteLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+    }
+
+    const handleRegenerateLink = async () => {
+      setSaving(true)
+      try {
+        const token = Math.random().toString(36).slice(2, 10).toUpperCase()
+        const expires = new Date(Date.now() + 72 * 3600000).toISOString()
+        const { error } = await sb.from('rentals').update({ invite_token: token, invite_expires_at: expires }).eq('id', r.id)
+        if (error) throw error
+        toast('New invite link generated!', 'success')
+        setModal(null); setSelectedRental(null); window.location.reload()
+      } catch (e: any) { toast(e?.message || 'Failed to generate link', 'error') } finally { setSaving(false) }
+    }
+
+    const handleSave = async () => {
+      setSaving(true)
+      try {
+        if (r.property?.id) {
+          const { error } = await sb.from('properties').update({ name: form.name, city: form.city, address: form.address }).eq('id', r.property.id)
+          if (error) throw error
+        }
+        const { error } = await sb.from('rentals').update({ monthly_rent: Number(form.monthly_rent), security_deposit: Number(form.security_deposit), rent_due_day: Number(form.rent_due_day) }).eq('id', r.id)
+        if (error) throw error
+        toast('Property updated!', 'success')
+        setModal(null); setSelectedRental(null); window.location.reload()
+      } catch (e: any) { console.error('[EditProperty]', e); toast(e?.message || 'Failed to update property', 'error') } finally { setSaving(false) }
+    }
+
+    const handleAcceptPayment = async () => {
+      if (!currentPmt) return
+      setSaving(true)
+      try {
+        const { error } = await sb.from('rent_payments').update({ status: 'paid', updated_at: new Date().toISOString() }).eq('id', currentPmt.id)
+        if (error) throw error
+        toast('Payment confirmed ✓', 'success')
+        setModal(null); setSelectedRental(null); window.location.reload()
+      } catch (e: any) { toast(e?.message || 'Failed to confirm payment', 'error') } finally { setSaving(false) }
+    }
+
+    const handleRejectPayment = async () => {
+      if (!currentPmt) return
+      setSaving(true)
+      try {
+        const { error } = await sb.from('rent_payments').update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', currentPmt.id)
+        if (error) throw error
+        toast('Payment returned to pending.', 'info')
+        setModal(null); setSelectedRental(null); window.location.reload()
+      } catch (e: any) { toast(e?.message || 'Failed to reject payment', 'error') } finally { setSaving(false) }
+    }
+
+    return (
+      <Modal title={editMode ? 'Edit property' : (r.property?.name || 'Property')} onClose={() => { setModal(null); setSelectedRental(null) }}>
+        {/* Pending payment review */}
+        {hasPending && currentPmt && (
+          <div style={{ marginBottom: 20, padding: 16, background: 'var(--rb-warning-soft)', borderRadius: 12, border: '1px solid rgba(184,116,15,.25)' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-warning)', marginBottom: 8 }}>⏳ Payment awaiting review</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{inr(currentPmt.amount)} · {monthLabel(currentPmt.month)}</div>
+            {currentPmt.payment_method && <div style={{ fontSize: 12, color: 'var(--rb-ink-2)', marginTop: 4 }}>via {methodLabel(currentPmt.payment_method)}</div>}
+            {currentPmt.utr_number && <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Ref: {currentPmt.utr_number}</div>}
+            {currentPmt.payment_note && <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{currentPmt.payment_note}</div>}
+            {currentPmt.payment_proof_url && <img src={currentPmt.payment_proof_url} alt="Receipt" onClick={() => { setLightbox({ url: currentPmt.payment_proof_url!, label: 'Payment receipt' }); setModal(null) }} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, marginTop: 8, cursor: 'pointer' }} />}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button onClick={handleAcceptPayment} disabled={saving} style={{ ...actBtnPrimary, fontSize: 12, padding: '7px 16px', background: 'var(--rb-success)' }}>✓ Accept payment</button>
+              <button onClick={handleRejectPayment} disabled={saving} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--rb-danger)', fontWeight: 600 }}>Reject</button>
+            </div>
+          </div>
+        )}
+
+        {/* Invite link */}
+        {!r.tenant_id && (
+          <div style={{ marginBottom: 20, padding: 14, background: 'var(--rb-fill)', borderRadius: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 8 }}>Invite tenant</div>
+            {inviteLink && !inviteExpired ? (
+              <>
+                <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, padding: '8px 10px', background: 'var(--rb-surface)', borderRadius: 8, border: '1px solid var(--rb-border)', wordBreak: 'break-all' as const, color: 'var(--rb-ink-2)', marginBottom: 8 }}>{inviteLink}</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                  <button onClick={handleCopyLink} style={{ ...actBtnPrimary, fontSize: 12, padding: '6px 14px' }}>{copied ? '✓ Copied!' : '📋 Copy link'}</button>
+                  <button onClick={handleRegenerateLink} disabled={saving} style={{ padding: '6px 14px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--rb-ink-3)' }}>New link</button>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 6 }}>Expires {relDate(r.invite_expires_at)}</div>
+              </>
+            ) : (
+              <button onClick={handleRegenerateLink} disabled={saving} style={actBtnPrimary}>{saving ? 'Generating…' : 'Generate invite link'}</button>
+            )}
+          </div>
+        )}
+
+        {/* Details or edit form */}
+        {editMode ? (
+          <>
+            <Field label="Property name"><input style={inputStyle} value={form.name} onChange={set('name')} /></Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="City"><input style={inputStyle} value={form.city} onChange={set('city')} /></Field>
+              <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
+            </div>
+            <Field label="Address"><input style={inputStyle} value={form.address} onChange={set('address')} /></Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Monthly rent (₹)"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} /></Field>
+              <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} /></Field>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+              <button onClick={() => setEditMode(false)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+              <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Saving…' : 'Save changes'}</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {[
+              { l: 'Property', v: r.property?.name || '—' },
+              { l: 'City', v: r.property?.city || '—' },
+              { l: 'Address', v: r.property?.address || '—' },
+              { l: 'Monthly rent', v: inr(r.monthly_rent) },
+              { l: 'Security deposit', v: inr(r.security_deposit) },
+              { l: 'Rent due', v: `${r.rent_due_day || '—'}th of month` },
+              { l: 'Tenant', v: r.tenant?.full_name || 'No tenant yet' },
+              { l: 'Status', v: r.status },
+              { l: 'Agreement', v: r.agreement_signed_at ? `Signed ${relDate(r.agreement_signed_at)}` : 'Not signed' },
+            ].map(f => (
+              <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
+                <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>{f.l}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, textTransform: f.l === 'Status' ? 'capitalize' as const : undefined }}>{f.v}</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const }}>
+              <button onClick={() => setEditMode(true)} style={actBtnPrimary}>Edit details</button>
+              {r.status === 'active' && (
+                <button onClick={() => setModal('end-lease')} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-danger)', fontWeight: 600 }}>End lease</button>
+              )}
+            </div>
+          </>
+        )}
+      </Modal>
+    )
+  }
+
+  // ── End lease modal ──────────────────────────────────────────────────────
+  function EndLeaseModal() {
+    const r = selectedRental || tenantData?.rental
+    if (!r) return null
+    const [saving, setSaving] = useState(false)
+    const isLandlord = role === 'landlord'
+
+    const handleEnd = async () => {
+      setSaving(true)
+      try {
+        const { error } = await sb.from('rentals').update({ status: 'ended' }).eq('id', r.id)
+        if (error) throw error
+        toast('Lease ended.', 'success')
+        setModal(null); setSelectedRental(null); window.location.reload()
+      } catch (e: any) { console.error('[EndLease]', e); toast(e?.message || 'Failed to end lease', 'error') } finally { setSaving(false) }
+    }
+
+    return (
+      <Modal title="End lease" onClose={() => setModal(isLandlord ? 'property-detail' : null)}>
+        <p style={{ fontSize: 14, color: 'var(--rb-ink-2)', lineHeight: 1.6 }}>
+          {isLandlord
+            ? <>This will end the lease for <strong>{r.property?.name}</strong>. The tenant will lose access to this rental.</>
+            : <>This will send a lease termination request for <strong>{r.property?.name}</strong>. Your landlord will be notified.</>}
+        </p>
+        <div style={{ marginTop: 14, padding: 14, background: 'var(--rb-danger-soft)', borderRadius: 10, fontSize: 13, color: 'var(--rb-danger)', lineHeight: 1.5 }}>
+          ⚠ This action cannot be undone. All data will be archived.
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+          <button onClick={() => setModal(isLandlord ? 'property-detail' : null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+          <button onClick={handleEnd} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Ending…' : 'Yes, end lease'}</button>
+        </div>
+      </Modal>
+    )
+  }
+
+  // ── Sign agreement modal (tenant) ────────────────────────────────────────
+  function SignAgreementModal() {
+    const rental: Rental | null = tenantData?.rental || null
+    if (!rental) return null
+    const [saving, setSaving] = useState(false)
+
+    const handleSign = async () => {
+      setSaving(true)
+      try {
+        const { error } = await sb.from('rentals').update({ agreement_signed_at: new Date().toISOString() }).eq('id', rental.id)
+        if (error) throw error
+        toast('Agreement signed ✓', 'success')
+        setModal(null); window.location.reload()
+      } catch (e: any) { console.error('[SignAgreement]', e); toast(e?.message || 'Failed to sign agreement', 'error') } finally { setSaving(false) }
+    }
+
+    return (
+      <Modal title="Sign rental agreement" onClose={() => setModal(null)}>
+        <div style={{ padding: 16, background: 'var(--rb-fill)', borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 12 }}>Rental terms</div>
+          {[
+            { l: 'Property', v: rental.property?.name || '—' },
+            { l: 'Address', v: rental.property?.address || '—' },
+            { l: 'Monthly rent', v: inr(rental.monthly_rent) },
+            { l: 'Security deposit', v: inr(rental.security_deposit) },
+            { l: 'Rent due', v: `${rental.rent_due_day || '—'}th of every month` },
+          ].map(f => (
+            <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
+              <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>{f.l}</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{f.v}</span>
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.6, marginBottom: 16 }}>
+          By signing, you confirm you have read and agree to the terms above. Your digital signature will be timestamped and stored on record.
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+          <button onClick={() => setModal(null)} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+          <button onClick={handleSign} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Signing…' : '✍ Sign agreement'}</button>
+        </div>
+      </Modal>
+    )
+  }
+
   // ── View router ──────────────────────────────────────────────────────────
   function renderView() {
     if (role === 'landlord') {
@@ -1020,6 +1255,9 @@ export default function DashboardPage() {
       {modal === 'add-property' && <AddPropertyModal />}
       {modal === 'pay-rent' && <PayRentModal />}
       {modal === 'new-repair' && <NewRepairModal />}
+      {modal === 'property-detail' && <PropertyDetailModal />}
+      {modal === 'end-lease' && <EndLeaseModal />}
+      {modal === 'sign-agreement' && <SignAgreementModal />}
 
       {/* Lightbox */}
       {lightbox && (
