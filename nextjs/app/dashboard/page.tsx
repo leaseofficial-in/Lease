@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
 
@@ -191,6 +191,7 @@ export default function DashboardPage() {
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null)
   const [selectedDepositTx, setSelectedDepositTx] = useState<DepositTx | null>(null)
   const [messagingRental, setMessagingRental] = useState<Rental | null>(null)
+  const [notifications, setNotifications] = useState<any[]>([])
   const msgChannelRef = useRef<any>(null)
 
   const toast = useCallback((msg: string, type: Toast['type'] = 'info') => {
@@ -258,6 +259,9 @@ export default function DashboardPage() {
           const collectionRate = totalMonthlyRent > 0 ? Math.round((paidThisMonth / totalMonthlyRent) * 100) : 0
           const ytdTotal = ytdPayments.reduce((s, p) => s + Number(p.amount), 0)
           const score = Math.min(900, Math.round(600 + (collectionRate / 100) * 180 + (rentals.length > 0 ? 20 : 0)))
+          // Load unread notifications for landlord activity feed
+          const { data: notifData } = await sb.from('notifications').select('*').eq('user_id', u.id).eq('read', false).order('created_at', { ascending: false }).limit(30)
+          setNotifications(notifData || [])
           setLandlordData({ rentals, buildings, currentPayments, allLedgerPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs, ytdPayments })
         } else if (role === 'tenant') {
           const { data: rental } = await sb.from('rentals').select('*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(id, full_name, avatar_url, phone, pan_number)').eq('tenant_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
@@ -335,6 +339,7 @@ export default function DashboardPage() {
 
   const lNavItems = [
     { k: 'home', label: 'Overview', short: 'Home' },
+    { k: 'inbox', label: 'Activity', short: 'Activity' },
     { k: 'props', label: 'Properties', short: 'Props' },
     { k: 'msg', label: 'Messages', short: 'Msgs' },
     { k: 'agree', label: 'Agreements', short: 'Agree' },
@@ -385,16 +390,23 @@ export default function DashboardPage() {
     )
   }
 
-  function ProofGrid({ photos }: { photos: ProofPhoto[] }) {
+  function ProofGrid({ photos, onDelete }: { photos: ProofPhoto[]; onDelete?: (id: string) => void }) {
     const colors = ['#a87a4f','#9aa6a3','#c9a878','#a89280','#7a5d35','#5b3a20']
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
         {photos.slice(0, 8).map((p, i) => (
-          <div key={p.id} onClick={() => setLightbox({ url: p.public_url || '', label: p.room_label || 'Room' })}
-            style={{ aspectRatio: '1', borderRadius: 8, position: 'relative', overflow: 'hidden', cursor: 'pointer', background: p.public_url ? 'none' : `linear-gradient(135deg,${colors[i % colors.length]},#2c1c0e)` }}>
-            {p.public_url && <img src={p.public_url} alt={p.room_label || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(transparent 50%,rgba(0,0,0,.55))' }} />
-            <span style={{ position: 'absolute', bottom: 8, left: 10, color: '#fff', fontSize: 11, fontWeight: 600, zIndex: 1 }}>{p.room_label || 'Room'}</span>
+          <div key={p.id} style={{ position: 'relative' }}>
+            {onDelete && (
+              <button onClick={e => { e.stopPropagation(); onDelete(p.id) }} style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', border: 0, cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff' }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            )}
+            <div onClick={() => setLightbox({ url: p.public_url || '', label: p.room_label || 'Room' })}
+              style={{ aspectRatio: '1', borderRadius: 8, position: 'relative', overflow: 'hidden', cursor: 'pointer', background: p.public_url ? 'none' : `linear-gradient(135deg,${colors[i % colors.length]},#2c1c0e)` }}>
+              {p.public_url && <img src={p.public_url} alt={p.room_label || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(transparent 50%,rgba(0,0,0,.55))' }} />
+              <span style={{ position: 'absolute', bottom: 8, left: 10, color: '#fff', fontSize: 11, fontWeight: 600, zIndex: 1 }}>{p.room_label || 'Room'}</span>
+            </div>
           </div>
         ))}
       </div>
@@ -713,6 +725,31 @@ export default function DashboardPage() {
               </section>
             )
           })()}
+
+          {/* Activity snapshot */}
+          {notifications.length > 0 && (
+            <section style={{ ...cardStyle, gridColumn: 'span 2', padding: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--rb-border-soft)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 style={{ ...cardH3Style, margin: 0 }}>Activity</h3>
+                  <span style={{ minWidth: 18, height: 18, borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 4px' }}>{notifications.length}</span>
+                </div>
+                <button onClick={() => navigate('inbox')} style={{ fontSize: 12, color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>View all →</button>
+              </div>
+              {notifications.slice(0, 3).map(n => (
+                <div key={n.id} style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 12, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid var(--rb-border-soft)' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: n.type === 'payment_received' ? 'var(--rb-action-soft)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', color: n.type === 'payment_received' ? 'var(--rb-action)' : 'var(--rb-ink-3)' }}>
+                    <Icon k={n.type === 'payment_received' ? 'led' : 'inbox'} size={16} stroke={1.8} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{n.title}</div>
+                    <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.body}</div>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--rb-ink-3)', flexShrink: 0 }}>{relDate(n.created_at)}</span>
+                </div>
+              ))}
+            </section>
+          )}
 
           <section style={cardStyle}>
             <h3 style={cardH3Style}>Quick actions</h3>
@@ -1222,18 +1259,144 @@ export default function DashboardPage() {
   }
 
   function TenantProof() {
+    const ROOM_LABELS = ['Living Room', 'Bedroom', 'Kitchen', 'Bathroom', 'Balcony', 'Other']
     const proofs: Proof | null = tenantData?.proofs || null
-    const photos: ProofPhoto[] = proofs?.proof_photos || []
+    const rental = tenantData?.rental
+    const [photos, setPhotos] = useState<ProofPhoto[]>(proofs?.proof_photos || [])
+    const [activeRoom, setActiveRoom] = useState(ROOM_LABELS[0])
+    const [uploading, setUploading] = useState(false)
+    const [notifying, setNotifying] = useState(false)
+    const [notified, setNotified] = useState(false)
+    const fileRef = useRef<HTMLInputElement>(null)
+    const isApproved = proofs?.status === 'approved'
+
+    const roomPhotos = photos.filter(p => p.room_label === activeRoom)
+    const totalCount = photos.length
+
+    const handleFiles = async (e: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || [])
+      if (!files.length || !rental) return
+      setUploading(true)
+      try {
+        let proofId = proofs?.id
+        if (!proofId) {
+          const { data: proof, error: pe } = await sb.from('proofs').insert({ rental_id: rental.id, type: 'move_in', submitted_by: user.id }).select().single()
+          if (pe) throw pe
+          proofId = proof.id
+        }
+        const newPhotos: ProofPhoto[] = []
+        for (const file of files) {
+          const ext = file.name.split('.').pop()
+          const path = `move-in/${rental.id}/${activeRoom.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.${ext}`
+          const { error: upErr } = await sb.storage.from('proof-photos').upload(path, file, { upsert: true })
+          if (upErr) throw upErr
+          const { data: urlData } = sb.storage.from('proof-photos').getPublicUrl(path)
+          const { data: row, error: photoErr } = await sb.from('proof_photos').insert({ proof_id: proofId, room_label: activeRoom, storage_path: path, public_url: urlData.publicUrl, uploaded_by: user.id }).select().single()
+          if (photoErr) throw photoErr
+          newPhotos.push(row as ProofPhoto)
+        }
+        setPhotos(prev => [...prev, ...newPhotos])
+        setTenantData((d: any) => ({ ...d, proofs: { ...(d.proofs || { id: proofId, rental_id: rental.id, type: 'move_in', status: 'pending' }), proof_photos: [...photos, ...newPhotos] } }))
+        toast(`${files.length} photo${files.length > 1 ? 's' : ''} added ✓`, 'success')
+      } catch (e: any) { console.error('[ProofUpload]', e); toast(e?.message || 'Upload failed', 'error') } finally {
+        setUploading(false)
+        if (fileRef.current) fileRef.current.value = ''
+      }
+    }
+
+    const handleDelete = async (photoId: string) => {
+      if (isApproved) return
+      try {
+        const { error } = await sb.from('proof_photos').delete().eq('id', photoId)
+        if (error) throw error
+        const next = photos.filter(p => p.id !== photoId)
+        setPhotos(next)
+        setTenantData((d: any) => ({ ...d, proofs: { ...d.proofs, proof_photos: next } }))
+      } catch (e: any) { toast('Failed to delete photo', 'error') }
+    }
+
+    const handleNotifyLandlord = async () => {
+      if (!rental || !photos.length) return
+      setNotifying(true)
+      try {
+        await sb.from('notifications').insert({
+          user_id: rental.landlord_id,
+          title: 'Move-in photos submitted',
+          body: `${profile?.full_name || 'Your tenant'} has uploaded ${totalCount} move-in photo${totalCount !== 1 ? 's' : ''} for ${rental.property?.name || 'the property'}. Review when ready.`,
+          type: 'general',
+          data: { rental_id: rental.id, proof_id: proofs?.id, type: 'move_in_proof' },
+        })
+        setNotified(true)
+        toast('Landlord notified ✓', 'success')
+      } catch (e: any) { toast('Failed to notify landlord', 'error') } finally { setNotifying(false) }
+    }
+
     return (
       <>
         <div style={topStyle}>
-          <div><div style={eyebrowStyle}>Tenant · Move-in proof</div><h1 style={h1Style}>Move-in proof.</h1><p style={subStyle}>{proofs ? `${photos.length} photos · ${proofs.status}` : 'Not yet submitted'}</p></div>
-          {(!proofs || proofs.status === 'pending') && <button onClick={() => setModal('add-proof-photo')} style={actBtnPrimary}>+ Add photos</button>}
+          <div>
+            <div style={eyebrowStyle}>Tenant · Move-in proof</div>
+            <h1 style={h1Style}>Move-in proof.</h1>
+            <p style={subStyle}>{totalCount > 0 ? `${totalCount} photo${totalCount !== 1 ? 's' : ''} across ${new Set(photos.map(p => p.room_label)).size} room${new Set(photos.map(p => p.room_label)).size !== 1 ? 's' : ''}` : 'No photos yet'}</p>
+          </div>
+          {!isApproved && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              {totalCount > 0 && !notified && (
+                <button onClick={handleNotifyLandlord} disabled={notifying} style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--rb-action)', background: 'transparent', color: 'var(--rb-action)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  {notifying ? 'Notifying…' : 'Notify landlord'}
+                </button>
+              )}
+              {notified && <span style={{ padding: '8px 14px', fontSize: 13, color: 'var(--rb-action)', fontWeight: 600 }}>✓ Landlord notified</span>}
+              <button onClick={() => fileRef.current?.click()} disabled={uploading} style={actBtnPrimary}>
+                {uploading ? 'Uploading…' : '+ Add photos'}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
+            </div>
+          )}
         </div>
-        <section style={cardStyle}>
-          {proofs?.status === 'approved' && <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--rb-action-soft)', border: '1px solid rgba(15,76,92,.2)', color: 'var(--rb-action)', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>✓ Approved by landlord</div>}
-          {photos.length > 0 ? <ProofGrid photos={photos} /> : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="camera" size={32} stroke={1.5} /></div><p>No photos yet. Document your room condition at move-in.</p><button onClick={() => setModal('add-proof-photo')} style={{ ...actBtnPrimary, marginTop: 12 }}>+ Add photos</button></div>}
-        </section>
+
+        {isApproved && <div style={{ marginBottom: 16, padding: '12px 18px', borderRadius: 12, background: 'var(--rb-action-soft)', border: '1px solid rgba(15,76,92,.2)', color: 'var(--rb-action)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}><Icon k="check" size={16} stroke={2} /> Approved by your landlord</div>}
+
+        {totalCount === 0 ? (
+          <section style={cardStyle}>
+            <div style={emptyStyle}>
+              <div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="camera" size={36} stroke={1.4} /></div>
+              <p style={{ fontWeight: 600, marginBottom: 6 }}>Document your room condition</p>
+              <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 16, lineHeight: 1.55 }}>Upload photos of each room at move-in. This protects you against deposit disputes later.</p>
+              <button onClick={() => fileRef.current?.click()} style={actBtnPrimary}>+ Add first photos</button>
+            </div>
+          </section>
+        ) : (
+          <>
+            {/* Room tabs */}
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 16 }}>
+              {ROOM_LABELS.map(r => {
+                const cnt = photos.filter(p => p.room_label === r).length
+                return (
+                  <button key={r} onClick={() => setActiveRoom(r)} style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 999, border: `1.5px solid ${activeRoom === r ? 'var(--rb-ink)' : 'var(--rb-border)'}`, background: activeRoom === r ? 'var(--rb-ink)' : 'transparent', color: activeRoom === r ? 'var(--rb-canvas)' : 'var(--rb-ink-2)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {r}{cnt > 0 && <span style={{ background: activeRoom === r ? 'rgba(255,255,255,.25)' : 'var(--rb-fill-2)', color: activeRoom === r ? '#fff' : 'var(--rb-ink-3)', fontSize: 10, fontWeight: 700, borderRadius: 999, padding: '1px 6px' }}>{cnt}</span>}
+                  </button>
+                )
+              })}
+            </div>
+
+            <section style={cardStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{activeRoom} · {roomPhotos.length} photo{roomPhotos.length !== 1 ? 's' : ''}</span>
+                {!isApproved && <button onClick={() => fileRef.current?.click()} style={{ ...actBtnSm, fontSize: 12 }}>+ Add to {activeRoom}</button>}
+              </div>
+              {roomPhotos.length > 0 ? (
+                <ProofGrid photos={roomPhotos} onDelete={isApproved ? undefined : handleDelete} />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--rb-ink-3)' }}>
+                  <div style={{ marginBottom: 8 }}><Icon k="camera" size={24} stroke={1.5} /></div>
+                  <p style={{ fontSize: 13 }}>No photos for {activeRoom} yet.</p>
+                  {!isApproved && <button onClick={() => fileRef.current?.click()} style={{ marginTop: 10, padding: '7px 16px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600 }}>+ Add photos</button>}
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </>
     )
   }
@@ -1694,7 +1857,7 @@ export default function DashboardPage() {
           const { data: urlData } = sb.storage.from('proof-photos').getPublicUrl(path)
           proofUrl = urlData?.publicUrl || ''
         }
-        const pmtData = { payment_method: method, utr_number: utr, payment_note: note, payment_proof_url: proofUrl, status: 'pending_verification', updated_at: new Date().toISOString() }
+        const pmtData = { payment_method: method, utr_number: utr, payment_note: note, payment_proof_url: proofUrl, status: 'pending_verification' }
         if (currentPayment) {
           const { error: updErr } = await sb.from('rent_payments').update(pmtData).eq('id', currentPayment.id)
           if (updErr) throw updErr
@@ -1766,6 +1929,17 @@ export default function DashboardPage() {
           category: category || null, urgency, photo_url: photo_url || null,
         })
         if (repErr) throw repErr
+        // Notify landlord
+        const landlordId = tenantData?.rental?.landlord_id
+        if (landlordId) {
+          await sb.from('notifications').insert({
+            user_id: landlordId,
+            title: urgency === 'emergency' ? '🚨 Emergency repair request' : 'New repair request',
+            body: `${profile?.full_name || 'Your tenant'} raised a${urgency === 'emergency' ? 'n emergency' : ''} repair request: "${title}"`,
+            type: 'general',
+            data: { rental_id: rentalId, urgency, category },
+          }).then(() => {})  // fire-and-forget
+        }
         toast('Repair request raised!', 'success')
         setModal(null)
         window.location.reload()
@@ -1996,67 +2170,10 @@ export default function DashboardPage() {
     )
   }
 
-  // ── Add move-in proof photo modal (tenant) ──────────────────────────────
+  // AddProofPhotoModal — navigates to the full proof page where multi-upload lives
   function AddProofPhotoModal() {
-    const rental = tenantData?.rental
-    const existingProof = tenantData?.proofs
-    const ROOM_LABELS = ['Living Room', 'Bedroom', 'Kitchen', 'Bathroom', 'Balcony', 'Other']
-    const [roomLabel, setRoomLabel] = useState(ROOM_LABELS[0])
-    const [file, setFile] = useState<File | null>(null)
-    const [preview, setPreview] = useState('')
-    const [annotation, setAnnotation] = useState('')
-    const [saving, setSaving] = useState(false)
-
-    if (!rental) return null
-
-    const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const f = e.target.files?.[0]
-      if (f) { setFile(f); const r = new FileReader(); r.onload = ev => setPreview(ev.target?.result as string); r.readAsDataURL(f) }
-    }
-
-    const handleSubmit = async () => {
-      if (!file) { toast('Select a photo first', 'error'); return }
-      setSaving(true)
-      try {
-        let proofId = existingProof?.id
-        if (!proofId) {
-          const { data: proof, error: proofErr } = await sb.from('proofs').insert({ rental_id: rental.id, type: 'move_in', submitted_by: user.id }).select().single()
-          if (proofErr) throw proofErr
-          proofId = proof.id
-        }
-        const ext = file.name.split('.').pop()
-        const path = `move-in/${rental.id}/${Date.now()}.${ext}`
-        const { error: upErr } = await sb.storage.from('proof-photos').upload(path, file, { upsert: true })
-        if (upErr) throw upErr
-        const { data: urlData } = sb.storage.from('proof-photos').getPublicUrl(path)
-        const { error: photoErr } = await sb.from('proof_photos').insert({ proof_id: proofId, room_label: roomLabel, storage_path: path, public_url: urlData.publicUrl, annotation, uploaded_by: user.id })
-        if (photoErr) throw photoErr
-        toast('Photo added ✓', 'success')
-        setModal(null)
-        window.location.reload()
-      } catch (e: any) { console.error('[AddProofPhoto]', e); toast(e?.message || 'Failed to upload photo', 'error') } finally { setSaving(false) }
-    }
-
-    return (
-      <Modal title="Add move-in photo" onClose={() => setModal(null)}>
-        <Field label="Room">
-          <select style={inputStyle} value={roomLabel} onChange={e => setRoomLabel(e.target.value)}>
-            {ROOM_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </Field>
-        <Field label="Photo">
-          <div style={{ border: '1.5px dashed var(--rb-border)', borderRadius: 10, padding: '20px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
-            {preview ? <img src={preview} alt="Preview" style={{ maxHeight: 140, borderRadius: 8, maxWidth: '100%' }} /> : <div style={{ color: 'var(--rb-ink-3)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon k="camera" size={14} stroke={1.8} /> Tap to choose photo</div>}
-            <input type="file" accept="image/*" onChange={handleFile} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
-          </div>
-        </Field>
-        <Field label="Note (optional)"><input style={inputStyle} value={annotation} onChange={e => setAnnotation(e.target.value)} placeholder="e.g. crack on wall, pre-existing damage" /></Field>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={saving || !file} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Uploading…' : 'Add photo'}</button>
-        </div>
-      </Modal>
-    )
+    useEffect(() => { setModal(null); navigate('proof') }, [])
+    return null
   }
 
   // ── Property detail modal (landlord) ────────────────────────────────────
@@ -3562,12 +3679,80 @@ export default function DashboardPage() {
     )
   }
 
+  function LandlordInbox() {
+    const typeLabel: Record<string, string> = {
+      payment_received: 'Payment submitted',
+      general: 'Activity',
+    }
+    const typeIcon: Record<string, string> = {
+      payment_received: 'led',
+      general: 'inbox',
+    }
+
+    const markRead = async (id: string) => {
+      await sb.from('notifications').update({ read: true }).eq('id', id)
+      setNotifications(prev => prev.filter(n => n.id !== id))
+    }
+
+    const markAllRead = async () => {
+      const ids = notifications.map(n => n.id)
+      if (!ids.length) return
+      await sb.from('notifications').update({ read: true }).in('id', ids)
+      setNotifications([])
+    }
+
+    return (
+      <>
+        <div style={topStyle}>
+          <div>
+            <div style={eyebrowStyle}>Landlord · Activity</div>
+            <h1 style={h1Style}>Activity.</h1>
+            <p style={subStyle}>{notifications.length} unread notification{notifications.length !== 1 ? 's' : ''}</p>
+          </div>
+          {notifications.length > 0 && <button onClick={markAllRead} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500, color: 'var(--rb-ink-2)' }}>Mark all read</button>}
+        </div>
+        <section style={cardStyle}>
+          {notifications.length === 0 ? (
+            <div style={emptyStyle}>
+              <div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="inbox" size={32} stroke={1.5} /></div>
+              <p style={{ fontWeight: 600, marginBottom: 4 }}>All caught up</p>
+              <p style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>New tenant activity will appear here — payments, move-in photos, repairs.</p>
+            </div>
+          ) : (
+            notifications.map(n => (
+              <div key={n.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 12, alignItems: 'flex-start', padding: '12px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: n.type === 'payment_received' ? 'var(--rb-action-soft)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', color: n.type === 'payment_received' ? 'var(--rb-action)' : 'var(--rb-ink-3)', flexShrink: 0 }}>
+                  <Icon k={typeIcon[n.type] || 'inbox'} size={18} stroke={1.8} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{n.title}</div>
+                  <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginTop: 2, lineHeight: 1.5 }}>{n.body}</div>
+                  <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>{relDate(n.created_at)}</div>
+                  {n.type === 'payment_received' && n.data?.rental_id && (
+                    <button onClick={() => {
+                      const r = landlordData?.rentals?.find((r: Rental) => r.id === n.data.rental_id)
+                      if (r) { setSelectedRental(r); setModal('property-detail'); markRead(n.id) }
+                    }} style={{ marginTop: 8, padding: '5px 12px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600 }}>Review payment →</button>
+                  )}
+                </div>
+                <button onClick={() => markRead(n.id)} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'var(--rb-ink-3)', padding: 4, flexShrink: 0 }} title="Dismiss">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            ))
+          )}
+        </section>
+      </>
+    )
+  }
+
   function renderView() {
     // Profile is accessible regardless of role (user may need to sign out)
     if (activeView === 'profile') return <ProfileView />
 
     if (role === 'landlord') {
       switch (activeView) {
+        case 'inbox': return <LandlordInbox />
         case 'props': return <LandlordProperties />
         case 'led': return <LandlordLedger />
         case 'hra': return <LandlordHRA />
@@ -3652,8 +3837,14 @@ export default function DashboardPage() {
         <a href="/" style={{ textDecoration: 'none' }}>
           <LogoLockup size={26} fontSize={18} gap={9} />
         </a>
-        <button onClick={() => navigate('profile')} style={{ width: 32, height: 32, borderRadius: '50%', background: avatarBg, border: 0, cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 13, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden' }}>
-          {avatarUrl ? <img src={avatarUrl} alt={firstName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : firstName.charAt(0).toUpperCase()}
+        {role === 'landlord' && (
+          <button onClick={() => navigate(activeView === 'inbox' ? 'home' : 'inbox')} style={{ position: 'relative', width: 32, height: 32, borderRadius: '50%', background: activeView === 'inbox' ? 'var(--rb-ink)' : 'var(--rb-surface)', border: '1px solid var(--rb-border)', cursor: 'pointer', display: 'grid', placeItems: 'center', color: activeView === 'inbox' ? '#fff' : 'var(--rb-ink-2)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            {notifications.length > 0 && <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 3px', border: '1.5px solid var(--rb-canvas)' }}>{notifications.length > 9 ? '9+' : notifications.length}</span>}
+          </button>
+        )}
+        <button onClick={() => navigate(activeView === 'profile' ? 'home' : 'profile')} style={{ width: 32, height: 32, borderRadius: '50%', background: activeView === 'profile' ? 'var(--rb-ink)' : avatarBg, border: activeView === 'profile' ? '2px solid var(--rb-border)' : 0, cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 13, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden', transition: 'all .18s' }}>
+          {activeView === 'profile' ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> : avatarUrl ? <img src={avatarUrl} alt={firstName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : firstName.charAt(0).toUpperCase()}
         </button>
       </div>
 
@@ -3669,7 +3860,10 @@ export default function DashboardPage() {
             {navItems.map(it => (
               <button key={it.k} onClick={() => navigate(it.k)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, background: activeView === it.k ? 'var(--rb-ink)' : 'transparent', color: activeView === it.k ? 'var(--rb-canvas)' : 'var(--rb-ink-2)', border: 0, fontFamily: 'inherit', fontSize: 14, cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all .2s' }}>
                 <span style={{ width: 22, display: 'grid', placeItems: 'center' }}><NavIcon k={it.k} size={18} active={activeView === it.k} /></span>
-                <span>{it.label}</span>
+                <span style={{ flex: 1 }}>{it.label}</span>
+                {it.k === 'inbox' && notifications.length > 0 && (
+                  <span style={{ minWidth: 18, height: 18, borderRadius: 999, background: activeView === 'inbox' ? 'rgba(255,255,255,.3)' : 'var(--rb-danger)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 4px' }}>{notifications.length > 9 ? '9+' : notifications.length}</span>
+                )}
               </button>
             ))}
           </nav>
