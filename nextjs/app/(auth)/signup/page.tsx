@@ -4,18 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { LogoLockup } from '@/components/brand'
-
-// ─── shared mark ────────────────────────────────────────────
-const M2Mark = ({ size = 26 }: { size?: number }) => (
-  <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden>
-    <rect width="40" height="40" rx="9" fill="#0E1413"/>
-    <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
-    <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
-    <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
-    <circle cx="20" cy="11" r="0.9" fill="#C97A3A"/>
-  </svg>
-)
+import { LogoMark, LogoLockup } from '@/components/brand'
 
 const WaxSeal = ({ size = 96 }: { size?: number }) => (
   <svg viewBox="0 0 200 200" width={size} height={size} aria-hidden
@@ -108,12 +97,13 @@ function MA2Splash({ onGoogle, loading, error }: { onGoogle: () => void; loading
   return (
     <div className="m-screen">
       <div className="a2-splash">
-        <div className="brand-row">
-          <div className="name"><M2Mark size={26} /><span>Renty<em>Base</em></span></div>
-          <span className="city-pill"><span className="dot" /> INDIA · IN</span>
+        {/* Hero: real logo + wordmark */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 4 }}>
+          <LogoMark size={72} />
+          <LogoLockup size={36} fontSize={26} gap={12} />
         </div>
 
-        <h1 className="lede">
+        <h1 className="lede" style={{ marginTop: 28 }}>
           Sign up once.<br />
           <em>Carry your<br />record for life.</em>
         </h1>
@@ -385,11 +375,8 @@ function MA2Sealed({ firstName, role }: { firstName: string; role: string }) {
     <div className="m-screen">
       <div className="a2-sealed">
         <div className="hat">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <M2Mark size={22} />
-            <span style={{ fontFamily: 'var(--rb-font-display)', fontSize: 17, letterSpacing: '-.01em' }}>
-              Renty<em style={{ color: 'var(--rb-accent)', fontStyle: 'italic' }}>Base</em>
-            </span>
+          <div>
+            <LogoLockup size={22} fontSize={17} gap={9} />
           </div>
           <button className="skip" type="button" onClick={() => window.location.replace('/dashboard')}>
             Skip tour →

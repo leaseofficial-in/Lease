@@ -3,16 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
-
-const M2Mark = ({ size = 26 }: { size?: number }) => (
-  <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden>
-    <rect width="40" height="40" rx="9" fill="#0E1413"/>
-    <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
-    <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
-    <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
-    <circle cx="20" cy="11" r="0.9" fill="#C97A3A"/>
-  </svg>
-)
+import { LogoLockup } from '@/components/brand'
 
 export default function JoinPage() {
   const [code, setCode] = useState('')
@@ -36,11 +27,8 @@ export default function JoinPage() {
       </div>
 
       <div className="a2-body">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <M2Mark size={24} />
-          <span style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, letterSpacing: '-.01em' }}>
-            Renty<em style={{ fontStyle: 'italic', color: 'var(--rb-accent)' }}>Base</em>
-          </span>
+        <div style={{ marginBottom: 4 }}>
+          <LogoLockup size={24} fontSize={18} gap={10} />
         </div>
 
         <div className="a2-h-block">

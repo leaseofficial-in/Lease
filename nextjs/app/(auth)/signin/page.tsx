@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { LogoLockup } from '@/components/brand'
+import { LogoMark, LogoLockup } from '@/components/brand'
 
 function GoogleIcon() {
   return (
@@ -31,29 +31,17 @@ function Seal() {
   )
 }
 
-const M2Mark = ({ size = 26 }: { size?: number }) => (
-  <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden>
-    <rect width="40" height="40" rx="9" fill="#0E1413"/>
-    <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
-    <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
-    <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
-    <circle cx="20" cy="11" r="0.9" fill="#C97A3A"/>
-  </svg>
-)
-
 function MobileSplash({ onGoogle, loading, error }: { onGoogle: () => void; loading: boolean; error: string }) {
   return (
     <div className="m-screen">
       <div className="a2-splash">
-        <div className="brand-row">
-          <div className="name">
-            <M2Mark size={26} />
-            <span>Renty<em>Base</em></span>
-          </div>
-          <span className="city-pill"><span className="dot" /> INDIA · IN</span>
+        {/* Hero: real logo + wordmark */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 4 }}>
+          <LogoMark size={72} />
+          <LogoLockup size={36} fontSize={26} gap={12} />
         </div>
 
-        <h1 className="lede">
+        <h1 className="lede" style={{ marginTop: 28 }}>
           The rent record,<br />
           <em>kept by both<br />of you.</em>
         </h1>
