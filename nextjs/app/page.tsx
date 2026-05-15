@@ -1222,7 +1222,7 @@ export default function Page() {
             </div>
             <div className="foot-col">
               <div className="foot-h">Company</div>
-              <a href="/company">About</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="mailto:hello@rentybase.com">hello@rentybase.com</a>
+              <a href="/company">About</a><a href="/contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="mailto:hello@rentybase.com">hello@rentybase.com</a>
             </div>
           </div>
           <div className="foot-rule" />
