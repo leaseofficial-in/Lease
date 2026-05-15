@@ -5,14 +5,14 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 
 const dmSans = DM_Sans({
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-dm-sans',
   display: 'swap',
 })
 
 const instrumentSerif = Instrument_Serif({
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext'],
   weight: ['400'],
   style: ['normal', 'italic'],
   variable: '--font-instrument-serif',
@@ -20,7 +20,7 @@ const instrumentSerif = Instrument_Serif({
 })
 
 const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext'],
   weight: ['400', '500', '600'],
   variable: '--font-jetbrains-mono',
   display: 'swap',

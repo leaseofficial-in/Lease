@@ -26,9 +26,9 @@
   --rb-warning-soft:  #F6E6CA;
   --rb-danger:        #C0392B;
   --rb-danger-soft:   #FDECEA;
-  --rb-font-display:  'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --rb-font-display:  'Instrument Serif', 'DM Sans', 'Iowan Old Style', Georgia, serif;
   --rb-font-sans:     'DM Sans', system-ui, -apple-system, sans-serif;
-  --rb-font-mono:     'JetBrains Mono', ui-monospace, monospace;
+  --rb-font-mono:     'JetBrains Mono', 'DM Sans', ui-monospace, monospace;
   --rb-ease:          cubic-bezier(0.22, 1, 0.36, 1);
   --rb-shadow-sm:     0 1px 2px rgba(20,18,12,.04), 0 2px 8px rgba(20,18,12,.05);
   --rb-shadow-md:     0 4px 12px rgba(20,18,12,.06), 0 12px 32px rgba(20,18,12,.08);
@@ -785,6 +785,25 @@ body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index
 }
 @media (min-width: 768px) {
   .d-toggle-label { display: inline; }
+}
+
+/* ── Indian Rupee Sign: force DM Sans for U+20B9 in all font contexts ─ */
+/* Instrument Serif and JetBrains Mono may not have this glyph.         */
+/* By declaring a unicode-range @font-face with the same family name,   */
+/* the browser uses DM Sans (which has ₹) for that character only.      */
+@font-face {
+  font-family: 'Instrument Serif';
+  src: local('DM Sans'), local('Arial Unicode MS'), local('Segoe UI');
+  unicode-range: U+20B9;
+  font-style: normal;
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: local('DM Sans'), local('Arial Unicode MS'), local('Segoe UI');
+  unicode-range: U+20B9;
+  font-style: normal;
+  font-weight: 400 600;
 }
 
 /* ── Accessibility: focus ring ─────────────────────────────── */

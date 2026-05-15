@@ -17,7 +17,11 @@ type ProofPhoto = { id: string; room_label?: string; public_url?: string; annota
 type DepositTx = { id: string; rental_id: string; type: string; amount: number; note?: string; description?: string; tenant_dispute_note?: string; dispute_status?: string; created_at: string }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-const inr = (n: number | undefined | null) => '₹' + Number(n || 0).toLocaleString('en-IN')
+const _inrFmt = typeof Intl !== 'undefined'
+  ? new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
+  : null
+const inr = (n: number | undefined | null) =>
+  '₹' + (_inrFmt ? _inrFmt.format(Number(n || 0)) : Number(n || 0).toLocaleString('en-IN'))
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const now = new Date()
 const currentMonth = now.toISOString().slice(0, 7)
@@ -1378,7 +1382,7 @@ export default function DashboardPage() {
                   <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', fontFamily: 'var(--rb-font-mono)', marginTop: 2 }}>#{new Date(p.month).getFullYear()}-{String(new Date(p.month).getMonth() + 1).padStart(2, '0')}-{String(i + 1).padStart(3, '0')}</div>
                 </div>
                 <div style={{ textAlign: 'right' as const }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>₹{Number(p.amount).toLocaleString('en-IN')}</div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{inr(p.amount)}</div>
                   <div style={{ fontSize: 11, color: 'var(--rb-action)', fontWeight: 600, marginTop: 2 }}>PDF →</div>
                 </div>
               </div>
