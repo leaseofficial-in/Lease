@@ -1129,17 +1129,17 @@ function MMFoot() {
       <div className="links">
         <div>
           <h4>Product</h4>
-          <a href="#">Move-in proof</a>
-          <a href="#">HRA receipts</a>
-          <a href="#">Repair ledger</a>
-          <a href="#">Leave &amp; License</a>
+          <a href="/features">Move-in proof</a>
+          <a href="/tools">HRA receipts</a>
+          <a href="/features">Repair ledger</a>
+          <a href="/features">Leave &amp; License</a>
         </div>
         <div>
-          <h4>Soon</h4>
-          <a href="#">UPI 2.0 collect</a>
-          <a href="#">Rent listings</a>
-          <a href="#">Society NOC</a>
-          <a href="#">26AS export</a>
+          <h4>Company</h4>
+          <a href="/company">About</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/contact">Contact</a>
         </div>
       </div>
       <div className="rule"/>
@@ -1222,7 +1222,7 @@ export default function Page() {
             </div>
             <div className="foot-col">
               <div className="foot-h">Company</div>
-              <a href="#">About</a><a href="#">Privacy</a><a href="#">Terms</a><a href="mailto:hello@rentybase.in">hello@rentybase.in</a>
+              <a href="/company">About</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="mailto:hello@rentybase.com">hello@rentybase.com</a>
             </div>
           </div>
           <div className="foot-rule" />
