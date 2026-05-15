@@ -192,6 +192,7 @@ export default function DashboardPage() {
   const [selectedDepositTx, setSelectedDepositTx] = useState<DepositTx | null>(null)
   const [messagingRental, setMessagingRental] = useState<Rental | null>(null)
   const [notifications, setNotifications] = useState<any[]>([])
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const msgChannelRef = useRef<any>(null)
 
   const toast = useCallback((msg: string, type: Toast['type'] = 'info') => {
@@ -341,10 +342,10 @@ export default function DashboardPage() {
     { k: 'home', label: 'Overview', short: 'Home' },
     { k: 'inbox', label: 'Activity', short: 'Activity' },
     { k: 'props', label: 'Properties', short: 'Props' },
+    { k: 'led', label: 'Ledger', short: 'Ledger' },
+    { k: 'rep', label: 'Repairs', short: 'Repairs' },
     { k: 'msg', label: 'Messages', short: 'Msgs' },
     { k: 'agree', label: 'Agreements', short: 'Agree' },
-    { k: 'rep', label: 'Repairs', short: 'Repairs' },
-    { k: 'led', label: 'Ledger', short: 'Ledger' },
     { k: 'hra', label: 'Receipts', short: 'HRA' },
     { k: 'profile', label: 'Profile', short: 'Profile' },
   ]
@@ -353,14 +354,18 @@ export default function DashboardPage() {
     { k: 'pay', label: 'Pay rent', short: 'Pay' },
     { k: 'rep', label: 'Repairs', short: 'Repairs' },
     { k: 'msg', label: 'Messages', short: 'Msgs' },
+    { k: 'proof', label: 'Move-in proof', short: 'Proof' },
     { k: 'hra', label: 'HRA receipts', short: 'HRA' },
     { k: 'profile', label: 'Profile', short: 'Profile' },
     { k: 'agree', label: 'Agreement', short: 'Agree' },
-    { k: 'proof', label: 'Move-in proof', short: 'Proof' },
     { k: 'dep', label: 'Deposit', short: 'Deposit' },
     { k: 'score', label: 'Renter score', short: 'Score' },
   ]
   const navItems = role === 'landlord' ? lNavItems : tNavItems
+  // Mobile: 4 primary tabs visible + "More" for the rest
+  const mobilePrimaryCount = 4
+  const mobileTabItems = navItems.slice(0, mobilePrimaryCount)
+  const mobileMoreItems = navItems.slice(mobilePrimaryCount)
 
   // ── Shared sub-components ────────────────────────────────────────────────
 
@@ -736,18 +741,24 @@ export default function DashboardPage() {
                 </div>
                 <button onClick={() => navigate('inbox')} style={{ fontSize: 12, color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>View all →</button>
               </div>
-              {notifications.slice(0, 3).map(n => (
-                <div key={n.id} style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 12, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid var(--rb-border-soft)' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: n.type === 'payment_received' ? 'var(--rb-action-soft)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', color: n.type === 'payment_received' ? 'var(--rb-action)' : 'var(--rb-ink-3)' }}>
-                    <Icon k={n.type === 'payment_received' ? 'led' : 'inbox'} size={16} stroke={1.8} />
+              {notifications.slice(0, 3).map(n => {
+                const d = n.data || {}
+                const iconK = (n.type === 'payment_received' || n.type === 'pending_verification') ? 'led' : d.type === 'move_in_proof' ? 'proof' : (d.urgency !== undefined || d.category !== undefined) ? 'rep' : 'inbox'
+                const iconBg = (n.type === 'payment_received' || n.type === 'pending_verification') ? 'var(--rb-action-soft)' : d.type === 'move_in_proof' ? 'var(--rb-success-soft, #e6faf5)' : (d.urgency === 'emergency') ? 'var(--rb-danger-soft, #fef2f2)' : 'var(--rb-fill-2)'
+                const iconC = (n.type === 'payment_received' || n.type === 'pending_verification') ? 'var(--rb-action)' : d.type === 'move_in_proof' ? 'var(--rb-success)' : (d.urgency === 'emergency') ? 'var(--rb-danger)' : 'var(--rb-ink-3)'
+                return (
+                  <div key={n.id} onClick={() => handleNotifTap(n)} style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 12, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid var(--rb-border-soft)', cursor: 'pointer' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: iconBg, display: 'grid', placeItems: 'center', color: iconC }}>
+                      <Icon k={iconK} size={16} stroke={1.8} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{n.title}</div>
+                      <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.body}</div>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--rb-ink-3)', flexShrink: 0 }}>{relDate(n.created_at)}</span>
                   </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{n.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.body}</div>
-                  </div>
-                  <span style={{ fontSize: 11, color: 'var(--rb-ink-3)', flexShrink: 0 }}>{relDate(n.created_at)}</span>
-                </div>
-              ))}
+                )
+              })}
             </section>
           )}
 
@@ -2071,7 +2082,7 @@ export default function DashboardPage() {
             title: urgency === 'emergency' ? '🚨 Emergency repair request' : 'New repair request',
             body: `${profile?.full_name || 'Your tenant'} raised a${urgency === 'emergency' ? 'n emergency' : ''} repair request: "${title}"`,
             type: 'general',
-            data: { rental_id: rentalId, urgency, category },
+            data: { rental_id: rentalId, urgency, category, type: 'repair_request' },
           }).then(() => {})  // fire-and-forget
         }
         toast('Repair request raised!', 'success')
@@ -3853,18 +3864,27 @@ export default function DashboardPage() {
   }
 
   function LandlordInbox() {
-    const typeLabel: Record<string, string> = {
-      payment_received: 'Payment submitted',
-      general: 'Activity',
+    const notifIcon = (n: any) => {
+      if (n.type === 'payment_received' || n.type === 'pending_verification') return 'led'
+      const d = n.data || {}
+      if (d.type === 'move_in_proof') return 'proof'
+      if (d.urgency !== undefined || d.category !== undefined) return 'rep'
+      return 'inbox'
     }
-    const typeIcon: Record<string, string> = {
-      payment_received: 'led',
-      general: 'inbox',
+    const notifColor = (n: any) => {
+      if (n.type === 'payment_received' || n.type === 'pending_verification') return { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }
+      const d = n.data || {}
+      if (d.type === 'move_in_proof') return { bg: 'var(--rb-success-soft, #e6faf5)', c: 'var(--rb-success)' }
+      if (d.urgency === 'emergency') return { bg: 'var(--rb-danger-soft, #fef2f2)', c: 'var(--rb-danger)' }
+      if (d.urgency !== undefined || d.category !== undefined) return { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' }
+      return { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
     }
-
-    const markRead = async (id: string) => {
-      await sb.from('notifications').update({ read: true }).eq('id', id)
-      setNotifications(prev => prev.filter(n => n.id !== id))
+    const notifAction = (n: any) => {
+      if (n.type === 'payment_received' || n.type === 'pending_verification') return 'Review payment →'
+      const d = n.data || {}
+      if (d.type === 'move_in_proof') return 'View photos →'
+      if (d.urgency !== undefined || d.category !== undefined) return 'View repair →'
+      return null
     }
 
     const markAllRead = async () => {
@@ -3892,27 +3912,28 @@ export default function DashboardPage() {
               <p style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>New tenant activity will appear here — payments, move-in photos, repairs.</p>
             </div>
           ) : (
-            notifications.map(n => (
-              <div key={n.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 12, alignItems: 'flex-start', padding: '12px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: n.type === 'payment_received' ? 'var(--rb-action-soft)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', color: n.type === 'payment_received' ? 'var(--rb-action)' : 'var(--rb-ink-3)', flexShrink: 0 }}>
-                  <Icon k={typeIcon[n.type] || 'inbox'} size={18} stroke={1.8} />
+            notifications.map(n => {
+              const col = notifColor(n)
+              const action = notifAction(n)
+              return (
+                <div key={n.id} onClick={() => handleNotifTap(n)} style={{ display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 12, alignItems: 'flex-start', padding: '12px 0', borderBottom: '1px solid var(--rb-border-soft)', cursor: 'pointer' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: col.bg, display: 'grid', placeItems: 'center', color: col.c, flexShrink: 0 }}>
+                    <Icon k={notifIcon(n)} size={18} stroke={1.8} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{n.title}</div>
+                    <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginTop: 2, lineHeight: 1.5 }}>{n.body}</div>
+                    <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>{relDate(n.created_at)}</div>
+                    {action && (
+                      <span style={{ display: 'inline-block', marginTop: 8, fontSize: 12, fontWeight: 600, color: 'var(--rb-action)' }}>{action}</span>
+                    )}
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); markNotifRead(n.id) }} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'var(--rb-ink-3)', padding: 4, flexShrink: 0 }} title="Dismiss">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{n.title}</div>
-                  <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginTop: 2, lineHeight: 1.5 }}>{n.body}</div>
-                  <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>{relDate(n.created_at)}</div>
-                  {n.type === 'payment_received' && n.data?.rental_id && (
-                    <button onClick={() => {
-                      const r = landlordData?.rentals?.find((r: Rental) => r.id === n.data.rental_id)
-                      if (r) { setSelectedRental(r); setModal('property-detail'); markRead(n.id) }
-                    }} style={{ marginTop: 8, padding: '5px 12px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600 }}>Review payment →</button>
-                  )}
-                </div>
-                <button onClick={() => markRead(n.id)} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'var(--rb-ink-3)', padding: 4, flexShrink: 0 }} title="Dismiss">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
-            ))
+              )
+            })
           )}
         </section>
       </>
@@ -3965,7 +3986,30 @@ export default function DashboardPage() {
   }
 
   // ── Layout ───────────────────────────────────────────────────────────────
-  const mobileItems = navItems.slice(0, 5)
+
+  function handleNotifTap(n: any) {
+    const d = n.data || {}
+    if (n.type === 'payment_received' || n.type === 'pending_verification') {
+      const r = landlordData?.rentals?.find((r: Rental) => r.id === d.rental_id)
+      if (r) { setSelectedRental(r); setModal('property-detail') }
+      else navigate('led')
+    } else if (d.type === 'move_in_proof') {
+      navigate('props')
+    } else if (d.type === 'repair_request' || d.urgency !== undefined || d.category !== undefined) {
+      navigate('rep')
+    } else if (n.type === 'info') {
+      navigate('home')
+    } else {
+      navigate('inbox')
+    }
+    markNotifRead(n.id)
+    setShowMoreMenu(false)
+  }
+
+  function markNotifRead(id: string) {
+    sb.from('notifications').update({ read: true }).eq('id', id).then(() => {})
+    setNotifications(prev => prev.filter(n => n.id !== id))
+  }
 
   return (
     <>
@@ -4010,15 +4054,15 @@ export default function DashboardPage() {
         <a href="/" style={{ textDecoration: 'none' }}>
           <LogoLockup size={26} fontSize={18} gap={9} />
         </a>
-        {role === 'landlord' && (
-          <button onClick={() => navigate(activeView === 'inbox' ? 'home' : 'inbox')} style={{ position: 'relative', width: 32, height: 32, borderRadius: '50%', background: activeView === 'inbox' ? 'var(--rb-ink)' : 'var(--rb-surface)', border: '1px solid var(--rb-border)', cursor: 'pointer', display: 'grid', placeItems: 'center', color: activeView === 'inbox' ? '#fff' : 'var(--rb-ink-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={() => navigate(activeView === 'inbox' ? 'home' : 'inbox')} style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', background: activeView === 'inbox' ? 'var(--rb-ink)' : 'var(--rb-surface)', border: '1px solid var(--rb-border)', cursor: 'pointer', display: 'grid', placeItems: 'center', color: activeView === 'inbox' ? '#fff' : 'var(--rb-ink-2)' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-            {notifications.length > 0 && <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 3px', border: '1.5px solid var(--rb-canvas)' }}>{notifications.length > 9 ? '9+' : notifications.length}</span>}
+            {notifications.length > 0 && <span style={{ position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 3px', border: '1.5px solid var(--rb-canvas)' }}>{notifications.length > 9 ? '9+' : notifications.length}</span>}
           </button>
-        )}
-        <button onClick={() => navigate(activeView === 'profile' ? 'home' : 'profile')} style={{ width: 32, height: 32, borderRadius: '50%', background: activeView === 'profile' ? 'var(--rb-ink)' : avatarBg, border: activeView === 'profile' ? '2px solid var(--rb-border)' : 0, cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 13, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden', transition: 'all .18s' }}>
-          {activeView === 'profile' ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> : avatarUrl ? <img src={avatarUrl} alt={firstName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : firstName.charAt(0).toUpperCase()}
-        </button>
+          <button onClick={() => navigate(activeView === 'profile' ? 'home' : 'profile')} style={{ width: 34, height: 34, borderRadius: '50%', background: activeView === 'profile' ? 'var(--rb-ink)' : avatarBg, border: activeView === 'profile' ? '2px solid var(--rb-border)' : 0, cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 13, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden', transition: 'all .18s' }}>
+            {activeView === 'profile' ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> : avatarUrl ? <img src={avatarUrl} alt={firstName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : firstName.charAt(0).toUpperCase()}
+          </button>
+        </div>
       </div>
 
       {/* Desktop shell */}
@@ -4058,16 +4102,53 @@ export default function DashboardPage() {
         </main>
       </div>
 
-      {/* Mobile tabs */}
+      {/* Mobile "More" sheet backdrop */}
+      {showMoreMenu && (
+        <div onClick={() => setShowMoreMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 290, background: 'rgba(0,0,0,.35)' }} />
+      )}
+
+      {/* Mobile "More" sheet */}
+      {showMoreMenu && (
+        <div style={{ position: 'fixed', bottom: 68, left: 12, right: 12, zIndex: 300, background: 'var(--rb-canvas)', borderRadius: 20, boxShadow: '0 -2px 40px rgba(0,0,0,.18)', padding: '6px 0 8px', overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0 }}>
+            {mobileMoreItems.map(it => {
+              const isActive = activeView === it.k
+              return (
+                <button key={it.k} onClick={() => { navigate(it.k); setShowMoreMenu(false) }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '14px 6px 10px', border: 0, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: isActive ? 'var(--rb-action)' : 'var(--rb-ink-2)' }}>
+                  <span style={{ display: 'grid', placeItems: 'center', width: 44, height: 36, borderRadius: 12, background: isActive ? 'var(--rb-action-soft)' : 'var(--rb-fill)', transition: 'background .18s' }}>
+                    <NavIcon k={it.k} size={20} active={isActive} />
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: isActive ? 700 : 500, textAlign: 'center', lineHeight: 1.2 }}>{it.short || it.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile tabs — 4 primary + More */}
       <div className="m-tabs" style={{ display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200, background: 'var(--rb-surface)', borderTop: '1px solid var(--rb-border)', padding: '6px 0 12px', boxShadow: '0 -4px 16px rgba(14,20,19,.06)' }}>
-        {mobileItems.map(it => (
-          <button key={it.k} onClick={() => navigate(it.k)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 2px', border: 0, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: activeView === it.k ? 'var(--rb-action)' : 'var(--rb-ink-3)', minWidth: 0, transition: 'color .18s' }}>
-            <span style={{ display: 'grid', placeItems: 'center', width: 46, height: 30, borderRadius: 15, transition: 'background .18s', background: activeView === it.k ? 'var(--rb-action-soft)' : 'transparent' }}>
-              <NavIcon k={it.k} size={22} active={activeView === it.k} />
-            </span>
-            <span style={{ fontSize: 10, fontWeight: activeView === it.k ? 700 : 500, letterSpacing: '.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 62 }}>{it.short || it.label}</span>
-          </button>
-        ))}
+        {mobileTabItems.map(it => {
+          const isActive = activeView === it.k
+          return (
+            <button key={it.k} onClick={() => { navigate(it.k); setShowMoreMenu(false) }} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 2px', border: 0, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: isActive ? 'var(--rb-action)' : 'var(--rb-ink-3)', minWidth: 0, transition: 'color .18s' }}>
+              <span style={{ position: 'relative', display: 'grid', placeItems: 'center', width: 46, height: 30, borderRadius: 15, transition: 'background .18s', background: isActive ? 'var(--rb-action-soft)' : 'transparent' }}>
+                <NavIcon k={it.k} size={22} active={isActive} />
+                {it.k === 'inbox' && notifications.length > 0 && (
+                  <span style={{ position: 'absolute', top: 2, right: 6, minWidth: 14, height: 14, borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', fontSize: 8, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 2px' }}>{notifications.length > 9 ? '9+' : notifications.length}</span>
+                )}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, letterSpacing: '.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 62 }}>{it.short || it.label}</span>
+            </button>
+          )
+        })}
+        {/* More button */}
+        <button onClick={() => setShowMoreMenu(v => !v)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 2px', border: 0, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: (showMoreMenu || mobileMoreItems.some(it => activeView === it.k)) ? 'var(--rb-action)' : 'var(--rb-ink-3)', minWidth: 0, transition: 'color .18s' }}>
+          <span style={{ display: 'grid', placeItems: 'center', width: 46, height: 30, borderRadius: 15, transition: 'background .18s', background: (showMoreMenu || mobileMoreItems.some(it => activeView === it.k)) ? 'var(--rb-action-soft)' : 'transparent' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '.01em' }}>More</span>
+        </button>
       </div>
 
       {/* Modals */}
