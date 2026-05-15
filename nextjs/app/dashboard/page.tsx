@@ -180,7 +180,9 @@ export default function DashboardPage() {
   const [authError, setAuthError] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [activeView, setActiveView] = useState('home')
+  const [viewStack, setViewStack] = useState<string[]>(['home'])
+  const activeView = viewStack[viewStack.length - 1]
+  const [refreshKey, setRefreshKey] = useState(0)
   const [landlordData, setLandlordData] = useState<any>(null)
   const [tenantData, setTenantData] = useState<any>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -202,9 +204,25 @@ export default function DashboardPage() {
   }, [])
 
   const navigate = useCallback((key: string) => {
-    setActiveView(key)
+    setViewStack(prev => {
+      if (key === 'home') return ['home']
+      const last = prev[prev.length - 1]
+      if (last === key) return prev
+      // Pop back if already in history (prevents duplicates)
+      const idx = prev.lastIndexOf(key)
+      if (idx !== -1) return prev.slice(0, idx + 1)
+      return [...prev, key]
+    })
+    setShowMoreMenu(false)
     window.scrollTo(0, 0)
   }, [])
+
+  const goBack = useCallback(() => {
+    setViewStack(prev => prev.length > 1 ? prev.slice(0, -1) : prev)
+    window.scrollTo(0, 0)
+  }, [])
+
+  const refreshData = useCallback(() => setRefreshKey(k => k + 1), [])
 
   // ── Init & data fetch ────────────────────────────────────────────────────
   useEffect(() => {
@@ -298,7 +316,7 @@ export default function DashboardPage() {
         setLoading(false)
       }
     })()
-  }, [])
+  }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-apply late fee when tenant has an overdue payment without one yet
   useEffect(() => {
@@ -1818,7 +1836,7 @@ export default function DashboardPage() {
         })
         if (rentalErr) throw rentalErr
         toast('Property added! Share the invite link with your tenant.', 'success')
-        setModal(null); window.location.reload()
+        setModal(null); refreshData()
       } catch (e: any) { console.error('[AddProperty]', e); toast(e?.message || 'Failed to add property', 'error'); setSaving(false) }
     }
 
@@ -1999,7 +2017,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28, letterSpacing: '-.02em', marginBottom: 8 }}>Payment recorded!</div>
             <div style={{ fontSize: 14, color: 'var(--rb-ink-3)', marginBottom: 28 }}>{inr(rental?.monthly_rent)} · awaiting landlord confirmation</div>
-            <button onClick={() => { setModal(null); window.location.reload() }} style={{ ...actBtnPrimary, width: '100%', justifyContent: 'center', padding: '13px 0', fontSize: 15 }}>Done</button>
+            <button onClick={() => { setModal(null); refreshData() }} style={{ ...actBtnPrimary, width: '100%', justifyContent: 'center', padding: '13px 0', fontSize: 15 }}>Done</button>
           </div>
         </div>
       )
@@ -2087,7 +2105,7 @@ export default function DashboardPage() {
         }
         toast('Repair request raised!', 'success')
         setModal(null)
-        window.location.reload()
+        refreshData()
       } catch (e: any) { console.error('[NewRepair]', e); toast(e?.message || 'Failed to raise request', 'error'); setSaving(false) }
     }
 
@@ -2175,7 +2193,7 @@ export default function DashboardPage() {
         }
         toast('Repair updated', 'success')
         setModal(null)
-        window.location.reload()
+        refreshData()
       } catch (e: any) { console.error('[RepairUpdate]', e); toast(e?.message || 'Failed to update', 'error'); setSaving(false) }
     }
 
@@ -2252,7 +2270,7 @@ export default function DashboardPage() {
         if (error) throw error
         toast('Repair request closed', 'success')
         setModal(null)
-        window.location.reload()
+        refreshData()
       } catch (e: any) { console.error('[RepairCancel]', e); toast(e?.message || 'Failed to close', 'error'); setSaving(false) }
     }
 
@@ -2274,7 +2292,7 @@ export default function DashboardPage() {
         if (error) throw error
         toast('Confirmed as resolved ✓', 'success')
         setModal(null)
-        window.location.reload()
+        refreshData()
       } catch (e: any) { console.error('[RepairConfirm]', e); toast(e?.message || 'Failed', 'error'); setSaving(false) }
     }
 
@@ -2390,7 +2408,7 @@ export default function DashboardPage() {
         const { error } = await sb.from('rentals').update({ invite_token: genToken(), invite_expires_at: tokenExpiry() }).eq('id', r.id)
         if (error) throw error
         toast('New invite link generated!', 'success')
-        setModal(null); setSelectedRental(null); window.location.reload()
+        setModal(null); setSelectedRental(null); refreshData()
       } catch (e: any) { toast(e?.message || 'Failed to generate link', 'error') } finally { setSaving(false) }
     }
 
@@ -2420,7 +2438,7 @@ export default function DashboardPage() {
         }).eq('id', r.id)
         if (error) throw error
         toast('Property updated!', 'success')
-        setModal(null); setSelectedRental(null); window.location.reload()
+        setModal(null); setSelectedRental(null); refreshData()
       } catch (e: any) { console.error('[EditProperty]', e); toast(e?.message || 'Failed to update property', 'error') } finally { setSaving(false) }
     }
 
@@ -2443,7 +2461,7 @@ export default function DashboardPage() {
         const { error } = await sb.from('rent_payments').update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', currentPmt.id)
         if (error) throw error
         toast('Payment returned to pending.', 'info')
-        setModal(null); setSelectedRental(null); window.location.reload()
+        setModal(null); setSelectedRental(null); refreshData()
       } catch (e: any) { toast(e?.message || 'Failed to reject payment', 'error') } finally { setSaving(false) }
     }
 
@@ -2496,7 +2514,7 @@ export default function DashboardPage() {
               <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--rb-ink)', color: '#FBF6EB', borderRadius: 12, fontSize: 13, fontWeight: 600 }}>
                 Receipt sent to tenant · ledger updated
               </div>
-              <button onClick={() => { setModal(null); setSelectedRental(null); window.location.reload() }} style={{ ...actBtnPrimary, marginTop: 16, width: '100%', justifyContent: 'center' }}>Close</button>
+              <button onClick={() => { setModal(null); setSelectedRental(null); refreshData() }} style={{ ...actBtnPrimary, marginTop: 16, width: '100%', justifyContent: 'center' }}>Close</button>
             </div>
           </div>
         )}
@@ -2704,7 +2722,7 @@ export default function DashboardPage() {
         const { error } = await sb.from('rentals').update({ status: 'ended' }).eq('id', r.id)
         if (error) throw error
         toast('Lease ended.', 'success')
-        setModal(null); setSelectedRental(null); window.location.reload()
+        setModal(null); setSelectedRental(null); refreshData()
       } catch (e: any) { console.error('[EndLease]', e); toast(e?.message || 'Failed to end lease', 'error') } finally { setSaving(false) }
     }
 
@@ -2743,7 +2761,7 @@ export default function DashboardPage() {
         }).eq('id', rental.id)
         if (error) throw error
         toast('Agreement signed ✓ Landlord will countersign.', 'success')
-        setModal(null); window.location.reload()
+        setModal(null); refreshData()
       } catch (e: any) { console.error('[SignAgreement]', e); toast(e?.message || 'Failed to sign agreement', 'error') } finally { setSaving(false) }
     }
 
@@ -2802,7 +2820,7 @@ export default function DashboardPage() {
         })
         if (error) throw error
         toast('Building created! Now add units to it.', 'success')
-        setModal(null); window.location.reload()
+        setModal(null); refreshData()
       } catch (e: any) { console.error('[AddBuilding]', e); toast(e?.message || 'Failed to create building', 'error'); setSaving(false) }
     }
     return (
@@ -2887,7 +2905,7 @@ export default function DashboardPage() {
         })
         if (rentalErr) throw rentalErr
         toast('Unit added!', 'success')
-        setModal(null); window.location.reload()
+        setModal(null); refreshData()
       } catch (e: any) { console.error('[AddUnit]', e); toast(e?.message || 'Failed to add unit', 'error'); setSaving(false) }
     }
 
@@ -2965,7 +2983,7 @@ export default function DashboardPage() {
         const { error: rentalErr } = await sb.from('rentals').insert(rentalRows)
         if (rentalErr) throw rentalErr
         toast(`${bulkUnits.length} units created!`, 'success')
-        setModal(null); window.location.reload()
+        setModal(null); refreshData()
       } catch (e: any) { console.error('[BulkAdd]', e); toast(e?.message || 'Failed to create units', 'error'); setSaving(false) }
     }
 
@@ -3167,7 +3185,7 @@ export default function DashboardPage() {
         }).eq('id', building.id)
         if (error) throw error
         toast('Building updated!', 'success')
-        setModal(null); setSelectedBuilding(null); window.location.reload()
+        setModal(null); setSelectedBuilding(null); refreshData()
       } catch (e: any) { console.error('[EditBuilding]', e); toast(e?.message || 'Failed to update building', 'error') } finally { setSaving(false) }
     }
     const onClose = () => { setModal(null); setSelectedBuilding(null) }
@@ -3246,7 +3264,7 @@ export default function DashboardPage() {
         }).eq('id', user.id)
         if (error) throw error
         toast('Profile updated!', 'success')
-        setModal(null); window.location.reload()
+        setModal(null); refreshData()
       } catch (e: any) { console.error('[EditProfile]', e); toast(e?.message || 'Failed to update', 'error') } finally { setSaving(false) }
     }
 
@@ -3483,7 +3501,7 @@ export default function DashboardPage() {
                 <button onClick={async () => {
                   await sb.from('rentals').update({ agreement_status: 'pending_signature' }).eq('id', activeRental.id)
                   toast('Agreement sent to tenant for signature', 'success')
-                  window.location.reload()
+                  refreshData()
                 }} style={actBtnPrimary}>Send to tenant →</button>
               )}
               {tenantSigned && !activeRental.landlord_signed_at && (
@@ -3553,7 +3571,7 @@ export default function DashboardPage() {
         const { error } = await sb.from('rentals').update({ agreement_custom_clauses: clauses || null }).eq('id', r.id)
         if (error) throw error
         toast('Custom clauses saved', 'success')
-        setModal(null); window.location.reload()
+        setModal(null); refreshData()
       } catch (e: any) { console.error('[CustomClauses]', e); toast(e?.message || 'Failed to save', 'error'); setSaving(false) }
     }
 
@@ -3594,7 +3612,7 @@ export default function DashboardPage() {
         }).eq('id', r.id)
         if (error) throw error
         toast('Agreement fully executed ✓', 'success')
-        setModal(null); window.location.reload()
+        setModal(null); refreshData()
       } catch (e: any) { console.error('[LandlordSign]', e); toast(e?.message || 'Failed to sign', 'error'); setSaving(false) }
     }
 
@@ -3742,7 +3760,7 @@ export default function DashboardPage() {
         if (error) throw error
         toast('Dispute filed — your landlord will be notified', 'success')
         setModal(null)
-        window.location.reload()
+        refreshData()
       } catch (e: any) { console.error('[Dispute]', e); toast(e?.message || 'Failed', 'error'); setSaving(false) }
     }
 
@@ -3793,7 +3811,7 @@ export default function DashboardPage() {
         }
         toast('Escalation applied — tenant notified', 'success')
         setModal(null)
-        window.location.reload()
+        refreshData()
       } catch (e: any) { console.error('[Escalation]', e); toast(e?.message || 'Failed', 'error'); setSaving(false) }
     }
 
@@ -3842,7 +3860,7 @@ export default function DashboardPage() {
         if (error) throw error
         toast('Notice given — landlord will be informed', 'success')
         setModal(null)
-        window.location.reload()
+        refreshData()
       } catch (e: any) { console.error('[GiveNotice]', e); toast(e?.message || 'Failed', 'error'); setSaving(false) }
     }
 
@@ -4050,20 +4068,35 @@ export default function DashboardPage() {
       `}</style>
 
       {/* Mobile fixed header */}
-      <div className="m-head" style={{ display: 'none', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: 'var(--rb-canvas)', borderBottom: '1px solid var(--rb-border)', padding: '13px 18px', alignItems: 'center', justifyContent: 'space-between' }}>
-        <a href="/" style={{ textDecoration: 'none' }}>
-          <LogoLockup size={26} fontSize={18} gap={9} />
-        </a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={() => navigate(activeView === 'inbox' ? 'home' : 'inbox')} style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', background: activeView === 'inbox' ? 'var(--rb-ink)' : 'var(--rb-surface)', border: '1px solid var(--rb-border)', cursor: 'pointer', display: 'grid', placeItems: 'center', color: activeView === 'inbox' ? '#fff' : 'var(--rb-ink-2)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-            {notifications.length > 0 && <span style={{ position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 3px', border: '1.5px solid var(--rb-canvas)' }}>{notifications.length > 9 ? '9+' : notifications.length}</span>}
-          </button>
-          <button onClick={() => navigate(activeView === 'profile' ? 'home' : 'profile')} style={{ width: 34, height: 34, borderRadius: '50%', background: activeView === 'profile' ? 'var(--rb-ink)' : avatarBg, border: activeView === 'profile' ? '2px solid var(--rb-border)' : 0, cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 13, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden', transition: 'all .18s' }}>
-            {activeView === 'profile' ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> : avatarUrl ? <img src={avatarUrl} alt={firstName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : firstName.charAt(0).toUpperCase()}
-          </button>
-        </div>
-      </div>
+      {(() => {
+        const canGoBack = viewStack.length > 1
+        const currentLabel = navItems.find(it => it.k === activeView)?.label || (activeView === 'profile' ? 'Profile' : '')
+        return (
+          <div className="m-head" style={{ display: 'none', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: 'var(--rb-canvas)', borderBottom: '1px solid var(--rb-border)', padding: '0 18px', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
+            {/* Left: back button (non-home) or logo (home) */}
+            {canGoBack ? (
+              <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 0, cursor: 'pointer', padding: '0 4px 0 0', color: 'var(--rb-action)', fontFamily: 'inherit', fontSize: 15, fontWeight: 600, minWidth: 0 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160, fontSize: 16, fontWeight: 700, color: 'var(--rb-ink)' }}>{currentLabel}</span>
+              </button>
+            ) : (
+              <a href="/" style={{ textDecoration: 'none' }}>
+                <LogoLockup size={26} fontSize={18} gap={9} />
+              </a>
+            )}
+            {/* Right: bell + avatar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={() => navigate(activeView === 'inbox' ? 'home' : 'inbox')} style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', background: activeView === 'inbox' ? 'var(--rb-ink)' : 'var(--rb-surface)', border: '1px solid var(--rb-border)', cursor: 'pointer', display: 'grid', placeItems: 'center', color: activeView === 'inbox' ? '#fff' : 'var(--rb-ink-2)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                {notifications.length > 0 && <span style={{ position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 3px', border: '1.5px solid var(--rb-canvas)' }}>{notifications.length > 9 ? '9+' : notifications.length}</span>}
+              </button>
+              <button onClick={() => navigate(activeView === 'profile' ? 'home' : 'profile')} style={{ width: 34, height: 34, borderRadius: '50%', background: activeView === 'profile' ? 'var(--rb-ink)' : avatarBg, border: activeView === 'profile' ? '2px solid var(--rb-border)' : 0, cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 13, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden', transition: 'all .18s' }}>
+                {activeView === 'profile' ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> : avatarUrl ? <img src={avatarUrl} alt={firstName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : firstName.charAt(0).toUpperCase()}
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Desktop shell */}
       <div className="d-shell" style={{ display: 'grid', gridTemplateColumns: '240px 1fr', minHeight: '100vh' }}>
