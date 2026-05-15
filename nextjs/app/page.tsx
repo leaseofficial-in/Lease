@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { LogoMark } from '@/components/brand'
 
 /* ── helpers ───────────────────────────────────────────────── */
@@ -553,6 +553,543 @@ function FinalCTA() {
   )
 }
 
+/* ── Mobile marketing helpers ──────────────────────────────── */
+function findScrollParent(el: Element | null): Element | Window {
+  let p = el?.parentElement
+  while (p && p !== document.body) {
+    const oy = getComputedStyle(p).overflowY
+    if (oy === 'auto' || oy === 'scroll') return p
+    p = p.parentElement
+  }
+  return window
+}
+
+function useScrollProgress(ref: React.RefObject<HTMLElement | null>, opts: { start?: number; end?: number } = {}) {
+  const { start = 0, end = 1 } = opts
+  const [p, setP] = useState(0)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const scroller = findScrollParent(el)
+    const onScroll = () => {
+      const r = el.getBoundingClientRect()
+      const scR = scroller === window
+        ? { top: 0, height: window.innerHeight }
+        : (scroller as Element).getBoundingClientRect()
+      const sH = scR.height
+      const elTop = r.top - scR.top
+      const passed = sH - elTop
+      const total = r.height + sH
+      let t = passed / total
+      t = (t - start) / (end - start)
+      t = Math.max(0, Math.min(1, t))
+      setP(t)
+    }
+    onScroll()
+    scroller.addEventListener('scroll', onScroll, { passive: true } as AddEventListenerOptions)
+    window.addEventListener('resize', onScroll)
+    const t1 = setTimeout(onScroll, 80)
+    const t2 = setTimeout(onScroll, 400)
+    return () => {
+      scroller.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [ref, start, end])
+  return p
+}
+
+function useInView(ref: React.RefObject<HTMLElement | null>, threshold = 0.25) {
+  const [v, setV] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const scroller = findScrollParent(el)
+    const check = () => {
+      const r = el.getBoundingClientRect()
+      const scR = scroller === window
+        ? { top: 0, height: window.innerHeight }
+        : (scroller as Element).getBoundingClientRect()
+      const visTop = Math.max(r.top, scR.top)
+      const visBot = Math.min(r.bottom, scR.top + scR.height)
+      const visible = Math.max(0, visBot - visTop)
+      const ratio = r.height > 0 ? visible / r.height : 0
+      if (ratio >= threshold) { setV(true); return true }
+      return false
+    }
+    if (check()) return
+    const onScroll = () => {
+      if (check()) {
+        scroller.removeEventListener('scroll', onScroll)
+        window.removeEventListener('resize', onScroll)
+      }
+    }
+    scroller.addEventListener('scroll', onScroll, { passive: true } as AddEventListenerOptions)
+    window.addEventListener('resize', onScroll)
+    const t1 = setTimeout(onScroll, 80)
+    const t2 = setTimeout(onScroll, 400)
+    return () => {
+      scroller.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [ref, threshold])
+  return v
+}
+
+/* ── Mobile marketing SVGs ─────────────────────────────────── */
+const MMMark = ({ size = 24 }: { size?: number }) => (
+  <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden="true">
+    <rect width="40" height="40" rx="9" fill="#0E1413"/>
+    <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
+    <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
+    <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+    <circle cx="20" cy="11" r="0.9" fill="#C97A3A"/>
+  </svg>
+)
+
+const MMSeal = ({ size = 140 }: { size?: number }) => (
+  <svg viewBox="0 0 200 200" width={size} height={size} aria-hidden="true">
+    <defs>
+      <radialGradient id="mmSealG" cx="38%" cy="32%" r="75%">
+        <stop offset="0%" stopColor="#E29457"/>
+        <stop offset="55%" stopColor="#C97A3A"/>
+        <stop offset="100%" stopColor="#8E4C1B"/>
+      </radialGradient>
+      <radialGradient id="mmSealH" cx="35%" cy="28%" r="35%">
+        <stop offset="0%" stopColor="rgba(255,255,255,.45)"/>
+        <stop offset="100%" stopColor="rgba(255,255,255,0)"/>
+      </radialGradient>
+    </defs>
+    <path d="M100 8 C140 8, 188 36, 192 86 C196 134, 168 184, 116 192 C68 199, 22 168, 10 124 C-2 76, 30 22, 78 12 C84 11, 92 8, 100 8 Z" fill="url(#mmSealG)"/>
+    <path d="M100 8 C140 8, 188 36, 192 86 C196 134, 168 184, 116 192 C68 199, 22 168, 10 124 C-2 76, 30 22, 78 12 C84 11, 92 8, 100 8 Z" fill="url(#mmSealH)"/>
+    <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(244,229,212,.5)" strokeWidth="1.4" strokeDasharray="2 3"/>
+    <text x="100" y="48" textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize="10" letterSpacing="3.2" fill="#F4E5D4" fontWeight="700">VERIFIED · SEALED</text>
+    <path d="M68 102 l22 22 l44 -44" fill="none" stroke="#F6F4EE" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round"/>
+    <text x="100" y="170" textAnchor="middle" fontFamily="'Instrument Serif', serif" fontSize="14" fill="#F4E5D4" fontStyle="italic">RentyBase</text>
+  </svg>
+)
+
+const MMSealCTA = ({ size = 170 }: { size?: number }) => (
+  <svg viewBox="0 0 200 200" width={size} height={size} aria-hidden="true">
+    <defs>
+      <radialGradient id="mmCTASealG" cx="38%" cy="32%" r="75%">
+        <stop offset="0%" stopColor="#E29457"/>
+        <stop offset="55%" stopColor="#C97A3A"/>
+        <stop offset="100%" stopColor="#8E4C1B"/>
+      </radialGradient>
+    </defs>
+    <path d="M100 8 C140 8, 188 36, 192 86 C196 134, 168 184, 116 192 C68 199, 22 168, 10 124 C-2 76, 30 22, 78 12 C84 11, 92 8, 100 8 Z" fill="url(#mmCTASealG)"/>
+    <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(244,229,212,.55)" strokeWidth="1.4" strokeDasharray="2 3"/>
+    <text x="100" y="62" textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize="11" letterSpacing="3.4" fill="#F4E5D4" fontWeight="700">FREE · BETA</text>
+    <text x="100" y="120" textAnchor="middle" fontFamily="'Instrument Serif', serif" fontStyle="italic" fontSize="34" fill="#F4E5D4">2026</text>
+    <text x="100" y="146" textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize="8" letterSpacing="2.2" fill="rgba(244,229,212,.7)" fontWeight="700">RB · MUMBAI · INDIA</text>
+  </svg>
+)
+
+/* ── MMHero ─────────────────────────────────────────────────── */
+function MMHero() {
+  const stageRef = useRef<HTMLElement>(null)
+  const p = useScrollProgress(stageRef, { start: 0.1, end: 0.7 })
+  const yaw = -10 + p * 25
+  const pitch = 5 - p * 12
+
+  useEffect(() => {
+    if (!stageRef.current) return
+    stageRef.current.style.setProperty('--phone-yaw', `${yaw}deg`)
+    stageRef.current.style.setProperty('--phone-pitch', `${pitch}deg`)
+    stageRef.current.querySelectorAll<HTMLElement>('[data-px]').forEach(el => {
+      const f = parseFloat(el.dataset.px || '0')
+      const base = getComputedStyle(el).getPropertyValue('--base') || ''
+      el.style.transform = `${base} translate3d(0, ${p * f * 30}px, 0)`
+    })
+  }, [p, yaw, pitch])
+
+  return (
+    <section className="mm-hero">
+      <span className="city"><span className="dot"/> MUMBAI · INDIA</span>
+      <h1>Rent that<br/><em>trusts itself.</em></h1>
+      <p>A shared, calm record between landlord and tenant — built for India. One ledger, both sides, forever.</p>
+      <div className="ctas">
+        <a href="/signup" className="mm-btn">Start free <span className="arr">→</span></a>
+        <a href="/signin" className="mm-btn ghost">I&apos;m a tenant</a>
+      </div>
+      <div className="mm-stage" ref={stageRef as React.RefObject<HTMLDivElement>}>
+        <div className="mm-float r1" data-px="-1.4">
+          <div className="lbl">Receipt · Nov</div>
+          <div className="val">₹28,500</div>
+          <div className="strip"/><div className="strip s"/>
+        </div>
+        <div className="mm-float r2" data-px="-1.0">
+          <div className="lbl">Move-in proof</div>
+          <div className="thumb"/>
+          <div className="mono">12 · sealed</div>
+        </div>
+        <div className="mm-float r3" data-px="-1.6">
+          <div className="lbl">UTR sealed</div>
+          <div className="mono">4581 2210 9914</div>
+          <div className="strip"/>
+        </div>
+        <div className="mm-float r4" data-px="-1.2">
+          <div className="lbl">HRA · annual</div>
+          <div className="val">₹7.44L</div>
+          <div className="strip s"/>
+        </div>
+        <div className="mm-phone">
+          <div className="body"/><div className="notch"/>
+          <div className="scr">
+            <div className="scr-inner">
+              <span className="scr-pill">RENT RECEIVED</span>
+              <span className="scr-eyebrow">NOV 2025 · BANDRA W</span>
+              <span className="scr-amt">₹28,500</span>
+              <div className="scr-card"><span>UPI · auto-pay</span><span className="v">SETTLED</span></div>
+              <div className="scr-card"><span>HRA receipt</span><span className="v vw">ISSUED ↗</span></div>
+              <div className="scr-card"><span>Move-in proof</span><span className="v">12 SEALED</span></div>
+              <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--rb-font-mono)', fontSize: 7, color: 'var(--rb-ink-3)', letterSpacing: '.14em', fontWeight: 700 }}>
+                <span>RB·024·M11</span><span>SEALED ✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="stat-row">
+        <div>
+          <div className="n">₹1.24<span className="ochre">L</span></div>
+          <div className="l">COLLECTED · MONTH<br/>3 PROPERTIES</div>
+        </div>
+        <div className="div"/>
+        <div>
+          <div className="n">94<span className="ochre">%</span></div>
+          <div className="l">ON-TIME RATE<br/>AVG TENANT</div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ── MMCinema ───────────────────────────────────────────────── */
+function MMCinema() {
+  const ref = useRef<HTMLElement>(null)
+  const p = useScrollProgress(ref, { start: 0.15, end: 0.85 })
+  const step = Math.min(3, Math.floor(p * 4.0))
+  const yaw = -45 + p * 90
+  const pitch = Math.sin(p * Math.PI) * -6
+
+  useEffect(() => {
+    if (!ref.current) return
+    ref.current.style.setProperty('--cin-yaw', `${yaw}deg`)
+    ref.current.style.setProperty('--cin-pitch', `${pitch}deg`)
+  }, [yaw, pitch])
+
+  const steps = [
+    { num: '01', a: 'Add the property.', b: 'Invite your tenant.', em: true,
+      d: 'Property in 30 seconds. Send a link — your tenant signs in with Google. No app install required.',
+      meta: [['Setup', '30 sec'], ['Install', 'Not required']],
+      phone: { eb: 'STEP 1 · SETUP', h: 'Bandra W', sub: '2BHK · ₹62,000/mo' } },
+    { num: '02', a: 'Rent in', b: 'one tap.', em: true,
+      d: '₹28,500 lands. UPI, NEFT, or cash with a UTR. The amount and date stamp into the ledger automatically.',
+      meta: [['Methods', 'UPI · NEFT'], ['Settles', 'Instant']],
+      phone: { eb: 'RENT RECEIVED', h: '₹28,500', sub: 'UTR · 4581 2210' } },
+    { num: '03', a: 'Receipt', b: 'drops itself.', em: true,
+      d: 'A Section 10(13A)-valid HRA receipt generates the moment payment clears. PAN, period, address — all filled.',
+      meta: [['Format', 'PDF · 10(13A)'], ['Sent to', 'Both inboxes']],
+      phone: { eb: 'HRA · ISSUED', h: 'RB-2511-04', sub: 'PDF · 10(13A) ready' } },
+    { num: '04', a: 'Proof, sealed', b: 'for years.', em: false,
+      d: 'Move-in photos, repair logs, deposit history — all timestamped, locked, visible to both sides. Forever.',
+      meta: [['Retention', 'Permanent'], ['Editable', 'Never']],
+      phone: { eb: 'VAULT · SEALED', h: '12 photos', sub: 'Locked 12 Nov 2025' } },
+  ]
+
+  const cur = steps[step]
+
+  return (
+    <section className="mm-cinema" ref={ref}>
+      <div className="intro">
+        <span className="mm-eyebrow">THE LIFECYCLE</span>
+        <h2>Four moments.<br/>One <em>quiet ledger.</em></h2>
+        <p className="mm-sub">From the day you list to the day you move out — every event lands in the same record. Scroll through.</p>
+      </div>
+      <div className="mm-cinema-stage">
+        <div className="mm-cinema-progress">
+          {[0,1,2,3].map(i => (
+            <div key={i} className={'seg' + (i < step ? ' done' : '') + (i === step ? ' on' : '')}/>
+          ))}
+        </div>
+        <div className="mm-cinema-pin">
+          <div className="mm-cinema-phone">
+            <div className="body"/>
+            <div className="scr">
+              <span className="lbl">{cur.phone.eb}</span>
+              <span className="h">{cur.phone.h}</span>
+              <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 7, fontWeight: 700, color: 'var(--rb-ink-3)', letterSpacing: '.12em', marginTop: 2 }}>{cur.phone.sub}</div>
+              <div className="card"><span>RB·024</span><span className="v">SEALED ✓</span></div>
+            </div>
+          </div>
+          <div className="mm-cinema-orbit">
+            <div className={'item i0' + (step >= 0 ? ' on' : '')}><div className="k">Property</div><div className="v">Bandra 2BHK</div></div>
+            <div className={'item i1' + (step >= 1 ? ' on' : '')}><div className="k">Rent received</div><div className="v amt">₹28,500</div></div>
+            <div className={'item i2' + (step >= 2 ? ' on' : '')}><div className="k">Receipt</div><div className="v">RB-2511-04</div></div>
+            <div className={'item i3' + (step >= 3 ? ' on' : '')}><div className="k">Move-in proof</div><div className="v">12 · sealed</div></div>
+          </div>
+        </div>
+        <div className="mm-cinema-steps">
+          {steps.map((s, i) => (
+            <div key={i} className={'mm-cinema-step' + (step === i ? ' on' : '')}>
+              <div className="num">{s.num}</div>
+              <h3>{s.a}<br/>{s.em ? <em>{s.b}</em> : s.b}</h3>
+              <p>{s.d}</p>
+              <div className="meta">
+                {s.meta.map(([k, v]) => (
+                  <div className="col" key={k}><div className="k">{k}</div><div className="v">{v}</div></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ── MMProof ────────────────────────────────────────────────── */
+function MMProof() {
+  const ref = useRef<HTMLElement>(null)
+  const p = useScrollProgress(ref, { start: 0.2, end: 0.7 })
+  const [flash, setFlash] = useState(false)
+  const sealOn = p > 0.5
+  const tilt = 22 - p * 30
+  const yaw = -10 + p * 14
+
+  useEffect(() => {
+    if (!ref.current) return
+    ref.current.style.setProperty('--proof-tilt', `${tilt}deg`)
+    ref.current.style.setProperty('--proof-yaw', `${yaw}deg`)
+  }, [tilt, yaw])
+
+  useEffect(() => {
+    if (sealOn && !flash) {
+      setFlash(true)
+      setTimeout(() => setFlash(false), 600)
+    }
+  }, [sealOn]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <section className="mm-proof" ref={ref}>
+      <span className="eyebrow">MOVE-IN PROOF</span>
+      <h2>The day you moved in,<br/><em>recorded forever.</em></h2>
+      <p>Twelve photos. One timestamp. A geotag, and a wax seal. Once submitted, neither side can edit them.</p>
+      <div className="mm-proof-photo">
+        <div className="grid">
+          <div className="cell"><span className="room">LIVING</span></div>
+          <div className="cell"><span className="room">KITCHEN</span></div>
+          <div className="cell"><span className="room">BATH</span></div>
+          <div className="cell"><span className="room">BEDROOM</span></div>
+        </div>
+        <span className="ts"><b>12 NOV 2025 · 11:42 IST</b><br/>LAT 19.0760 · LON 72.8777</span>
+        <div className={'mm-proof-flash' + (flash ? ' on' : '')}/>
+        <div className={'mm-proof-seal' + (sealOn ? ' on' : '')} style={{ '--seal-rot': sealOn ? '-14deg' : '-36deg' } as React.CSSProperties}>
+          <MMSeal size={100}/>
+        </div>
+      </div>
+      <div className="mm-proof-points">
+        <div className="mm-proof-point">
+          <div className="ic">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path d="M3 8 L21 8 L21 19 a1 1 0 0 1 -1 1 H4 a1 1 0 0 1 -1 -1 Z M3 8 L7 4 L17 4 L21 8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
+              <circle cx="12" cy="14" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.7"/>
+            </svg>
+          </div>
+          <div><div className="t">Timestamped at the door</div><div className="d">Server time + GPS captured at submit. Photos can&apos;t be backdated, swapped, or re-uploaded.</div></div>
+        </div>
+        <div className="mm-proof-point">
+          <div className="ic">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <rect x="5" y="11" width="14" height="9" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.7"/>
+              <path d="M8 11 V8 a4 4 0 0 1 8 0 V11" fill="none" stroke="currentColor" strokeWidth="1.7"/>
+            </svg>
+          </div>
+          <div><div className="t">Locked for both sides</div><div className="d">Once sealed, neither landlord nor tenant can delete. Same record, same view, forever.</div></div>
+        </div>
+        <div className="mm-proof-point">
+          <div className="ic">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path d="M12 3 L20 6 V12 a8 9 0 0 1 -8 9 a8 9 0 0 1 -8 -9 V6 Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
+              <path d="M8 12 L11 15 L16 9" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div><div className="t">Court-ready in PDF</div><div className="d">Export the full set as a signed PDF — EXIF, hash, and the Section 10(13A) receipt for the year.</div></div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ── MMVault ────────────────────────────────────────────────── */
+function MMVault() {
+  const ref = useRef<HTMLElement>(null)
+  const inView = useInView(ref, 0.35)
+  const p = useScrollProgress(ref, { start: 0.1, end: 0.8 })
+  const yaw = -18 + p * 14
+  const pitch = 22 - p * 12
+
+  useEffect(() => {
+    if (!ref.current) return
+    ref.current.style.setProperty('--vault-yaw', `${yaw}deg`)
+    ref.current.style.setProperty('--vault-pitch', `${pitch}deg`)
+  }, [yaw, pitch])
+
+  const records = [
+    { t: 'Nov 2025 · Rent',      s: 'RB·024·M11',   v: '₹28,500' },
+    { t: 'Oct 2025 · Rent',      s: 'RB·024·M10',   v: '₹28,500' },
+    { t: 'Move-in · 12 photos',  s: 'Sealed 12 Nov', v: '12 · ✓' },
+    { t: 'Deposit · 3 months',   s: 'Held in escrow', v: '₹85,500' },
+    { t: 'Repair · plumbing',    s: 'Closed by both', v: '₹1,200' },
+    { t: 'Sep 2025 · Rent',      s: 'RB·024·M09',   v: '₹28,500' },
+  ]
+
+  return (
+    <section className="mm-vault" ref={ref}>
+      <span className="mm-eyebrow">THE VAULT</span>
+      <h2>A record both sides<br/><em>actually trust.</em></h2>
+      <p>Most disputes come down to &ldquo;what did we agree?&rdquo; — RentyBase keeps both of you looking at the same row in the same ledger.</p>
+      <div className="mm-vault-stage">
+        <div className="mm-vault-stack">
+          {records.map((r, i) => {
+            const offset = i - (records.length - 1) / 2
+            const z = -i * 14
+            const y = offset * 30
+            const rot = (offset * 1.4).toFixed(2)
+            return (
+              <div key={i} className={'mm-vault-card' + (inView ? ' on' : '')}
+                style={{ '--z': `${z}px`, '--y': `${y}px`, '--rot': `${rot}deg`, transitionDelay: `${0.06 * i}s`, zIndex: records.length - i } as React.CSSProperties}>
+                <div><div className="t">{r.t}</div><div className="s">{r.s}</div></div>
+                <span className="v">{r.v}<span className="seal">✓</span></span>
+              </div>
+            )
+          })}
+        </div>
+        <span className="mm-vault-base">SEALED LEDGER</span>
+      </div>
+      <div className="mm-vault-stats">
+        <div className="s"><div className="n">94<span className="ochre">%</span></div><div className="l">ON-TIME<br/>RENT RATE</div></div>
+        <div className="s"><div className="n">12<span className="ochre">k</span></div><div className="l">PHOTOS<br/>SEALED</div></div>
+        <div className="s"><div className="n">7<span className="ochre">y</span></div><div className="l">RETENTION<br/>MIN.</div></div>
+      </div>
+    </section>
+  )
+}
+
+/* ── MMFeatures ─────────────────────────────────────────────── */
+function MMFeatures() {
+  return (
+    <section className="mm-features">
+      <span className="mm-eyebrow">EVERYTHING ELSE, INCLUDED</span>
+      <h2>Six small<br/><em>certainties.</em></h2>
+      <p className="mm-sub">No add-ons, no upsells. Every feature, free during beta.</p>
+      <div className="feat-grid">
+        <div className="mm-feat wide dark">
+          <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 4 L19 4 L19 21 L16 19 L13 21 L10 19 L7 21 L5 19 Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M9 9 L15 9 M9 13 L15 13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg></div>
+          <div className="t">HRA receipts<br/>in <em>one tap.</em></div>
+          <div className="d">Section 10(13A)-compliant PDF with PAN, address, period, and UTR. Year-on-year archived.</div>
+          <div className="stat"><div><div className="l">SAVED · YEAR</div><div className="n amt">₹62,400</div></div><div><div className="l">FORMAT</div><div className="n">10(13A)</div></div></div>
+        </div>
+        <div className="mm-feat">
+          <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="14" r="2" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M9 4 L15 4 L15 8 L9 8 Z" fill="none" stroke="currentColor" strokeWidth="1.7"/></svg></div>
+          <div className="t">Deposit ledger</div>
+          <div className="d">Every deduction with a photo, an amount, and a reason. Move-out math, pre-done.</div>
+        </div>
+        <div className="mm-feat ochre">
+          <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M14 3 L20 9 L11 18 L4 18 L4 11 Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M15 8 L19 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg></div>
+          <div className="t">Repair requests</div>
+          <div className="d">Tenant raises, landlord sees, both watch the status. Photos + vendor quotes.</div>
+        </div>
+        <div className="mm-feat">
+          <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 3 L18 3 L18 21 L6 21 Z" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M9 8 L15 8 M9 12 L15 12 M9 16 L13 16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg></div>
+          <div className="t">Leave &amp; License</div>
+          <div className="d">State-level stamp duty templates. Generate, e-sign, file. Done.</div>
+        </div>
+        <div className="mm-feat">
+          <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M13 3 L4 14 L11 14 L9 21 L20 9 L13 9 Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg></div>
+          <div className="t">Calm reminders</div>
+          <div className="d">3 nudges at 5/3/0 days. SMS + email. Never marketing.</div>
+        </div>
+        <div className="mm-feat wide">
+          <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="6" width="16" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M4 10 H20" stroke="currentColor" strokeWidth="1.7"/><circle cx="9" cy="15" r="1.4" fill="currentColor"/><circle cx="13" cy="15" r="1.4" fill="currentColor"/><circle cx="17" cy="15" r="1.4" fill="currentColor"/></svg></div>
+          <div className="t">PG floor plan, per-bed billing</div>
+          <div className="d">For PGs and hostels — bed-level rent, vacancy heatmaps, auto-collect via UPI 2.0.</div>
+          <div className="stat"><div><div className="l">PROPERTIES</div><div className="n amt">120+</div></div><div><div className="l">UTILIZATION</div><div className="n">96%</div></div></div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ── MMCTA ──────────────────────────────────────────────────── */
+function MMCTA() {
+  const ref = useRef<HTMLElement>(null)
+  const inView = useInView(ref, 0.4)
+
+  useEffect(() => {
+    if (!ref.current) return
+    ref.current.style.setProperty('--cta-seal-rot', inView ? '-10deg' : '-30deg')
+    ref.current.style.setProperty('--cta-seal-scale', inView ? '1' : '1.4')
+  }, [inView])
+
+  return (
+    <section className="mm-cta" ref={ref}>
+      <div className="seal-wrap"><MMSealCTA size={170}/></div>
+      <h2>One ledger.<br/><em>Both sides.</em></h2>
+      <p>Free during beta. All features, no card. Export your data any time.</p>
+      <div className="ctas">
+        <a href="/signup" className="mm-btn ochre">Add a property <span className="arr">→</span></a>
+        <a href="/signin" className="mm-btn ghost">I&apos;m a tenant</a>
+      </div>
+    </section>
+  )
+}
+
+/* ── MMFoot ─────────────────────────────────────────────────── */
+function MMFoot() {
+  return (
+    <footer className="mm-foot">
+      <div className="brand">
+        <svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true">
+          <rect width="40" height="40" rx="9" fill="#F6F4EE"/>
+          <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#0E1413"/>
+          <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#F6F4EE"/>
+          <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+        </svg>
+        <span>Renty<em>Base</em></span>
+      </div>
+      <p className="tag">A shared, calm record between landlord and tenant. Built in Bengaluru, for India.</p>
+      <div className="links">
+        <div>
+          <h4>Product</h4>
+          <a href="#">Move-in proof</a>
+          <a href="#">HRA receipts</a>
+          <a href="#">Repair ledger</a>
+          <a href="#">Leave &amp; License</a>
+        </div>
+        <div>
+          <h4>Soon</h4>
+          <a href="#">UPI 2.0 collect</a>
+          <a href="#">Rent listings</a>
+          <a href="#">Society NOC</a>
+          <a href="#">26AS export</a>
+        </div>
+      </div>
+      <div className="rule"/>
+      <div className="meta">
+        <span>© 2026 RENTYBASE TECH PVT LTD</span>
+        <span>SECTION 10(13A) COMPLIANT</span>
+        <span>NO DATA SOLD, EVER · BUILT IN BLR</span>
+      </div>
+    </footer>
+  )
+}
+
 /* ── Nav ───────────────────────────────────────────────────── */
 function Nav() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -596,43 +1133,61 @@ function Nav() {
 export default function Page() {
   return (
     <div className="lp-page">
-      <Nav />
-      <Hero />
-      <Cinema />
-      <ProofFilm />
-      <Features />
-      <Trust />
-      <Scores />
-      <FinalCTA />
-      <footer className="rb-foot">
-        <div className="container foot-grid">
-          <div className="foot-brand">
-            <div className="foot-mark"><LogoMark size={40} /><span className="foot-word">Renty<span className="ochre">Base</span></span></div>
-            <p className="foot-tag">A shared, calm record between landlord and tenant. Built in Bengaluru, for India.</p>
-            <div className="foot-mini"><span className="dot-pulse" /> Free during beta · v0.4</div>
+      {/* Desktop marketing — hidden on mobile via CSS */}
+      <div className="lp-desktop">
+        <Nav />
+        <Hero />
+        <Cinema />
+        <ProofFilm />
+        <Features />
+        <Trust />
+        <Scores />
+        <FinalCTA />
+        <footer className="rb-foot">
+          <div className="container foot-grid">
+            <div className="foot-brand">
+              <div className="foot-mark"><LogoMark size={40} /><span className="foot-word">Renty<span className="ochre">Base</span></span></div>
+              <p className="foot-tag">A shared, calm record between landlord and tenant. Built in Bengaluru, for India.</p>
+              <div className="foot-mini"><span className="dot-pulse" /> Free during beta · v0.4</div>
+            </div>
+            <div className="foot-col">
+              <div className="foot-h">Product</div>
+              <a href="#proof">Move-in proof</a><a href="#features">HRA receipts</a><a href="#features">Repair ledger</a><a href="#features">Leave &amp; License</a>
+            </div>
+            <div className="foot-col">
+              <div className="foot-h">Coming soon</div>
+              <a href="#">Rent listings</a><a href="#">Sale listings</a><a href="#">UPI auto-collect</a><a href="#">Tax export · 26AS</a>
+            </div>
+            <div className="foot-col">
+              <div className="foot-h">Company</div>
+              <a href="#">About</a><a href="#">Privacy</a><a href="#">Terms</a><a href="mailto:hello@rentybase.in">hello@rentybase.in</a>
+            </div>
           </div>
-          <div className="foot-col">
-            <div className="foot-h">Product</div>
-            <a href="#proof">Move-in proof</a><a href="#features">HRA receipts</a><a href="#features">Repair ledger</a><a href="#features">Leave &amp; License</a>
+          <div className="foot-rule" />
+          <div className="container foot-bot">
+            <div className="foot-meta">&copy; 2026 RentyBase Technologies Pvt Ltd · Section 10(13A) compliant · No data sold, ever.</div>
+            <div className="foot-stamp">
+              <svg viewBox="0 0 80 80" width="40" height="40"><circle cx="40" cy="40" r="36" fill="none" stroke="#C97A3A" strokeWidth="1.5" /><circle cx="40" cy="40" r="30" fill="none" stroke="#C97A3A" strokeWidth=".7" strokeDasharray="1.5 2" /><text x="40" y="44" textAnchor="middle" fontFamily="Instrument Serif,serif" fontSize="13" fill="#C97A3A">RB</text></svg>
+              <span>Sealed for India · Made by 4 humans in Bengaluru</span>
+            </div>
           </div>
-          <div className="foot-col">
-            <div className="foot-h">Coming soon</div>
-            <a href="#">Rent listings</a><a href="#">Sale listings</a><a href="#">UPI auto-collect</a><a href="#">Tax export · 26AS</a>
-          </div>
-          <div className="foot-col">
-            <div className="foot-h">Company</div>
-            <a href="#">About</a><a href="#">Privacy</a><a href="#">Terms</a><a href="mailto:hello@rentybase.in">hello@rentybase.in</a>
-          </div>
+        </footer>
+      </div>
+
+      {/* Mobile marketing — shown on mobile only via CSS */}
+      <div className="mm">
+        <div className="mm-hat">
+          <span className="brand"><MMMark size={22}/><span>Renty<em>Base</em></span></span>
+          <a href="/signup" className="cta">Start free <span className="arr">→</span></a>
         </div>
-        <div className="foot-rule" />
-        <div className="container foot-bot">
-          <div className="foot-meta">&copy; 2026 RentyBase Technologies Pvt Ltd · Section 10(13A) compliant · No data sold, ever.</div>
-          <div className="foot-stamp">
-            <svg viewBox="0 0 80 80" width="40" height="40"><circle cx="40" cy="40" r="36" fill="none" stroke="#C97A3A" strokeWidth="1.5" /><circle cx="40" cy="40" r="30" fill="none" stroke="#C97A3A" strokeWidth=".7" strokeDasharray="1.5 2" /><text x="40" y="44" textAnchor="middle" fontFamily="Instrument Serif,serif" fontSize="13" fill="#C97A3A">RB</text></svg>
-            <span>Sealed for India · Made by 4 humans in Bengaluru</span>
-          </div>
-        </div>
-      </footer>
+        <MMHero/>
+        <MMCinema/>
+        <MMProof/>
+        <MMVault/>
+        <MMFeatures/>
+        <MMCTA/>
+        <MMFoot/>
+      </div>
     </div>
   )
 }
