@@ -802,7 +802,74 @@ function MMCinema() {
       phone: { eb: 'VAULT · SEALED', h: '12 photos', sub: 'Locked 12 Nov 2025' } },
   ]
 
-  const cur = steps[step]
+  const phoneScreens = [
+    /* Step 0 — Dashboard: add property, see tenants */
+    <div key={0} className="scr">
+      <span className="lbl">GOOD MORNING, PRIYA</span>
+      <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, letterSpacing: '-.02em', marginTop: 4, lineHeight: 1 }}>₹1,24,000</div>
+      <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 5.5, color: 'var(--rb-ink-3)', letterSpacing: '.1em', marginTop: 2 }}>COLLECTED · 3 PROPERTIES</div>
+      <div className="card" style={{ marginTop: 8 }}>
+        <span style={{ fontSize: 8 }}>Bandra 2BHK</span>
+        <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 7, fontWeight: 700, color: '#1F7A55' }}>PAID</span>
+      </div>
+      <div className="card">
+        <span style={{ fontSize: 8 }}>Koregaon 1BHK</span>
+        <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 7, fontWeight: 700, color: '#B8740F' }}>DUE</span>
+      </div>
+    </div>,
+    /* Step 1 — Pay rent: amount + UPI + button */
+    <div key={1} className="scr">
+      <span className="lbl">PAY RENT</span>
+      <div style={{ fontSize: 8, color: 'var(--rb-ink-3)', marginTop: 4 }}>To · Priya Sharma</div>
+      <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24, letterSpacing: '-.025em', marginTop: 2, lineHeight: 1 }}>₹28,500</div>
+      <div className="card" style={{ marginTop: 8 }}>
+        <span style={{ fontSize: 8 }}>UPI · priya@oksbi</span>
+        <span className="v" style={{ fontSize: 8 }}>›</span>
+      </div>
+      <div style={{ background: 'var(--rb-action)', color: '#fff', borderRadius: 7, padding: '7px', textAlign: 'center' as const, fontWeight: 600, fontSize: 9, marginTop: 6 }}>
+        Pay ₹28,500
+      </div>
+    </div>,
+    /* Step 2 — HRA receipt: rows + verified seal */
+    <div key={2} className="scr">
+      <span className="lbl">HRA RECEIPT</span>
+      <div style={{ fontSize: 7, color: 'var(--rb-ink-3)', marginTop: 4 }}>November 2025</div>
+      <div className="card" style={{ flexDirection: 'column' as const, alignItems: 'stretch', gap: 5, marginTop: 6, padding: '6px 7px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7 }}>
+          <span>Rent</span><span style={{ fontFamily: 'var(--rb-font-mono)', fontWeight: 700, color: 'var(--rb-action)' }}>₹28,500</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7 }}>
+          <span>UTR</span><span style={{ fontFamily: 'var(--rb-font-mono)', fontWeight: 700 }}>4581 2210</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7 }}>
+          <span>PAN</span><span style={{ fontFamily: 'var(--rb-font-mono)', fontWeight: 700 }}>AKWPS****K</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7 }}>
+        <svg viewBox="0 0 16 16" width="13" height="13">
+          <circle cx="8" cy="8" r="7" fill="rgba(201,122,58,.18)" stroke="#C97A3A" strokeWidth="0.8"/>
+          <path d="M4 8l3 3 5-5" fill="none" stroke="#C97A3A" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+        <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 6, color: 'var(--rb-accent)', letterSpacing: '.1em', fontWeight: 700 }}>VERIFIED RECORD</span>
+      </div>
+    </div>,
+    /* Step 3 — Move-in proof: photo grid + sealed */
+    <div key={3} className="scr">
+      <span className="lbl">MOVE-IN PROOF</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 7 }}>
+        {(['LIVING', '#c9b388', '#7a6042'] as const).map && [['LIVING','#c9b388','#7a6042'],['KITCHEN','#9aa6a3','#4f5e5b']].map(([room, c1, c2]) => (
+          <div key={room} style={{ aspectRatio: '1', borderRadius: 5, background: `linear-gradient(135deg, ${c1}, ${c2})`, position: 'relative' }}>
+            <span style={{ position: 'absolute', bottom: 3, left: 4, fontFamily: 'var(--rb-font-mono)', fontSize: 5, color: 'rgba(246,244,238,.9)', fontWeight: 700 }}>{room}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 6, color: 'var(--rb-ink-3)', letterSpacing: '.08em', marginTop: 6 }}>12 NOV 2025 · 11:42 IST</div>
+      <div className="card" style={{ marginTop: 5 }}>
+        <span style={{ fontSize: 8 }}>12 photos</span>
+        <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 7, fontWeight: 700, color: 'var(--rb-accent)' }}>SEALED ✓</span>
+      </div>
+    </div>,
+  ]
 
   return (
     <section className="mm-cinema" ref={ref}>
@@ -820,12 +887,7 @@ function MMCinema() {
         <div className="mm-cinema-pin">
           <div className="mm-cinema-phone">
             <div className="body"/>
-            <div className="scr">
-              <span className="lbl">{cur.phone.eb}</span>
-              <span className="h">{cur.phone.h}</span>
-              <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 7, fontWeight: 700, color: 'var(--rb-ink-3)', letterSpacing: '.12em', marginTop: 2 }}>{cur.phone.sub}</div>
-              <div className="card"><span>RB·024</span><span className="v">SEALED ✓</span></div>
-            </div>
+            {phoneScreens[step]}
           </div>
           <div className="mm-cinema-orbit">
             <div className={'item i0' + (step >= 0 ? ' on' : '')}><div className="k">Property</div><div className="v">Bandra 2BHK</div></div>

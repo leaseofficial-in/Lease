@@ -1043,6 +1043,7 @@ body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index
 .mm-cinema-phone .scr {
   position: absolute; inset: 5px; border-radius: 20px; background: var(--rb-canvas);
   overflow: hidden; display: flex; flex-direction: column; padding: 22px 9px 9px;
+  transition: opacity .25s ease;
 }
 .mm-cinema-phone .scr .lbl { font-family: var(--rb-font-mono); font-size: 6.5px; font-weight: 700; letter-spacing: .14em; color: var(--rb-accent); }
 .mm-cinema-phone .scr .h { font-family: var(--rb-font-display); font-size: 15px; line-height: 1; letter-spacing: -.02em; margin-top: 3px; }
