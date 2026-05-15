@@ -786,3 +786,33 @@ body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index
 @media (min-width: 768px) {
   .d-toggle-label { display: inline; }
 }
+
+/* ── Accessibility: focus ring ─────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--rb-action);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Safe area: mobile header + tab bar ────────────────────── */
+.m-head {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.m-tabs {
+  padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+}
+
+/* ── Ledger: hide running balance column on mobile ─────────── */
+@media (max-width: 767px) {
+  .d-ledger-balance { display: none !important; }
+}
+
+/* ── Print: clean agreement / receipt pages ────────────────── */
+@media print {
+  .m-head, .m-tabs, .d-side, aside, nav { display: none !important; }
+  .d-shell { display: block !important; }
+  .d-main { padding: 0 !important; max-width: 100% !important; }
+  body { background: #fff !important; color: #000 !important; }
+  button { display: none !important; }
+  @page { margin: 20mm; }
+}

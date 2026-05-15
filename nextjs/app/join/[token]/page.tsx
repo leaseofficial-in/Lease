@@ -79,7 +79,7 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
   const sb = createClient()
 
   useEffect(() => {
-    params.then(p => { setToken(p.token); loadRental(p.token) })
+    params.then(p => { const tok = p.token.trim().replace(/\s+/g, '').toUpperCase(); setToken(tok); loadRental(tok) })
   }, [])
 
   async function loadRental(tok: string) {

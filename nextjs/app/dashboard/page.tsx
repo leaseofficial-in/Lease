@@ -32,9 +32,15 @@ function relDate(iso?: string) {
   if (!iso) return ''
   const d = new Date(iso)
   const diff = Math.floor((now.getTime() - d.getTime()) / 86400000)
-  if (diff === 0) return 'Today'
-  if (diff === 1) return 'Yesterday'
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  const timeStr = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
+  if (diff === 0) return `Today at ${timeStr}`
+  if (diff === 1) return `Yesterday at ${timeStr}`
+  if (diff < 7) {
+    const dayStr = d.toLocaleDateString('en-IN', { weekday: 'short' })
+    return `${dayStr} at ${timeStr}`
+  }
+  const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  return `${dateStr} at ${timeStr}`
 }
 function daysUntil(iso?: string) {
   if (!iso) return 0
@@ -154,7 +160,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
     <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(14,20,19,.55)', backdropFilter: 'blur(5px)', display: 'grid', placeItems: 'center', padding: 20 }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{ background: 'var(--rb-canvas)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, border: 0, background: 'var(--rb-fill-2)', borderRadius: '50%', cursor: 'pointer', fontSize: 18, lineHeight: 1, display: 'grid', placeItems: 'center', color: 'var(--rb-ink-3)' }}>×</button>
+        <button aria-label="Close" onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, border: 0, background: 'var(--rb-fill-2)', borderRadius: '50%', cursor: 'pointer', fontSize: 18, lineHeight: 1, display: 'grid', placeItems: 'center', color: 'var(--rb-ink-3)' }}>×</button>
         <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 26, fontWeight: 400, letterSpacing: '-.02em', marginBottom: 18 }}>{title}</h2>
         {children}
       </div>
@@ -405,8 +411,11 @@ export default function DashboardPage() {
           </div>
           <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>
             {r.category && <span style={{ marginRight: 8 }}>{r.category}</span>}
-            {isLandlord ? (r.rental?.property?.name || '') : relDate(r.created_at)}
+            {!isLandlord && relDate(r.created_at)}
           </div>
+          {isLandlord && r.rental?.property?.name && (
+            <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2, fontWeight: 500 }}>{r.rental.property.name}</div>
+          )}
         </div>
         <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, fontWeight: 700, padding: '4px 9px', borderRadius: 999, letterSpacing: '.04em', background: stColor.bg, color: stColor.c, whiteSpace: 'nowrap' as const }}>{stLabel}</span>
       </div>
@@ -420,7 +429,7 @@ export default function DashboardPage() {
         {photos.slice(0, 8).map((p, i) => (
           <div key={p.id} style={{ position: 'relative' }}>
             {onDelete && (
-              <button onClick={e => { e.stopPropagation(); onDelete(p.id) }} style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', border: 0, cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff' }}>
+              <button aria-label="Remove photo" onClick={e => { e.stopPropagation(); onDelete(p.id) }} style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', border: 0, cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff', opacity: 1 }}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             )}
@@ -495,7 +504,7 @@ export default function DashboardPage() {
 
   // ── Floor-map grid — groups units by floor_number, highest floor first ──
   function FloorMapGrid({ rentals, currentPayments }: { rentals: Rental[]; currentPayments: RentPayment[] }) {
-    const [filter, setFilter] = useState<'all' | 'vacant' | 'overdue' | 'paid'>('all')
+    const [filter, setFilter] = useState<'all' | 'vacant' | 'overdue' | 'paid' | 'due'>('all')
 
     const pmtOf = (r: Rental) => currentPayments.find(p => p.rental_id === r.id)
     const statusOf = (r: Rental) => {
@@ -514,6 +523,7 @@ export default function DashboardPage() {
     const visible = filter === 'all'     ? rentals
                   : filter === 'vacant'  ? rentals.filter(r => !r.tenant_id)
                   : filter === 'overdue' ? rentals.filter(r => statusOf(r) === 'overdue')
+                  : filter === 'due'     ? rentals.filter(r => statusOf(r) === 'pending')
                   : rentals.filter(r => statusOf(r) === 'paid')
 
     // group by floor_number (highest first, unassigned last)
@@ -545,7 +555,7 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
           <button style={pillStyle(filter === 'all', 'var(--rb-ink)', '#fff')} onClick={() => setFilter('all')}>All {rentals.length}</button>
           {counts.paid > 0    && <button style={pillStyle(filter === 'paid', 'var(--rb-action)', '#fff')} onClick={() => setFilter('paid')}>Paid {counts.paid}</button>}
-          {counts.due > 0     && <button style={pillStyle(false, 'var(--rb-warning-soft)', 'var(--rb-warning)')} onClick={() => setFilter('all')}>Due {counts.due}</button>}
+          {counts.due > 0     && <button style={pillStyle(filter === 'due', 'var(--rb-warning-soft)', 'var(--rb-warning)')} onClick={() => setFilter('due')}>Due {counts.due}</button>}
           {counts.overdue > 0 && <button style={pillStyle(filter === 'overdue', 'var(--rb-danger)', '#fff')} onClick={() => setFilter('overdue')}>Overdue {counts.overdue}</button>}
           {counts.vacant > 0  && <button style={pillStyle(filter === 'vacant', 'var(--rb-fill-2)', 'var(--rb-ink-2)')} onClick={() => setFilter('vacant')}>Vacant {counts.vacant}</button>}
         </div>
@@ -653,6 +663,7 @@ export default function DashboardPage() {
     const d = landlordData
     if (!d || (d.rentals?.length === 0 && d.buildings?.length === 0)) return <LandlordEmpty />
     const { rentals, buildings, currentPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs } = d
+    const [confirmEscalationId, setConfirmEscalationId] = useState<string | null>(null)
     const band = scoreBand(score)
     const pct = totalMonthlyRent > 0 ? Math.min(100, Math.round(paidThisMonth / totalMonthlyRent * 100)) : 0
     const openRepairs = recentRepairs.filter((r: RepairRequest) => r.status === 'open' || r.status === 'in_progress')
@@ -733,15 +744,24 @@ export default function DashboardPage() {
                   const days = escalationDueDays(r)!
                   const newRent = Math.round(Number(r.monthly_rent) * (1 + Number(r.rent_increment_percent || 5) / 100))
                   return (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', flexShrink: 0, color: 'var(--rb-action)' }}><Icon k="trending" size={17} stroke={2} /></div>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{r.property?.name || '—'}</div>
-                          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || '—'} · {inr(r.monthly_rent)} → {inr(newRent)} · in {days} day{days !== 1 ? 's' : ''}</div>
+                    <div key={r.id} style={{ borderBottom: '1px solid var(--rb-border-soft)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', flexShrink: 0, color: 'var(--rb-action)' }}><Icon k="trending" size={17} stroke={2} /></div>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>{r.property?.name || '—'}</div>
+                            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || '—'} · {inr(r.monthly_rent)} → {inr(newRent)} · in {days} day{days !== 1 ? 's' : ''}</div>
+                          </div>
                         </div>
+                        <button onClick={() => setConfirmEscalationId(r.id)} style={{ padding: '8px 16px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>Apply now</button>
                       </div>
-                      <button onClick={() => { setSelectedRental(r); setModal('apply-escalation') }} style={{ padding: '8px 16px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>Apply now</button>
+                      {confirmEscalationId === r.id && (
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--rb-border-soft)' }}>
+                          <span style={{ fontSize: 12, color: 'var(--rb-ink-2)', flex: 1 }}>Apply rent change? This cannot be undone.</span>
+                          <button onClick={() => { setSelectedRental(r); setModal('apply-escalation'); setConfirmEscalationId(null) }} style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--rb-action)', border: 0, borderRadius: 999, padding: '5px 14px', cursor: 'pointer', fontFamily: 'inherit' }}>Confirm</button>
+                          <button onClick={() => setConfirmEscalationId(null)} style={{ fontSize: 12, color: 'var(--rb-ink-3)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -878,6 +898,12 @@ export default function DashboardPage() {
     const repairs: RepairRequest[] = landlordData?.recentRepairs || []
     const inProgressCount = repairs.filter((r: RepairRequest) => r.status === 'in_progress').length
     const openCount = repairs.filter((r: RepairRequest) => r.status === 'open').length
+    const [repairFilter, setRepairFilter] = useState<'all'|'open'|'in_progress'|'resolved'|'emergency'>('all')
+    const filteredRepairs = repairs.filter((r: RepairRequest) => {
+      if (repairFilter === 'all') return true
+      if (repairFilter === 'emergency') return r.urgency === 'emergency'
+      return r.status === repairFilter
+    })
     return (
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Repairs</div><h1 style={h1Style}>Repair requests.</h1><p style={subStyle}>{openCount + inProgressCount} open · {repairs.length} total</p></div></div>
@@ -886,15 +912,24 @@ export default function DashboardPage() {
           <div style={{ ...cardStyle, background: 'linear-gradient(135deg,var(--rb-accent-soft),var(--rb-canvas))', borderColor: 'rgba(201,122,58,.3)' }}>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-accent)' }}>IN PROGRESS</div>
             <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 36, color: 'var(--rb-accent)', lineHeight: 1, marginTop: 6 }}>{inProgressCount}</div>
-            <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>{openCount} more open</div>
+            <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>actively being worked on</div>
           </div>
           <div style={cardStyle}>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>OPEN REQUESTS</div>
             <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 36, color: 'var(--rb-action)', lineHeight: 1, marginTop: 6 }}>{openCount + inProgressCount}</div>
-            <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>Total needing attention</div>
+            <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>{inProgressCount} in progress · {openCount} waiting</div>
           </div>
         </div>
-        <section style={cardStyle}>{repairs.length > 0 ? repairs.map(r => <RepairRow key={r.id} r={r} isLandlord />) : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="wrench" size={32} stroke={1.5} /></div><p>No repair requests.</p></div>}</section>
+        <section style={cardStyle}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', scrollbarWidth: 'none' as const }}>
+            {(['all', 'open', 'in_progress', 'resolved', 'emergency'] as const).map(f => (
+              <button key={f} onClick={() => setRepairFilter(f)} style={{ padding: '5px 14px', borderRadius: 999, border: '1.5px solid', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: repairFilter === f ? 'var(--rb-ink)' : 'transparent', color: repairFilter === f ? '#fff' : 'var(--rb-ink-2)', borderColor: repairFilter === f ? 'var(--rb-ink)' : 'var(--rb-border)', flexShrink: 0 }}>
+                {f === 'all' ? `All (${repairs.length})` : f === 'in_progress' ? 'In Progress' : f === 'emergency' ? '🚨 Emergency' : f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+          {filteredRepairs.length > 0 ? filteredRepairs.map((r: RepairRequest) => <RepairRow key={r.id} r={r} isLandlord />) : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="wrench" size={32} stroke={1.5} /></div><p>No repair requests.</p></div>}
+        </section>
       </>
     )
   }
@@ -1056,8 +1091,13 @@ export default function DashboardPage() {
                               {p.status === 'paid' ? '+' : ''}{inr(p.amount)}
                               {p.status === 'overdue' && Number(p.late_fee) > 0 && <div style={{ fontSize: 10, color: 'var(--rb-danger)', fontFamily: 'var(--rb-font-mono)', fontWeight: 700, marginTop: 2 }}>+{inr(p.late_fee)} fee</div>}
                             </div>
-                            <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 10, color: 'var(--rb-ink-3)', textAlign: 'right' as const, minWidth: 68 }}>
-                              {bal !== undefined ? <span title="Running balance collected">{inr(bal)}</span> : <span style={{ opacity: .3 }}>—</span>}
+                            <div className="d-ledger-balance" style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 10, color: 'var(--rb-ink-3)', textAlign: 'right' as const, minWidth: 68 }}>
+                              {bal !== undefined ? (
+                                <>
+                                  <div style={{ fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', opacity: .6, marginBottom: 2 }}>running</div>
+                                  <span title="Running balance collected">{inr(bal)}</span>
+                                </>
+                              ) : <span style={{ opacity: .3 }}>—</span>}
                             </div>
                           </div>
                         )
@@ -1086,6 +1126,8 @@ export default function DashboardPage() {
     const property = rental.property || {}
     const propLine = [property.name, property.city].filter(Boolean).join(' · ')
     const landlordName = rental.landlord?.full_name || 'Landlord'
+    const [showTDS, setShowTDS] = useState(false)
+    const [heroExpanded, setHeroExpanded] = useState(true)
     return (
       <>
         <div style={topStyle}><div>
@@ -1104,12 +1146,39 @@ export default function DashboardPage() {
             {isPaid ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(31,122,85,.25)', border: '1px solid rgba(31,122,85,.35)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#A8E6C8' }}>✓ Paid this month</span></div>
               : isPending ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(201,122,58,.15)', border: '1px solid rgba(201,122,58,.3)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: 'var(--rb-accent)' }}><Icon k="clock" size={14} stroke={2} /> Awaiting landlord confirmation</span></div>
               : <div style={{ marginTop: 18, display: 'flex', gap: 10 }}><button onClick={() => setModal('pay-rent')} style={{ ...actBtnPrimary, background: '#fff', color: 'var(--rb-action)' }}>Pay / record payment →</button></div>}
-            {currentPayment?.status === 'overdue' && (currentPayment?.late_fee || 0) > 0 && (
-              <div style={{ marginTop: 12, padding: '9px 14px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#ffaaaa', display: 'flex', gap: 8, alignItems: 'center' }}>
-                <Icon k="warning" size={14} stroke={2} /> Overdue · {inr(rental.monthly_rent)} rent + {inr(currentPayment.late_fee!)} late fee = <strong style={{ color: '#fff' }}>{inr(Number(rental.monthly_rent) + currentPayment.late_fee!)} total due</strong>
-              </div>
+            {/* Details toggle */}
+            {(currentPayment?.status === 'overdue' || Number(rental.monthly_rent) > 50000) && (
+              <button onClick={() => setHeroExpanded(v => !v)} style={{ marginTop: 10, background: 'transparent', border: 0, cursor: 'pointer', color: 'rgba(246,244,238,.6)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
+                {heroExpanded ? 'Less ▲' : 'Details ▾'}
+              </button>
             )}
-            {Number(rental.monthly_rent) > 50000 && <div style={{ marginTop: 12, padding: '7px 12px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#ffaaaa', display: 'flex', alignItems: 'center', gap: 6 }}><Icon k="warning" size={13} stroke={2} /> Rent &gt;₹50,000/mo — you must deduct 2% TDS and file Form 26QC.</div>}
+            {heroExpanded && (
+              <>
+                {currentPayment?.status === 'overdue' && (currentPayment?.late_fee || 0) > 0 && (
+                  <div style={{ marginTop: 12, padding: '9px 14px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#ffaaaa', display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <Icon k="warning" size={14} stroke={2} /> Overdue · {inr(rental.monthly_rent)} rent + {inr(currentPayment.late_fee!)} late fee = <strong style={{ color: '#fff' }}>{inr(Number(rental.monthly_rent) + currentPayment.late_fee!)} total due</strong>
+                  </div>
+                )}
+                {Number(rental.monthly_rent) > 50000 && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ padding: '7px 12px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#ffaaaa', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Icon k="warning" size={13} stroke={2} /> Rent &gt;₹50,000/mo — you must deduct 2% TDS and file Form 26QC.
+                      <button onClick={() => setShowTDS(v => !v)} style={{ marginLeft: 'auto', background: 'transparent', border: 0, cursor: 'pointer', color: '#ffaaaa', fontFamily: 'inherit', fontSize: 11, fontWeight: 700 }}>
+                        What is TDS? {showTDS ? '▴' : '▾'}
+                      </button>
+                    </div>
+                    {showTDS && (
+                      <div style={{ marginTop: 6, padding: '10px 14px', background: 'rgba(239,68,68,.10)', borderRadius: 8, fontSize: 12, color: '#ffcccc', lineHeight: 1.7 }}>
+                        <div style={{ fontWeight: 700, marginBottom: 4 }}>TDS on Rent (Section 194-IB)</div>
+                        <div>If monthly rent exceeds ₹50,000, you (the tenant) must deduct <strong>2% TDS</strong> each month.</div>
+                        <div style={{ marginTop: 4 }}>File <strong>Form 26QC</strong> online at the TIN-NSDL portal within 30 days of the last month of the FY. Provide Form 16C to your landlord as proof of deduction.</div>
+                        <div style={{ marginTop: 4, color: 'rgba(255,204,204,.7)' }}>Your landlord can claim this as credit in their ITR.</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
             <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid rgba(246,244,238,.12)', display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 12, color: 'rgba(246,244,238,.65)' }}>
               <span>{propLine}</span>
               <button onClick={() => { setMessagingRental(rental); navigate('msg') }} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'rgba(246,244,238,.65)', fontSize: 12, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon k="chat" size={13} stroke={1.8} /> Message landlord</button>
@@ -1322,13 +1391,28 @@ export default function DashboardPage() {
 
   function TenantRepairs() {
     const repairs: RepairRequest[] = tenantData?.openRepairs || []
+    const [repairFilter, setRepairFilter] = useState<'all'|'open'|'in_progress'|'resolved'>('all')
+    const filteredRepairs = repairs.filter((r: RepairRequest) => {
+      if (repairFilter === 'all') return true
+      return r.status === repairFilter
+    })
+    const pillBase: React.CSSProperties = { padding: '5px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, border: '1.5px solid var(--rb-border)', cursor: 'pointer', whiteSpace: 'nowrap' as const, transition: 'all .15s' }
     return (
       <>
         <div style={topStyle}>
           <div><div style={eyebrowStyle}>Tenant · Repairs</div><h1 style={h1Style}>Repair requests.</h1></div>
           <button onClick={() => setModal('new-repair')} style={actBtnPrimary}>+ New request</button>
         </div>
-        <section style={cardStyle}>{repairs.length > 0 ? repairs.map(r => <RepairRow key={r.id} r={r} />) : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>✓</div><p>No open repair requests. All good!</p></div>}</section>
+        <section style={cardStyle}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', scrollbarWidth: 'none' }}>
+            {(['all', 'open', 'in_progress', 'resolved'] as const).map(f => (
+              <button key={f} onClick={() => setRepairFilter(f)} style={{ ...pillBase, background: repairFilter === f ? 'var(--rb-ink)' : 'transparent', color: repairFilter === f ? '#fff' : 'var(--rb-ink-2)', borderColor: repairFilter === f ? 'var(--rb-ink)' : 'var(--rb-border)' }}>
+                {f === 'all' ? 'All' : f === 'in_progress' ? 'In Progress' : f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+          {filteredRepairs.length > 0 ? filteredRepairs.map(r => <RepairRow key={r.id} r={r} />) : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>✓</div><p>{repairFilter === 'all' ? 'No open repair requests. All good!' : `No ${repairFilter.replace('_', ' ')} requests.`}</p></div>}
+        </section>
       </>
     )
   }
@@ -1443,6 +1527,23 @@ export default function DashboardPage() {
           </section>
         ) : (
           <>
+            {/* Completion progress bar */}
+            {(() => {
+              const filledRooms = ROOM_LABELS.filter(r => photos.some(p => p.room_label === r)).length
+              const pct = Math.round((filledRooms / ROOM_LABELS.length) * 100)
+              return (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--rb-ink-2)' }}>Room coverage</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: pct === 100 ? 'var(--rb-accent)' : 'var(--rb-ink-2)' }}>{filledRooms}/{ROOM_LABELS.length} rooms{pct === 100 ? ' · Complete ✓' : ''}</span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 999, background: 'var(--rb-fill-2)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: pct === 100 ? 'var(--rb-accent)' : 'var(--rb-action)', transition: 'width .4s ease' }} />
+                  </div>
+                </div>
+              )
+            })()}
+
             {/* Room tabs */}
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 16 }}>
               {ROOM_LABELS.map(r => {
@@ -1480,10 +1581,34 @@ export default function DashboardPage() {
     const transactions: DepositTx[] = tenantData?.depositTransactions || []
     const balance = transactions.reduce((s: number, t: DepositTx) => s + (t.type === 'received' ? Number(t.amount) : -Number(t.amount)), 0)
     const deductions = transactions.filter(t => t.type === 'deduction')
+    const received = transactions.filter(t => t.type === 'received')
     const disputed = deductions.filter(t => t.dispute_status === 'disputed').length
+    const totalReceived = received.reduce((s: number, t: DepositTx) => s + Number(t.amount), 0)
+    const totalDeducted = deductions.reduce((s: number, t: DepositTx) => s + Number(t.amount), 0)
     return (
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · Deposit</div><h1 style={h1Style}>Security deposit.</h1><p style={subStyle}>{inr(balance)} held{disputed > 0 ? ` · ${disputed} disputed` : ''}</p></div></div>
+
+        {/* Deposit summary card */}
+        {transactions.length > 0 && (
+          <div style={{ marginBottom: 16, borderRadius: 16, background: 'linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 100%)', padding: '20px 22px', color: '#fff' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, textAlign: 'center' as const }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' as const, marginBottom: 6 }}>Received</div>
+                <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, color: '#6ee7b7' }}>{inr(totalReceived)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' as const, marginBottom: 6 }}>Deductions</div>
+                <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, color: '#fca5a5' }}>{inr(totalDeducted)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' as const, marginBottom: 6 }}>Balance</div>
+                <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, color: balance >= 0 ? '#6ee7b7' : '#fca5a5' }}>{inr(balance)}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {deductions.length > 0 && <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--rb-warning-soft)', borderRadius: 12, fontSize: 13, color: 'var(--rb-warning)', fontWeight: 500 }}>
           <strong>Deductions from your deposit</strong> — tap any deduction to view details or file a dispute.
         </div>}
@@ -1590,6 +1715,7 @@ export default function DashboardPage() {
     const r: RentPayment[] = d?.recentPayments || []
     const C = 2 * Math.PI * 78
     const pct = score / 900
+    const [showFormula, setShowFormula] = useState(false)
     return (
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · Score</div><h1 style={h1Style}>Renter score.</h1></div></div>
@@ -1635,7 +1761,22 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 24, padding: 16, background: 'var(--rb-action-soft)', borderRadius: 12 }}>
+          {/* Formula disclosure */}
+          <button onClick={() => setShowFormula(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 18, padding: '7px 0', background: 'transparent', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: 'var(--rb-action)', fontWeight: 600 }}>
+            How is this calculated? {showFormula ? '▴' : '▾'}
+          </button>
+          {showFormula && (
+            <div style={{ marginTop: 4, padding: '14px 16px', background: 'var(--rb-fill-2)', borderRadius: 12, fontSize: 12, color: 'var(--rb-ink-2)', lineHeight: 1.7 }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>Score formula (max 900)</div>
+              <div>• <strong>Base score:</strong> 700 points on join</div>
+              <div>• <strong>On-time rent:</strong> +12 pts per month paid on time</div>
+              <div>• <strong>Move-in proof:</strong> +50 pts when submitted</div>
+              <div>• <strong>No open repairs:</strong> +20 pts when all resolved</div>
+              <div>• <strong>Late payment:</strong> −30 pts per overdue month</div>
+              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--rb-ink-3)' }}>Score is recalculated after each payment event and carries to your next rental.</div>
+            </div>
+          )}
+          <div style={{ marginTop: 20, padding: 16, background: 'var(--rb-action-soft)', borderRadius: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-action)', marginBottom: 6 }}>Next step</div>
             <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.55 }}>{scoreNudge(score, r.length)}</div>
             <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 8 }}>Score carries to your next rental — landlords see this.</div>
@@ -1792,12 +1933,26 @@ export default function DashboardPage() {
       late_fee_percent: '5', rent_increment_percent: '5',
     })
     const [saving, setSaving] = useState(false)
-    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { setForm(f => ({ ...f, [k]: e.target.value })); setFieldErrors(fe => ({ ...fe, [k]: '' })) }
     const toggle = (k: string) => setForm(f => ({ ...f, [k]: !(f as any)[k] }))
     const chip = (k: string, v: string) => {
       const active = (form as any)[k] === v
       return { padding: '7px 14px', borderRadius: 999, border: `1.5px solid ${active ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: active ? 'var(--rb-action)' : 'transparent', color: active ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all .15s' }
     }
+    const validateField = (k: string, val: string) => {
+      if (k === 'name' && !val.trim()) return 'Property name is required'
+      if (k === 'city' && !val.trim()) return 'City is required'
+      if (k === 'state' && !val.trim()) return 'State is required'
+      if (k === 'pincode' && !/^\d{6}$/.test(val.trim())) return 'Enter a valid 6-digit pincode'
+      if (k === 'monthly_rent' && (!val || Number(val) <= 0)) return 'Enter a valid monthly rent'
+      return ''
+    }
+    const onBlur = (k: string) => (e: React.FocusEvent<HTMLInputElement>) => {
+      const err = validateField(k, e.target.value)
+      if (err) setFieldErrors(fe => ({ ...fe, [k]: err }))
+    }
+    const ErrMsg = ({ field }: { field: string }) => fieldErrors[field] ? <div style={{ fontSize: 11, color: 'var(--rb-danger)', marginTop: 4, fontWeight: 500 }}>{fieldErrors[field]}</div> : null
     const SectionHead = ({ label }: { label: string }) => (
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginTop: 22, marginBottom: 12, paddingTop: 18, borderTop: '1px solid var(--rb-border)' }}>{label}</div>
     )
@@ -1862,7 +2017,8 @@ export default function DashboardPage() {
 
     return (
       <Modal title="Add standalone property" onClose={() => setModal(null)}>
-        {/* ── Property details ── */}
+        {/* ── Property type ── */}
+        <SectionHead label="Property Type" />
         <Field label="Property type">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[['apartment','Apartment'],['house','House'],['pg','PG'],['commercial','Commercial']].map(([v,l]) => (
@@ -1870,6 +2026,9 @@ export default function DashboardPage() {
             ))}
           </div>
         </Field>
+
+        {/* ── Configuration ── */}
+        <SectionHead label="Configuration" />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <Field label="Bedrooms (BHK)">
             <div style={{ display: 'flex', gap: 6 }}>
@@ -1893,17 +2052,30 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <SectionHead label="Address" />
-        <Field label="Property name / label *"><input style={inputStyle} value={form.name} onChange={set('name')} placeholder="e.g. Sunrise Apt 4B" /></Field>
+        {/* ── Location ── */}
+        <SectionHead label="Location" />
+        <Field label="Property name / label *">
+          <input style={{ ...inputStyle, borderColor: fieldErrors.name ? 'var(--rb-danger)' : undefined }} value={form.name} onChange={set('name')} onBlur={onBlur('name')} placeholder="e.g. Sunrise Apt 4B" />
+          <ErrMsg field="name" />
+        </Field>
         <Field label="Street address *"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} placeholder="Flat no., building, street" /></Field>
         <Field label="Landmark / area (optional)"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} placeholder="Near Metro station" /></Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="City *"><input style={inputStyle} value={form.city} onChange={set('city')} placeholder="Hyderabad" /></Field>
-          <Field label="State *"><input style={inputStyle} value={form.state} onChange={set('state')} placeholder="Telangana" /></Field>
+          <Field label="City *">
+            <input style={{ ...inputStyle, borderColor: fieldErrors.city ? 'var(--rb-danger)' : undefined }} value={form.city} onChange={set('city')} onBlur={onBlur('city')} placeholder="Hyderabad" />
+            <ErrMsg field="city" />
+          </Field>
+          <Field label="State *">
+            <input style={{ ...inputStyle, borderColor: fieldErrors.state ? 'var(--rb-danger)' : undefined }} value={form.state} onChange={set('state')} onBlur={onBlur('state')} placeholder="Telangana" />
+            <ErrMsg field="state" />
+          </Field>
         </div>
-        <Field label="Pincode *"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} placeholder="500001" /></Field>
+        <Field label="Pincode *">
+          <input style={{ ...inputStyle, borderColor: fieldErrors.pincode ? 'var(--rb-danger)' : undefined }} value={form.pincode} onChange={set('pincode')} onBlur={onBlur('pincode')} placeholder="500001" />
+          <ErrMsg field="pincode" />
+        </Field>
 
-        <SectionHead label="Rental terms" />
+        <SectionHead label="Rental Terms" />
         <Field label="Furnishing">
           <div style={{ display: 'flex', gap: 8 }}>
             {[['unfurnished','Unfurnished'],['semi_furnished','Semi'],['fully_furnished','Fully furnished']].map(([v,l]) => (
@@ -1912,7 +2084,10 @@ export default function DashboardPage() {
           </div>
         </Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Monthly rent (₹) *"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} placeholder="25000" /></Field>
+          <Field label="Monthly rent (₹) *">
+            <input style={{ ...inputStyle, borderColor: fieldErrors.monthly_rent ? 'var(--rb-danger)' : undefined }} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} onBlur={onBlur('monthly_rent')} placeholder="25000" />
+            <ErrMsg field="monthly_rent" />
+          </Field>
           <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -2042,7 +2217,11 @@ export default function DashboardPage() {
             <option value="upi">UPI</option><option value="bank_transfer">Bank Transfer</option><option value="cheque">Cheque</option><option value="cash">Cash</option>
           </select>
         </Field>
-        <Field label="UTR / Reference number"><input style={inputStyle} value={utr} onChange={e => setUtr(e.target.value)} placeholder="e.g. 123456789012" /></Field>
+        {method !== 'cash' && (
+          <Field label={method === 'upi' ? 'UPI Transaction ID (UTR)' : method === 'bank_transfer' ? 'Reference / IFSC number' : method === 'cheque' ? 'Cheque number' : 'Reference number'}>
+            <input style={inputStyle} value={utr} onChange={e => setUtr(e.target.value)} placeholder={method === 'upi' ? 'e.g. 123456789012' : method === 'cheque' ? 'e.g. 001234' : 'e.g. Reference number'} />
+          </Field>
+        )}
         <Field label="Note (optional)"><input style={inputStyle} value={note} onChange={e => setNote(e.target.value)} placeholder="Any note for your landlord" /></Field>
         <Field label="Upload receipt (optional)">
           <div style={{ border: '1.5px dashed var(--rb-border)', borderRadius: 10, padding: '20px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
@@ -2145,7 +2324,7 @@ export default function DashboardPage() {
             : <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, border: '1.5px dashed var(--rb-border)', cursor: 'pointer' }}>
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--rb-ink-3)" strokeWidth="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>Upload a photo</span>
-                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+                <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile} />
               </label>
           }
         </Field>
@@ -2168,6 +2347,8 @@ export default function DashboardPage() {
     const [vendorName, setVendorName] = useState(r?.vendor_name || '')
     const [vendorPhone, setVendorPhone] = useState(r?.vendor_phone || '')
     const [saving, setSaving] = useState(false)
+    const [deductConfirmed, setDeductConfirmed] = useState(false)
+    const [vendorPhoneError, setVendorPhoneError] = useState('')
     if (!r) return null
 
     const handleSave = async () => {
@@ -2213,7 +2394,7 @@ export default function DashboardPage() {
         <Field label="Status">
           <div style={{ display: 'flex', gap: 8 }}>
             {(['open', 'in_progress', 'resolved'] as const).map(s => (
-              <button key={s} style={stBtn(s)} onClick={() => setStatus(s)}>
+              <button key={s} style={stBtn(s)} onClick={() => { setStatus(s); if (s !== 'resolved') setDeductConfirmed(false) }}>
                 {s === 'open' ? 'Open' : s === 'in_progress' ? 'In progress' : 'Resolved'}
               </button>
             ))}
@@ -2230,24 +2411,46 @@ export default function DashboardPage() {
             <input style={inputStyle} value={vendorName} onChange={e => setVendorName(e.target.value)} placeholder="e.g. Ram Plumbing" />
           </Field>
           <Field label="Vendor phone">
-            <input style={inputStyle} value={vendorPhone} onChange={e => setVendorPhone(e.target.value)} placeholder="98765 43210" />
+            <input style={inputStyle} value={vendorPhone} onChange={e => setVendorPhone(e.target.value)} placeholder="98765 43210"
+              onBlur={(e) => {
+                const v = e.target.value
+                if (v && !/^[6-9]\d{9}$/.test(v.replace(/\D/g, ''))) {
+                  setVendorPhoneError('Enter a valid 10-digit Indian mobile number')
+                } else {
+                  setVendorPhoneError('')
+                }
+              }}
+            />
+            {vendorPhoneError && <span style={{ fontSize: 11, color: 'var(--rb-danger)', marginTop: 3, display: 'block' }}>{vendorPhoneError}</span>}
           </Field>
         </div>
         <Field label="Estimated cost (₹, optional)">
-          <input style={inputStyle} type="number" value={cost} onChange={e => setCost(e.target.value)} placeholder="0" />
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--rb-ink-2)', fontSize: 14, pointerEvents: 'none' }}>₹</span>
+            <input style={{ ...inputStyle, paddingLeft: 28 }} type="number" value={cost} onChange={e => setCost(e.target.value)} placeholder="0" />
+          </div>
         </Field>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderTop: '1px solid var(--rb-border)', marginTop: 4 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>Deduct from deposit</div>
             <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Creates a deposit ledger entry when resolved</div>
           </div>
-          <button onClick={() => setDeductFromDeposit(d => !d)} style={{ width: 44, height: 24, borderRadius: 999, background: deductFromDeposit ? 'var(--rb-action)' : 'var(--rb-border)', border: 0, cursor: 'pointer', position: 'relative', transition: 'background .2s', flexShrink: 0 }}>
+          <button onClick={() => { setDeductFromDeposit(d => !d); setDeductConfirmed(false) }} style={{ width: 44, height: 24, borderRadius: 999, background: deductFromDeposit ? 'var(--rb-action)' : 'var(--rb-border)', border: 0, cursor: 'pointer', position: 'relative', transition: 'background .2s', flexShrink: 0 }}>
             <span style={{ position: 'absolute', top: 2, left: deductFromDeposit ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
           </button>
         </div>
+        {deductFromDeposit && status === 'resolved' && (
+          <div style={{ background: 'var(--rb-warning-soft)', border: '1px solid var(--rb-warning)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#92400e', marginTop: 8 }}>
+            ⚠️ This will deduct ₹{cost || 0} from the tenant&apos;s deposit. The tenant will be notified and can file a dispute.
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+              <button onClick={() => setDeductConfirmed(c => !c)} style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${deductConfirmed ? 'var(--rb-warning)' : '#92400e'}`, background: deductConfirmed ? 'var(--rb-warning)' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 11 }}>{deductConfirmed ? '✓' : ''}</button>
+              <label style={{ fontSize: 12, cursor: 'pointer' }} onClick={() => setDeductConfirmed(c => !c)}>I confirm this deduction is valid</label>
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
           <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
-          <button onClick={handleSave} disabled={saving} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Saving…' : 'Save'}</button>
+          <button onClick={handleSave} disabled={saving || (deductFromDeposit && status === 'resolved' && !deductConfirmed)} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: (deductFromDeposit && status === 'resolved' && !deductConfirmed) ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, opacity: (deductFromDeposit && status === 'resolved' && !deductConfirmed) ? 0.5 : 1 }}>{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </Modal>
     )
@@ -2369,6 +2572,7 @@ export default function DashboardPage() {
     const [copied, setCopied] = useState(false)
     const [copiedCode, setCopiedCode] = useState(false)
     const [confirmStep, setConfirmStep] = useState<0 | 1 | 2>(0)
+    const [confirmRegen, setConfirmRegen] = useState(false)
     const [receiptNum, setReceiptNum] = useState('')
     const inviteLink = r.invite_token ? `${window.location.origin}/join/${r.invite_token}` : null
     const inviteExpired = r.invite_expires_at ? new Date(r.invite_expires_at) < new Date() : true
@@ -2541,12 +2745,12 @@ export default function DashboardPage() {
                   <div style={{ marginTop: 18, marginBottom: 18 }}>
                     <div style={{ fontSize: 10, color: 'rgba(246,244,238,.4)', letterSpacing: '.1em', marginBottom: 8, textTransform: 'uppercase' as const }}>INVITE CODE</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 32, fontWeight: 700, letterSpacing: '.18em', color: '#F6F4EE', lineHeight: 1 }}>{r.invite_token}</span>
+                      <span onClick={handleCopyCode} title="Tap to copy" style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 32, fontWeight: 700, letterSpacing: '.18em', color: '#F6F4EE', lineHeight: 1, cursor: 'pointer' }}>{r.invite_token}</span>
                       <button onClick={handleCopyCode} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(246,244,238,.2)', background: copiedCode ? 'rgba(0,200,150,.2)' : 'rgba(246,244,238,.08)', color: copiedCode ? '#00C896' : 'rgba(246,244,238,.65)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, transition: 'all .2s' }}>
                         {copiedCode ? '✓ Copied' : 'Copy code'}
                       </button>
                     </div>
-                    <div style={{ fontSize: 11, color: 'rgba(246,244,238,.35)', marginTop: 6 }}>Tenant enters this at the app or website</div>
+                    <div style={{ fontSize: 11, color: 'rgba(246,244,238,.35)', marginTop: 6 }}>Tenant enters this at the app or website · <span style={{ color: 'rgba(246,244,238,.5)', cursor: 'pointer' }} onClick={handleCopyCode}>Tap code to copy</span></div>
                   </div>
                 </div>
 
@@ -2580,11 +2784,19 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Footer — regenerate */}
-                <div style={{ background: '#080e0d', padding: '10px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ background: '#080e0d', padding: '10px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                   <div style={{ fontSize: 11, color: 'rgba(246,244,238,.25)' }}>Code and link expire together</div>
-                  <button onClick={handleRegenerateLink} disabled={saving} style={{ padding: '5px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(246,244,238,.15)', color: 'rgba(246,244,238,.45)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600 }}>
-                    {saving ? '…' : '↺ New link'}
-                  </button>
+                  {confirmRegen ? (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: 'var(--rb-warning)' }}>Old link will stop working — continue?</span>
+                      <button onClick={() => { setConfirmRegen(false); handleRegenerateLink() }} disabled={saving} style={{ fontSize: 12, color: 'var(--rb-danger)', background: 'none', border: 0, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>Yes, regenerate</button>
+                      <button onClick={() => setConfirmRegen(false)} style={{ fontSize: 12, color: 'rgba(246,244,238,.45)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmRegen(true)} disabled={saving} style={{ padding: '5px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(246,244,238,.15)', color: 'rgba(246,244,238,.45)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600 }}>
+                      {saving ? '…' : '↺ New link'}
+                    </button>
+                  )}
                 </div>
 
               </div>
@@ -2750,6 +2962,15 @@ export default function DashboardPage() {
     if (!rental) return null
     const [confirmed, setConfirmed] = useState(false)
     const [saving, setSaving] = useState(false)
+    const [scrollPct, setScrollPct] = useState(0)
+    const scrollRef = useRef<HTMLDivElement>(null)
+    const hasReadAll = scrollPct >= 95
+
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget
+      const pct = el.scrollHeight <= el.clientHeight ? 100 : Math.round((el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100)
+      setScrollPct(Math.min(100, pct))
+    }
 
     const handleSign = async () => {
       if (!confirmed) { toast('Confirm you have read the full agreement', 'error'); return }
@@ -2771,12 +2992,18 @@ export default function DashboardPage() {
         <div style={{ background: 'var(--rb-canvas)', borderBottom: '1px solid var(--rb-border)', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <div>
             <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, fontWeight: 400 }}>Sign rental agreement</div>
-            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Read the full document before signing</div>
+            <div style={{ fontSize: 12, color: hasReadAll ? 'var(--rb-accent)' : 'var(--rb-ink-3)', marginTop: 2, fontWeight: hasReadAll ? 600 : 400 }}>
+              {hasReadAll ? '✓ Ready to sign' : 'Read to bottom before signing'}
+            </div>
           </div>
-          <button onClick={() => setModal(null)} style={{ width: 32, height: 32, border: 0, background: 'var(--rb-fill-2)', borderRadius: '50%', cursor: 'pointer', fontSize: 18, display: 'grid', placeItems: 'center', color: 'var(--rb-ink-3)' }}>×</button>
+          <button aria-label="Close" onClick={() => setModal(null)} style={{ width: 32, height: 32, border: 0, background: 'var(--rb-fill-2)', borderRadius: '50%', cursor: 'pointer', fontSize: 18, display: 'grid', placeItems: 'center', color: 'var(--rb-ink-3)' }}>×</button>
+        </div>
+        {/* Scroll progress bar */}
+        <div style={{ height: 3, background: 'var(--rb-border)', flexShrink: 0 }}>
+          <div style={{ height: '100%', width: `${scrollPct}%`, background: hasReadAll ? 'var(--rb-accent)' : 'var(--rb-action)', transition: 'width .2s ease' }} />
         </div>
         {/* Scrollable agreement */}
-        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--rb-surface)' }}>
+        <div ref={scrollRef} onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto', background: 'var(--rb-surface)' }}>
           <AgreementDocument rental={rental} landlordProf={rental.landlord || null} tenantProf={profile} />
         </div>
         {/* Sign footer */}
@@ -3946,7 +4173,7 @@ export default function DashboardPage() {
                       <span style={{ display: 'inline-block', marginTop: 8, fontSize: 12, fontWeight: 600, color: 'var(--rb-action)' }}>{action}</span>
                     )}
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); markNotifRead(n.id) }} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'var(--rb-ink-3)', padding: 4, flexShrink: 0 }} title="Dismiss">
+                  <button aria-label="Dismiss notification" onClick={(e) => { e.stopPropagation(); markNotifRead(n.id) }} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'var(--rb-ink-3)', padding: 4, flexShrink: 0 }} title="Dismiss">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
