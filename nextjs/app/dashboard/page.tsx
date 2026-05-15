@@ -847,9 +847,24 @@ export default function DashboardPage() {
 
   function LandlordRepairs() {
     const repairs: RepairRequest[] = landlordData?.recentRepairs || []
+    const inProgressCount = repairs.filter((r: RepairRequest) => r.status === 'in_progress').length
+    const openCount = repairs.filter((r: RepairRequest) => r.status === 'open').length
     return (
       <>
-        <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Repairs</div><h1 style={h1Style}>Repair requests.</h1><p style={subStyle}>{repairs.filter(r => r.status === 'open' || r.status === 'in_progress').length} open · {repairs.length} total</p></div></div>
+        <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Repairs</div><h1 style={h1Style}>Repair requests.</h1><p style={subStyle}>{openCount + inProgressCount} open · {repairs.length} total</p></div></div>
+        {/* Stat cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+          <div style={{ ...cardStyle, background: 'linear-gradient(135deg,var(--rb-accent-soft),var(--rb-canvas))', borderColor: 'rgba(201,122,58,.3)' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-accent)' }}>IN PROGRESS</div>
+            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 36, color: 'var(--rb-accent)', lineHeight: 1, marginTop: 6 }}>{inProgressCount}</div>
+            <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>{openCount} more open</div>
+          </div>
+          <div style={cardStyle}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>OPEN REQUESTS</div>
+            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 36, color: 'var(--rb-action)', lineHeight: 1, marginTop: 6 }}>{openCount + inProgressCount}</div>
+            <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>Total needing attention</div>
+          </div>
+        </div>
         <section style={cardStyle}>{repairs.length > 0 ? repairs.map(r => <RepairRow key={r.id} r={r} isLandlord />) : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="wrench" size={32} stroke={1.5} /></div><p>No repair requests.</p></div>}</section>
       </>
     )
@@ -883,14 +898,25 @@ export default function DashboardPage() {
   function LandlordLedger() {
     const allPayments: any[] = landlordData?.allLedgerPayments || []
     const [filter, setFilter] = useState<'month' | 'ytd'>('ytd')
+    const [ledgerTab, setLedgerTab] = useState<'all' | 'in' | 'pending' | 'overdue'>('all')
 
     const filtered = filter === 'month'
       ? allPayments.filter(p => p.month >= currentMonthDate)
       : allPayments
 
+    const inCount = filtered.filter((p: any) => p.status === 'paid').length
+    const pendingCount = filtered.filter((p: any) => p.status === 'pending' || p.status === 'pending_verification').length
+    const overdueCount = filtered.filter((p: any) => p.status === 'overdue').length
+
+    // Apply ledger tab sub-filter
+    const tabFiltered = ledgerTab === 'all' ? filtered
+      : ledgerTab === 'in' ? filtered.filter((p: any) => p.status === 'paid')
+      : ledgerTab === 'pending' ? filtered.filter((p: any) => p.status === 'pending' || p.status === 'pending_verification')
+      : filtered.filter((p: any) => p.status === 'overdue')
+
     // Group by YYYY-MM
     const byMonth: Record<string, any[]> = {}
-    for (const p of filtered) {
+    for (const p of tabFiltered) {
       const key = (p.month as string).slice(0, 7)
       if (!byMonth[key]) byMonth[key] = []
       byMonth[key].push(p)
@@ -924,7 +950,7 @@ export default function DashboardPage() {
           <div>
             <div style={eyebrowStyle}>Landlord · Ledger</div>
             <h1 style={h1Style}>Activity ledger.</h1>
-            <p style={subStyle}>All rent payments · {filtered.length} entr{filtered.length === 1 ? 'y' : 'ies'} · {now.getFullYear()}</p>
+            <p style={subStyle}>All rent payments · {tabFiltered.length} entr{tabFiltered.length === 1 ? 'y' : 'ies'} · {now.getFullYear()}</p>
           </div>
         </div>
 
@@ -944,17 +970,26 @@ export default function DashboardPage() {
         </div>
 
         {/* Filter tabs */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button style={filterBtn('month', 'This month')} onClick={() => setFilter('month')}>This month</button>
           <button style={filterBtn('ytd',   `Full year ${now.getFullYear()}`)} onClick={() => setFilter('ytd')}>Full year {now.getFullYear()}</button>
         </div>
 
+        {/* Segment tabs */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 18, padding: 4, background: 'var(--rb-fill)', borderRadius: 12 }}>
+          {([['all', 'All', filtered.length], ['in', 'Collected', inCount], ['pending', 'Pending', pendingCount], ['overdue', 'Overdue', overdueCount]] as [string, string, number][]).map(([k, l, c]) => (
+            <button key={k} onClick={() => setLedgerTab(k as 'all' | 'in' | 'pending' | 'overdue')} style={{ flex: 1, padding: '7px 4px', borderRadius: 9, border: 0, background: ledgerTab === k ? '#fff' : 'transparent', color: ledgerTab === k ? 'var(--rb-ink)' : 'var(--rb-ink-3)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, boxShadow: ledgerTab === k ? '0 1px 4px rgba(14,20,19,.1)' : 'none', transition: 'all .18s' }}>
+              <span>{l}</span><span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, color: ledgerTab === k ? 'var(--rb-action)' : 'var(--rb-ink-3)' }}>{c}</span>
+            </button>
+          ))}
+        </div>
+
         <section style={cardStyle}>
-          {filtered.length === 0
+          {tabFiltered.length === 0
             ? <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="clipboard" size={32} stroke={1.5} /></div><p>No entries for this period.</p></div>
             : (() => {
                 // Compute running balance across all filtered entries (oldest→newest for accumulation)
-                const sorted = [...filtered].sort((a, b) => a.month.localeCompare(b.month))
+                const sorted = [...tabFiltered].sort((a, b) => a.month.localeCompare(b.month))
                 const runningBal: Record<string, number> = {}
                 let cum = 0
                 for (const p of sorted) { if (p.status === 'paid') { cum += Number(p.amount); runningBal[p.id] = cum } }
@@ -1003,7 +1038,7 @@ export default function DashboardPage() {
                 })
               })()
           }
-          {filtered.length > 0 && <div style={{ paddingTop: 14, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--rb-ink-3)' }}><span>Running total: <strong style={{ color: 'var(--rb-action)', fontFamily: 'var(--rb-font-display)', fontSize: 16 }}>{inr(collected)}</strong> collected</span><span>{filtered.filter((p: any) => p.status === 'overdue').length} overdue</span></div>}
+          {tabFiltered.length > 0 && <div style={{ paddingTop: 14, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--rb-ink-3)' }}><span>Running total: <strong style={{ color: 'var(--rb-action)', fontFamily: 'var(--rb-font-display)', fontSize: 16 }}>{inr(collected)}</strong> collected</span><span>{filtered.filter((p: any) => p.status === 'overdue').length} overdue</span></div>}
         </section>
       </>
     )
@@ -1220,25 +1255,36 @@ export default function DashboardPage() {
 
   function TenantHRA() {
     const d = tenantData
-    const payments: RentPayment[] = d?.recentPayments || []
+    const paidPayments: RentPayment[] = ((d?.recentPayments || []) as RentPayment[]).filter((p: RentPayment) => p.status === 'paid')
     const propLine = d?.rental ? [d.rental.property?.name, d.rental.property?.city].filter(Boolean).join(' · ') : ''
     return (
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · HRA</div><h1 style={h1Style}>HRA receipts.</h1><p style={subStyle}>Section 10(13A) · FY {now.getFullYear()-1}–{String(now.getFullYear()).slice(2)}</p></div></div>
         <section style={cardStyle}>
-          {payments.length > 0 ? <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {payments.map(p => (
-                <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 14, alignItems: 'center', padding: '10px 12px', background: 'var(--rb-surface)', borderRadius: 10 }}>
-                  <div><div style={{ fontSize: 11, letterSpacing: '.1em', color: 'var(--rb-ink-3)', fontWeight: 600 }}>{monthLabel(p.month).toUpperCase()}</div><div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2, fontFamily: 'var(--rb-font-mono)' }}>{propLine}</div></div>
-                  <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18 }}>{inr(p.amount)}</div>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--rb-action-soft)', color: 'var(--rb-action)', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700 }}>✓</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--rb-border)', fontSize: 13, alignItems: 'center' }}>
+          {paidPayments.length > 0 ? <>
+            {/* Hero summary */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 14, borderBottom: '1px dashed var(--rb-border)', fontSize: 13, alignItems: 'center' }}>
               <span style={{ color: 'var(--rb-ink-2)' }}>YTD HRA eligible</span><strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: 'var(--rb-action)' }}>{inr(d?.ytdTotal)}</strong>
             </div>
+            {/* Monthly receipts list */}
+            {paidPayments.map((p: RentPayment, i: number) => (
+              <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 12, alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--rb-accent-soft)', display: 'grid', placeItems: 'center', color: 'var(--rb-accent)' }}>
+                  <Icon k="check" size={16} stroke={2} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, letterSpacing: '.1em', fontWeight: 700, color: 'var(--rb-ink-3)', textTransform: 'uppercase' as const }}>{monthLabel(p.month)}</span>
+                    {i === 0 && <span style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', letterSpacing: '.06em' }}>NEW</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', fontFamily: 'var(--rb-font-mono)', marginTop: 2 }}>#{new Date(p.month).getFullYear()}-{String(new Date(p.month).getMonth() + 1).padStart(2, '0')}-{String(i + 1).padStart(3, '0')}</div>
+                </div>
+                <div style={{ textAlign: 'right' as const }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>₹{Number(p.amount).toLocaleString('en-IN')}</div>
+                  <div style={{ fontSize: 11, color: 'var(--rb-action)', fontWeight: 600, marginTop: 2 }}>PDF →</div>
+                </div>
+              </div>
+            ))}
           </> : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="file" size={32} stroke={1.5} /></div><p>No receipts yet. They appear after confirmed payments.</p></div>}
         </section>
       </>
@@ -1513,18 +1559,51 @@ export default function DashboardPage() {
     const score: number = d?.score || 700
     const band = scoreBand(score)
     const r: RentPayment[] = d?.recentPayments || []
+    const C = 2 * Math.PI * 78
+    const pct = score / 900
     return (
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · Score</div><h1 style={h1Style}>Renter score.</h1></div></div>
         <section style={cardStyle}>
-          <div style={{ textAlign: 'center', padding: '20px 0 10px' }}>
-            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 96, lineHeight: 1, letterSpacing: '-.03em', color: 'var(--rb-action)' }}>{score}</div>
-            <span style={{ display: 'inline-block', marginTop: 8, padding: '4px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, letterSpacing: '.12em', background: 'var(--rb-action-soft)', color: 'var(--rb-action)' }}>{band.label}</span>
-            <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginTop: 12 }}>out of 900</p>
+          <div style={{ textAlign: 'center', padding: '10px 0 4px' }}>
+            <span style={{ display: 'inline-block', padding: '4px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, letterSpacing: '.12em', background: 'var(--rb-action-soft)', color: 'var(--rb-action)' }}>{band.label}</span>
+            {/* SVG circular dial */}
+            <div style={{ position: 'relative', width: 200, height: 200, margin: '14px auto 0' }}>
+              <svg viewBox="0 0 200 200" width="200" height="200">
+                <circle cx="100" cy="100" r="78" fill="none" stroke="var(--rb-fill-2)" strokeWidth="14" />
+                <circle cx="100" cy="100" r="78" fill="none" stroke="var(--rb-action)" strokeWidth="14"
+                  strokeLinecap="round" strokeDasharray={`${C * pct} ${C}`} transform="rotate(-90 100 100)"
+                  style={{ transition: 'stroke-dasharray 1s ease' }} />
+                {Array.from({ length: 6 }).map((_, i) => {
+                  const a = (i / 6) * Math.PI * 2 - Math.PI / 2
+                  return <circle key={i} cx={100 + Math.cos(a) * 94} cy={100 + Math.sin(a) * 94} r="2.5" fill="var(--rb-border)" />
+                })}
+              </svg>
+              <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 56, lineHeight: 1, color: 'var(--rb-action)', letterSpacing: '-.03em' }}>{score}</div>
+                  <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>/ 900</div>
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 6 }}>+{Math.max(0, score - 700)} from joining</div>
           </div>
-          <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {[{ l: `On-time payments · ${r.length} months`, w: Math.min(100, r.length*12+28) }, { l: `Move-in proof · ${d?.proofs ? 'submitted' : 'pending'}`, w: d?.proofs ? 100 : 0 }, { l: 'No pending repairs', w: (d?.openRepairs?.length || 0) === 0 ? 100 : 60 }].map(b => (
-              <div key={b.l}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><span style={{ fontSize: 13, color: 'var(--rb-ink-2)' }}>{b.l}</span><span style={{ fontSize: 13, fontWeight: 600 }}>{b.w}%</span></div><div style={{ height: 6, background: 'var(--rb-fill-2)', borderRadius: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: `${b.w}%`, background: 'var(--rb-action)', borderRadius: 4 }} /></div></div>
+          {/* Score breakdown bars */}
+          <div style={{ marginTop: 24 }}>
+            {[
+              { l: `On-time rent · ${r.length} month${r.length !== 1 ? 's' : ''} paid`, w: Math.min(100, r.length * 12 + 28) },
+              { l: `Move-in proof · ${d?.proofs ? 'submitted ✓' : 'pending'}`, w: d?.proofs ? 100 : 0 },
+              { l: d?.openRepairs?.length === 0 ? 'No open repairs' : `${d?.openRepairs?.length} open`, w: d?.openRepairs?.length === 0 ? 100 : 60 },
+            ].map(b => (
+              <div key={b.l} style={{ marginTop: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, color: 'var(--rb-ink-2)' }}>{b.l}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{b.w}%</span>
+                </div>
+                <div style={{ height: 6, background: 'var(--rb-fill-2)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${b.w}%`, background: 'var(--rb-action)', borderRadius: 4 }} />
+                </div>
+              </div>
             ))}
           </div>
           <div style={{ marginTop: 24, padding: 16, background: 'var(--rb-action-soft)', borderRadius: 12 }}>
@@ -1832,12 +1911,12 @@ export default function DashboardPage() {
     const d = tenantData
     const rental: Rental = d?.rental
     const currentPayment: RentPayment | null = d?.currentPayment || null
+    const [step, setStep] = useState<1 | 2 | 3>(1)
     const [method, setMethod] = useState('upi')
     const [utr, setUtr] = useState('')
     const [note, setNote] = useState('')
     const [file, setFile] = useState<File | null>(null)
     const [preview, setPreview] = useState('')
-    const [saving, setSaving] = useState(false)
 
     const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
       const f = e.target.files?.[0]
@@ -1845,7 +1924,7 @@ export default function DashboardPage() {
     }
 
     const handleSubmit = async () => {
-      setSaving(true)
+      setStep(2)
       try {
         let proofUrl = ''
         if (file) {
@@ -1865,14 +1944,70 @@ export default function DashboardPage() {
           const { error: insErr } = await sb.from('rent_payments').insert({ ...pmtData, rental_id: rental.id, tenant_id: user.id, month: currentMonthDate, amount: rental.monthly_rent })
           if (insErr) throw insErr
         }
-        toast('Payment recorded! Your landlord will confirm shortly.', 'success')
-        setModal(null)
-        window.location.reload()
-      } catch (e: any) { console.error('[PayRent]', e); toast(e?.message || 'Failed to record payment', 'error'); setSaving(false) }
+        setStep(3)
+      } catch (e: any) { console.error('[PayRent]', e); toast(e?.message || 'Failed to record payment', 'error'); setStep(1) }
     }
 
+    // Step 2: sealing spinner
+    if (step === 2) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: '#0E1413', display: 'grid', placeItems: 'center', padding: 20 }}>
+          <style>{`@keyframes mPaySpin{to{transform:rotate(360deg)}}`}</style>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ position: 'relative', width: 180, height: 180, margin: '0 auto 24px' }}>
+              <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'conic-gradient(var(--rb-accent), transparent)', animation: 'mPaySpin 1.2s linear infinite' }} />
+              <div style={{ position: 'absolute', inset: 6, borderRadius: '50%', background: '#0E1413', display: 'grid', placeItems: 'center' }}>
+                <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 32, color: '#F6F4EE', letterSpacing: '-.02em' }}>{inr(rental?.monthly_rent)}</div>
+              </div>
+            </div>
+            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: '#F6F4EE', letterSpacing: '-.015em' }}>Sealing into ledger…</div>
+          </div>
+        </div>
+      )
+    }
+
+    // Step 3: sealed success
+    if (step === 3) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(14,20,19,.55)', backdropFilter: 'blur(5px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--rb-canvas)', borderRadius: 20, padding: 36, width: '100%', maxWidth: 440, textAlign: 'center' }}>
+            <style>{`@keyframes mPaySpin{to{transform:rotate(360deg)}} @keyframes burst{0%{opacity:0;transform:var(--rot) translateY(0)} 30%{opacity:1} 100%{opacity:0;transform:var(--rot) translateY(-60px)}}`}</style>
+            <div style={{ position: 'relative', display: 'inline-block', marginBottom: 20 }}>
+              <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
+                {Array.from({ length: 14 }).map((_, i) => (
+                  <div key={i} style={{ position: 'absolute', width: 2, height: 18, background: 'var(--rb-accent)', borderRadius: 1, transformOrigin: 'center 44px', animation: `burst 1s ${i * (1000 / 14)}ms ease-out both`, ['--rot' as string]: `rotate(${i * (360 / 14)}deg)` } as React.CSSProperties} />
+                ))}
+              </div>
+              <svg viewBox="0 0 80 80" width="88" height="88">
+                <defs><radialGradient id="wxSealPay" cx="50%" cy="40%"><stop offset="0%" stopColor="#E89B5C"/><stop offset="60%" stopColor="#C97A3A"/><stop offset="100%" stopColor="#7a4a1f"/></radialGradient></defs>
+                {Array.from({ length: 18 }).map((_, i) => { const a = (i / 18) * Math.PI * 2; return <circle key={i} cx={40 + Math.cos(a) * 36} cy={40 + Math.sin(a) * 36} r="3.5" fill="url(#wxSealPay)" /> })}
+                <circle cx="40" cy="40" r="32" fill="url(#wxSealPay)" />
+                <text x="40" y="35" textAnchor="middle" fill="#fff" fontSize="5" letterSpacing="1.5" fontWeight="700" fontFamily="ui-monospace,monospace">PENDING</text>
+                <text x="40" y="48" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="serif">RECORDED</text>
+              </svg>
+            </div>
+            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28, letterSpacing: '-.02em', marginBottom: 8 }}>Payment recorded!</div>
+            <div style={{ fontSize: 14, color: 'var(--rb-ink-3)', marginBottom: 28 }}>{inr(rental?.monthly_rent)} · awaiting landlord confirmation</div>
+            <button onClick={() => { setModal(null); window.location.reload() }} style={{ ...actBtnPrimary, width: '100%', justifyContent: 'center', padding: '13px 0', fontSize: 15 }}>Done</button>
+          </div>
+        </div>
+      )
+    }
+
+    // Step 1: form
     return (
       <Modal title="Record payment" onClose={() => setModal(null)}>
+        {/* Stepper dots */}
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 20 }}>
+          {[1, 2, 3].map(n => (
+            <div key={n} style={{ width: step >= n ? 20 : 8, height: 8, borderRadius: 999, background: step >= n ? 'var(--rb-action)' : 'var(--rb-fill-2)', transition: 'all .3s' }} />
+          ))}
+        </div>
+        {/* Settlement breakdown */}
+        <div style={{ padding: '14px 16px', background: 'var(--rb-fill)', borderRadius: 12, marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 13, color: 'var(--rb-ink-2)' }}>Total due · {monthLabel(currentMonth)}</div>
+          <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, letterSpacing: '-.015em', color: 'var(--rb-ink)' }}>{inr(rental?.monthly_rent)}</div>
+        </div>
         <Field label="Payment method">
           <select style={inputStyle} value={method} onChange={e => setMethod(e.target.value)}>
             <option value="upi">UPI</option><option value="bank_transfer">Bank Transfer</option><option value="cheque">Cheque</option><option value="cash">Cash</option>
@@ -1886,10 +2021,9 @@ export default function DashboardPage() {
             <input type="file" accept="image/*" onChange={handleFile} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
           </div>
         </Field>
-        <div style={{ padding: 14, background: 'var(--rb-fill)', borderRadius: 10, fontSize: 13, color: 'var(--rb-ink-2)', marginBottom: 8 }}>Amount: <strong>{inr(rental?.monthly_rent)}</strong> for {monthLabel(currentMonth)}</div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
           <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={saving} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Recording…' : 'Record payment'}</button>
+          <button onClick={handleSubmit} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>Record payment →</button>
         </div>
       </Modal>
     )
@@ -2205,6 +2339,8 @@ export default function DashboardPage() {
     const [saving, setSaving] = useState(false)
     const [copied, setCopied] = useState(false)
     const [copiedCode, setCopiedCode] = useState(false)
+    const [confirmStep, setConfirmStep] = useState<0 | 1 | 2>(0)
+    const [receiptNum, setReceiptNum] = useState('')
     const inviteLink = r.invite_token ? `${window.location.origin}/join/${r.invite_token}` : null
     const inviteExpired = r.invite_expires_at ? new Date(r.invite_expires_at) < new Date() : true
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -2279,13 +2415,14 @@ export default function DashboardPage() {
 
     const handleAcceptPayment = async () => {
       if (!currentPmt) return
-      setSaving(true)
+      setConfirmStep(1)
       try {
         const { error } = await sb.rpc('confirm_rent_payment', { payment_id: currentPmt.id })
         if (error) throw error
-        toast('Payment confirmed ✓', 'success')
-        setModal(null); setSelectedRental(null); window.location.reload()
-      } catch (e: any) { toast(e?.message || 'Failed to confirm payment', 'error') } finally { setSaving(false) }
+        const rn = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${currentPmt.id.slice(-4).toUpperCase()}`
+        setReceiptNum(rn)
+        setConfirmStep(2)
+      } catch (e: any) { toast(e?.message || 'Failed to confirm payment', 'error'); setConfirmStep(0) }
     }
 
     const handleRejectPayment = async () => {
@@ -2302,7 +2439,7 @@ export default function DashboardPage() {
     return (
       <Modal title={editMode ? 'Edit property' : (r.property?.name || 'Property')} onClose={() => { setModal(null); setSelectedRental(null) }}>
         {/* Pending payment review */}
-        {hasPending && currentPmt && (
+        {hasPending && currentPmt && confirmStep === 0 && (
           <div style={{ marginBottom: 20, padding: 16, background: 'var(--rb-warning-soft)', borderRadius: 12, border: '1px solid rgba(184,116,15,.25)' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-warning)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon k="clock" size={12} stroke={2} /> Payment awaiting review</div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{inr(currentPmt.amount)} · {monthLabel(currentPmt.month)}</div>
@@ -2311,8 +2448,44 @@ export default function DashboardPage() {
             {currentPmt.payment_note && <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{currentPmt.payment_note}</div>}
             {currentPmt.payment_proof_url && <img src={currentPmt.payment_proof_url} alt="Receipt" onClick={() => { setLightbox({ url: currentPmt.payment_proof_url!, label: 'Payment receipt' }); setModal(null) }} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, marginTop: 8, cursor: 'pointer' }} />}
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <button onClick={handleAcceptPayment} disabled={saving} style={{ ...actBtnPrimary, fontSize: 12, padding: '7px 16px', background: 'var(--rb-success)' }}>✓ Accept payment</button>
-              <button onClick={handleRejectPayment} disabled={saving} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--rb-danger)', fontWeight: 600 }}>Reject</button>
+              <button onClick={handleAcceptPayment} style={{ ...actBtnPrimary, fontSize: 12, padding: '7px 16px', background: 'var(--rb-success)' }}>✓ Confirm & seal</button>
+              <button onClick={handleRejectPayment} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--rb-danger)', fontWeight: 600 }}>Reject</button>
+            </div>
+          </div>
+        )}
+        {/* Sealing spinner */}
+        {hasPending && currentPmt && confirmStep === 1 && (
+          <div style={{ marginBottom: 20, padding: 24, background: '#0E1413', borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+            <style>{`@keyframes mPaySpin{to{transform:rotate(360deg)}}`}</style>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'conic-gradient(var(--rb-accent), transparent)', animation: 'mPaySpin 1s linear infinite' }} />
+            <div style={{ fontSize: 14, color: 'rgba(246,244,238,.7)', fontWeight: 500 }}>Sealing receipt…</div>
+          </div>
+        )}
+        {/* Sealed success */}
+        {hasPending && currentPmt && confirmStep === 2 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <style>{`@keyframes burst{0%{opacity:0;transform:var(--rot) translateY(0)} 30%{opacity:1} 100%{opacity:0;transform:var(--rot) translateY(-60px)}}`}</style>
+              <div style={{ position: 'relative', display: 'inline-block', marginBottom: 12 }}>
+                <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
+                  {Array.from({ length: 14 }).map((_, i) => (
+                    <div key={i} style={{ position: 'absolute', width: 2, height: 18, background: 'var(--rb-accent)', borderRadius: 1, transformOrigin: 'center 44px', animation: `burst 1s ${i * (1000 / 14)}ms ease-out both`, ['--rot' as string]: `rotate(${i * (360 / 14)}deg)` } as React.CSSProperties} />
+                  ))}
+                </div>
+                <svg viewBox="0 0 80 80" width="88" height="88">
+                  <defs><radialGradient id="wxSealLandlord" cx="50%" cy="40%"><stop offset="0%" stopColor="#E89B5C"/><stop offset="60%" stopColor="#C97A3A"/><stop offset="100%" stopColor="#7a4a1f"/></radialGradient></defs>
+                  {Array.from({ length: 18 }).map((_, i) => { const a = (i / 18) * Math.PI * 2; return <circle key={i} cx={40 + Math.cos(a) * 36} cy={40 + Math.sin(a) * 36} r="3.5" fill="url(#wxSealLandlord)" /> })}
+                  <circle cx="40" cy="40" r="32" fill="url(#wxSealLandlord)" />
+                  <text x="40" y="35" textAnchor="middle" fill="#fff" fontSize="5" letterSpacing="1.5" fontWeight="700" fontFamily="ui-monospace,monospace">RECEIVED</text>
+                  <text x="40" y="48" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="serif">SEALED</text>
+                </svg>
+              </div>
+              <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24 }}>Sealed.</div>
+              <div style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginTop: 6 }}>Receipt #{receiptNum} · {inr(currentPmt.amount)} · {monthLabel(currentPmt.month)}</div>
+              <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--rb-ink)', color: '#FBF6EB', borderRadius: 12, fontSize: 13, fontWeight: 600 }}>
+                Receipt sent to tenant · ledger updated
+              </div>
+              <button onClick={() => { setModal(null); setSelectedRental(null); window.location.reload() }} style={{ ...actBtnPrimary, marginTop: 16, width: '100%', justifyContent: 'center' }}>Close</button>
             </div>
           </div>
         )}
