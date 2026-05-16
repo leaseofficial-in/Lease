@@ -1,16 +1,48 @@
 import type { Metadata } from 'next'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
+import { FAQStructuredData, BreadcrumbStructuredData } from '@/components/structured-data'
 
 export const metadata: Metadata = {
-  title: 'Free HRA Rent Receipt Generator India — RentyBase',
-  description: 'Generate Section 10(13A)-compliant HRA rent receipts instantly. Free online tool for Indian tenants and landlords. Download as PDF, valid for income tax exemption.',
+  title: 'Free HRA Rent Receipt Generator — Section 10(13A) Valid',
+  description:
+    'Generate Section 10(13A)-compliant HRA rent receipts online, free. Enter tenant name, landlord PAN, amount, and period — download as PDF instantly. Valid for income tax and HRA exemption claims in India.',
   alternates: { canonical: 'https://rentybase.com/tools' },
   openGraph: {
-    title: 'Free HRA Rent Receipt Generator India — RentyBase',
-    description: 'Generate valid HRA rent receipts in seconds. Free, no sign-up required for the basic generator.',
+    title: 'Free HRA Rent Receipt Generator India — Section 10(13A) Valid | RentyBase',
+    description:
+      'Create valid HRA rent receipts in seconds. Free, no sign-up for basic generation. Download PDF, submit to employer, claim tax exemption.',
     url: 'https://rentybase.com/tools',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'RentyBase HRA Receipt Generator' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Free HRA Rent Receipt Generator — Section 10(13A) | RentyBase',
+    description: 'Generate valid HRA receipts free. Enter rent details, download PDF instantly.',
   },
 }
+
+const toolsFaqs = [
+  {
+    question: 'Is the HRA rent receipt generator completely free?',
+    answer:
+      'Yes. The RentyBase HRA receipt generator is completely free. You can generate and download Section 10(13A)-compliant rent receipts without any subscription or payment. Creating a free account also unlocks automatic monthly receipt generation linked to your rental profile.',
+  },
+  {
+    question: 'What information is required to generate a valid HRA rent receipt?',
+    answer:
+      'To generate a valid HRA rent receipt for income tax purposes, you need: (1) the tenant\'s full name and address, (2) the landlord\'s full name and PAN number (mandatory if annual rent exceeds ₹1 lakh), (3) the monthly rent amount, (4) the rental period (month and year), and (5) the property address. RentyBase auto-fills all of these from your rental profile if you have an account.',
+  },
+  {
+    question: 'Can I generate rent receipts for a full financial year at once?',
+    answer:
+      'Yes. RentyBase can generate a complete financial year bundle of rent receipts as a single PDF — one receipt per month, covering April to March. This is the format most employers require for HRA submission during tax season.',
+  },
+  {
+    question: 'Does the landlord need to sign the rent receipt?',
+    answer:
+      'Under Section 10(13A), there is no legal requirement for a physical signature on the rent receipt for income tax purposes. However, including the landlord\'s name, PAN (if rent exceeds ₹1 lakh/year), and declaration on the receipt satisfies most employer and tax authority requirements. RentyBase generates receipts in this format.',
+  },
+]
 
 const tools = [
   {
@@ -69,6 +101,11 @@ const faqs = [
 export default function ToolsPage() {
   return (
     <div className="lp-page">
+      <BreadcrumbStructuredData items={[
+        { name: 'Home', url: 'https://rentybase.com' },
+        { name: 'Free Tools', url: 'https://rentybase.com/tools' },
+      ]} />
+      <FAQStructuredData faqs={toolsFaqs} />
       <MarketingNav />
 
       {/* Hero */}

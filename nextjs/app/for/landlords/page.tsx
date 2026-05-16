@@ -1,16 +1,48 @@
 import type { Metadata } from 'next'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
+import { FAQStructuredData, BreadcrumbStructuredData } from '@/components/structured-data'
 
 export const metadata: Metadata = {
-  title: 'Rental Management App for Landlords India — RentyBase',
-  description: 'RentyBase gives Indian landlords a single dashboard to manage everything — rent collection, HRA receipts, deposit ledger, move-in proof, and repair tracking. Free, forever.',
+  title: 'Free Rental Management App for Landlords in India',
+  description:
+    'Free landlord app for India: collect rent via UPI, auto-generate Section 10(13A) HRA receipts, track security deposits, document move-in condition with sealed photos, and manage repairs. No subscription.',
   alternates: { canonical: 'https://rentybase.com/for/landlords' },
   openGraph: {
-    title: 'Rental Management App for Landlords India — RentyBase',
-    description: 'One free dashboard: collect rent, issue HRA receipts, manage deposits, and document everything. Built for Indian landlords.',
+    title: 'Free Rental Management Dashboard for Indian Landlords — RentyBase',
+    description:
+      'One dashboard to manage all your rentals: rent collection, HRA receipts, deposit ledger, move-in proof, and repairs. Free forever for Indian landlords.',
     url: 'https://rentybase.com/for/landlords',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'RentyBase for Landlords' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Free Rental Management App for Indian Landlords — RentyBase',
+    description: 'Collect rent, issue HRA receipts, track deposits and repairs. Free for Indian landlords.',
   },
 }
+
+const landlordFaqs = [
+  {
+    question: 'How do I invite a tenant to RentyBase?',
+    answer:
+      'Create a rental by adding your property details and rent amount. RentyBase generates a unique invite link valid for 72 hours. Share it with your tenant via WhatsApp or any messaging app. Your tenant signs in with Google and joins your rental in one tap — no app install required on web.',
+  },
+  {
+    question: 'Can I manage multiple properties or rentals on RentyBase?',
+    answer:
+      'Yes. RentyBase supports multiple properties under a single landlord account. You can create buildings with multiple units, manage multiple active rentals simultaneously, and view a consolidated dashboard across all your properties.',
+  },
+  {
+    question: 'Does RentyBase generate HRA receipts automatically?',
+    answer:
+      'Yes. The moment you log a rent payment (by UPI, NEFT, or cash), a Section 10(13A)-compliant HRA receipt is generated automatically — pre-filled with your tenant\'s name, your PAN, the property address, the rental period, and the amount. Your tenant can download it instantly as a PDF.',
+  },
+  {
+    question: 'Is RentyBase free for landlords?',
+    answer:
+      'Yes, completely free. There is no monthly subscription, no per-property charge, and no premium tier. Every feature — rent ledger, HRA receipts, deposit tracking, move-in proof, and repair management — is included at no cost.',
+  },
+]
 
 const features = [
   { icon: '🏠', title: 'Create rentals in 30 seconds', body: 'Add your property, set the rent amount and due date, and send an invite link. Your tenant joins in one tap — no paperwork upfront.' },
@@ -31,6 +63,11 @@ const steps = [
 export default function LandlordsPage() {
   return (
     <div className="lp-page">
+      <BreadcrumbStructuredData items={[
+        { name: 'Home', url: 'https://rentybase.com' },
+        { name: 'For Landlords', url: 'https://rentybase.com/for/landlords' },
+      ]} />
+      <FAQStructuredData faqs={landlordFaqs} />
       <MarketingNav />
 
       {/* Hero */}

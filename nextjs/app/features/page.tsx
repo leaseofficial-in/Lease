@@ -1,16 +1,53 @@
 import type { Metadata } from 'next'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
+import { FAQStructuredData, BreadcrumbStructuredData } from '@/components/structured-data'
 
 export const metadata: Metadata = {
-  title: 'HRA Rent Receipt Generator & Manager — RentyBase Features',
-  description: 'Generate Section 10(13A)-compliant HRA rent receipts instantly. Auto-fill from rental profile, download as PDF. Plus deposit management, move-in proof, and repair tracking. Free for Indian landlords and tenants.',
+  title: 'Features — HRA Receipts, Rent Ledger, Move-in Proof & More',
+  description:
+    'Every tool Indian landlords and tenants need: auto-generated Section 10(13A) HRA receipts, shared rent ledger with UTR tracking, tamper-proof move-in photos, security deposit breakdown, and repair management. Free.',
   alternates: { canonical: 'https://rentybase.com/features' },
   openGraph: {
-    title: 'RentyBase Features — HRA Receipts, Deposits, Move-in Proof',
-    description: 'Every feature Indian landlords and tenants need in one shared record. Free forever.',
+    title: 'RentyBase Features — HRA Receipts, Shared Ledger, Move-in Proof',
+    description:
+      'Full rental lifecycle management in one shared record. Rent collection, HRA receipts, deposit tracking, move-in proof, and repairs. Free for both sides.',
     url: 'https://rentybase.com/features',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'RentyBase Features' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'RentyBase Features — Complete Rental Management for India',
+    description: 'HRA receipts, rent ledger, move-in proof, deposit tracking — all free.',
   },
 }
+
+const faqs = [
+  {
+    question: 'What documents does a valid HRA rent receipt need for income tax?',
+    answer:
+      'A valid HRA rent receipt under Section 10(13A) must include: the tenant\'s name and address, the landlord\'s name and PAN (mandatory if annual rent exceeds ₹1 lakh), the rental amount paid, the payment period (month and year), the property address, and the date of payment. RentyBase auto-fills all of these from your rental profile.',
+  },
+  {
+    question: 'Is RentyBase free for both landlords and tenants?',
+    answer:
+      'Yes. RentyBase is fully free for both landlords and tenants. There are no subscription tiers, no paywalls, and no "premium" features. Every feature — HRA receipts, rent ledger, deposit tracking, move-in proof, and repairs — is included at no cost.',
+  },
+  {
+    question: 'How does move-in photo proof work on RentyBase?',
+    answer:
+      'At move-in, the tenant uploads photos of each room through the app. Each photo is automatically timestamped and geotagged at the moment of upload. The photos are then cryptographically sealed — neither the landlord nor the tenant can alter or delete them. Both parties have permanent identical access. At move-out, the original move-in state is irrefutable.',
+  },
+  {
+    question: 'Can RentyBase generate rent receipts for an entire financial year?',
+    answer:
+      'Yes. RentyBase generates a receipt automatically the moment each payment is logged. You can download individual monthly receipts or a complete financial year bundle as a single PDF — useful for HRA submission to employers at year-end.',
+  },
+  {
+    question: 'How does the security deposit ledger protect tenants?',
+    answer:
+      'The security deposit ledger shows every transaction: deposit received, deductions (each with a mandatory written reason and amount), and the final refund. Tenants can see the exact breakdown in real time. Deductions cannot be added without appearing in the shared ledger, making opaque or unjustified deductions impossible.',
+  },
+]
 
 const sections = [
   {
@@ -54,6 +91,11 @@ const sections = [
 export default function FeaturesPage() {
   return (
     <div className="lp-page">
+      <BreadcrumbStructuredData items={[
+        { name: 'Home', url: 'https://rentybase.com' },
+        { name: 'Features', url: 'https://rentybase.com/features' },
+      ]} />
+      <FAQStructuredData faqs={faqs} />
       <MarketingNav />
 
       {/* Hero */}
@@ -96,6 +138,27 @@ export default function FeaturesPage() {
           </div>
         </section>
       ))}
+
+      {/* FAQ — visible section, also powers FAQPage schema */}
+      <section style={{ padding: '72px 0', background: 'var(--rb-canvas-2)', borderBottom: '1px solid var(--rb-border)' }}>
+        <div className="container" style={{ maxWidth: 760 }}>
+          <div className="eyebrow" style={{ marginBottom: 16, textAlign: 'center' }}>FAQ</div>
+          <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 'clamp(26px,3.5vw,38px)', fontWeight: 400, letterSpacing: '-.025em', textAlign: 'center', marginBottom: 48 }}>
+            Common questions
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {faqs.map(faq => (
+              <details key={faq.question} style={{ borderBottom: '1px solid var(--rb-border)', padding: '20px 0' }}>
+                <summary style={{ fontSize: 16, fontWeight: 600, cursor: 'pointer', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, color: 'var(--rb-ink)' }}>
+                  {faq.question}
+                  <span style={{ flexShrink: 0, fontSize: 20, color: 'var(--rb-ink-3)', fontWeight: 300 }}>+</span>
+                </summary>
+                <p style={{ fontSize: 15, lineHeight: 1.75, color: 'var(--rb-ink-2)', marginTop: 14, paddingRight: 32 }}>{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* CTA */}
       <section style={{ padding: '80px 32px', textAlign: 'center', background: 'linear-gradient(160deg,#0F4C5C 0%,#0E1413 100%)', color: '#F6F4EE' }}>

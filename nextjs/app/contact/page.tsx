@@ -1,21 +1,34 @@
 import type { Metadata } from 'next'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
 import { ContactForm } from './ContactForm'
+import { BreadcrumbStructuredData } from '@/components/structured-data'
 
 export const metadata: Metadata = {
-  title: 'Contact — RentyBase',
-  description: 'Get in touch with the RentyBase team. We answer product questions, HRA receipt help, partnership enquiries, and more. Typical response: 1–2 business days.',
+  title: 'Contact RentyBase — Support for Landlords & Tenants',
+  description:
+    'Get help with RentyBase. We answer questions about HRA receipts, rent payment issues, account setup, deposit disputes, and partnerships. Every message is read. Typical response: within 1 business day.',
   alternates: { canonical: 'https://rentybase.com/contact' },
   openGraph: {
-    title: 'Contact RentyBase',
-    description: 'Questions about rent receipts, deposits, or your account? We read every message.',
+    title: 'Contact RentyBase — Support for Indian Landlords & Tenants',
+    description:
+      'HRA receipt help, account questions, deposit issues, or partnership enquiries — we read every message and respond within 1 business day.',
     url: 'https://rentybase.com/contact',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'Contact RentyBase' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Contact RentyBase — Support for Landlords & Tenants',
+    description: 'Questions about HRA receipts, deposits, or your account? We read every message.',
   },
 }
 
 export default function ContactPage() {
   return (
     <div className="lp-page">
+      <BreadcrumbStructuredData items={[
+        { name: 'Home', url: 'https://rentybase.com' },
+        { name: 'Contact', url: 'https://rentybase.com/contact' },
+      ]} />
       <MarketingNav />
 
       {/* Hero */}

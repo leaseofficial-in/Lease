@@ -1,16 +1,48 @@
 import type { Metadata } from 'next'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
+import { FAQStructuredData, BreadcrumbStructuredData } from '@/components/structured-data'
 
 export const metadata: Metadata = {
-  title: 'Rent Management App for Tenants India — RentyBase',
-  description: 'Get HRA rent receipts on demand, track your payment history, protect your deposit, and raise repair requests — all from one free app for Indian tenants.',
+  title: 'Free Rent Payment & HRA Receipt App for Tenants in India',
+  description:
+    'Track rent payments, download Section 10(13A) HRA receipts for tax exemption, protect your security deposit, raise repair requests, and keep tamper-proof move-in photos. Free for Indian tenants.',
   alternates: { canonical: 'https://rentybase.com/for/tenants' },
   openGraph: {
-    title: 'Rent Management App for Tenants India — RentyBase',
-    description: 'HRA receipts, rent history, deposit ledger, and repair tracking — free for Indian tenants.',
+    title: 'Free HRA Receipt & Rent Tracking App for Indian Tenants — RentyBase',
+    description:
+      'Download HRA receipts for income tax, track payment history, protect your deposit, and keep move-in proof. Free for tenants across India.',
     url: 'https://rentybase.com/for/tenants',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'RentyBase for Tenants' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Free HRA Receipt App for Indian Tenants — RentyBase',
+    description: 'HRA receipts, rent history, deposit protection, repair tracking. Free for tenants.',
   },
 }
+
+const tenantFaqs = [
+  {
+    question: 'How do I download my rent receipts for HRA exemption?',
+    answer:
+      'Once your landlord logs your rent payment in RentyBase, a Section 10(13A)-compliant HRA receipt is automatically generated and available for download. Go to your dashboard, open the payment, and download as PDF. You can also download a full-year bundle for employer submission at year-end.',
+  },
+  {
+    question: 'What is Section 10(13A) and how does RentyBase help with HRA?',
+    answer:
+      'Section 10(13A) of the Income Tax Act allows salaried employees who receive House Rent Allowance (HRA) from their employer to claim a portion of it as tax-exempt. To claim this exemption, you need valid rent receipts with the landlord\'s name, PAN (if annual rent exceeds ₹1 lakh), your name, rental period, amount, and property address. RentyBase generates these receipts automatically with all required fields.',
+  },
+  {
+    question: 'Can I claim rent deduction under Section 80GG if my employer doesn\'t give HRA?',
+    answer:
+      'Yes. Section 80GG lets you claim up to ₹5,000 per month as a deduction if you pay rent but do not receive HRA from your employer (or are self-employed). You still need valid rent receipts for this claim. RentyBase generates the same Section 10(13A)-standard receipts that work for both HRA exemption and Section 80GG claims.',
+  },
+  {
+    question: 'How does RentyBase protect my security deposit?',
+    answer:
+      'RentyBase maintains a shared deposit ledger that both you and your landlord can see in real time. Every deduction must be logged with a mandatory written reason and amount. You receive a notification for each entry. The final settlement breakdown is permanently recorded. Because both parties see the same ledger, opaque or undisclosed deductions are impossible.',
+  },
+]
 
 const features = [
   { icon: '💳', title: 'Pay rent & log payments', body: 'Pay via UPI or record any payment with a UTR number. Every payment lands in a shared ledger your landlord also sees.' },
@@ -24,6 +56,11 @@ const features = [
 export default function TenantsPage() {
   return (
     <div className="lp-page">
+      <BreadcrumbStructuredData items={[
+        { name: 'Home', url: 'https://rentybase.com' },
+        { name: 'For Tenants', url: 'https://rentybase.com/for/tenants' },
+      ]} />
+      <FAQStructuredData faqs={tenantFaqs} />
       <MarketingNav />
 
       {/* Hero */}

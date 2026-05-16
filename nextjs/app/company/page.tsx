@@ -1,14 +1,23 @@
 import type { Metadata } from 'next'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
+import { BreadcrumbStructuredData } from '@/components/structured-data'
 
 export const metadata: Metadata = {
-  title: 'About RentyBase — India\'s Rental OS',
-  description: 'RentyBase is building the shared record layer for Indian rentals — HRA receipts, rent ledgers, move-in proof, and deposit tracking. Free for landlords and tenants.',
+  title: 'About RentyBase — India\'s Rental Operating System',
+  description:
+    'RentyBase is building the shared record layer for Indian rentals — making rent management transparent, tamper-proof, and free for every landlord and tenant in India. HRA receipts, rent ledgers, deposit tracking, and move-in proof.',
   alternates: { canonical: 'https://rentybase.com/company' },
   openGraph: {
-    title: 'About RentyBase — India\'s Rental OS',
-    description: 'The story behind RentyBase and why we\'re making rental management free for every landlord and tenant in India.',
+    title: 'About RentyBase — India\'s Free Rental OS',
+    description:
+      'The story behind RentyBase: why we\'re making rental management free, transparent, and trusted for every landlord and tenant across India.',
     url: 'https://rentybase.com/company',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'About RentyBase' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'About RentyBase — India\'s Rental OS',
+    description: 'Free, transparent rental management for Indian landlords and tenants. Our mission and story.',
   },
 }
 
@@ -34,6 +43,10 @@ const values = [
 export default function CompanyPage() {
   return (
     <div className="lp-page">
+      <BreadcrumbStructuredData items={[
+        { name: 'Home', url: 'https://rentybase.com' },
+        { name: 'Company', url: 'https://rentybase.com/company' },
+      ]} />
       <MarketingNav />
 
       {/* Hero */}

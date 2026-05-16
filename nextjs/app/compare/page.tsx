@@ -1,14 +1,23 @@
 import type { Metadata } from 'next'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
+import { BreadcrumbStructuredData } from '@/components/structured-data'
 
 export const metadata: Metadata = {
-  title: 'RentyBase vs NoBroker Rent Manager — Compare Rental Apps India',
-  description: 'How does RentyBase compare to NoBroker, manual spreadsheets, and WhatsApp-based tracking? See the full comparison of features, pricing, and HRA receipt support.',
+  title: 'RentyBase vs NoBroker vs Spreadsheets — Best Rental App for India',
+  description:
+    'Feature-by-feature comparison: RentyBase vs NoBroker Rent Manager vs manual spreadsheets. See which rental management tool offers free HRA receipts, shared ledger, move-in proof, and deposit tracking for Indian landlords and tenants.',
   alternates: { canonical: 'https://rentybase.com/compare' },
   openGraph: {
-    title: 'RentyBase vs NoBroker Rent Manager — Compare Rental Apps India',
-    description: 'RentyBase vs NoBroker vs spreadsheets: feature-by-feature comparison for Indian landlords and tenants.',
+    title: 'RentyBase vs NoBroker vs Spreadsheets — Rental App Comparison India',
+    description:
+      'Compare rental management options for India. RentyBase offers a free shared ledger, auto HRA receipts, and move-in proof — features NoBroker reserves for paid plans.',
     url: 'https://rentybase.com/compare',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'RentyBase Comparison' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'RentyBase vs NoBroker — Which Rental App Is Better for India?',
+    description: 'Free HRA receipts, shared ledger, tamper-proof move-in photos — see how RentyBase compares.',
   },
 }
 
@@ -43,6 +52,10 @@ const alternatives = [
 export default function ComparePage() {
   return (
     <div className="lp-page">
+      <BreadcrumbStructuredData items={[
+        { name: 'Home', url: 'https://rentybase.com' },
+        { name: 'Compare', url: 'https://rentybase.com/compare' },
+      ]} />
       <MarketingNav />
 
       {/* Hero */}

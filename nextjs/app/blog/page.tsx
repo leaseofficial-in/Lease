@@ -1,14 +1,23 @@
 import type { Metadata } from 'next'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
+import { BreadcrumbStructuredData } from '@/components/structured-data'
 
 export const metadata: Metadata = {
-  title: 'Blog — Rental Tips for Landlords & Tenants in India | RentyBase',
-  description: 'Guides on HRA exemption, rent receipts, security deposit law, and rental management for Indian landlords and tenants.',
+  title: 'Rental Guides for Indian Landlords & Tenants — HRA, Deposits & Law',
+  description:
+    'Expert guides on HRA exemption (Section 10(13A)), Section 80GG, security deposit deduction law, valid rent receipts for income tax, and dispute prevention. Written for Indian rental law.',
   alternates: { canonical: 'https://rentybase.com/blog' },
   openGraph: {
-    title: 'Blog — Rental Tips for Landlords & Tenants in India | RentyBase',
-    description: 'HRA exemption, deposit rules, rent receipts, and more — practical guides for Indian rentals.',
+    title: 'Rental Guides for Indian Landlords & Tenants — HRA, Deposits & Law | RentyBase',
+    description:
+      'Practical guides on HRA exemption, security deposit law, rent receipts for income tax, and landlord-tenant rights in India.',
     url: 'https://rentybase.com/blog',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'RentyBase Blog' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Rental Guides for India — HRA, Deposits & Tenant Rights | RentyBase',
+    description: 'Practical guides on HRA, security deposits, rent receipts, and Indian rental law.',
   },
 }
 
@@ -60,6 +69,10 @@ const posts = [
 export default function BlogPage() {
   return (
     <div className="lp-page">
+      <BreadcrumbStructuredData items={[
+        { name: 'Home', url: 'https://rentybase.com' },
+        { name: 'Blog', url: 'https://rentybase.com/blog' },
+      ]} />
       <MarketingNav />
 
       {/* Hero */}
