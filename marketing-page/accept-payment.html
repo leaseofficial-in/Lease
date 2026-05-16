@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Incoming payment · RentyBase</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg"/>
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="dashboard.css"/>
+  <link rel="stylesheet" href="accept.css"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body class="dash-body">
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+  const { useState, useEffect, useRef } = React;
+
+  const Mark = ({size=28}) => (
+    <svg viewBox="0 0 40 40" width={size} height={size}>
+      <rect width="40" height="40" rx="9" fill="#0E1413"/>
+      <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
+      <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
+      <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+    </svg>
+  );
+
+  // Animated number that counts up
+  const Counter = ({ to, duration=1400, prefix="", run=true }) => {
+    const [v, setV] = useState(run ? 0 : to);
+    useEffect(() => {
+      if (!run) return;
+      let start;
+      let raf;
+      const step = (ts) => {
+        if (!start) start = ts;
+        const t = Math.min(1, (ts - start) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        setV(Math.round(to * eased));
+        if (t < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+      return () => cancelAnimationFrame(raf);
+    }, [to, duration, run]);
+    return <span>{prefix}{v.toLocaleString("en-IN")}</span>;
+  };
+
+  // The wax seal SVG — slams in on stage 3
+  const Seal = ({size=120, run=false}) => (
+    <svg viewBox="0 0 120 120" width={size} height={size} className={"ap-seal " + (run?"on":"")}>
+      <defs>
+        <radialGradient id="sealGrad" cx="50%" cy="40%">
+          <stop offset="0%" stopColor="#E89B5C"/>
+          <stop offset="60%" stopColor="#C97A3A"/>
+          <stop offset="100%" stopColor="#7a4a1f"/>
+        </radialGradient>
+      </defs>
+      <g>
+        {/* scalloped edge */}
+        {Array.from({length:24}).map((_,i) => {
+          const a = (i/24) * Math.PI*2;
+          const r = 56;
+          return <circle key={i} cx={60+Math.cos(a)*r} cy={60+Math.sin(a)*r} r="5" fill="url(#sealGrad)"/>;
+        })}
+        <circle cx="60" cy="60" r="50" fill="url(#sealGrad)"/>
+        <circle cx="60" cy="60" r="42" fill="none" stroke="#fff" strokeWidth="1.2" strokeDasharray="3 4" opacity=".5"/>
+        <text x="60" y="50" textAnchor="middle" fill="#fff" fontFamily="ui-monospace, monospace" fontSize="7" letterSpacing="2" fontWeight="700">RECEIVED</text>
+        <text x="60" y="68" textAnchor="middle" fill="#fff" fontFamily="Bricolage Grotesque, serif" fontSize="14" fontWeight="500">SEALED</text>
+        <text x="60" y="80" textAnchor="middle" fill="#fff" fontFamily="ui-monospace, monospace" fontSize="6" letterSpacing="1.5" opacity=".75">#1188 · 03 NOV</text>
+      </g>
+    </svg>
+  );
+
+  const App = () => {
+    // stage: 0 = incoming/matching, 1 = confirming (button pressed), 2 = sealed
+    const [stage, setStage] = useState(0);
+    const [confirming, setConfirming] = useState(false);
+    const [showReceipt, setShowReceipt] = useState(false);
+
+    const confirm = () => {
+      if (stage > 0) return;
+      setConfirming(true);
+      setTimeout(() => { setStage(2); setConfirming(false); setTimeout(() => setShowReceipt(true), 700); }, 1200);
+    };
+
+    const reset = () => {
+      setStage(0); setConfirming(false); setShowReceipt(false);
+    };
+
+    return (
+      <div className="d-shell">
+        <aside className="d-side">
+          <a href="marketing.html" className="d-logo"><Mark/><span>Renty<span className="ochre">Base</span></span></a>
+          <nav className="d-nav">
+            <a href="dashboard.html" className="d-nav-item"><span className="d-nav-ico">⌂</span><span>Overview</span></a>
+            <a href="properties.html" className="d-nav-item"><span className="d-nav-ico">▦</span><span>Properties</span><span className="d-badge">3</span></a>
+            <a href="ledger.html" className="d-nav-item"><span className="d-nav-ico">≡</span><span>Ledger</span></a>
+            <a href="#" className="d-nav-item active"><span className="d-nav-ico">₹</span><span>Receipts</span><span className="d-badge dot">●</span></a>
+            <a href="repairs.html" className="d-nav-item"><span className="d-nav-ico">⚙</span><span>Repairs</span><span className="d-badge">1</span></a>
+            <a href="#" className="d-nav-item"><span className="d-nav-ico">★</span><span>Score</span></a>
+          </nav>
+          <div className="d-side-foot">
+            <div className="d-user">
+              <div className="d-avatar" style={{background:"linear-gradient(135deg,#0F4C5C,#163A47)"}}>P</div>
+              <div>
+                <div className="d-user-name">Priya Sharma</div>
+                <div className="d-user-meta">3 properties · Mumbai</div>
+              </div>
+            </div>
+            <a href="marketing.html" className="d-logout">Sign out</a>
+          </div>
+        </aside>
+
+        <main className="d-main ap-main">
+          <header className="d-top">
+            <div>
+              <div className="eyebrow" style={{marginBottom:6}}>
+                <a href="dashboard.html" style={{color:"inherit"}}>Dashboard</a> · Incoming payment
+              </div>
+              <h1 className="d-h1">A tenant just paid you.</h1>
+              <div className="d-sub">
+                We caught the UPI as it landed. Confirm once — receipt, ledger entry, and tax record happen in the same beat.
+              </div>
+            </div>
+            <div className="d-top-r">
+              {stage === 2 && <button className="btn btn-ghost sm" onClick={reset}>Replay</button>}
+              <button className="btn btn-ghost sm">Settings</button>
+            </div>
+          </header>
+
+          {/* Progress rail */}
+          <div className="ap-rail">
+            <div className={"ap-step " + (stage>=0 ? "on" : "")}>
+              <span className="ap-step-i">1</span>
+              <span className="ap-step-l">Received</span>
+              <span className="ap-step-m mono">UPI · ₹62,000 · 03 Nov 8:14 PM</span>
+            </div>
+            <div className={"ap-rail-line " + (stage>=1 ? "on" : "")}/>
+            <div className={"ap-step " + (stage>=1 ? "on" : "") + (confirming ? " spinning" : "")}>
+              <span className="ap-step-i">2</span>
+              <span className="ap-step-l">Matched &amp; netted</span>
+              <span className="ap-step-m mono">Nov rent · less ₹900 plumbing share</span>
+            </div>
+            <div className={"ap-rail-line " + (stage>=2 ? "on" : "")}/>
+            <div className={"ap-step " + (stage>=2 ? "on" : "")}>
+              <span className="ap-step-i">3</span>
+              <span className="ap-step-l">Sealed</span>
+              <span className="ap-step-m mono">Receipt issued · both parties notified</span>
+            </div>
+          </div>
+
+          <div className={"ap-stage " + (stage===2?"sealed":"")}>
+            {/* LEFT: tenant + transaction */}
+            <section className="ap-left">
+
+              {/* Live incoming card */}
+              <div className={"ap-incoming " + (stage<2?"live":"done")}>
+                <div className="ap-inc-head">
+                  <span className="ap-pulse"/>
+                  <span className="mono ap-inc-tag">{stage<2 ? "INCOMING · LIVE" : "RECEIVED · 8:14:22 PM"}</span>
+                  <span className="mono ap-inc-utr">UTR · 458211220031</span>
+                </div>
+                <div className="ap-inc-amt">
+                  <span className="ap-cur">₹</span>
+                  <Counter to={62000} duration={1600} run={stage<2}/>
+                </div>
+                <div className="ap-inc-meta">
+                  <span><b>aarav.mehta@okhdfc</b> → <b>priya@oksbi</b></span>
+                  <span className="dot">·</span>
+                  <span>HDFC Bank → SBI</span>
+                </div>
+              </div>
+
+              {/* Tenant identity card */}
+              <div className="ap-tenant card">
+                <div className="ap-t-row">
+                  <div className="ap-t-avatar">A</div>
+                  <div className="ap-t-id">
+                    <div className="ap-t-name">Aarav Mehta</div>
+                    <div className="ap-t-sub">Bandra 2BHK · 12B Pali Naka · since Apr 2024</div>
+                  </div>
+                  <div className="ap-t-score">
+                    <div className="ap-t-score-l">TENANT SCORE</div>
+                    <div className="ap-t-score-v">842</div>
+                  </div>
+                </div>
+                <div className="ap-t-pills">
+                  <span className="pill action"><b>✓</b> Aadhaar verified</span>
+                  <span className="pill action"><b>✓</b> Move-in proof sealed</span>
+                  <span className="pill action"><b>✓</b> 23 / 24 on time</span>
+                  <span className="pill"><b>4.7★</b> Avg landlord rating</span>
+                </div>
+              </div>
+
+              {/* Auto-match block */}
+              <div className="ap-match card">
+                <div className="card-head">
+                  <div>
+                    <h3>Auto-matched</h3>
+                    <span className="card-sub">We found one open invoice. No human work needed.</span>
+                  </div>
+                  <span className="pill action">✓ matched</span>
+                </div>
+
+                <div className="ap-match-row">
+                  <span className="ap-match-l">Lease</span>
+                  <span className="ap-match-v">Bandra 2BHK · Apr 2024 → Mar 2026</span>
+                </div>
+                <div className="ap-match-row">
+                  <span className="ap-match-l">Period</span>
+                  <span className="ap-match-v">1 – 30 November 2025</span>
+                </div>
+                <div className="ap-match-row">
+                  <span className="ap-match-l">Invoice</span>
+                  <span className="ap-match-v mono">INV-2025-11-088 · ₹62,000</span>
+                </div>
+                <div className="ap-match-row">
+                  <span className="ap-match-l">Method</span>
+                  <span className="ap-match-v">UPI · IMPS instant · settled</span>
+                </div>
+              </div>
+
+              {/* Net-out */}
+              <div className="ap-net card">
+                <div className="ap-net-head">
+                  <span>Settlement breakdown</span>
+                  <span className="mono muted">all in ₹</span>
+                </div>
+                <div className="ap-net-row in">
+                  <span className="ap-net-l">Rent received</span>
+                  <span className="ap-net-v mono pos">+62,000</span>
+                </div>
+                <div className="ap-net-row out">
+                  <span className="ap-net-l">Less · plumbing repair share <i>(R-2025-441 · 50/50)</i></span>
+                  <span className="ap-net-v mono neg">−900</span>
+                </div>
+                <div className="ap-net-row total">
+                  <span className="ap-net-l"><b>Net to you</b></span>
+                  <span className="ap-net-v mono"><b>₹61,100</b></span>
+                </div>
+                <div className="ap-net-foot">
+                  Auto-credited to <b>HDFC ••2841</b> · usually under 30 sec
+                </div>
+              </div>
+
+              {/* Action */}
+              {stage < 2 && (
+                <div className="ap-actions">
+                  <button className="btn btn-ghost sm">Hold for review</button>
+                  <button className={"btn btn-primary lg ap-confirm " + (confirming?"loading":"")} onClick={confirm}>
+                    {confirming ? <><span className="ap-spin"/> Sealing into ledger…</> : <>Confirm &amp; seal · issue receipt →</>}
+                  </button>
+                </div>
+              )}
+              {stage === 2 && (
+                <div className="ap-actions">
+                  <a href="ledger.html" className="btn btn-primary lg">View in ledger →</a>
+                  <button className="btn btn-ghost sm">Send Aarav a thank-you</button>
+                </div>
+              )}
+            </section>
+
+            {/* RIGHT: receipt preview that materialises on seal */}
+            <section className="ap-right">
+              <div className={"ap-receipt " + (showReceipt ? "show" : "")}>
+                <div className="ap-r-paper">
+                  <div className="ap-r-head">
+                    <div>
+                      <div className="ap-r-eyebrow mono">RENT RECEIPT · INDIA</div>
+                      <div className="ap-r-month">November 2025</div>
+                    </div>
+                    <Mark size={32}/>
+                  </div>
+
+                  <div className="ap-r-meta mono">
+                    No. 2025-11-088 · Issued 03 Nov 2025
+                  </div>
+
+                  <div className="ap-r-rows">
+                    <div className="ap-r-row"><span>Received from</span><b>Aarav Mehta</b></div>
+                    <div className="ap-r-row"><span>For property</span><b>Bandra 2BHK · 12B Pali Naka</b></div>
+                    <div className="ap-r-row"><span>Period</span><b>1 – 30 November 2025</b></div>
+                    <div className="ap-r-row"><span>Method</span><b>UPI · UTR 458211220031</b></div>
+                    <div className="ap-r-row"><span>PAN</span><b className="mono">AKWPS****K</b></div>
+                  </div>
+
+                  <div className="ap-r-total">
+                    <div>
+                      <div className="ap-r-tot-l mono">HRA ELIGIBLE · SEC 10(13A)</div>
+                      <div className="ap-r-tot-sub">Rent ₹62,000 · less repair share ₹900</div>
+                    </div>
+                    <div className="ap-r-tot-v mono">₹61,100</div>
+                  </div>
+
+                  <div className="ap-r-foot">
+                    <div className="ap-r-sigs">
+                      <div>
+                        <div className="ap-r-sig-line"/>
+                        <div className="ap-r-sig-name">Priya Sharma · Landlord</div>
+                        <div className="ap-r-sig-meta mono">e-signed · 03 Nov 8:14:38 PM</div>
+                      </div>
+                      <div>
+                        <div className="ap-r-sig-line"/>
+                        <div className="ap-r-sig-name">Aarav Mehta · Tenant</div>
+                        <div className="ap-r-sig-meta mono">UPI auth · 03 Nov 8:14:22 PM</div>
+                      </div>
+                    </div>
+                    <div className="ap-r-chain mono">
+                      Sealed to chain · a7c1f0…892b · #1188
+                    </div>
+                  </div>
+                </div>
+
+                {/* The wax seal slams over the corner */}
+                <div className="ap-seal-wrap">
+                  <Seal size={140} run={showReceipt}/>
+                </div>
+
+                {/* Burst rays radiating on seal */}
+                <div className={"ap-burst " + (showReceipt?"on":"")}>
+                  {Array.from({length: 14}).map((_,i) => (
+                    <span key={i} style={{transform:`rotate(${i*(360/14)}deg) translateY(-110px)`}}/>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pre-seal placeholder */}
+              {!showReceipt && (
+                <div className="ap-placeholder">
+                  <div className="ap-ph-icon">
+                    <svg viewBox="0 0 60 60" width="60" height="60">
+                      <rect x="10" y="6" width="40" height="48" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3"/>
+                      <line x1="18" y1="18" x2="42" y2="18" stroke="currentColor" strokeWidth="1.5"/>
+                      <line x1="18" y1="26" x2="42" y2="26" stroke="currentColor" strokeWidth="1.5"/>
+                      <line x1="18" y1="34" x2="34" y2="34" stroke="currentColor" strokeWidth="1.5"/>
+                    </svg>
+                  </div>
+                  <div className="ap-ph-t">Receipt will be sealed here</div>
+                  <div className="ap-ph-s">As soon as you confirm, both you and Aarav get the same signed PDF — and the entry locks into your shared ledger.</div>
+                </div>
+              )}
+
+              {/* Recipient toast */}
+              {showReceipt && (
+                <div className="ap-toast">
+                  <span className="ap-toast-i">📩</span>
+                  <div>
+                    <b>Sent to Aarav</b>
+                    <span>Push notification + email · receipt available offline</span>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+        </main>
+      </div>
+    );
+  };
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>

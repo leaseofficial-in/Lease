@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Dashboard · RentyBase</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg"/>
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="dashboard.css"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body class="dash-body">
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+  const { useState } = React;
+
+  const Mark = ({size=28}) => (
+    <svg viewBox="0 0 40 40" width={size} height={size}>
+      <rect width="40" height="40" rx="9" fill="#0E1413"/>
+      <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
+      <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
+      <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+    </svg>
+  );
+
+  // ── Sidebar ──
+  const Side = ({role, items, active, onPick, user}) => (
+    <aside className="d-side">
+      <a href="marketing.html" className="d-logo"><Mark/><span>Renty<span className="ochre">Base</span></span></a>
+      <nav className="d-nav">
+        {items.map(it => (
+          <button key={it.k} className={"d-nav-item" + (active===it.k?" active":"")} onClick={()=>onPick(it.k)}>
+            <span className="d-nav-ico">{it.icon}</span>
+            <span>{it.label}</span>
+            {it.badge && <span className="d-badge">{it.badge}</span>}
+          </button>
+        ))}
+      </nav>
+      <div className="d-side-foot">
+        <div className="d-user">
+          <div className="d-avatar" style={{background: role==="landlord" ? "linear-gradient(135deg,#0F4C5C,#163A47)" : "linear-gradient(135deg,#c9b388,#7a6042)"}}>{user.initial}</div>
+          <div>
+            <div className="d-user-name">{user.name}</div>
+            <div className="d-user-meta">{user.meta}</div>
+          </div>
+        </div>
+        <a href="marketing.html" className="d-logout">Sign out</a>
+      </div>
+    </aside>
+  );
+
+  // ── Topbar ──
+  const Top = ({title, sub, role, onSwitch}) => (
+    <header className="d-top">
+      <div>
+        <div className="eyebrow" style={{marginBottom:6}}>{role==="landlord"?"Landlord":"Tenant"} · Dashboard</div>
+        <h1 className="d-h1">{title}</h1>
+        <div className="d-sub">{sub}</div>
+      </div>
+      <div className="d-top-r">
+        <div className="d-search"><span>⌘K</span> Search property, tenant, receipt…</div>
+        <div className="d-toggle">
+          <button className={role==="landlord"?"on":""} onClick={()=>onSwitch("landlord")}>Landlord</button>
+          <button className={role==="tenant"?"on":""} onClick={()=>onSwitch("tenant")}>Tenant</button>
+        </div>
+        <button className="d-icon-btn">🔔<span className="d-dot"/></button>
+      </div>
+    </header>
+  );
+
+  // ── Landlord Dashboard ──
+  const Landlord = () => {
+    const props = [
+      {city:"Mumbai", addr:"Bandra 2BHK · 12B Pali Naka", tenant:"Aarav Mehta", st:"paid", rent:62000, day:"5 Nov"},
+      {city:"Pune", addr:"Koregaon 1BHK · A-403 Lakeview", tenant:"Sneha R.", st:"due", rent:34000, day:"in 3 days"},
+      {city:"Bengaluru", addr:"HSR 3BHK · Sector 6 · 17/2", tenant:"Vikram K.", st:"paid", rent:78000, day:"2 Nov"},
+    ];
+    const ledger = [
+      {d:"05 Nov", t:"Rent · Bandra 2BHK", who:"Aarav Mehta", amt:62000, st:"in"},
+      {d:"05 Nov", t:"HRA receipt issued · #2025-11-87", who:"Aarav Mehta", amt:0, st:"doc"},
+      {d:"03 Nov", t:"Repair · Plumber visit", who:"Bandra 2BHK", amt:-1800, st:"out"},
+      {d:"02 Nov", t:"Rent · HSR 3BHK", who:"Vikram K.", amt:78000, st:"in"},
+      {d:"31 Oct", t:"Move-in proof submitted", who:"Aarav Mehta · 12 photos", amt:0, st:"doc"},
+      {d:"30 Oct", t:"Reminder · 5 days nudge sent", who:"Sneha R. · Pune", amt:0, st:"sys"},
+    ];
+    return (
+      <>
+        <Top role="landlord" onSwitch={swap} title="Good morning, Priya."
+          sub={<>You're <b>3 / 3 properties</b> on this month — <b>1 due in 3 days</b>. Score <b style={{color:"var(--rb-accent)"}}>786 / 900</b>.</>}/>
+
+        <div className="d-grid">
+          {/* Hero stats */}
+          <section className="card d-hero-card">
+            <div className="d-hero-meta">COLLECTED · NOVEMBER 2025</div>
+            <div className="d-hero-num">₹1,40,000 <span className="d-of">/ ₹1,74,000</span></div>
+            <div className="d-bar"><div className="d-bar-f" style={{width:"80.4%"}}/></div>
+            <div className="d-hero-row">
+              <div><div className="d-stat-l">On time</div><div className="d-stat-v">2 / 3</div></div>
+              <div><div className="d-stat-l">Pending</div><div className="d-stat-v ochre">₹34,000</div></div>
+              <div><div className="d-stat-l">YTD income</div><div className="d-stat-v">₹14.2L</div></div>
+              <div><div className="d-stat-l">Score</div><div className="d-stat-v">786<span className="d-stat-of">/900</span></div></div>
+            </div>
+          </section>
+
+          {/* Score card */}
+          <section className="card d-score">
+            <div className="d-score-tag">Landlord score</div>
+            <div className="d-score-num">786</div>
+            <div className="d-score-band">TRUSTED</div>
+            <div className="d-score-rows">
+              <div className="b"><span>Deposit returned · 100% on time</span><div className="bar"><div style={{width:"100%"}}/></div></div>
+              <div className="b"><span>Repair response · 1.2 days avg</span><div className="bar"><div style={{width:"88%"}}/></div></div>
+              <div className="b"><span>HRA receipts · monthly</span><div className="bar"><div style={{width:"95%"}}/></div></div>
+            </div>
+          </section>
+
+          {/* Properties */}
+          <section className="card d-props span-2">
+            <div className="card-head">
+              <div><h3>Properties</h3><span className="card-sub">3 active · all in good standing</span></div>
+              <button className="btn btn-ghost sm">+ Add property</button>
+            </div>
+            <div className="d-props-list">
+              {props.map((p,i)=>(
+                <div key={i} className="d-prop">
+                  <div className="d-prop-thumb" style={{background:`linear-gradient(135deg, ${["#a87a4f","#9aa6a3","#c9a878"][i]}, #3a2811)`}}/>
+                  <div className="d-prop-body">
+                    <div className="d-prop-city">{p.city}</div>
+                    <div className="d-prop-addr">{p.addr}</div>
+                    <div className="d-prop-tenant">Tenant · {p.tenant}</div>
+                  </div>
+                  <div className="d-prop-r">
+                    <div className="d-prop-rent">₹{p.rent.toLocaleString("en-IN")}<span>/mo</span></div>
+                    <div className={"d-prop-pill "+p.st}>{p.st==="paid"?`Paid · ${p.day}`:`Due ${p.day}`}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Quick actions */}
+          <section className="card d-actions">
+            <h3>Quick actions</h3>
+            <div className="d-action-grid">
+              <button className="d-action"><span>📄</span><b>Issue HRA receipt</b><i>Auto-fill from this month</i></button>
+              <button className="d-action"><span>🛠</span><b>Log repair</b><i>With photo &amp; vendor quote</i></button>
+              <button className="d-action"><span>↩</span><b>Refund deposit</b><i>End-of-tenancy ledger</i></button>
+              <button className="d-action"><span>📨</span><b>Send nudge</b><i>0/3/5-day reminders</i></button>
+            </div>
+          </section>
+
+          {/* Ledger */}
+          <section className="card d-ledger span-2">
+            <div className="card-head">
+              <div><h3>Activity ledger</h3><span className="card-sub">Sealed · cannot be edited</span></div>
+              <div className="d-tabs"><button className="on">All</button><button>Money</button><button>Documents</button><button>System</button></div>
+            </div>
+            <table className="d-table">
+              <thead><tr><th>Date</th><th>Item</th><th>Counterparty</th><th style={{textAlign:"right"}}>Amount</th></tr></thead>
+              <tbody>
+                {ledger.map((r,i)=>(
+                  <tr key={i}>
+                    <td className="mono">{r.d}</td>
+                    <td><span className={"d-tag "+r.st}>{r.st==="in"?"IN":r.st==="out"?"OUT":r.st==="doc"?"DOC":"SYS"}</span> {r.t}</td>
+                    <td className="muted">{r.who}</td>
+                    <td className={"mono right "+(r.amt>0?"pos":r.amt<0?"neg":"")}>{r.amt===0?"—":(r.amt>0?"+":"")+"₹"+Math.abs(r.amt).toLocaleString("en-IN")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      </>
+    );
+  };
+
+  // ── Tenant Dashboard ──
+  const Tenant = () => {
+    const recs = [
+      {m:"NOV 2025", n:"#2025-11-87", amt:62000, st:"paid"},
+      {m:"OCT 2025", n:"#2025-10-87", amt:62000, st:"paid"},
+      {m:"SEP 2025", n:"#2025-09-87", amt:62000, st:"paid"},
+      {m:"AUG 2025", n:"#2025-08-87", amt:62000, st:"paid"},
+    ];
+    return (
+      <>
+        <Top role="tenant" onSwitch={swap} title="Hi Aarav."
+          sub={<>Rent for <b>November</b> is <b style={{color:"var(--rb-action)"}}>paid &amp; receipted</b>. Your score is <b style={{color:"var(--rb-action)"}}>842 / 900</b>.</>}/>
+
+        <div className="d-grid">
+          {/* Next rent */}
+          <section className="card d-rent-card">
+            <div className="d-rent-tag">NEXT RENT · DEC 2025</div>
+            <div className="d-rent-row">
+              <div className="d-rent-num">₹62,000</div>
+              <div className="d-rent-due">Due in <b>26 days</b> · 5 Dec</div>
+            </div>
+            <div className="d-rent-cta">
+              <button className="btn btn-primary">Pay via UPI</button>
+              <button className="btn btn-ghost sm">Set auto-pay</button>
+            </div>
+            <div className="d-rent-foot">
+              <span>Bandra 2BHK · 12B Pali Naka</span>
+              <span>Landlord · Priya Sharma <i>✓ Verified · score 786</i></span>
+            </div>
+          </section>
+
+          {/* Tenant score */}
+          <section className="card d-score tenant">
+            <div className="d-score-tag">Tenant score</div>
+            <div className="d-score-num">842</div>
+            <div className="d-score-band action">EXCELLENT</div>
+            <div className="d-score-rows">
+              <div className="b"><span>On-time rent · 23/24 months</span><div className="bar action"><div style={{width:"96%"}}/></div></div>
+              <div className="b"><span>Move-in proof · submitted</span><div className="bar action"><div style={{width:"100%"}}/></div></div>
+              <div className="b"><span>2 deposits returned in full</span><div className="bar action"><div style={{width:"95%"}}/></div></div>
+            </div>
+            <div className="d-score-foot">Carry to your next rental →</div>
+          </section>
+
+          {/* Move-in proof */}
+          <section className="card d-proof span-2">
+            <div className="card-head">
+              <div><h3>Move-in proof · sealed 31 Oct 2025</h3><span className="card-sub">12 photos · timestamped · cannot be edited</span></div>
+              <button className="btn btn-ghost sm">Download PDF</button>
+            </div>
+            <div className="d-proof-grid">
+              {[0,1,2,3,4,5,6,7].map(i=>(
+                <div key={i} className="d-proof-tile" style={{background: `linear-gradient(135deg, ${["#a87a4f","#c9a878","#9aa6a3","#a89280","#7a5d35","#5b3a20","#4f5e5b","#5e483a"][i]}, #2c1c0e)`}}>
+                  <span className="d-proof-cap">{["Living","Kitchen","Bath","Bedroom","Hall","Balcony","Door","Meter"][i]}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* HRA receipts */}
+          <section className="card d-receipts">
+            <div className="card-head">
+              <div><h3>HRA receipts</h3><span className="card-sub">Section 10(13A) · 2025–26</span></div>
+              <button className="btn btn-ghost sm">Export year</button>
+            </div>
+            <div className="d-recs">
+              {recs.map((r,i)=>(
+                <div key={i} className="d-rec">
+                  <div>
+                    <div className="d-rec-m">{r.m}</div>
+                    <div className="d-rec-n mono">{r.n}</div>
+                  </div>
+                  <div className="d-rec-amt mono">₹{r.amt.toLocaleString("en-IN")}</div>
+                  <div className="d-rec-st">✓</div>
+                </div>
+              ))}
+            </div>
+            <div className="d-rec-tot">
+              <span>YTD saved on tax (est.)</span><b>₹62,400</b>
+            </div>
+          </section>
+
+          {/* Repairs / requests */}
+          <section className="card d-repair">
+            <div className="card-head"><div><h3>Open requests</h3><span className="card-sub">Both sides see these</span></div><button className="btn btn-ghost sm">+ Raise</button></div>
+            <div className="d-req">
+              <div className="d-req-dot ochre"/>
+              <div className="d-req-body">
+                <div className="d-req-t">Geyser leak · Bathroom</div>
+                <div className="d-req-m">Raised 2 Nov · Plumber visiting tomorrow 11am</div>
+              </div>
+              <div className="d-req-st in">IN PROGRESS</div>
+            </div>
+            <div className="d-req">
+              <div className="d-req-dot done"/>
+              <div className="d-req-body">
+                <div className="d-req-t">Wi-Fi router replacement</div>
+                <div className="d-req-m">Resolved 12 Oct · ₹2,400 · landlord paid</div>
+              </div>
+              <div className="d-req-st done">RESOLVED</div>
+            </div>
+          </section>
+        </div>
+      </>
+    );
+  };
+
+  let swap;
+  const App = () => {
+    const [role, setRole] = useState("landlord");
+    swap = setRole;
+    const lItems = [
+      {k:"home", icon:"⌂", label:"Overview"},
+      {k:"props", icon:"▦", label:"Properties", badge:"3"},
+      {k:"led", icon:"≡", label:"Ledger"},
+      {k:"hra", icon:"₹", label:"Receipts"},
+      {k:"rep", icon:"⚙", label:"Repairs", badge:"1"},
+      {k:"sc", icon:"★", label:"Score"},
+    ];
+    const tItems = [
+      {k:"home", icon:"⌂", label:"My place"},
+      {k:"pay", icon:"₹", label:"Pay rent"},
+      {k:"hra", icon:"📄", label:"HRA receipts"},
+      {k:"proof", icon:"📷", label:"Move-in proof"},
+      {k:"rep", icon:"⚙", label:"Repairs", badge:"1"},
+      {k:"sc", icon:"★", label:"Score"},
+    ];
+    const items = role==="landlord" ? lItems : tItems;
+    const user = role==="landlord"
+      ? {initial:"P", name:"Priya Sharma", meta:"3 properties · Mumbai"}
+      : {initial:"A", name:"Aarav Mehta", meta:"Tenant · Mumbai"};
+    return (
+      <div className="d-shell">
+        <Side role={role} items={items} active="home" onPick={()=>{}} user={user}/>
+        <main className="d-main">
+          {role==="landlord" ? <Landlord/> : <Tenant/>}
+        </main>
+      </div>
+    );
+  };
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>

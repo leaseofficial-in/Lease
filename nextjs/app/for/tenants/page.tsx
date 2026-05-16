@@ -34,10 +34,10 @@ export default function TenantsPage() {
             Rent smarter.<br />Get the receipts.<br /><em style={{ fontStyle: 'italic', color: 'var(--rb-action)' }}>Keep the proof.</em>
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.6, color: 'var(--rb-ink-2)', maxWidth: 540, marginBottom: 36 }}>
-            HRA receipts, rent history, deposit tracking, and move-in proof — all in one place. Shared with your landlord. Owned by you. Free.
+            HRA receipts, rent history, deposit tracking, and move-in proof. All in one place. Shared with your landlord. Owned by you. Free.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <a href="/signup" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }}>Join your rental — free</a>
+            <a href="/signup" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }}>Join your rental, free</a>
             <a href="/signin" style={{ padding: '12px 24px', fontSize: 15, fontWeight: 500, color: 'var(--rb-ink-3)', border: '1px solid var(--rb-border)', borderRadius: 999, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Sign in</a>
           </div>
         </div>
@@ -69,10 +69,10 @@ export default function TenantsPage() {
         <div className="container" style={{ maxWidth: 760 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(201,122,58,.9)', marginBottom: 16 }}>HRA RECEIPTS</div>
           <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 'clamp(28px,4vw,42px)', fontWeight: 400, lineHeight: 1.06, letterSpacing: '-.025em', marginBottom: 20 }}>
-            Save tax every year — receipts are always ready.
+            Save tax every year. Receipts are always ready.
           </h2>
           <p style={{ fontSize: 16, lineHeight: 1.65, color: 'rgba(246,244,238,.75)', marginBottom: 36 }}>
-            RentyBase generates a Section 10(13A)-compliant HRA receipt the moment your landlord logs your payment. Your name, landlord PAN, rent amount, rental period, and address — pre-filled every month. Download as PDF. Submit to your employer for HRA exemption. No requests, no waiting.
+            RentyBase generates a Section 10(13A)-compliant HRA receipt the moment your landlord logs your payment. Your name, landlord PAN, rent amount, rental period, and address. Pre-filled every month. Download as PDF. Submit to your employer for HRA exemption. No requests, no waiting.
           </p>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
             {[['Section 10(13A)', 'Legally valid'], ['Landlord PAN', 'Auto-filled'], ['PDF download', 'Instant'], ['Yearly bundle', 'One click']].map(([k, v]) => (

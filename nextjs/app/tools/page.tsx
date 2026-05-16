@@ -17,7 +17,7 @@ const tools = [
     icon: '📄',
     tag: 'MOST POPULAR',
     title: 'HRA Rent Receipt Generator',
-    body: 'Generate a Section 10(13A)-compliant rent receipt in seconds. Enter tenant name, landlord PAN, rent amount, period, and address — download as PDF immediately.',
+    body: 'Generate a Section 10(13A)-compliant rent receipt in seconds. Enter tenant name, landlord PAN, rent amount, period, and address. Download as PDF immediately.',
     cta: 'Generate receipt',
     href: '/signup',
   },
@@ -25,7 +25,7 @@ const tools = [
     icon: '📊',
     tag: 'LANDLORDS',
     title: 'Rent Ledger',
-    body: 'Log every payment — UPI, NEFT, cash — with date, UTR number, and method. Both landlord and tenant see the same record. Overdue alerts on due date.',
+    body: 'Log every payment (UPI, NEFT, cash) with date, UTR number, and method. Both landlord and tenant see the same record. Overdue alerts on due date.',
     cta: 'Start tracking',
     href: '/signup',
   },
@@ -41,7 +41,7 @@ const tools = [
     icon: '🔒',
     tag: 'DEPOSITS',
     title: 'Deposit Calculator & Ledger',
-    body: 'Track the full deposit lifecycle — received, deductions with written reasons, and final refund. Both parties have a permanent record of every rupee.',
+    body: 'Track the full deposit lifecycle: received, deductions with written reasons, and final refund. Both parties have a permanent record of every rupee.',
     cta: 'Track deposit',
     href: '/signup',
   },
@@ -58,11 +58,11 @@ const faqs = [
   },
   {
     q: 'Can I download receipts for a full financial year?',
-    a: 'Yes. RentyBase lets you download individual monthly receipts or a bundled PDF for the full financial year in one click — ready to submit to your employer.',
+    a: 'Yes. RentyBase lets you download individual monthly receipts or a bundled PDF for the full financial year in one click. Ready to submit to your employer.',
   },
   {
     q: 'Is RentyBase free?',
-    a: 'Every feature — rent ledger, HRA receipts, deposit tracking, move-in proof, and repair tracking — is free for both landlords and tenants. No subscription, no credit card.',
+    a: 'Every feature (rent ledger, HRA receipts, deposit tracking, move-in proof, and repair tracking) is free for both landlords and tenants. No subscription, no credit card.',
   },
 ]
 
@@ -79,9 +79,9 @@ export default function ToolsPage() {
             Everything a rental needs,<br /><em style={{ fontStyle: 'italic', color: 'var(--rb-action)' }}>free forever.</em>
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.65, color: 'var(--rb-ink-2)', maxWidth: 560, margin: '0 auto 36px' }}>
-            HRA receipt generator, rent ledger, deposit tracker, and move-in proof vault — all in one place. No credit card. No subscription.
+            HRA receipt generator, rent ledger, deposit tracker, and move-in proof vault. All in one place. No credit card. No subscription.
           </p>
-          <a href="/signup" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }}>Start free — no card needed</a>
+          <a href="/signup" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }}>Start free, no card needed</a>
         </div>
       </section>
 
@@ -153,7 +153,7 @@ export default function ToolsPage() {
           Generate your first receipt now.
         </h2>
         <p style={{ fontSize: 16, color: 'var(--rb-ink-2)', marginBottom: 32, maxWidth: 440, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
-          Sign up free and generate Section 10(13A)-valid HRA receipts for every month — automatically, the moment rent is logged.
+          Sign up free and generate Section 10(13A)-valid HRA receipts for every month. Automatically, the moment rent is logged.
         </p>
         <a href="/signup" className="btn btn-primary" style={{ padding: '13px 28px', fontSize: 16 }}>Start free</a>
       </section>

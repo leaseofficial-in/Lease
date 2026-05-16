@@ -23,7 +23,7 @@ const features = [
 
 const steps = [
   { n: '01', t: 'Add your property', d: 'Enter address, type, and monthly rent. Takes under a minute.' },
-  { n: '02', t: 'Invite your tenant', d: 'Share a link. Tenant signs in with Google — no app install required.' },
+  { n: '02', t: 'Invite your tenant', d: 'Share a link. Tenant signs in with Google. No app install required.' },
   { n: '03', t: 'Collect rent', d: 'Log each payment. Receipts auto-generate. Ledger stays in sync.' },
   { n: '04', t: 'Close with proof', d: 'Move-out photos sealed alongside the full rental history.' },
 ]
@@ -41,10 +41,10 @@ export default function LandlordsPage() {
             One dashboard for<br /><em style={{ fontStyle: 'italic', color: '#C97A3A' }}>every landlord</em> in India.
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.6, color: 'rgba(246,244,238,.75)', maxWidth: 580, marginBottom: 36 }}>
-            Rent collection, HRA receipts, deposit ledger, move-in proof, and repair tracking — in a single shared record. Free for landlords. Free for tenants. No monthly fee.
+            Rent collection, HRA receipts, deposit ledger, move-in proof, and repair tracking. All in a single shared record. Free for landlords. Free for tenants. No monthly fee.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <a href="/signup" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }}>Add your first property — free</a>
+            <a href="/signup" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }}>Add your first property, free</a>
             <a href="/signin" style={{ padding: '12px 24px', fontSize: 15, fontWeight: 500, color: 'rgba(246,244,238,.8)', border: '1px solid rgba(246,244,238,.2)', borderRadius: 999, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Sign in</a>
           </div>
         </div>
@@ -99,7 +99,7 @@ export default function LandlordsPage() {
         <p style={{ fontSize: 16, color: 'var(--rb-ink-2)', marginBottom: 32, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
           No monthly fee. No credit card. Works on any device. Your tenant joins free too.
         </p>
-        <a href="/signup" className="btn btn-primary" style={{ padding: '13px 28px', fontSize: 16 }}>Start free — no card needed</a>
+        <a href="/signup" className="btn btn-primary" style={{ padding: '13px 28px', fontSize: 16 }}>Start free, no card needed</a>
       </section>
 
       <MarketingFooter />

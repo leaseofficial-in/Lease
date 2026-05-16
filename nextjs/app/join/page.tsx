@@ -64,7 +64,7 @@ export default function JoinPage() {
         <div className="a2-note">
           <div className="ic">⌁</div>
           <div>
-            <b>Got a link instead?</b> Tap the link in your SMS or WhatsApp directly — it will open this app automatically.
+            <b>Got a link instead?</b> Tap the link in your SMS or WhatsApp directly. It will open this app automatically.
           </div>
         </div>
 

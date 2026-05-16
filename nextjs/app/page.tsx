@@ -155,7 +155,7 @@ function Hero() {
     <section className="hero">
       <div className="hero-headline-top">
         <h1>Rent that <em>trusts itself.</em></h1>
-        <p className="sub">A shared, calm record between landlord and tenant — built for India.</p>
+        <p className="sub">A shared, calm record between landlord and tenant. Built for India.</p>
       </div>
       <div className="hero-grid">
         <div className="hero-side">
@@ -200,7 +200,7 @@ function Hero() {
             <div className="num"><span className="accent">₹{(0.62 * 12).toFixed(2)}L</span></div>
             <div className="label">HRA SAVED · ANNUAL · ON ₹62K RENT</div>
           </div>
-          <p className="hero-tag">One tap and the receipt is in your inbox — fields filled, PAN attached, year-on-year stored. Tax season, sorted.</p>
+          <p className="hero-tag">One tap and the receipt is in your inbox. Fields filled, PAN attached, year-on-year stored. Tax season, sorted.</p>
           <div className="hero-cta"><a className="btn btn-ghost" href="#proof">See HRA receipt <Icon name="arrow-right" size={16} /></a></div>
         </div>
       </div>
@@ -240,10 +240,10 @@ function Cinema() {
   }, [])
 
   const steps = [
-    { n: '01', t: 'Add the property. Invite your tenant.', d: 'Property in 30 seconds. Send a link — your tenant signs in with Google. No app install required, no phone numbers exchanged.', meta: [['Setup', '30 sec'], ['Install', 'Not required']] },
+    { n: '01', t: 'Add the property. Invite your tenant.', d: 'Property in 30 seconds. Send a link. Your tenant signs in with Google. No app install required, no phone numbers exchanged.', meta: [['Setup', '30 sec'], ['Install', 'Not required']] },
     { n: '02', t: ['Rent', 'in one tap.'], d: '₹28,500 lands. UPI, NEFT, or cash with a UTR. The amount, date, and method get stamped into the shared record automatically.', meta: [['Methods', 'UPI · NEFT · Cash'], ['Settles in', 'Instant']] },
-    { n: '03', t: ['Receipt', 'drops itself.'], d: 'A Section 10(13A)-valid HRA receipt generates the moment payment clears. PAN, period, address — every field already filled.', meta: [['Format', 'PDF · 10(13A)'], ['Delivery', 'Email + dashboard']] },
-    { n: '04', t: ['Proof, sealed', 'for years.'], d: 'Move-in photos, repair logs, deposit history — all timestamped, locked, and visible to both sides. The same record. Always.', meta: [['Photos', 'Locked at submit'], ['Retention', 'Permanent']] },
+    { n: '03', t: ['Receipt', 'drops itself.'], d: 'A Section 10(13A)-valid HRA receipt generates the moment payment clears. PAN, period, address: every field already filled.', meta: [['Format', 'PDF · 10(13A)'], ['Delivery', 'Email + dashboard']] },
+    { n: '04', t: ['Proof, sealed', 'for years.'], d: 'Move-in photos, repair logs, deposit history. All timestamped, locked, and visible to both sides. The same record. Always.', meta: [['Photos', 'Locked at submit'], ['Retention', 'Permanent']] },
   ]
 
   const floatData = [
@@ -327,11 +327,11 @@ function ProofFilm() {
         <div className="proof-copy">
           <div className="eyebrow" style={{ marginBottom: 18 }}>Move-in proof</div>
           <h2>The day you moved in,<br /><em>recorded forever.</em></h2>
-          <p>Twelve photos. One timestamp. A geotag and a seal. Once submitted, neither side can edit them — the proof outlives the dispute.</p>
+          <p>Twelve photos. One timestamp. A geotag and a seal. Once submitted, neither side can edit them. The proof outlives the dispute.</p>
           <div className="proof-points">
             <div className="proof-point"><div className="ico"><Icon name="camera" size={16} /></div><div><div className="t">Timestamped at the door</div><div className="d">Server time + GPS captured at submit. Photos can&apos;t be backdated, swapped, or re-uploaded.</div></div></div>
             <div className="proof-point"><div className="ico"><Icon name="lock" size={16} /></div><div><div className="t">Locked for both sides</div><div className="d">Once sealed, neither landlord nor tenant can delete. Same record, same view, forever.</div></div></div>
-            <div className="proof-point"><div className="ico"><Icon name="shield" size={16} /></div><div><div className="t">Court-ready in PDF</div><div className="d">Export the full set as a signed PDF — embedded EXIF, hash, and the Section 10(13A) receipt for the year.</div></div></div>
+            <div className="proof-point"><div className="ico"><Icon name="shield" size={16} /></div><div><div className="t">Court-ready in PDF</div><div className="d">Export the full set as a signed PDF with embedded EXIF, hash, and the Section 10(13A) receipt for the year.</div></div></div>
           </div>
         </div>
         <div className="proof-stage">
@@ -368,7 +368,7 @@ function Features() {
         <div className="features-head">
           <div className="eyebrow" style={{ display: 'inline-block', marginBottom: 14 }}>Everything else, included</div>
           <h2>One quiet record.<br /><em>Six small certainties.</em></h2>
-          <p>No add-ons, no upsells. Free during beta — every feature, no limits.</p>
+          <p>No add-ons, no upsells. Free during beta. Every feature, no limits.</p>
         </div>
         <div className="features-grid"><div className="features-grid-inner">
           <div className="feat-card wide">
@@ -442,7 +442,7 @@ function Trust() {
         <div>
           <div className="eyebrow" style={{ color: 'rgba(255,255,255,.55)', marginBottom: 18 }}>Trust &amp; security</div>
           <h2>A record both sides<br /><em>actually trust.</em></h2>
-          <p className="tag">Most disputes between landlord and tenant come down to &ldquo;what did we agree?&rdquo; RentyBase keeps both of you looking at the same page — literally the same row in the same ledger — for as long as the property exists.</p>
+          <p className="tag">Most disputes between landlord and tenant come down to &ldquo;what did we agree?&rdquo; RentyBase keeps both of you looking at the same page. Literally the same row in the same ledger, for as long as the property exists.</p>
           <div className="trust-stats">
             <div className="s"><div className="n">{onTime}<span className="ochre">%</span></div><div className="l">on-time rent rate</div></div>
             <div className="s"><div className="n">{sealed}.4<span className="ochre">k</span></div><div className="l">photos sealed</div></div>
@@ -504,7 +504,7 @@ function Scores() {
         <div className="features-head">
           <div className="eyebrow" style={{ display: 'inline-block', marginBottom: 14 }}>Trust, scored</div>
           <h2>A reputation <em>both sides earn.</em></h2>
-          <p>The same record builds two scores — one for tenants, one for landlords. Carry your history to the next rental. No more starting from zero.</p>
+          <p>The same record builds two scores: one for tenants, one for landlords. Carry your history to the next rental. No more starting from zero.</p>
         </div>
         <div className="score-grid">
           <div className="score-card">
@@ -711,7 +711,7 @@ function MMHero() {
     <section className="mm-hero">
       <span className="city"><span className="dot"/> MUMBAI · INDIA</span>
       <h1>Rent that<br/><em>trusts itself.</em></h1>
-      <p>A shared, calm record between landlord and tenant — built for India. One ledger, both sides, forever.</p>
+      <p>A shared, calm record between landlord and tenant. Built for India. One ledger, both sides, forever.</p>
       <div className="ctas">
         <a href="/signup" className="mm-btn">Start free <span className="arr">→</span></a>
         <a href="/signin" className="mm-btn ghost">I&apos;m a tenant</a>
@@ -785,7 +785,7 @@ function MMCinema() {
 
   const steps = [
     { num: '01', a: 'Add the property.', b: 'Invite your tenant.', em: true,
-      d: 'Property in 30 seconds. Send a link — your tenant signs in with Google. No app install required.',
+      d: 'Property in 30 seconds. Send a link. Your tenant signs in with Google. No app install required.',
       meta: [['Setup', '30 sec'], ['Install', 'Not required']],
       phone: { eb: 'STEP 1 · SETUP', h: 'Bandra W', sub: '2BHK · ₹62,000/mo' } },
     { num: '02', a: 'Rent in', b: 'one tap.', em: true,
@@ -793,11 +793,11 @@ function MMCinema() {
       meta: [['Methods', 'UPI · NEFT'], ['Settles', 'Instant']],
       phone: { eb: 'RENT RECEIVED', h: '₹28,500', sub: 'UTR · 4581 2210' } },
     { num: '03', a: 'Receipt', b: 'drops itself.', em: true,
-      d: 'A Section 10(13A)-valid HRA receipt generates the moment payment clears. PAN, period, address — all filled.',
+      d: 'A Section 10(13A)-valid HRA receipt generates the moment payment clears. PAN, period, address: all filled.',
       meta: [['Format', 'PDF · 10(13A)'], ['Sent to', 'Both inboxes']],
       phone: { eb: 'HRA · ISSUED', h: 'RB-2511-04', sub: 'PDF · 10(13A) ready' } },
     { num: '04', a: 'Proof, sealed', b: 'for years.', em: false,
-      d: 'Move-in photos, repair logs, deposit history — all timestamped, locked, visible to both sides. Forever.',
+      d: 'Move-in photos, repair logs, deposit history. All timestamped, locked, visible to both sides. Forever.',
       meta: [['Retention', 'Permanent'], ['Editable', 'Never']],
       phone: { eb: 'VAULT · SEALED', h: '12 photos', sub: 'Locked 12 Nov 2025' } },
   ]
@@ -876,7 +876,7 @@ function MMCinema() {
       <div className="intro">
         <span className="mm-eyebrow">THE LIFECYCLE</span>
         <h2>Four moments.<br/>One <em>quiet ledger.</em></h2>
-        <p className="mm-sub">From the day you list to the day you move out — every event lands in the same record. Scroll through.</p>
+        <p className="mm-sub">From the day you list to the day you move out, every event lands in the same record. Scroll through.</p>
       </div>
       <div className="mm-cinema-stage">
         <div className="mm-cinema-progress">
@@ -981,7 +981,7 @@ function MMProof() {
               <path d="M8 12 L11 15 L16 9" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <div><div className="t">Court-ready in PDF</div><div className="d">Export the full set as a signed PDF — EXIF, hash, and the Section 10(13A) receipt for the year.</div></div>
+          <div><div className="t">Court-ready in PDF</div><div className="d">Export the full set as a signed PDF with EXIF, hash, and the Section 10(13A) receipt for the year.</div></div>
         </div>
       </div>
     </section>
@@ -1015,7 +1015,7 @@ function MMVault() {
     <section className="mm-vault" ref={ref}>
       <span className="mm-eyebrow">THE VAULT</span>
       <h2>A record both sides<br/><em>actually trust.</em></h2>
-      <p>Most disputes come down to &ldquo;what did we agree?&rdquo; — RentyBase keeps both of you looking at the same row in the same ledger.</p>
+      <p>Most disputes come down to &ldquo;what did we agree?&rdquo; RentyBase keeps both of you looking at the same row in the same ledger.</p>
       <div className="mm-vault-stage">
         <div className="mm-vault-stack">
           {records.map((r, i) => {
@@ -1080,7 +1080,7 @@ function MMFeatures() {
         <div className="mm-feat wide">
           <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="6" width="16" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M4 10 H20" stroke="currentColor" strokeWidth="1.7"/><circle cx="9" cy="15" r="1.4" fill="currentColor"/><circle cx="13" cy="15" r="1.4" fill="currentColor"/><circle cx="17" cy="15" r="1.4" fill="currentColor"/></svg></div>
           <div className="t">PG floor plan, per-bed billing</div>
-          <div className="d">For PGs and hostels — bed-level rent, vacancy heatmaps, auto-collect via UPI 2.0.</div>
+          <div className="d">For PGs and hostels: bed-level rent, vacancy heatmaps, auto-collect via UPI 2.0.</div>
           <div className="stat"><div><div className="l">PROPERTIES</div><div className="n amt">120+</div></div><div><div className="l">UTILIZATION</div><div className="n">96%</div></div></div>
         </div>
       </div>

@@ -23,7 +23,7 @@ const posts = [
   {
     tag: 'DEPOSITS',
     title: 'Security deposit deductions: what\'s legal and what isn\'t in India',
-    excerpt: 'Landlords can legally deduct for unpaid rent and documented damage beyond normal wear — but not for pre-existing issues or cosmetic wear. Here\'s the law and what documentation protects both sides.',
+    excerpt: 'Landlords can legally deduct for unpaid rent and documented damage beyond normal wear, but not for pre-existing issues or cosmetic wear. Here\'s the law and what documentation protects both sides.',
     date: 'April 2025',
     slug: '#',
   },
@@ -37,14 +37,14 @@ const posts = [
   {
     tag: 'LANDLORDS',
     title: 'Move-in checklist for Indian landlords: what to document before a tenant moves in',
-    excerpt: 'A proper move-in inspection protects you at move-out. Here\'s a room-by-room checklist — and why timestamped, geotagged photos are the only documentation that holds up in disputes.',
+    excerpt: 'A proper move-in inspection protects you at move-out. Here\'s a room-by-room checklist. Why timestamped, geotagged photos are the only documentation that holds up in disputes.',
     date: 'March 2025',
     slug: '#',
   },
   {
     tag: 'TENANTS',
     title: 'Section 80GG: HRA deduction for tenants who don\'t get HRA from their employer',
-    excerpt: 'If you pay rent but don\'t receive HRA from your employer — or are self-employed — Section 80GG lets you claim up to ₹5,000/month as a deduction. Here\'s how it works.',
+    excerpt: 'If you pay rent but don\'t receive HRA from your employer (or are self-employed), Section 80GG lets you claim up to ₹5,000/month as a deduction. Here\'s how it works.',
     date: 'March 2025',
     slug: '#',
   },
@@ -70,7 +70,7 @@ export default function BlogPage() {
             Rental guides for<br /><em style={{ fontStyle: 'italic', color: 'var(--rb-action)' }}>India.</em>
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.6, color: 'var(--rb-ink-2)', maxWidth: 520 }}>
-            HRA exemption, deposit law, receipts, and dispute prevention — practical guides written for Indian landlords and tenants.
+            HRA exemption, deposit law, receipts, and dispute prevention. Practical guides written for Indian landlords and tenants.
           </p>
         </div>
       </section>
@@ -103,9 +103,9 @@ export default function BlogPage() {
           Put the knowledge to work.
         </h2>
         <p style={{ fontSize: 16, color: 'var(--rb-ink-2)', marginBottom: 32, maxWidth: 440, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
-          RentyBase handles HRA receipts, deposit tracking, and move-in proof automatically — free for both landlord and tenant.
+          RentyBase handles HRA receipts, deposit tracking, and move-in proof automatically. Free for both landlord and tenant.
         </p>
-        <a href="/signup" className="btn btn-primary" style={{ padding: '13px 28px', fontSize: 16 }}>Start free — no card needed</a>
+        <a href="/signup" className="btn btn-primary" style={{ padding: '13px 28px', fontSize: 16 }}>Start free, no card needed</a>
       </section>
 
       <MarketingFooter />

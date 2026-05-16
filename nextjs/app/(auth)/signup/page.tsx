@@ -211,7 +211,7 @@ function MA2Role({
             the <em>lease</em>?
           </h2>
           <p className="a2-sub">
-            Both sides see the same record — pick where you stand today.
+            Both sides see the same record. Pick where you stand today.
           </p>
         </div>
 
@@ -677,7 +677,7 @@ export default function SignUpPage() {
               <blockquote style={{ fontFamily: 'var(--rb-font-display)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.5, color: 'rgba(246,244,238,.8)', position: 'relative', paddingLeft: 18 }}>
                 <span style={{ position: 'absolute', left: -4, top: -4, fontSize: 32, color: 'var(--rb-accent)', fontStyle: 'normal' }}>"</span>
                 Finally, a rental app that doesn&apos;t disappear after the lease ends.
-                <cite style={{ display: 'block', marginTop: 8, fontStyle: 'normal', fontFamily: 'var(--rb-font-sans)', fontSize: 12, color: 'rgba(246,244,238,.5)', letterSpacing: '.04em' }}>— Early beta user, Bengaluru</cite>
+                <cite style={{ display: 'block', marginTop: 8, fontStyle: 'normal', fontFamily: 'var(--rb-font-sans)', fontSize: 12, color: 'rgba(246,244,238,.5)', letterSpacing: '.04em' }}>· Early beta user, Bengaluru</cite>
               </blockquote>
             </div>
           </div>

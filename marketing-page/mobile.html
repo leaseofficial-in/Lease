@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Mobile screens · RentyBase</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg"/>
+  <link rel="stylesheet" href="mobile-screens.css"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body style="margin:0; font-family: 'DM Sans', system-ui, sans-serif;">
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react" src="design-canvas.jsx"></script>
+  <script type="text/babel" data-presets="react" src="ios-frame.jsx"></script>
+  <script type="text/babel" data-presets="react" src="src/mobile-landlord.jsx"></script>
+  <script type="text/babel" data-presets="react" src="src/mobile-tenant.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+  // Helper FUNCTION (not a component) — returns the DCArtboard element directly so
+  // DCSection's React.Children walk sees DCArtboard as the immediate child type.
+  const mobileFrame = (title, screen) => (
+    <window.DCArtboard key={title} label={title} width={422} height={920}>
+      <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", background: "#ECE7DA" }}>
+        <window.IOSDevice width={402} height={874} dark={false}>{screen}</window.IOSDevice>
+      </div>
+    </window.DCArtboard>
+  );
+
+  const MobileApp = () => (
+    <window.DesignCanvas
+      docTitle="RentyBase · Mobile screens"
+      subtitle="Landlord + Tenant · iOS · iPhone 15"
+      defaultZoom={0.55}
+    >
+      <window.DCSection id="landlord" title="Landlord · Priya" subtitle="6 screens · ocean-teal hero, ochre accents">
+        {mobileFrame("01 Overview", <window.MLOverview/>)}
+        {mobileFrame("02 Properties", <window.MLProperties/>)}
+        {mobileFrame("03 Ledger", <window.MLLedger/>)}
+        {mobileFrame("04 Repairs", <window.MLRepairs/>)}
+        {mobileFrame("05 Accept · live", <window.MLAccept/>)}
+        {mobileFrame("06 Accept · sealed", <window.MLSealed/>)}
+      </window.DCSection>
+
+      <window.DCSection id="tenant" title="Tenant · Aarav" subtitle="8 screens · including the pay-rent flow (3 steps)">
+        {mobileFrame("07 My place", <window.MTHome/>)}
+        {mobileFrame("08 Pay · step 1", <window.MTPay/>)}
+        {mobileFrame("09 Pay · step 2", <window.MTPaying/>)}
+        {mobileFrame("10 Pay · sealed", <window.MTPaid/>)}
+        {mobileFrame("11 HRA receipts", <window.MTHRA/>)}
+        {mobileFrame("12 Move-in proof", <window.MTProof/>)}
+        {mobileFrame("13 Raise repair", <window.MTRepair/>)}
+        {mobileFrame("14 My score", <window.MTScore/>)}
+      </window.DCSection>
+    </window.DesignCanvas>
+  );
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<MobileApp/>);
+  </script>
+</body>
+</html>

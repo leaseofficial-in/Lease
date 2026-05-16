@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>RentyBase Marketing — Wireframes</title>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Kalam:wght@300;400;700&family=Architects+Daughter&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #ECE7DA; font-family: 'Kalam', sans-serif; color: #1a1a1a; }
+  .wf { background: #FAF7EE; border: 1.5px solid #1a1a1a; box-shadow: 4px 4px 0 #1a1a1a22; padding: 20px; box-sizing: border-box; }
+  .wf h1 { font-family: 'Caveat', cursive; font-weight: 700; font-size: 32px; margin: 0 0 4px; }
+  .wf .sub { font-family: 'Architects Daughter'; font-size: 13px; color: #555; margin-bottom: 14px; }
+  .box { border: 1.5px dashed #1a1a1a; border-radius: 6px; padding: 8px; }
+  .box.solid { border-style: solid; }
+  .row { display: flex; gap: 10px; }
+  .col { flex: 1; }
+  .label { font-family: 'Architects Daughter'; font-size: 12px; color: #333; }
+  .tag { display: inline-block; padding: 2px 8px; border: 1.5px solid #1a1a1a; border-radius: 999px; font-family: 'Architects Daughter'; font-size: 11px; background: #fff; }
+  .tag.teal { background: #0F4C5C; color: #fff; border-color: #0F4C5C; }
+  .tag.ochre { background: #C97A3A; color: #fff; border-color: #C97A3A; }
+  .scribble { color: #C97A3A; font-family: 'Caveat'; font-size: 16px; }
+  .arrow { font-family: 'Caveat'; color: #C97A3A; font-size: 18px; }
+  .phone { border: 2px solid #1a1a1a; border-radius: 22px; aspect-ratio: 9/19; background: #fff; padding: 6px; position: relative; }
+  .phone .screen { border: 1px dashed #999; border-radius: 16px; height: 100%; display:flex; flex-direction:column; padding: 8px; }
+  .stripe { height: 6px; background: repeating-linear-gradient(45deg, #1a1a1a 0 4px, transparent 4px 8px); border-radius: 4px; margin: 4px 0; }
+  .stripe.short { width: 60%; }
+  .stripe.tiny { width: 30%; height: 4px; }
+  .h { font-family: 'Caveat'; font-weight: 700; font-size: 22px; line-height: 1; }
+  .num { font-family: 'Caveat'; font-weight: 700; font-size: 36px; line-height: 1; color: #C97A3A; -webkit-text-stroke: 1px #1a1a1a; }
+  .annot { font-family: 'Caveat'; color: #C97A3A; font-size: 18px; margin: 4px 0; }
+  hr.sk { border: 0; border-top: 1.5px solid #1a1a1a; margin: 8px 0; }
+  .seal { width: 38px; height: 38px; border: 1.5px solid #C97A3A; border-radius: 50%; display:flex; align-items:center; justify-content:center; color: #C97A3A; font-family: 'Caveat'; font-size: 12px; transform: rotate(-12deg); }
+  .strip { display:flex; gap: 8px; align-items: center; }
+  .doc { background: #fff; border: 1.5px solid #1a1a1a; padding: 6px; border-radius: 4px; font-family: 'Architects Daughter'; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+
+<div id="root"></div>
+<script type="text/babel">
+const { DesignCanvas, DCSection, DCArtboard } = window;
+
+// ───────── Direction A — "The Rotating Lifecycle"
+const A = () => (
+  <div className="wf" style={{width:'100%', height:'100%', overflow:'hidden'}}>
+    <h1>A · The Rotating Lifecycle</h1>
+    <div className="sub">Hero phone hovers, rotates 360° as you scroll. Each face = a step.</div>
+
+    <div className="box" style={{marginBottom: 10, padding: 14}}>
+      <div className="label" style={{marginBottom:6}}>HERO — split, phone center, scroll-pinned</div>
+      <div className="row" style={{alignItems:'center'}}>
+        <div className="col">
+          <div className="tag">LANDLORDS</div>
+          <div className="h" style={{marginTop:4}}>Rent that<br/><i>trusts itself.</i></div>
+          <div className="stripe short" style={{marginTop:6}}/>
+          <div className="stripe tiny"/>
+          <span className="tag teal" style={{marginTop:6, display:'inline-block'}}>Add property →</span>
+        </div>
+        <div style={{width: 90}}>
+          <div className="phone" style={{transform:'rotateY(-15deg)'}}>
+            <div className="screen">
+              <div className="stripe tiny"/>
+              <div className="num" style={{fontSize:18}}>₹1,24,000</div>
+              <div className="stripe"/><div className="stripe short"/>
+            </div>
+          </div>
+          <div className="annot" style={{textAlign:'center'}}>↻ rotates on scroll</div>
+        </div>
+        <div className="col" style={{textAlign:'right'}}>
+          <div className="tag">TENANTS</div>
+          <div className="h" style={{marginTop:4}}>Proof that<br/><i>pays you back.</i></div>
+          <div className="stripe short" style={{marginTop:6, marginLeft:'auto'}}/>
+          <span className="tag teal" style={{marginTop:6}}>Get HRA receipt →</span>
+        </div>
+      </div>
+    </div>
+
+    <div className="box solid" style={{padding:10, marginBottom:10}}>
+      <div className="label">SCROLL-PINNED — 4 faces of the phone, one rent cycle</div>
+      <div className="row" style={{marginTop:6}}>
+        {['1·Add','2·Invite','3·Pay','4·Receipt'].map((s,i)=>(
+          <div key={i} className="col" style={{textAlign:'center'}}>
+            <div className="phone" style={{transform:`rotateY(${i*15-22}deg)`}}>
+              <div className="screen">
+                <div className="stripe tiny"/><div className="stripe"/><div className="stripe short"/>
+                {i===2 && <div className="num" style={{fontSize:14}}>₹28,500</div>}
+                {i===3 && <div className="seal" style={{margin:'auto'}}>SEAL</div>}
+              </div>
+            </div>
+            <div className="label" style={{marginTop:4}}>{s}</div>
+          </div>
+        ))}
+      </div>
+      <div className="annot">→ phone rotates Y -45° to +45° as user scrolls</div>
+    </div>
+
+    <div className="row">
+      <div className="col box" style={{padding:8}}>
+        <div className="label">MOVE-IN PROOF · photo flies in, seal stamps</div>
+        <div className="strip" style={{marginTop:6}}>
+          <div className="doc" style={{flex:1, height:50}}>📷 photo</div>
+          <div className="arrow">→</div>
+          <div className="seal">SEAL</div>
+        </div>
+      </div>
+      <div className="col box" style={{padding:8}}>
+        <div className="label">FEATURE GRID · floating perspective cards</div>
+        <div className="row" style={{marginTop:6}}>
+          {[1,2,3].map(i=>(<div key={i} className="doc" style={{flex:1, height:42, transform:`rotate(${(i-2)*4}deg)`}}>•••</div>))}
+        </div>
+      </div>
+      <div className="col box" style={{padding:8}}>
+        <div className="label">TRUST · vault closes, ledger seals</div>
+        <div className="strip" style={{marginTop:6, justifyContent:'center'}}>
+          <div className="doc">🔒 ledger</div>
+          <span className="seal">✓</span>
+        </div>
+      </div>
+    </div>
+
+    <div className="annot" style={{marginTop:10}}>★ wow moment: phone hovers, casts a long warm shadow, currency counts up beside it</div>
+  </div>
+);
+
+// ───────── Direction B — "The Document Unfolds"
+const B = () => (
+  <div className="wf" style={{width:'100%', height:'100%', overflow:'hidden'}}>
+    <h1>B · The Document Unfolds</h1>
+    <div className="sub">A folded HRA receipt sits at the hero. As you scroll, it unfolds in 3D — each panel = a section.</div>
+
+    <div className="box" style={{padding:12, marginBottom:10}}>
+      <div className="label">HERO</div>
+      <div className="row" style={{alignItems:'center', marginTop:6}}>
+        <div className="col">
+          <div className="h">Every rupee.<br/>Every signature.<br/><i>One record.</i></div>
+          <div className="stripe short" style={{marginTop:6}}/>
+          <div className="stripe tiny"/>
+          <span className="tag teal" style={{marginTop:6, display:'inline-block'}}>Start free →</span>
+        </div>
+        <div className="col" style={{display:'flex', justifyContent:'center'}}>
+          <div className="doc" style={{width:200, height:240, transform:'rotateX(-15deg) rotateY(15deg)', position:'relative'}}>
+            <div className="stripe tiny"/>
+            <div className="stripe"/><div className="stripe"/><div className="stripe short"/>
+            <hr className="sk"/>
+            <div className="num" style={{fontSize:22}}>₹18,500</div>
+            <div className="seal" style={{position:'absolute', bottom:10, right:10}}>SEAL</div>
+            <div className="annot" style={{position:'absolute', top:-22, left:-10}}>← folded receipt</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className="box solid" style={{padding:10, marginBottom:10}}>
+      <div className="label">SCROLL — receipt unfolds, panel by panel</div>
+      <div className="row" style={{marginTop:6}}>
+        {['Rent','Proof','Deposit','Repairs'].map((p,i)=>(
+          <div key={i} className="col doc" style={{height:60, transform:`perspective(400px) rotateY(${(i-1.5)*8}deg)`}}>
+            <div className="label" style={{fontWeight:700}}>{p}</div>
+            <div className="stripe tiny"/><div className="stripe tiny"/>
+          </div>
+        ))}
+      </div>
+      <div className="annot">→ pages fan out like an accordion as scroll progresses</div>
+    </div>
+
+    <div className="row">
+      <div className="col box" style={{padding:8}}>
+        <div className="label">CURRENCY TICKER</div>
+        <div className="num" style={{fontSize:24}}>₹0 → ₹1.2L</div>
+        <div className="annot">numbers tick on scroll</div>
+      </div>
+      <div className="col box" style={{padding:8}}>
+        <div className="label">PHONE peeks in side</div>
+        <div className="phone" style={{width:50, transform:'rotateY(20deg)'}}>
+          <div className="screen"><div className="stripe tiny"/><div className="stripe"/></div>
+        </div>
+      </div>
+      <div className="col box" style={{padding:8}}>
+        <div className="label">FOOTER · stamp slams down</div>
+        <div className="seal" style={{margin:'10px auto', width:60, height:60, fontSize:14}}>SEAL ✓</div>
+      </div>
+    </div>
+
+    <div className="annot" style={{marginTop:10}}>★ wow moment: receipt unfolds to reveal the WHOLE landing page printed on it</div>
+  </div>
+);
+
+// ───────── Direction C — "The Vertical Cinema"
+const C = () => (
+  <div className="wf" style={{width:'100%', height:'100%', overflow:'hidden'}}>
+    <h1>C · The Vertical Cinema (winner candidate)</h1>
+    <div className="sub">Scroll-pinned 3D scenes. Phone is the camera. Each section = a cinematic beat with parallax props.</div>
+
+    <div className="row" style={{height:'calc(100% - 60px)'}}>
+      <div className="col" style={{display:'flex', flexDirection:'column', gap:8}}>
+        {[
+          {n:'01', t:'Open', d:'Phone tilts up from black. ₹ amount blooms.', wow:'phone z-flies into view'},
+          {n:'02', t:'Cycle', d:'4 screens orbit around the phone — Pay → Receipt → Proof → Ledger.', wow:'orbiting cards in 3D'},
+          {n:'03', t:'Proof', d:'Camera flash. Photo unfurls. Seal stamps in ochre.', wow:'flash + stamp slam'},
+          {n:'04', t:'Trust', d:'Receipts stack into a vault. Door closes with a click.', wow:'physical metaphor'},
+          {n:'05', t:'Land', d:'Phone returns to rest. CTA rises. Tagline reforms.', wow:'satisfying close'},
+        ].map(s=>(
+          <div key={s.n} className="box" style={{padding:8, display:'flex', alignItems:'center', gap:10}}>
+            <div className="num" style={{fontSize:30, minWidth:48}}>{s.n}</div>
+            <div style={{flex:1}}>
+              <div className="h" style={{fontSize:18}}>{s.t}</div>
+              <div className="label">{s.d}</div>
+              <div className="annot" style={{fontSize:14}}>★ {s.wow}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="col" style={{maxWidth:200, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
+        <div className="annot" style={{textAlign:'center'}}>scroll-pinned phone tracks all 5 beats</div>
+        <div className="phone" style={{width:120, transform:'rotateY(-12deg) rotateX(8deg)'}}>
+          <div className="screen">
+            <div className="stripe tiny"/>
+            <div className="num" style={{fontSize:18}}>₹62,000</div>
+            <div className="stripe"/><div className="stripe short"/>
+            <hr className="sk"/>
+            <div className="seal" style={{margin:'auto'}}>✓</div>
+          </div>
+        </div>
+        <div className="annot" style={{textAlign:'center', marginTop:6}}>casts long warm shadow</div>
+      </div>
+    </div>
+  </div>
+);
+
+// ───────── Direction D — "The Split Stage"
+const D = () => (
+  <div className="wf" style={{width:'100%', height:'100%', overflow:'hidden'}}>
+    <h1>D · The Split Stage</h1>
+    <div className="sub">Two columns scroll independently — landlord left, tenant right. Phone in middle bridges them.</div>
+
+    <div className="row" style={{height:'calc(100% - 60px)'}}>
+      <div className="col box" style={{padding:8}}>
+        <div className="tag">LANDLORD</div>
+        <div className="h" style={{marginTop:6}}>See every rupee.</div>
+        <div className="stripe short"/><div className="stripe"/>
+        <div className="doc" style={{marginTop:8, transform:'rotate(-2deg)'}}>Bandra 2BHK · ₹62,000 · Paid</div>
+        <div className="doc" style={{marginTop:6, transform:'rotate(1deg)'}}>Pune · ₹28,500 · Due</div>
+        <div className="annot">scrolls slower (parallax)</div>
+      </div>
+
+      <div className="col" style={{maxWidth:130, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8}}>
+        <div className="phone" style={{width:100, transform:'rotateY(0deg)'}}>
+          <div className="screen">
+            <div className="stripe tiny"/>
+            <div className="num" style={{fontSize:14}}>₹62k</div>
+            <div className="stripe"/>
+            <div className="seal" style={{margin:'auto'}}>✓</div>
+          </div>
+        </div>
+        <div className="annot" style={{textAlign:'center'}}>phone is the bridge — connects both sides via 3D lines</div>
+      </div>
+
+      <div className="col box" style={{padding:8}}>
+        <div className="tag">TENANT</div>
+        <div className="h" style={{marginTop:6}}>Save ₹62k on tax.</div>
+        <div className="stripe short"/><div className="stripe"/>
+        <div className="doc" style={{marginTop:8, transform:'rotate(2deg)'}}>HRA receipt · April 2025</div>
+        <div className="doc" style={{marginTop:6, transform:'rotate(-1deg)'}}>Move-in proof · 12 photos · sealed</div>
+        <div className="annot">scrolls faster</div>
+      </div>
+    </div>
+
+    <div className="annot" style={{marginTop:8}}>★ wow moment: at footer, both columns merge into one — single CTA, both audiences see same trust</div>
+  </div>
+);
+
+const App = () => (
+  <DesignCanvas docTitle="Marketing page · 4 wireframe directions" subtitle="RentyBase · cinematic 3D storytelling" defaultZoom={0.5}>
+    <DCSection id="dirs" title="Wireframe directions" subtitle="Pick one to take to hi-fi · recommended: C (vertical cinema)">
+      <DCArtboard id="A" label="A · Rotating Lifecycle" width={900} height={1100}><A/></DCArtboard>
+      <DCArtboard id="B" label="B · Document Unfolds" width={900} height={1100}><B/></DCArtboard>
+      <DCArtboard id="C" label="C · Vertical Cinema ★" width={900} height={1100}><C/></DCArtboard>
+      <DCArtboard id="D" label="D · Split Stage" width={900} height={1100}><D/></DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

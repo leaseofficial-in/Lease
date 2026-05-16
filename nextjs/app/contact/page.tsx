@@ -54,7 +54,7 @@ export default function ContactPage() {
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--rb-ink-3)', marginBottom: 16 }}>QUICK ANSWERS</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {[
-                  { q: 'Is RentyBase free?', a: 'Yes — all features, forever free.', href: '/features' },
+                  { q: 'Is RentyBase free?', a: 'Yes. All features, forever free.', href: '/features' },
                   { q: 'How do HRA receipts work?', a: 'Auto-generated, Section 10(13A) valid.', href: '/tools' },
                   { q: 'For landlords vs tenants?', a: 'Both get full access, both are free.', href: '/for/landlords' },
                 ].map(item => (

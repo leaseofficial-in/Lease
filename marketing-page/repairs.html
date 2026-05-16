@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Repairs · RentyBase</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg"/>
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="dashboard.css"/>
+  <link rel="stylesheet" href="repairs.css"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body class="dash-body">
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+  const { useState } = React;
+
+  const Mark = ({size=28}) => (
+    <svg viewBox="0 0 40 40" width={size} height={size}>
+      <rect width="40" height="40" rx="9" fill="#0E1413"/>
+      <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
+      <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
+      <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+    </svg>
+  );
+
+  const tickets = [
+    {
+      id:"R-2025-441", title:"Geyser leak · master bath",
+      cat:"Plumbing", icon:"🚿",
+      prop:"Bandra 2BHK", tenant:"Aarav Mehta", raised:"02 Nov · 7:42 PM",
+      st:"in", priority:"high",
+      desc:"Hot water tank dripping at the inlet valve. Floor wet near the geyser. Tenant has placed a bucket; safe to use cold water only.",
+      vendor:{ name:"SureFix Plumbers", rating:4.7, eta:"Tomorrow, 11:00 AM", phone:"+91 99xxx 14820" },
+      cost:{ quote:1800, split:"50 / 50", landlord:900, tenant:900 },
+      photos:["#a87a4f","#5b3a20","#7a5d35"],
+      timeline:[
+        {st:"raised", t:"Tenant raised", who:"Aarav Mehta", time:"02 Nov · 7:42 PM"},
+        {st:"ack", t:"Acknowledged · vendor matched", who:"Auto · SureFix", time:"02 Nov · 7:51 PM"},
+        {st:"quote", t:"Quote received · ₹1,800 (parts + labour)", who:"SureFix Plumbers", time:"03 Nov · 10:14 AM"},
+        {st:"approved", t:"Approved · 50/50 split", who:"Priya · Aarav", time:"03 Nov · 11:02 AM"},
+        {st:"scheduled", t:"Scheduled visit", who:"Tomorrow 11:00 AM", time:"03 Nov · 11:05 AM"},
+      ]
+    },
+    {
+      id:"R-2025-440", title:"AC servicing · living room unit",
+      cat:"Appliance", icon:"❄",
+      prop:"Koregaon 1BHK", tenant:"Sneha Rao", raised:"28 Oct · 2:11 PM",
+      st:"new", priority:"low",
+      desc:"Annual servicing requested. Unit cooling fine, but filter dusty and gas top-up may be needed.",
+      vendor:{ name:"Awaiting selection", rating:0, eta:"—", phone:"" },
+      cost:{ quote:0, split:"100% landlord", landlord:0, tenant:0 },
+      photos:["#9aa6a3"],
+      timeline:[
+        {st:"raised", t:"Tenant raised", who:"Sneha Rao", time:"28 Oct · 2:11 PM"},
+        {st:"pending", t:"Awaiting vendor pick", who:"Priya", time:""},
+      ]
+    },
+    {
+      id:"R-2025-432", title:"Wi-Fi router replacement",
+      cat:"Electrical", icon:"⚡",
+      prop:"Bandra 2BHK", tenant:"Aarav Mehta", raised:"08 Oct · 9:20 AM",
+      st:"done", priority:"low",
+      desc:"Old TP-Link router intermittent. Replaced with new dual-band unit.",
+      vendor:{ name:"Mr. Khan · Local Electrician", rating:4.4, eta:"Resolved", phone:""},
+      cost:{ quote:2400, split:"100% landlord", landlord:2400, tenant:0 },
+      photos:["#7a5d35"],
+      timeline:[
+        {st:"raised", t:"Tenant raised", who:"Aarav Mehta", time:"08 Oct"},
+        {st:"approved", t:"Approved", who:"Priya", time:"09 Oct"},
+        {st:"scheduled", t:"Visit scheduled", who:"12 Oct", time:""},
+        {st:"done", t:"Resolved · receipt sealed", who:"Mr. Khan", time:"12 Oct · 4:20 PM"},
+      ]
+    },
+    {
+      id:"R-2025-428", title:"Society maintenance · Oct",
+      cat:"Society", icon:"🏢",
+      prop:"HSR 3BHK", tenant:"Vikram Krishnan", raised:"15 Oct · 11:48 AM",
+      st:"done", priority:"low",
+      desc:"Monthly society maintenance bill paid via UPI to Mahogany Apts.",
+      vendor:{ name:"Mahogany Apts Association", rating:0, eta:"Resolved", phone:""},
+      cost:{ quote:4200, split:"100% landlord", landlord:4200, tenant:0 },
+      photos:[],
+      timeline:[
+        {st:"raised", t:"Bill received", who:"Society", time:"15 Oct"},
+        {st:"done", t:"Paid · UPI", who:"Priya", time:"15 Oct · 11:48 AM"},
+      ]
+    },
+    {
+      id:"R-2025-419", title:"Kitchen sink · slow drain",
+      cat:"Plumbing", icon:"🚿",
+      prop:"HSR 3BHK", tenant:"Vikram Krishnan", raised:"22 Sep · 6:10 PM",
+      st:"done", priority:"med",
+      desc:"Kitchen sink draining slowly; cleared blockage and replaced trap.",
+      vendor:{ name:"SureFix Plumbers", rating:4.7, eta:"Resolved", phone:""},
+      cost:{ quote:850, split:"50 / 50", landlord:425, tenant:425 },
+      photos:["#a89280","#5e483a"],
+      timeline:[
+        {st:"raised", t:"Tenant raised", who:"Vikram K.", time:"22 Sep"},
+        {st:"approved", t:"Approved", who:"Priya · Vikram", time:"22 Sep"},
+        {st:"done", t:"Resolved", who:"SureFix", time:"24 Sep"},
+      ]
+    }
+  ];
+
+  const stMeta = {
+    new: { l:"NEW", c:"#7a7a78" },
+    in: { l:"IN PROGRESS", c:"#C97A3A" },
+    done: { l:"RESOLVED", c:"#1F8A5B" },
+  };
+
+  const tabs = [
+    {k:"all", l:"All"},
+    {k:"new", l:"New"},
+    {k:"in", l:"In progress"},
+    {k:"done", l:"Resolved"},
+  ];
+
+  const App = () => {
+    const [tab, setTab] = useState("all");
+    const [selected, setSelected] = useState("R-2025-441");
+
+    const filtered = tickets.filter(t => tab === "all" || t.st === tab);
+    const t = tickets.find(x => x.id === selected);
+
+    return (
+      <div className="d-shell">
+        <aside className="d-side">
+          <a href="marketing.html" className="d-logo"><Mark/><span>Renty<span className="ochre">Base</span></span></a>
+          <nav className="d-nav">
+            <a href="dashboard.html" className="d-nav-item"><span className="d-nav-ico">⌂</span><span>Overview</span></a>
+            <a href="properties.html" className="d-nav-item"><span className="d-nav-ico">▦</span><span>Properties</span><span className="d-badge">3</span></a>
+            <a href="ledger.html" className="d-nav-item"><span className="d-nav-ico">≡</span><span>Ledger</span></a>
+            <a href="#" className="d-nav-item"><span className="d-nav-ico">₹</span><span>Receipts</span></a>
+            <a href="#" className="d-nav-item active"><span className="d-nav-ico">⚙</span><span>Repairs</span><span className="d-badge">1</span></a>
+            <a href="#" className="d-nav-item"><span className="d-nav-ico">★</span><span>Score</span></a>
+          </nav>
+          <div className="d-side-foot">
+            <div className="d-user">
+              <div className="d-avatar" style={{background:"linear-gradient(135deg,#0F4C5C,#163A47)"}}>P</div>
+              <div>
+                <div className="d-user-name">Priya Sharma</div>
+                <div className="d-user-meta">3 properties · Mumbai</div>
+              </div>
+            </div>
+            <a href="marketing.html" className="d-logout">Sign out</a>
+          </div>
+        </aside>
+
+        <main className="d-main">
+          <header className="d-top">
+            <div>
+              <div className="eyebrow" style={{marginBottom:6}}>
+                <a href="dashboard.html" style={{color:"inherit"}}>Dashboard</a> · Repairs
+              </div>
+              <h1 className="d-h1">Repairs &amp; requests.</h1>
+              <div className="d-sub">
+                <b style={{color:"var(--rb-accent)"}}>1 in progress</b> · <b>1 awaiting your action</b> · 3 resolved this quarter. Average response time <b>1.2 days</b>.
+              </div>
+            </div>
+            <div className="d-top-r">
+              <button className="btn btn-ghost sm">Vendor list</button>
+              <button className="btn btn-primary sm">+ Log a repair</button>
+            </div>
+          </header>
+
+          {/* Stat strip */}
+          <section className="rp-stats">
+            <div className="rp-stat ochre">
+              <div className="rp-stat-l">IN PROGRESS</div>
+              <div className="rp-stat-v">1</div>
+              <div className="rp-stat-m">Plumber visiting tomorrow 11 AM</div>
+            </div>
+            <div className="rp-stat">
+              <div className="rp-stat-l">AWAITING YOU</div>
+              <div className="rp-stat-v">1</div>
+              <div className="rp-stat-m">Pick a vendor for AC servicing</div>
+            </div>
+            <div className="rp-stat">
+              <div className="rp-stat-l">SPENT FY 2025–26</div>
+              <div className="rp-stat-v">₹9,250</div>
+              <div className="rp-stat-m">Across 4 repairs · 3 split with tenant</div>
+            </div>
+            <div className="rp-stat">
+              <div className="rp-stat-l">RESPONSE SCORE</div>
+              <div className="rp-stat-v action">1.2<span> days</span></div>
+              <div className="rp-stat-m">Faster than 88% of landlords</div>
+            </div>
+          </section>
+
+          {/* Filters */}
+          <div className="rp-filters">
+            <div className="rp-tabs">
+              {tabs.map(x => (
+                <button key={x.k} className={"rp-tab " + (tab===x.k?"on":"")} onClick={()=>setTab(x.k)}>
+                  {x.l}
+                  <span className="rp-count">{x.k==="all"?tickets.length:tickets.filter(t=>t.st===x.k).length}</span>
+                </button>
+              ))}
+            </div>
+            <div className="rp-controls">
+              <select defaultValue="">
+                <option value="">All properties</option>
+                <option>Bandra 2BHK</option>
+                <option>HSR 3BHK</option>
+                <option>Koregaon 1BHK</option>
+              </select>
+              <select defaultValue="">
+                <option value="">All categories</option>
+                <option>Plumbing</option>
+                <option>Electrical</option>
+                <option>Appliance</option>
+                <option>Society</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Split: ticket list + detail */}
+          <div className="rp-split">
+            {/* List */}
+            <section className="rp-list">
+              {filtered.map(tk => (
+                <button key={tk.id} className={"rp-card " + tk.st + (tk.id===selected?" sel":"")} onClick={()=>setSelected(tk.id)}>
+                  <div className="rp-card-icon" data-cat={tk.cat}>{tk.icon}</div>
+                  <div className="rp-card-body">
+                    <div className="rp-card-row1">
+                      <span className={"rp-status " + tk.st}>
+                        <span className="rp-dot"/>{stMeta[tk.st].l}
+                      </span>
+                      <span className="rp-card-id mono">{tk.id}</span>
+                    </div>
+                    <div className="rp-card-t">{tk.title}</div>
+                    <div className="rp-card-meta">
+                      <span>{tk.prop}</span>
+                      <span className="sep">·</span>
+                      <span>{tk.tenant}</span>
+                      <span className="sep">·</span>
+                      <span>{tk.raised}</span>
+                    </div>
+                  </div>
+                  <div className="rp-card-r">
+                    {tk.cost.quote > 0 ? (
+                      <div className="rp-card-amt mono">₹{tk.cost.quote.toLocaleString("en-IN")}</div>
+                    ) : <div className="rp-card-amt mono muted">— quote</div>}
+                    <div className="rp-card-split">{tk.cost.split}</div>
+                  </div>
+                </button>
+              ))}
+              {filtered.length === 0 && <div className="rp-empty">No tickets match.</div>}
+            </section>
+
+            {/* Detail */}
+            {t && (
+              <aside className="rp-detail card">
+                <div className="rp-d-head">
+                  <div className="rp-d-icon" data-cat={t.cat}>{t.icon}</div>
+                  <div className="rp-d-meta">
+                    <div className="rp-d-id">
+                      <span className={"rp-status " + t.st}><span className="rp-dot"/>{stMeta[t.st].l}</span>
+                      <span className="mono muted">{t.id}</span>
+                    </div>
+                    <h2 className="rp-d-t">{t.title}</h2>
+                    <div className="rp-d-sub">{t.cat} · {t.prop} · raised {t.raised}</div>
+                  </div>
+                </div>
+
+                <p className="rp-d-desc">{t.desc}</p>
+
+                {t.photos.length > 0 && (
+                  <div className="rp-photos">
+                    {t.photos.map((c, i) => (
+                      <div key={i} className="rp-photo" style={{background: `linear-gradient(135deg, ${c}, #2c1c0e)`}}/>
+                    ))}
+                    <div className="rp-photo-add">+ Add photo</div>
+                  </div>
+                )}
+
+                {/* Vendor block */}
+                {t.vendor.name !== "Awaiting selection" ? (
+                  <div className="rp-vendor">
+                    <div className="rp-v-icon">🛠</div>
+                    <div className="rp-v-body">
+                      <div className="rp-v-name">{t.vendor.name}</div>
+                      <div className="rp-v-meta">
+                        {t.vendor.rating > 0 && <span>★ {t.vendor.rating}</span>}
+                        {t.vendor.eta && <span>{t.vendor.eta}</span>}
+                        {t.vendor.phone && <span className="mono">{t.vendor.phone}</span>}
+                      </div>
+                    </div>
+                    {t.st === "in" && <button className="btn btn-ghost sm">Reschedule</button>}
+                  </div>
+                ) : (
+                  <div className="rp-vendor pending">
+                    <div className="rp-v-icon">⏱</div>
+                    <div className="rp-v-body">
+                      <div className="rp-v-name">No vendor yet</div>
+                      <div className="rp-v-meta">Pick one of 3 verified vendors near Koregaon</div>
+                    </div>
+                    <button className="btn btn-primary sm">Pick vendor</button>
+                  </div>
+                )}
+
+                {/* Cost split */}
+                <div className="rp-cost">
+                  <div className="rp-cost-head">
+                    <span>Cost split</span>
+                    <span className="mono">{t.cost.split}</span>
+                  </div>
+                  {t.cost.quote > 0 ? (
+                    <>
+                      <div className="rp-cost-bar">
+                        <div className="rp-cost-l" style={{flex: t.cost.landlord || 1}}>
+                          <span>Landlord</span>
+                          <b className="mono">₹{t.cost.landlord.toLocaleString("en-IN")}</b>
+                        </div>
+                        {t.cost.tenant > 0 && (
+                          <div className="rp-cost-t" style={{flex: t.cost.tenant}}>
+                            <span>Tenant</span>
+                            <b className="mono">₹{t.cost.tenant.toLocaleString("en-IN")}</b>
+                          </div>
+                        )}
+                      </div>
+                      <div className="rp-cost-foot mono">
+                        TOTAL · ₹{t.cost.quote.toLocaleString("en-IN")} · auto-debited from rent on resolve
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rp-cost-empty">Quote pending vendor visit</div>
+                  )}
+                </div>
+
+                {/* Timeline */}
+                <div className="rp-timeline">
+                  <div className="rp-tl-head">
+                    <span>Timeline</span>
+                    <span className="mono muted">{t.timeline.length} events · sealed</span>
+                  </div>
+                  {t.timeline.map((ev, i) => (
+                    <div key={i} className={"rp-tl-step " + ev.st}>
+                      <span className="rp-tl-dot"/>
+                      <div className="rp-tl-body">
+                        <b>{ev.t}</b>
+                        <span>{ev.who}{ev.time && ` · ${ev.time}`}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rp-d-actions">
+                  {t.st !== "done" && <button className="btn btn-primary sm">Mark resolved</button>}
+                  <button className="btn btn-ghost sm">Add update</button>
+                  <button className="btn btn-ghost sm">Open in ledger →</button>
+                </div>
+              </aside>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  };
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>

@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Start free · RentyBase</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg"/>
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="signup.css"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body class="signup-body">
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+  const { useState, useEffect, useRef } = React;
+
+  const Mark = ({ size = 36 }) => (
+    <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden="true">
+      <rect width="40" height="40" rx="9" fill="#0E1413"/>
+      <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
+      <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
+      <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+      <circle cx="20" cy="11" r="0.9" fill="#C97A3A"/>
+    </svg>
+  );
+
+  const Seal = () => (
+    <svg viewBox="0 0 200 200" width="170" height="170" className="seal-svg">
+      <circle cx="100" cy="100" r="92" fill="none" stroke="#C97A3A" strokeWidth="2.4"/>
+      <circle cx="100" cy="100" r="80" fill="none" stroke="#C97A3A" strokeWidth="1.2" strokeDasharray="2 4"/>
+      <text x="100" y="86" textAnchor="middle" fontFamily="DM Sans, sans-serif" fontSize="10" letterSpacing="3" fill="#C97A3A" fontWeight="700">SEALED FOR INDIA</text>
+      <path d="M70 110 l18 18 l42 -42" fill="none" stroke="#C97A3A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+      <text x="100" y="160" textAnchor="middle" fontFamily="Instrument Serif, serif" fontSize="14" fill="#C97A3A">RentyBase · est. 2026</text>
+    </svg>
+  );
+
+  // ── Left side: editorial brand storytelling
+  const BrandPane = ({ role }) => {
+    const lines = role === "landlord"
+      ? ["Add property", "Invite tenant", "Sealed."]
+      : ["Find lease", "Move-in proof", "Receipts forever."];
+    return (
+      <aside className="sb-pane">
+        <a href="marketing.html" className="sb-logo">
+          <Mark size={32}/>
+          <span>Renty<span className="ochre">Base</span></span>
+        </a>
+
+        <div className="sb-hero">
+          <div className="sb-eyebrow">A shared, calm record</div>
+          <h1 className="sb-h1">
+            Sign up once.<br/>
+            <em>Carry your record</em><br/>
+            for life.
+          </h1>
+          <p className="sb-sub">
+            Free during beta. Every receipt, every photo, every signature — kept on the same ledger as your landlord or tenant. No app store. No data sold.
+          </p>
+
+          <div className="sb-flow">
+            {lines.map((l, i) => (
+              <div className="sb-step" key={i}>
+                <div className="sb-num">0{i+1}</div>
+                <div className="sb-line">{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="sb-footer">
+          <div className="sb-trust">
+            <div className="sb-trust-row">
+              <span className="sb-pill">Section 10(13A) ready</span>
+              <span className="sb-pill">Aadhaar e-sign</span>
+              <span className="sb-pill">UPI 2.0</span>
+            </div>
+            <div className="sb-quote">
+              <span className="sb-quote-mark">&ldquo;</span>
+              The first time both my landlord and I looked at the same record, we stopped arguing.
+              <span className="sb-quote-by">— Aarav M., tenant · Mumbai</span>
+            </div>
+          </div>
+          <div className="sb-seal">
+            <Seal/>
+          </div>
+        </div>
+      </aside>
+    );
+  };
+
+  // ── Right side: form
+  const FormPane = () => {
+    const [role, setRole] = useState("landlord");
+    const [step, setStep] = useState(1);
+    const [phone, setPhone] = useState("");
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+    const [city, setCity] = useState("");
+    const otpRefs = useRef([]);
+
+    useEffect(() => {
+      // emit role to brand pane via custom event
+      window.dispatchEvent(new CustomEvent("role-change", { detail: role }));
+    }, [role]);
+
+    const next = () => setStep((s) => Math.min(3, s + 1));
+    const back = () => setStep((s) => Math.max(1, s - 1));
+    const phoneOK = phone.replace(/\D/g, "").length === 10;
+    const detailsOK = name.trim().length > 1 && email.includes("@");
+    const otpOK = otp.every(d => d !== "");
+
+    const onOtp = (i, v) => {
+      const d = v.replace(/\D/g, "").slice(-1);
+      const arr = [...otp];
+      arr[i] = d;
+      setOtp(arr);
+      if (d && i < 5) otpRefs.current[i+1]?.focus();
+    };
+    const onOtpKey = (i, e) => {
+      if (e.key === "Backspace" && !otp[i] && i > 0) otpRefs.current[i-1]?.focus();
+    };
+
+    const cities = ["Bengaluru", "Mumbai", "Delhi NCR", "Pune", "Hyderabad", "Chennai", "Kolkata", "Ahmedabad", "Jaipur", "Other"];
+
+    return (
+      <main className="sb-form-pane">
+        <div className="sb-progress">
+          <div className="sb-progress-track">
+            <div className="sb-progress-fill" style={{ width: `${(step / 3) * 100}%` }}/>
+          </div>
+          <div className="sb-progress-meta">
+            <span>Step {step} of 3</span>
+            <span className="sb-meta-right">
+              <a href="signin.html" className="sb-signin-link">Already on RentyBase? <b>Sign in</b></a>
+              <a href="marketing.html" className="sb-back-link">← Home</a>
+            </span>
+          </div>
+        </div>
+
+        <div className="sb-form-wrap">
+          {step === 1 && (
+            <div className="sb-step-card" key="s1">
+              <div className="sb-step-tag">Welcome</div>
+              <h2 className="sb-step-h">Who are you signing up as?</h2>
+              <p className="sb-step-p">You can switch later — both sides see the same record either way.</p>
+
+              <div className="sb-roles">
+                <button
+                  className={"sb-role" + (role === "landlord" ? " active" : "")}
+                  onClick={() => setRole("landlord")}
+                  type="button"
+                >
+                  <div className="sb-role-icon" data-role="landlord">
+                    <svg viewBox="0 0 32 32" width="28" height="28">
+                      <path d="M6 14 L16 6 L26 14 V25 a2 2 0 0 1 -2 2 H8 a2 2 0 0 1 -2 -2 Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+                      <rect x="13" y="18" width="6" height="9" fill="currentColor" opacity=".18"/>
+                      <rect x="13" y="18" width="6" height="9" fill="none" stroke="currentColor" strokeWidth="1.4"/>
+                    </svg>
+                  </div>
+                  <div className="sb-role-text">
+                    <div className="sb-role-h">I'm a landlord</div>
+                    <div className="sb-role-d">List property · collect rent · issue receipts</div>
+                  </div>
+                  <div className="sb-role-radio"/>
+                </button>
+
+                <button
+                  className={"sb-role" + (role === "tenant" ? " active" : "")}
+                  onClick={() => setRole("tenant")}
+                  type="button"
+                >
+                  <div className="sb-role-icon" data-role="tenant">
+                    <svg viewBox="0 0 32 32" width="28" height="28">
+                      <circle cx="16" cy="12" r="5" fill="none" stroke="currentColor" strokeWidth="1.6"/>
+                      <path d="M6 27 a10 10 0 0 1 20 0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                      <circle cx="23" cy="9" r="3" fill="currentColor" opacity=".25"/>
+                      <path d="M21.4 9 l1.2 1.2 l2.4 -2.4" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+                    </svg>
+                  </div>
+                  <div className="sb-role-text">
+                    <div className="sb-role-h">I'm a tenant</div>
+                    <div className="sb-role-d">Pay rent · collect HRA · keep proof of move-in</div>
+                  </div>
+                  <div className="sb-role-radio"/>
+                </button>
+
+                <button
+                  className={"sb-role muted" + (role === "pg" ? " active" : "")}
+                  onClick={() => setRole("pg")}
+                  type="button"
+                >
+                  <div className="sb-role-icon" data-role="pg">
+                    <svg viewBox="0 0 32 32" width="28" height="28">
+                      <rect x="4" y="8" width="24" height="18" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6"/>
+                      <line x1="16" y1="8" x2="16" y2="26" stroke="currentColor" strokeWidth="1.4"/>
+                      <line x1="4" y1="17" x2="28" y2="17" stroke="currentColor" strokeWidth="1.4"/>
+                      <circle cx="9" cy="13" r="1.4" fill="currentColor"/>
+                      <circle cx="22" cy="13" r="1.4" fill="currentColor"/>
+                      <circle cx="9" cy="21" r="1.4" fill="currentColor"/>
+                    </svg>
+                  </div>
+                  <div className="sb-role-text">
+                    <div className="sb-role-h">I run a PG / Hostel</div>
+                    <div className="sb-role-d">Floor-plan view · per-bed billing · auto vacancy</div>
+                  </div>
+                  <div className="sb-role-radio"/>
+                </button>
+              </div>
+
+              <button className="btn btn-primary sb-cta" onClick={next} type="button">
+                Continue <span className="arr">→</span>
+              </button>
+
+              <div className="sb-divider"><span>or continue with</span></div>
+
+              <div className="sb-oauth">
+                <button className="sb-oauth-btn primary-oauth" type="button" onClick={() => setStep(2)}>
+                  <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M17.5 2h-11A2.5 2.5 0 0 0 4 4.5v15A2.5 2.5 0 0 0 6.5 22h11a2.5 2.5 0 0 0 2.5-2.5v-15A2.5 2.5 0 0 0 17.5 2zM12 20.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm6-3.5H6V5h12v12z"/></svg>
+                  Continue with Phone
+                </button>
+                <button className="sb-oauth-btn" type="button">
+                  <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M22.5 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.9a5.05 5.05 0 0 1-2.18 3.31v2.75h3.53c2.07-1.9 3.25-4.7 3.25-8.09z"/><path fill="#34A853" d="M12 23c2.94 0 5.4-.98 7.2-2.64l-3.53-2.75c-.97.65-2.22 1.04-3.67 1.04-2.83 0-5.22-1.91-6.07-4.48H2.28v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC04" d="M5.93 14.17a6.6 6.6 0 0 1 0-4.34V6.99H2.28a11 11 0 0 0 0 10.02l3.65-2.84z"/><path fill="#EA4335" d="M12 5.5c1.6 0 3.03.55 4.16 1.63l3.12-3.12A11 11 0 0 0 12 1 11 11 0 0 0 2.28 6.99l3.65 2.84C6.78 7.41 9.17 5.5 12 5.5z"/></svg>
+                  Google
+                </button>
+                <button className="sb-oauth-btn" type="button">
+                  <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#0E1413" d="M16.84 12.71c-.03-2.93 2.39-4.34 2.5-4.41-1.36-2-3.49-2.27-4.24-2.3-1.81-.18-3.53 1.06-4.45 1.06-.93 0-2.34-1.04-3.85-1.01-1.98.03-3.81 1.15-4.83 2.92-2.06 3.58-.53 8.86 1.48 11.77.98 1.42 2.15 3.02 3.69 2.96 1.48-.06 2.04-.96 3.83-.96 1.78 0 2.29.96 3.86.93 1.6-.03 2.6-1.45 3.57-2.88 1.13-1.65 1.59-3.26 1.62-3.34-.04-.02-3.1-1.19-3.13-4.74M14.13 4.07c.81-.99 1.36-2.36 1.21-3.73-1.17.05-2.59.78-3.43 1.76-.75.87-1.41 2.27-1.23 3.6 1.31.1 2.64-.66 3.45-1.63"/></svg>
+                  Apple
+                </button>
+                <button className="sb-oauth-btn" type="button">
+                  <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="11" fill="#FF6B35"/><text x="12" y="17" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontSize="13" fontWeight="800" fill="#fff">D</text></svg>
+                  DigiLocker
+                </button>
+              </div>
+
+              <div className="sb-fineprint">
+                By continuing you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>. We never sell your data.
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="sb-step-card" key="s2">
+              <div className="sb-step-tag">{role === "landlord" ? "Landlord" : role === "tenant" ? "Tenant" : "PG owner"} · about you</div>
+              <h2 className="sb-step-h">Just the basics.</h2>
+              <p className="sb-step-p">We use phone for OTP login. Email for receipts and your year-end HRA bundle.</p>
+
+              <div className="sb-fields">
+                <label className="sb-field">
+                  <span className="sb-label">Full name</span>
+                  <input type="text" placeholder={role === "landlord" ? "Priya Sharma" : "Aarav Mehta"} value={name} onChange={(e) => setName(e.target.value)}/>
+                </label>
+
+                <label className="sb-field">
+                  <span className="sb-label">Mobile · India</span>
+                  <div className="sb-phone">
+                    <span className="sb-phone-cc">🇮🇳 +91</span>
+                    <input type="tel" placeholder="98xxx xxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={11}/>
+                  </div>
+                </label>
+
+                <label className="sb-field">
+                  <span className="sb-label">Email</span>
+                  <input type="email" placeholder="you@email.com" value={email} onChange={(e) => setEmail(e.target.value)}/>
+                </label>
+
+                <label className="sb-field">
+                  <span className="sb-label">Primary city</span>
+                  <select value={city} onChange={(e) => setCity(e.target.value)}>
+                    <option value="">Choose your city</option>
+                    {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="sb-actions">
+                <button className="btn btn-ghost" onClick={back} type="button">← Back</button>
+                <button className="btn btn-primary sb-cta-inline" onClick={next} disabled={!detailsOK || !phoneOK} type="button">
+                  Send OTP <span className="arr">→</span>
+                </button>
+              </div>
+
+              <div className="sb-aside">
+                <div className="sb-aside-icon">🔒</div>
+                <div>
+                  <b>Why we ask</b><br/>
+                  Phone is your login (OTP every time). Email gets your monthly receipts and your year-end <b>Section 10(13A)</b> bundle. We do not call, do not spam, do not share.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="sb-step-card" key="s3">
+              <div className="sb-step-tag">Verify</div>
+              <h2 className="sb-step-h">Enter the OTP.</h2>
+              <p className="sb-step-p">Sent to <b>+91 {phone || "98xxx xxxxx"}</b>. Valid for 5 minutes.</p>
+
+              <div className="sb-otp">
+                {otp.map((d, i) => (
+                  <input
+                    key={i}
+                    ref={(el) => (otpRefs.current[i] = el)}
+                    className="sb-otp-cell"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={d}
+                    onChange={(e) => onOtp(i, e.target.value)}
+                    onKeyDown={(e) => onOtpKey(i, e)}
+                  />
+                ))}
+              </div>
+
+              <div className="sb-otp-meta">
+                <span>Didn't receive it? <a href="#">Resend in 0:42</a></span>
+                <span>Or <a href="#">call me instead</a></span>
+              </div>
+
+              <div className="sb-actions">
+                <button className="btn btn-ghost" onClick={back} type="button">← Back</button>
+                <button
+                  className="btn btn-primary sb-cta-inline"
+                  type="button"
+                  disabled={!otpOK}
+                  onClick={() => alert(`Welcome to RentyBase, ${name || "friend"}!`)}
+                >
+                  Open my dashboard <span className="arr">→</span>
+                </button>
+              </div>
+
+              <div className="sb-finish-card">
+                <div className="sb-finish-seal">
+                  <svg viewBox="0 0 60 60" width="40" height="40">
+                    <circle cx="30" cy="30" r="27" fill="none" stroke="#C97A3A" strokeWidth="1.6"/>
+                    <circle cx="30" cy="30" r="22" fill="none" stroke="#C97A3A" strokeWidth=".7" strokeDasharray="1.5 2"/>
+                    <path d="M20 30 l8 8 l16 -16" fill="none" stroke="#C97A3A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div>
+                  <b>What happens next</b>
+                  <ul>
+                    {role === "landlord" && (<>
+                      <li>Add your first property &amp; bank account</li>
+                      <li>Invite tenant via SMS — they sign in with the same number</li>
+                      <li>First receipt issued the day rent lands in your UPI</li>
+                    </>)}
+                    {role === "tenant" && (<>
+                      <li>Connect to your landlord with a 6-digit invite code</li>
+                      <li>Submit move-in proof (12 photos, geotagged)</li>
+                      <li>Pay rent · receipts arrive by email instantly</li>
+                    </>)}
+                    {role === "pg" && (<>
+                      <li>Sketch your floor plan — drag rooms &amp; beds</li>
+                      <li>Invite each tenant by phone or QR poster</li>
+                      <li>Auto-collect via UPI · vacancies publish themselves</li>
+                    </>)}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    );
+  };
+
+  const App = () => {
+    const [role, setRole] = useState("landlord");
+    useEffect(() => {
+      const h = (e) => setRole(e.detail);
+      window.addEventListener("role-change", h);
+      return () => window.removeEventListener("role-change", h);
+    }, []);
+    return (
+      <div className="sb-shell" data-role={role}>
+        <BrandPane role={role}/>
+        <FormPane/>
+      </div>
+    );
+  };
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>

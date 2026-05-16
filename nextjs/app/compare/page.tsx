@@ -28,7 +28,7 @@ const rows = [
 const alternatives = [
   {
     title: 'RentyBase vs NoBroker Rent Manager',
-    body: 'NoBroker\'s rent manager charges ₹249–999/month and locks HRA receipts behind paid plans. RentyBase generates Section 10(13A)-valid receipts automatically, free, for every payment — and gives both landlord and tenant real-time access to the same ledger.',
+    body: 'NoBroker\'s rent manager charges ₹249–999/month and locks HRA receipts behind paid plans. RentyBase generates Section 10(13A)-valid receipts automatically, free for every payment and gives both landlord and tenant real-time access to the same ledger.',
   },
   {
     title: 'RentyBase vs Manual Tracking (Excel / WhatsApp)',
@@ -36,7 +36,7 @@ const alternatives = [
   },
   {
     title: 'RentyBase vs Housing / MagicBricks rent tools',
-    body: 'Portal rent tools are designed for listing, not ongoing management. They don\'t track payments, generate HRA receipts, or handle move-in/move-out proof. RentyBase is purpose-built for the full rental lifecycle — from day one to the final deposit settlement.',
+    body: 'Portal rent tools are designed for listing, not ongoing management. They don\'t track payments, generate HRA receipts, or handle move-in/move-out proof. RentyBase is purpose-built for the full rental lifecycle. From day one to the final deposit settlement.',
   },
 ]
 
@@ -112,9 +112,9 @@ export default function ComparePage() {
           Switch takes under a minute.
         </h2>
         <p style={{ fontSize: 16, color: 'rgba(246,244,238,.7)', marginBottom: 32, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
-          No migration. No credit card. Your tenant joins free. Start with one rental — add more any time.
+          No migration. No credit card. Your tenant joins free. Start with one rental and add more any time.
         </p>
-        <a href="/signup" className="btn btn-primary" style={{ padding: '13px 28px', fontSize: 16 }}>Start free — no card needed</a>
+        <a href="/signup" className="btn btn-primary" style={{ padding: '13px 28px', fontSize: 16 }}>Start free, no card needed</a>
       </section>
 
       <MarketingFooter />

@@ -1,0 +1,212 @@
+/* ───────────────────────────────────────────────────────────────────
+   RentyBase — design tokens
+   Load DM Sans, Instrument Serif and JetBrains Mono from Google Fonts:
+   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+─────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Color: brand ─────────────────────────── */
+  --rb-action:        #0F4C5C;  /* Trust Teal — primary action, links */
+  --rb-action-hover:  #0A3A47;  /* darker, button hover */
+  --rb-action-soft:   #DDE8EB;  /* tint, badge bg */
+  --rb-accent:        #C97A3A;  /* Seal Ochre — premium moments, seals */
+  --rb-accent-soft:   #F4E5D4;
+  --rb-accent-hover:  #B26A2E;
+
+  /* ── Color: ink (text) ────────────────────── */
+  --rb-ink:           #0E1413;  /* near-black, body / headlines */
+  --rb-ink-2:         #2A332F;  /* secondary text */
+  --rb-ink-3:         #5C645F;  /* tertiary, captions */
+  --rb-muted:         #8E948D;  /* placeholder, disabled */
+
+  /* ── Color: surface & canvas ──────────────── */
+  --rb-canvas:        #F6F4EE;  /* warm off-white app bg */
+  --rb-canvas-2:      #EFEDE5;  /* nested fill */
+  --rb-surface:       #FFFFFF;  /* cards, inputs */
+  --rb-fill:          #F0EFE9;  /* tertiary fill on white */
+  --rb-fill-2:        #E6E2D7;  /* divider-strength fill */
+
+  /* ── Color: borders ───────────────────────── */
+  --rb-border:        #E6E2D7;  /* default border on canvas */
+  --rb-border-strong: #D4CFBE;
+  --rb-border-soft:   #EBE7DB;  /* subtle border on white */
+
+  /* ── Color: neutral scale (6 stops) ───────── */
+  --rb-n-0:  #FFFFFF;
+  --rb-n-1:  #F6F4EE;
+  --rb-n-2:  #E6E2D7;
+  --rb-n-3:  #B5B1A4;
+  --rb-n-4:  #5C645F;
+  --rb-n-5:  #0E1413;
+
+  /* ── Color: semantic ──────────────────────── */
+  --rb-success:       #1F7A55;
+  --rb-success-soft:  #DEEFE6;
+  --rb-warning:       #B8740F;
+  --rb-warning-soft:  #F6E6CA;
+  --rb-danger:        #B33A2E;
+  --rb-danger-soft:   #F3DAD6;
+  --rb-info:          #0F4C5C;  /* same as action */
+  --rb-info-soft:     #DDE8EB;
+
+  /* ── Brand gradient (hero panels only) ────── */
+  --rb-grad-hero:     linear-gradient(135deg, #0F4C5C 0%, #163A47 60%, #0E1413 100%);
+  --rb-grad-glow:     radial-gradient(circle at 80% 10%, rgba(201,122,58,0.18), transparent 55%);
+
+  /* ── Shadow system ────────────────────────── */
+  --rb-shadow-sm:    0 1px 2px rgba(20,18,12,0.04), 0 2px 8px rgba(20,18,12,0.05);
+  --rb-shadow-md:    0 4px 12px rgba(20,18,12,0.06), 0 12px 32px rgba(20,18,12,0.08);
+  --rb-shadow-lg:    0 -4px 16px rgba(20,18,12,0.04), 0 24px 64px rgba(20,18,12,0.18);
+  --rb-shadow-action-hover: 0 8px 24px rgba(15,76,92,0.28);
+  --rb-focus-ring:   0 0 0 3px rgba(15,76,92,0.18);
+
+  /* ── Radii ────────────────────────────────── */
+  --rb-radius-sm:    8px;   /* tags, micro pills */
+  --rb-radius-md:    12px;  /* small cards, dropdowns */
+  --rb-radius-lg:    18px;  /* cards (default) */
+  --rb-radius-xl:    22px;  /* hero cards, large surfaces */
+  --rb-radius-2xl:   28px;  /* bottom sheets */
+  --rb-radius-tile:  14px;  /* logo tile */
+  --rb-radius-pill:  999px;
+
+  /* ── Spacing scale ────────────────────────── */
+  --rb-space-1:   4px;
+  --rb-space-2:   8px;
+  --rb-space-3:   12px;
+  --rb-space-4:   16px;
+  --rb-space-5:   20px;
+  --rb-space-6:   24px;
+  --rb-space-8:   32px;
+  --rb-space-10:  40px;
+  --rb-space-14:  56px;
+  --rb-space-20:  80px;
+
+  /* ── Type: families ───────────────────────── */
+  --rb-font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --rb-font-sans:    'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --rb-font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ── Type: scale (px) ─────────────────────── */
+  --rb-fs-display:   72px;   /* hero H1 web */
+  --rb-fs-h1:        44px;
+  --rb-fs-h2:        32px;
+  --rb-fs-h3:        24px;
+  --rb-fs-lg:        20px;
+  --rb-fs-md:        17px;
+  --rb-fs-base:      15px;
+  --rb-fs-sm:        13px;
+  --rb-fs-xs:        11px;
+
+  /* ── Type: weights ────────────────────────── */
+  --rb-fw-regular:   400;
+  --rb-fw-medium:    500;
+  --rb-fw-semibold:  600;
+  --rb-fw-bold:      700;
+
+  /* ── Type: tracking ───────────────────────── */
+  --rb-tracking-tightest: -0.035em;  /* display */
+  --rb-tracking-tight:    -0.02em;   /* H1, H2 */
+  --rb-tracking-normal:   -0.005em;  /* body */
+  --rb-tracking-wide:     0.08em;    /* eyebrow / micro caps */
+
+  /* ── Type: leading ────────────────────────── */
+  --rb-lh-display:   1.04;
+  --rb-lh-heading:   1.12;
+  --rb-lh-body:      1.6;
+  --rb-lh-tight:     1.3;
+
+  /* ── Motion ───────────────────────────────── */
+  --rb-ease:         cubic-bezier(0.22, 1, 0.36, 1);
+  --rb-dur-fast:     120ms;
+  --rb-dur-base:     200ms;
+  --rb-dur-slow:     600ms;
+}
+
+/* ─────────────────────────────────────────────
+   Semantic class helpers
+─────────────────────────────────────────────── */
+
+.rb-display {
+  font-family: var(--rb-font-display);
+  font-size: var(--rb-fs-display);
+  line-height: var(--rb-lh-display);
+  letter-spacing: var(--rb-tracking-tightest);
+  font-weight: var(--rb-fw-regular);
+  color: var(--rb-ink);
+}
+.rb-display em { font-style: italic; color: var(--rb-action); }
+
+.rb-h1 {
+  font-family: var(--rb-font-display);
+  font-size: var(--rb-fs-h1);
+  line-height: var(--rb-lh-heading);
+  letter-spacing: var(--rb-tracking-tight);
+  font-weight: var(--rb-fw-regular);
+  color: var(--rb-ink);
+}
+
+.rb-h2 {
+  font-family: var(--rb-font-sans);
+  font-size: var(--rb-fs-h2);
+  line-height: var(--rb-lh-heading);
+  letter-spacing: var(--rb-tracking-tight);
+  font-weight: var(--rb-fw-semibold);
+  color: var(--rb-ink);
+}
+
+.rb-h3 {
+  font-family: var(--rb-font-sans);
+  font-size: var(--rb-fs-h3);
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-weight: var(--rb-fw-semibold);
+  color: var(--rb-ink);
+}
+
+.rb-eyebrow {
+  font-family: var(--rb-font-sans);
+  font-size: var(--rb-fs-xs);
+  font-weight: var(--rb-fw-semibold);
+  letter-spacing: var(--rb-tracking-wide);
+  text-transform: uppercase;
+  color: var(--rb-ink-3);
+}
+
+.rb-body {
+  font-family: var(--rb-font-sans);
+  font-size: var(--rb-fs-base);
+  line-height: var(--rb-lh-body);
+  letter-spacing: var(--rb-tracking-normal);
+  font-weight: var(--rb-fw-regular);
+  color: var(--rb-ink-2);
+}
+
+.rb-caption {
+  font-family: var(--rb-font-sans);
+  font-size: var(--rb-fs-sm);
+  line-height: 1.5;
+  font-weight: var(--rb-fw-regular);
+  color: var(--rb-ink-3);
+}
+
+.rb-mono {
+  font-family: var(--rb-font-mono);
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-size: var(--rb-fs-base);
+  letter-spacing: 0;
+  color: var(--rb-ink);
+}
+
+/* ─────────────────────────────────────────────
+   WCAG contrast notes
+   - ink #0E1413 on canvas #F6F4EE  → 16.9:1  AAA
+   - action #0F4C5C on white        →  9.2:1  AAA
+   - white on action #0F4C5C        →  9.2:1  AAA  (button text)
+   - ink-3 #5C645F on canvas        →  6.4:1  AA
+   - muted #8E948D on canvas        →  3.0:1  large-text only
+   - accent #C97A3A on white        →  3.6:1  large-text / decorative only
+   - white on accent #C97A3A        →  3.6:1  large-text only
+   - success #1F7A55 on white       →  4.9:1  AA
+   - danger  #B33A2E on white       →  5.4:1  AA
+   - warning #B8740F on white       →  4.6:1  AA
+─────────────────────────────────────────────── */

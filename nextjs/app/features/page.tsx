@@ -16,20 +16,20 @@ const sections = [
   {
     tag: 'RENT COLLECTION',
     title: 'A ledger both sides trust',
-    body: 'Every payment — UPI, NEFT, cash — is logged with date, amount, method, and UTR number. Landlord and tenant see the same record. No disputes about what was paid and when.',
+    body: 'Every payment (UPI, NEFT, cash) is logged with date, amount, method, and UTR number. Landlord and tenant see the same record. No disputes about what was paid and when.',
     points: ['Supports UPI, NEFT, IMPS, cash', 'UTR number attached to every entry', 'Shared in real time with tenant', 'Overdue alerts on the due date'],
   },
   {
     tag: 'HRA RECEIPTS',
     title: 'Section 10(13A)-valid receipts, zero effort',
-    body: 'The moment a payment is logged, a legally valid HRA receipt is generated. Your tenant downloads it as a PDF — monthly or bundled for the full financial year. No WhatsApp forwards, no manual paperwork.',
+    body: 'The moment a payment is logged, a legally valid HRA receipt is generated. Your tenant downloads it as a PDF, monthly or bundled for the full financial year. No WhatsApp forwards, no manual paperwork.',
     points: ['Pre-filled: name, PAN, address, period', 'Valid under Income Tax Section 10(13A)', 'PDF download, always available', 'Full-year receipt bundle in one click'],
   },
   {
     tag: 'MOVE-IN PROOF',
     title: 'Photos that can never be disputed',
     body: 'At move-in, the tenant uploads photos room by room. Every photo gets a timestamp, a geotag, and a cryptographic seal. Neither side can alter them. At move-out, both sides have identical access to the original record.',
-    points: ['Timestamped & geotagged at upload', 'Sealed — no edits possible', 'Shared access: landlord and tenant', 'Permanent retention'],
+    points: ['Timestamped & geotagged at upload', 'Sealed, no edits possible', 'Shared access: landlord and tenant', 'Permanent retention'],
   },
   {
     tag: 'DEPOSIT MANAGEMENT',
@@ -40,13 +40,13 @@ const sections = [
   {
     tag: 'REPAIR TRACKING',
     title: 'Maintenance, documented from request to close',
-    body: 'Tenants raise repair requests with photos and descriptions. Landlords respond, update status, and close with notes. A permanent log that protects both sides — especially useful at move-out.',
+    body: 'Tenants raise repair requests with photos and descriptions. Landlords respond, update status, and close with notes. A permanent log that protects both sides. Especially useful at move-out.',
     points: ['Tenant raises with photos', 'Landlord acknowledges and closes', 'Full status history preserved', 'Searchable by property and date'],
   },
   {
     tag: 'AGREEMENTS',
     title: 'Your Leave & License, accessible always',
-    body: 'Upload or draft your rental agreement. Both landlord and tenant have permanent access — on any device, any time. No digging through email threads when a dispute arises.',
+    body: 'Upload or draft your rental agreement. Both landlord and tenant have permanent access on any device, any time. No digging through email threads when a dispute arises.',
     points: ['Upload existing PDF', 'Both parties access anytime', 'Linked to rental record', 'Coming: digital signing'],
   },
 ]
@@ -64,9 +64,9 @@ export default function FeaturesPage() {
             Everything in one<br /><em style={{ fontStyle: 'italic', color: 'var(--rb-action)' }}>rental record.</em>
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.65, color: 'var(--rb-ink-2)', maxWidth: 560, margin: '0 auto 36px' }}>
-            RentyBase covers the full rental lifecycle — from the day a property is listed to the day the deposit is returned. One shared record. Both sides. Free.
+            RentyBase covers the full rental lifecycle. From the day a property is listed to the day the deposit is returned. One shared record. Both sides. Free.
           </p>
-          <a href="/signup" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }}>Start free — no card needed</a>
+          <a href="/signup" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }}>Start free, no card needed</a>
         </div>
       </section>
 
@@ -104,7 +104,7 @@ export default function FeaturesPage() {
           All features. No subscription.
         </h2>
         <p style={{ fontSize: 16, color: 'rgba(246,244,238,.7)', marginBottom: 32, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
-          Every feature above is included free — for landlords and tenants. No tiers, no paywalls.
+          Every feature above is included free for landlords and tenants. No tiers, no paywalls.
         </p>
         <a href="/signup" className="btn btn-primary" style={{ padding: '13px 28px', fontSize: 16 }}>Create your first rental</a>
       </section>

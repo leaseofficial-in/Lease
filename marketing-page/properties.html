@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Properties · RentyBase</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg"/>
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="dashboard.css"/>
+  <link rel="stylesheet" href="properties.css"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body class="dash-body">
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+  const { useState } = React;
+
+  const Mark = ({size=28}) => (
+    <svg viewBox="0 0 40 40" width={size} height={size}>
+      <rect width="40" height="40" rx="9" fill="#0E1413"/>
+      <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
+      <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
+      <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+    </svg>
+  );
+
+  // Properties data
+  const properties = [
+    {
+      id: "bandra", city: "Mumbai", area: "Bandra West",
+      addr: "12B Pali Naka · 2BHK · 940 sqft · 4th floor",
+      since: "Jul 2023", rent: 62000, deposit: 186000, dueDay: 5,
+      tenant: { name: "Aarav Mehta", phone: "+91 98xxx 21142", since: "Jul 2023", score: 842, initial: "A" },
+      st: "paid", payDate: "5 Nov 2025",
+      occupancy: 100, year: 744000, repairs: 2, leaseEnd: "Jun 2026", days: 218,
+      tone: "#a87a4f"
+    },
+    {
+      id: "koregaon", city: "Pune", area: "Koregaon Park",
+      addr: "A-403 Lakeview · 1BHK · 620 sqft · 4th floor",
+      since: "Mar 2024", rent: 34000, deposit: 102000, dueDay: 5,
+      tenant: { name: "Sneha Rao", phone: "+91 99xxx 80091", since: "Mar 2024", score: 768, initial: "S" },
+      st: "due", payDate: "Due in 3 days",
+      occupancy: 100, year: 408000, repairs: 1, leaseEnd: "Feb 2026", days: 92,
+      tone: "#9aa6a3"
+    },
+    {
+      id: "hsr", city: "Bengaluru", area: "HSR Layout · Sector 6",
+      addr: "17/2 Mahogany Apts · 3BHK · 1,420 sqft · 9th floor",
+      since: "Sep 2022", rent: 78000, deposit: 234000, dueDay: 2,
+      tenant: { name: "Vikram Krishnan", phone: "+91 97xxx 44310", since: "Sep 2022", score: 891, initial: "V" },
+      st: "paid", payDate: "2 Nov 2025",
+      occupancy: 100, year: 936000, repairs: 0, leaseEnd: "Aug 2026", days: 280,
+      tone: "#c9a878"
+    }
+  ];
+
+  const PropCard = ({ p, active, onClick }) => (
+    <button className={"pp-card" + (active ? " active" : "")} onClick={onClick}>
+      <div className="pp-card-img" style={{background: `linear-gradient(135deg, ${p.tone}, #2c1c0e)`}}>
+        <span className={"pp-pill " + p.st}>{p.st === "paid" ? "PAID" : "DUE"}</span>
+        <div className="pp-card-img-meta">
+          <span>{p.city}</span>
+          <span>·</span>
+          <span>since {p.since}</span>
+        </div>
+      </div>
+      <div className="pp-card-body">
+        <div className="pp-card-area">{p.area}</div>
+        <div className="pp-card-addr">{p.addr}</div>
+        <div className="pp-card-foot">
+          <div>
+            <div className="pp-card-l">Tenant</div>
+            <div className="pp-card-v">{p.tenant.name}</div>
+          </div>
+          <div className="ar">
+            <div className="pp-card-l">Rent</div>
+            <div className="pp-card-v mono">₹{p.rent.toLocaleString("en-IN")}</div>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+
+  const Detail = ({ p }) => {
+    const recentLedger = [
+      { d: "05 Nov", t: "Rent received", amt: p.rent, st: "in" },
+      { d: "05 Nov", t: "HRA receipt issued · #2025-11", amt: 0, st: "doc" },
+      { d: "03 Nov", t: "Plumber visit · geyser leak", amt: -1800, st: "out" },
+      { d: "31 Oct", t: "Move-in anniversary · 28 mo", amt: 0, st: "sys" },
+      { d: "05 Oct", t: "Rent received", amt: p.rent, st: "in" },
+    ];
+    return (
+      <div className="pp-detail">
+        <div className="pp-hero" style={{background: `linear-gradient(135deg, ${p.tone}, #2c1c0e)`}}>
+          <div className="pp-hero-overlay">
+            <div className="pp-hero-top">
+              <div>
+                <div className="pp-hero-city">{p.city} · {p.area}</div>
+                <h2 className="pp-hero-h">{p.addr.split("·")[0].trim()}</h2>
+                <div className="pp-hero-sub">{p.addr.split("·").slice(1).join(" · ").trim()}</div>
+              </div>
+              <span className={"pp-hero-pill " + p.st}>
+                {p.st === "paid" ? "✓ PAID · NOV 2025" : "⏱ DUE IN 3 DAYS"}
+              </span>
+            </div>
+            <div className="pp-hero-stats">
+              <div><div className="l">RENT</div><div className="v">₹{p.rent.toLocaleString("en-IN")}<span>/mo</span></div></div>
+              <div><div className="l">DEPOSIT HELD</div><div className="v">₹{(p.deposit/1000).toFixed(0)}k</div></div>
+              <div><div className="l">YTD INCOME</div><div className="v">₹{(p.year/100000).toFixed(2)}L</div></div>
+              <div><div className="l">OCCUPANCY</div><div className="v">{p.occupancy}<span>%</span></div></div>
+              <div><div className="l">REPAIRS</div><div className="v">{p.repairs}</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="pp-detail-grid">
+          <section className="card pp-tenant-card">
+            <div className="card-head">
+              <div><h3>Current tenant</h3><span className="card-sub">Live for {Math.floor((new Date() - new Date(p.tenant.since)) / (1000*60*60*24*30))} months · sealed lease</span></div>
+              <button className="btn btn-ghost sm">Message</button>
+            </div>
+            <div className="pp-tenant-row">
+              <div className="pp-tenant-av">{p.tenant.initial}</div>
+              <div className="pp-tenant-info">
+                <div className="pp-tenant-name">{p.tenant.name}</div>
+                <div className="pp-tenant-meta">{p.tenant.phone} · since {p.tenant.since}</div>
+                <div className="pp-tenant-trust">
+                  <span className="pp-trust-pill">Aadhaar verified</span>
+                  <span className="pp-trust-pill">Move-in proof sealed</span>
+                  <span className="pp-trust-pill">{p.repairs} open</span>
+                </div>
+              </div>
+              <div className="pp-tenant-score">
+                <div className="pp-score-num">{p.tenant.score}</div>
+                <div className="pp-score-l">tenant score</div>
+              </div>
+            </div>
+          </section>
+
+          <section className="card pp-lease">
+            <div className="card-head">
+              <div><h3>Lease</h3><span className="card-sub">11-month · auto-renew</span></div>
+              <button className="btn btn-ghost sm">View PDF</button>
+            </div>
+            <div className="pp-lease-bar">
+              <div className="pp-lease-fill" style={{width: `${100 - (p.days/330*100)}%`}}/>
+              <div className="pp-lease-marker" style={{left: `${100 - (p.days/330*100)}%`}}/>
+            </div>
+            <div className="pp-lease-meta">
+              <div><div className="l">Started</div><div className="v">{p.tenant.since}</div></div>
+              <div><div className="l">Ends</div><div className="v">{p.leaseEnd}</div></div>
+              <div><div className="l">Days left</div><div className="v ochre">{p.days}</div></div>
+            </div>
+            <div className="pp-renew">
+              <div>
+                <b>Renewal nudge in {Math.max(0, p.days - 60)} days</b>
+                <i>We'll email both sides 60 days before expiry.</i>
+              </div>
+              <button className="btn btn-primary sm">Renew now</button>
+            </div>
+          </section>
+
+          <section className="card pp-quick">
+            <h3>Quick actions</h3>
+            <div className="pp-quick-grid">
+              <button className="pp-q"><span>📄</span><b>Issue HRA</b></button>
+              <button className="pp-q"><span>🛠</span><b>Log repair</b></button>
+              <button className="pp-q"><span>📨</span><b>Send nudge</b></button>
+              <button className="pp-q"><span>📷</span><b>Walk-through</b></button>
+              <button className="pp-q"><span>↩</span><b>Refund deposit</b></button>
+              <button className="pp-q"><span>✕</span><b>End tenancy</b></button>
+            </div>
+          </section>
+
+          <section className="card pp-ledger span-2">
+            <div className="card-head">
+              <div><h3>Recent activity</h3><span className="card-sub">Sealed · cannot be edited</span></div>
+              <button className="btn btn-ghost sm">Open full ledger →</button>
+            </div>
+            <table className="d-table">
+              <thead><tr><th>Date</th><th>Item</th><th style={{textAlign:"right"}}>Amount</th></tr></thead>
+              <tbody>
+                {recentLedger.map((r,i)=>(
+                  <tr key={i}>
+                    <td className="mono">{r.d}</td>
+                    <td><span className={"d-tag "+r.st}>{r.st==="in"?"IN":r.st==="out"?"OUT":r.st==="doc"?"DOC":"SYS"}</span> {r.t}</td>
+                    <td className={"mono right "+(r.amt>0?"pos":r.amt<0?"neg":"")}>{r.amt===0?"—":(r.amt>0?"+":"")+"₹"+Math.abs(r.amt).toLocaleString("en-IN")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+
+          <section className="card pp-photos">
+            <div className="card-head"><div><h3>Photos</h3><span className="card-sub">From move-in walk-through</span></div></div>
+            <div className="pp-photo-grid">
+              {[0,1,2,3,4,5].map(i=>(
+                <div key={i} className="pp-photo" style={{background: `linear-gradient(135deg, ${["#a87a4f","#c9a878","#9aa6a3","#a89280","#7a5d35","#5b3a20"][i]}, #2c1c0e)`}}/>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  };
+
+  const App = () => {
+    const [active, setActive] = useState("bandra");
+    const [view, setView] = useState("grid"); // grid | list
+    const items = [
+      {k:"home", icon:"⌂", label:"Overview"},
+      {k:"props", icon:"▦", label:"Properties", badge:"3", on: true},
+      {k:"led", icon:"≡", label:"Ledger"},
+      {k:"hra", icon:"₹", label:"Receipts"},
+      {k:"rep", icon:"⚙", label:"Repairs", badge:"1"},
+      {k:"sc", icon:"★", label:"Score"},
+    ];
+    const p = properties.find(x => x.id === active);
+
+    return (
+      <div className="d-shell">
+        <aside className="d-side">
+          <a href="marketing.html" className="d-logo"><Mark/><span>Renty<span className="ochre">Base</span></span></a>
+          <nav className="d-nav">
+            {items.map(it => (
+              <a key={it.k} href={it.k==="home"?"dashboard.html":"#"} className={"d-nav-item" + (it.on?" active":"")}>
+                <span className="d-nav-ico">{it.icon}</span>
+                <span>{it.label}</span>
+                {it.badge && <span className="d-badge">{it.badge}</span>}
+              </a>
+            ))}
+          </nav>
+          <div className="d-side-foot">
+            <div className="d-user">
+              <div className="d-avatar" style={{background:"linear-gradient(135deg,#0F4C5C,#163A47)"}}>P</div>
+              <div>
+                <div className="d-user-name">Priya Sharma</div>
+                <div className="d-user-meta">3 properties · Mumbai</div>
+              </div>
+            </div>
+            <a href="marketing.html" className="d-logout">Sign out</a>
+          </div>
+        </aside>
+
+        <main className="d-main">
+          <header className="d-top">
+            <div>
+              <div className="eyebrow" style={{marginBottom:6}}>
+                <a href="dashboard.html" style={{color:"inherit"}}>Dashboard</a> · Properties
+              </div>
+              <h1 className="d-h1">Properties.</h1>
+              <div className="d-sub">3 active · ₹1,74,000 / month combined · ₹20.88L expected for FY26.</div>
+            </div>
+            <div className="d-top-r">
+              <div className="d-search"><span>⌘K</span> Search</div>
+              <div className="d-toggle">
+                <button className={view==="grid"?"on":""} onClick={()=>setView("grid")}>▦ Grid</button>
+                <button className={view==="list"?"on":""} onClick={()=>setView("list")}>≡ List</button>
+              </div>
+              <button className="btn btn-primary sm">+ Add property</button>
+            </div>
+          </header>
+
+          {/* Summary strip */}
+          <section className="pp-summary">
+            <div className="pp-sum-tile">
+              <div className="l">PORTFOLIO</div>
+              <div className="v">3 <span>properties</span></div>
+              <div className="m">2 paid · 1 due in 3 days</div>
+            </div>
+            <div className="pp-sum-tile">
+              <div className="l">MONTHLY</div>
+              <div className="v">₹1,74,000</div>
+              <div className="m">₹1,40,000 collected · ₹34k pending</div>
+            </div>
+            <div className="pp-sum-tile">
+              <div className="l">FY 2025–26 INCOME</div>
+              <div className="v">₹14.2L<span> / ₹20.88L</span></div>
+              <div className="bar"><div style={{width:"68%"}}/></div>
+            </div>
+            <div className="pp-sum-tile">
+              <div className="l">DEPOSIT HELD</div>
+              <div className="v">₹5.22L</div>
+              <div className="m">across all 3 tenancies</div>
+            </div>
+          </section>
+
+          {/* Cards row */}
+          <section className="pp-list">
+            {properties.map(p => (
+              <PropCard key={p.id} p={p} active={p.id===active} onClick={()=>setActive(p.id)}/>
+            ))}
+          </section>
+
+          {/* Detail of selected */}
+          {p && <Detail p={p}/>}
+        </main>
+      </div>
+    );
+  };
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>

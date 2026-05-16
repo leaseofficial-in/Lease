@@ -19,11 +19,11 @@ const values = [
   },
   {
     title: 'Free is the only tier',
-    body: 'HRA receipts, deposit tracking, move-in proof, repair logs — everything is free. We don\'t believe the infrastructure of a rental relationship should require a subscription.',
+    body: 'HRA receipts, deposit tracking, move-in proof, repair logs. Everything is free. We don\'t believe the infrastructure of a rental relationship should require a subscription.',
   },
   {
     title: 'Permanence over convenience',
-    body: 'WhatsApp messages disappear. Spreadsheets get deleted. We build for permanence — tamper-proof photos, sealed records, and a ledger both sides can always access.',
+    body: 'WhatsApp messages disappear. Spreadsheets get deleted. We build for permanence: tamper-proof photos, sealed records, and a ledger both sides can always access.',
   },
   {
     title: 'Built for India',
@@ -44,7 +44,7 @@ export default function CompanyPage() {
             The rental record<br /><em style={{ fontStyle: 'italic', color: '#C97A3A' }}>India was missing.</em>
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.65, color: 'rgba(246,244,238,.75)', maxWidth: 580 }}>
-            RentyBase gives every Indian landlord and tenant a single shared record for their rental — from the first payment to the final deposit settlement. Free.
+            RentyBase gives every Indian landlord and tenant a single shared record: from the first payment to the final deposit settlement. Free.
           </p>
         </div>
       </section>
@@ -58,13 +58,13 @@ export default function CompanyPage() {
           </h2>
           <div style={{ fontSize: 16, lineHeight: 1.8, color: 'var(--rb-ink-2)', display: 'flex', flexDirection: 'column', gap: 20 }}>
             <p>
-              Most rental transactions in India happen with no shared record. A landlord sends a WhatsApp message confirming rent received. A tenant screenshots it. The deposit is tracked in a notebook. Move-in condition is undocumented. HRA receipts are generated manually in Word — or not at all.
+              Most rental transactions in India happen with no shared record. A landlord sends a WhatsApp message confirming rent received. A tenant screenshots it. The deposit is tracked in a notebook. Move-in condition is undocumented. HRA receipts are generated manually in Word. Or not at all.
             </p>
             <p>
               This creates predictable problems: disputes at move-out over damage that was pre-existing, confusion about deposit deductions, tenants unable to claim HRA exemption because receipts weren't issued on time, landlords with no legal documentation if a tenant stops paying.
             </p>
             <p>
-              RentyBase is a shared record layer for the rental relationship. Everything that matters — payments, receipts, photos, deposits, repairs — lives in one place both sides can always access. We don't take sides. We give both sides a record they can trust.
+              RentyBase is a shared record layer for the rental relationship. Payments, receipts, photos, deposits, repairs. All live in one place both sides can always access. We don't take sides. We give both sides a record they can trust.
             </p>
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function CompanyPage() {
                 Talk to us.
               </h2>
               <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--rb-ink-2)', marginBottom: 24 }}>
-                For product questions, partnership enquiries, or anything else — we read every email.
+                For product questions, partnership enquiries, or anything else. We read every email.
               </p>
               <a
                 href="mailto:hello@rentybase.com"
@@ -114,7 +114,7 @@ export default function CompanyPage() {
                 Your first rental is free.
               </h2>
               <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--rb-ink-2)', marginBottom: 24 }}>
-                No card, no trial period, no tiers. Sign up and start — your tenant joins free too.
+                No card, no trial period, no tiers. Sign up and start. Your tenant joins free too.
               </p>
               <a href="/signup" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }}>Start free →</a>
             </div>

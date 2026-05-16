@@ -693,7 +693,7 @@ export default function DashboardPage() {
           <div>
             <div style={eyebrowStyle}>Landlord · Overview</div>
             <h1 style={h1Style}>Good morning, {firstName}.</h1>
-            <p style={subStyle}>You have <strong>{activeRentals.length} active unit{activeRentals.length === 1 ? '' : 's'}</strong>{dueThisMonth > 0 ? <> — <strong>{inr(dueThisMonth)} pending</strong> this month</> : ' — all collections up to date'}. Score <strong>{score}/900</strong>.</p>
+            <p style={subStyle}>You have <strong>{activeRentals.length} active unit{activeRentals.length === 1 ? '' : 's'}</strong>{dueThisMonth > 0 ? <>: <strong>{inr(dueThisMonth)} pending</strong> this month</> : ', all collections up to date'}. Score <strong>{score}/900</strong>.</p>
           </div>
         </div>
         <div className="d-grid-inner" style={gridStyle}>
@@ -1166,7 +1166,7 @@ export default function DashboardPage() {
                 {Number(rental.monthly_rent) > 50000 && (
                   <div style={{ marginTop: 12 }}>
                     <div style={{ padding: '7px 12px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#ffaaaa', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Icon k="warning" size={13} stroke={2} /> Rent &gt;₹50,000/mo — you must deduct 2% TDS and file Form 26QC.
+                      <Icon k="warning" size={13} stroke={2} /> Rent &gt;₹50,000/mo. You must deduct 2% TDS and file Form 26QC.
                       <button onClick={() => setShowTDS(v => !v)} style={{ marginLeft: 'auto', background: 'transparent', border: 0, cursor: 'pointer', color: '#ffaaaa', fontFamily: 'inherit', fontSize: 11, fontWeight: 700 }}>
                         What is TDS? {showTDS ? '▴' : '▾'}
                       </button>
@@ -1614,7 +1614,7 @@ export default function DashboardPage() {
         )}
 
         {deductions.length > 0 && <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--rb-warning-soft)', borderRadius: 12, fontSize: 13, color: 'var(--rb-warning)', fontWeight: 500 }}>
-          <strong>Deductions from your deposit</strong> — tap any deduction to view details or file a dispute.
+          <strong>Deductions from your deposit</strong>. Tap any deduction to view details or file a dispute.
         </div>}
         <section style={cardStyle}>
           {transactions.length > 0 ? transactions.map(t => (
@@ -1660,7 +1660,7 @@ export default function DashboardPage() {
 
     const statusBanner = () => {
       if (isExecuted) return { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)', icon: 'check', text: `Fully executed · Tenant signed ${relDate(rental.agreement_signed_at)} · Landlord countersigned ${relDate(rental.landlord_signed_at)}` }
-      if (tenantSigned) return { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)', icon: 'clock', text: `You signed on ${relDate(rental.agreement_signed_at)} — awaiting landlord countersignature.` }
+      if (tenantSigned) return { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)', icon: 'clock', text: `You signed on ${relDate(rental.agreement_signed_at)}. Awaiting landlord countersignature.` }
       if (rental.agreement_status === 'pending_signature') return { bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)', icon: 'clipboard', text: 'Your landlord has sent this agreement for your signature. Read it fully before signing.' }
       return { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)', icon: 'file-text', text: 'Agreement is being prepared by your landlord.' }
     }
@@ -1783,7 +1783,7 @@ export default function DashboardPage() {
           <div style={{ marginTop: 20, padding: 16, background: 'var(--rb-action-soft)', borderRadius: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-action)', marginBottom: 6 }}>Next step</div>
             <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.55 }}>{scoreNudge(score, r.length)}</div>
-            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 8 }}>Score carries to your next rental — landlords see this.</div>
+            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 8 }}>Score carries to your next rental. Landlords see this.</div>
           </div>
         </section>
       </>
@@ -2007,7 +2007,7 @@ export default function DashboardPage() {
             <button onClick={() => setModal('add-building')} style={{ padding: 22, background: 'linear-gradient(135deg,#0E1413,#1a2e2c)', border: 0, borderRadius: 14, textAlign: 'left', cursor: 'pointer', color: '#F6F4EE' }}>
               <div style={{ marginBottom: 10, color: 'rgba(246,244,238,.85)' }}><Icon k="building" size={30} stroke={1.5} /></div>
               <div style={{ fontSize: 14, fontWeight: 700 }}>Building</div>
-              <div style={{ fontSize: 12, color: 'rgba(246,244,238,.6)', marginTop: 6, lineHeight: 1.55 }}>Apartments, PGs, or multi-unit complexes — manage all units together</div>
+              <div style={{ fontSize: 12, color: 'rgba(246,244,238,.6)', marginTop: 6, lineHeight: 1.55 }}>Apartments, PGs, or multi-unit complexes. Manage all units together</div>
             </button>
             <button onClick={() => setMode('standalone')} style={{ padding: 22, background: 'var(--rb-surface)', border: '1.5px solid var(--rb-border)', borderRadius: 14, textAlign: 'left', cursor: 'pointer', color: 'var(--rb-ink)' }}>
               <div style={{ marginBottom: 10, color: 'var(--rb-action)' }}><Icon k="home" size={30} stroke={1.5} /></div>
@@ -2792,7 +2792,7 @@ export default function DashboardPage() {
                   <div style={{ fontSize: 11, color: 'rgba(246,244,238,.25)' }}>Code and link expire together</div>
                   {confirmRegen ? (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: 'var(--rb-warning)' }}>Old link will stop working — continue?</span>
+                      <span style={{ fontSize: 12, color: 'var(--rb-warning)' }}>Old link will stop working. Continue?</span>
                       <button onClick={() => { setConfirmRegen(false); handleRegenerateLink() }} disabled={saving} style={{ fontSize: 12, color: 'var(--rb-danger)', background: 'none', border: 0, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>Yes, regenerate</button>
                       <button onClick={() => setConfirmRegen(false)} style={{ fontSize: 12, color: 'rgba(246,244,238,.45)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
                     </div>
@@ -3301,7 +3301,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 18 }}>
             {[
               ['floor',      'building', 'Floor prefix',  'Floor 1 → 101, 102 … Floor 2 → 201, 202 …'],
-              ['sequential', 'hash',     'Sequential',    'Simple numbers — 1, 2, 3 … 30'],
+              ['sequential', 'hash',     'Sequential',    'Simple numbers — 1, 2, 3 up to 30'],
               ['custom',     'edit',     'Custom prefix', 'e.g. "Room " → Room 1, Room 2 …'],
             ].map(([val, iconKey, label, hint]) => (
               <label key={val} onClick={() => setBulk(b => ({ ...b, pattern: val }))} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${bulk.pattern === val ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: bulk.pattern === val ? 'var(--rb-action-soft)' : 'transparent', cursor: 'pointer', transition: 'all .15s' }}>
@@ -3503,7 +3503,7 @@ export default function DashboardPage() {
       <Modal title="Edit profile" onClose={() => setModal(null)}>
         <Field label="Full name"><input style={inputStyle} value={form.full_name} onChange={set('full_name')} placeholder="Your full name" /></Field>
         <Field label="Phone number"><input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder="+91 98765 43210" /></Field>
-        <Field label={role === 'landlord' ? 'UPI ID — tenants pay you here' : 'UPI ID — for deposit refunds'}>
+        <Field label={role === 'landlord' ? 'UPI ID (tenants pay you here)' : 'UPI ID (for deposit refunds)'}>
           <input style={{ ...inputStyle, fontFamily: 'var(--rb-font-mono)' }} value={form.upi_id} onChange={set('upi_id')} placeholder="yourname@upi" />
         </Field>
         <Field label="PAN number (for HRA receipts)">
@@ -4003,7 +4003,7 @@ export default function DashboardPage() {
         </div>
         {alreadyDisputed
           ? <><div style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginBottom: 12 }}>Your dispute note:</div><div style={{ padding: 12, background: 'var(--rb-surface)', borderRadius: 10, fontSize: 14, lineHeight: 1.55 }}>{t.tenant_dispute_note}</div><div style={{ marginTop: 14, fontSize: 12, color: 'var(--rb-ink-3)' }}>Your landlord can see this. Disputes are resolved through direct discussion.</div></>
-          : <><Field label="Explain your dispute"><textarea style={{ ...inputStyle, minHeight: 90, resize: 'vertical' as const }} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. The damage was pre-existing and documented in my move-in photos…" /></Field><p style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginBottom: 16 }}>Your note will be visible to your landlord. Disputes are resolved through discussion — this creates a written record.</p><button onClick={handleSubmit} disabled={saving || !note.trim()} style={{ width: '100%', padding: '11px 0', borderRadius: 999, background: 'var(--rb-danger,#EF4444)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Filing…' : 'File dispute'}</button></>
+          : <><Field label="Explain your dispute"><textarea style={{ ...inputStyle, minHeight: 90, resize: 'vertical' as const }} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. The damage was pre-existing and documented in my move-in photos…" /></Field><p style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginBottom: 16 }}>Your note will be visible to your landlord. Disputes are resolved through discussion. This creates a written record.</p><button onClick={handleSubmit} disabled={saving || !note.trim()} style={{ width: '100%', padding: '11px 0', borderRadius: 999, background: 'var(--rb-danger,#EF4444)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Filing…' : 'File dispute'}</button></>
         }
       </Modal>
     )
@@ -4158,7 +4158,7 @@ export default function DashboardPage() {
             <div style={emptyStyle}>
               <div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="inbox" size={32} stroke={1.5} /></div>
               <p style={{ fontWeight: 600, marginBottom: 4 }}>All caught up</p>
-              <p style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>New tenant activity will appear here — payments, move-in photos, repairs.</p>
+              <p style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>New tenant activity will appear here. Payments, move-in photos, repairs.</p>
             </div>
           ) : (
             notifications.map(n => {

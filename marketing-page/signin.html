@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in · RentyBase</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg"/>
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="signup.css"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body class="signup-body">
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+  const { useState, useRef } = React;
+
+  const Mark = ({ size = 32 }) => (
+    <svg viewBox="0 0 40 40" width={size} height={size}>
+      <rect width="40" height="40" rx="9" fill="#0E1413"/>
+      <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
+      <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
+      <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+      <circle cx="20" cy="11" r="0.9" fill="#C97A3A"/>
+    </svg>
+  );
+
+  const App = () => {
+    const [stage, setStage] = useState("phone"); // phone | otp
+    const [phone, setPhone] = useState("");
+    const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+    const refs = useRef([]);
+    const phoneOK = phone.replace(/\D/g, "").length === 10;
+    const otpOK = otp.every(d => d !== "");
+    const onOtp = (i, v) => {
+      const d = v.replace(/\D/g, "").slice(-1);
+      const arr = [...otp]; arr[i] = d; setOtp(arr);
+      if (d && i < 5) refs.current[i+1]?.focus();
+    };
+    const onOtpKey = (i, e) => {
+      if (e.key === "Backspace" && !otp[i] && i > 0) refs.current[i-1]?.focus();
+    };
+
+    return (
+      <div className="sb-shell">
+        <aside className="sb-pane">
+          <a href="marketing.html" className="sb-logo">
+            <Mark/>
+            <span>Renty<span className="ochre">Base</span></span>
+          </a>
+          <div className="sb-hero">
+            <div className="sb-eyebrow">Welcome back</div>
+            <h1 className="sb-h1">Your record,<br/><em>still here.</em></h1>
+            <p className="sb-sub">Every receipt, every photo, every signature — exactly where you left it. One quiet ledger, both sides looking at the same page.</p>
+            <div className="sb-flow">
+              <div className="sb-step"><div className="sb-num">→</div><div className="sb-line">Same number</div></div>
+              <div className="sb-step"><div className="sb-num">→</div><div className="sb-line">One OTP</div></div>
+              <div className="sb-step"><div className="sb-num">→</div><div className="sb-line">Right where you left off.</div></div>
+            </div>
+          </div>
+          <div className="sb-footer">
+            <div className="sb-trust">
+              <div className="sb-trust-row">
+                <span className="sb-pill">No password to forget</span>
+                <span className="sb-pill">OTP every login</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <main className="sb-form-pane">
+          <div className="sb-progress">
+            <div className="sb-progress-track"><div className="sb-progress-fill" style={{ width: stage === "phone" ? "50%" : "100%" }}/></div>
+            <div className="sb-progress-meta">
+              <span>{stage === "phone" ? "Sign in" : "Verify OTP"}</span>
+              <span className="sb-meta-right">
+                <a href="signup.html" className="sb-signin-link">New here? <b>Create account</b></a>
+                <a href="marketing.html" className="sb-back-link">← Home</a>
+              </span>
+            </div>
+          </div>
+
+          <div className="sb-form-wrap">
+            {stage === "phone" && (
+              <div className="sb-step-card">
+                <div className="sb-step-tag">Sign in</div>
+                <h2 className="sb-step-h">Enter your <em style={{fontStyle:"italic", color:"var(--rb-accent)"}}>phone</em> to continue.</h2>
+                <p className="sb-step-p">We'll send a one-time code. No passwords on RentyBase, ever.</p>
+
+                <div className="sb-fields" style={{marginTop: 28}}>
+                  <label className="sb-field">
+                    <span className="sb-label">Mobile · India</span>
+                    <div className="sb-phone">
+                      <span className="sb-phone-cc">🇮🇳 +91</span>
+                      <input type="tel" autoFocus placeholder="98xxx xxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={11}/>
+                    </div>
+                  </label>
+                </div>
+
+                <button className="btn btn-primary sb-cta" onClick={() => setStage("otp")} disabled={!phoneOK} type="button">
+                  Send OTP <span className="arr">→</span>
+                </button>
+
+                <div className="sb-divider"><span>or sign in with</span></div>
+
+                <div className="sb-oauth">
+                  <button className="sb-oauth-btn" type="button">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M22.5 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.9a5.05 5.05 0 0 1-2.18 3.31v2.75h3.53c2.07-1.9 3.25-4.7 3.25-8.09z"/><path fill="#34A853" d="M12 23c2.94 0 5.4-.98 7.2-2.64l-3.53-2.75c-.97.65-2.22 1.04-3.67 1.04-2.83 0-5.22-1.91-6.07-4.48H2.28v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC04" d="M5.93 14.17a6.6 6.6 0 0 1 0-4.34V6.99H2.28a11 11 0 0 0 0 10.02l3.65-2.84z"/><path fill="#EA4335" d="M12 5.5c1.6 0 3.03.55 4.16 1.63l3.12-3.12A11 11 0 0 0 12 1 11 11 0 0 0 2.28 6.99l3.65 2.84C6.78 7.41 9.17 5.5 12 5.5z"/></svg>
+                    Google
+                  </button>
+                  <button className="sb-oauth-btn" type="button">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#0E1413" d="M16.84 12.71c-.03-2.93 2.39-4.34 2.5-4.41-1.36-2-3.49-2.27-4.24-2.3-1.81-.18-3.53 1.06-4.45 1.06-.93 0-2.34-1.04-3.85-1.01-1.98.03-3.81 1.15-4.83 2.92-2.06 3.58-.53 8.86 1.48 11.77.98 1.42 2.15 3.02 3.69 2.96 1.48-.06 2.04-.96 3.83-.96 1.78 0 2.29.96 3.86.93 1.6-.03 2.6-1.45 3.57-2.88 1.13-1.65 1.59-3.26 1.62-3.34-.04-.02-3.1-1.19-3.13-4.74M14.13 4.07c.81-.99 1.36-2.36 1.21-3.73-1.17.05-2.59.78-3.43 1.76-.75.87-1.41 2.27-1.23 3.6 1.31.1 2.64-.66 3.45-1.63"/></svg>
+                    Apple
+                  </button>
+                  <button className="sb-oauth-btn" style={{gridColumn:"1 / -1"}} type="button">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="11" fill="#FF6B35"/><text x="12" y="17" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontSize="13" fontWeight="800" fill="#fff">D</text></svg>
+                    DigiLocker (Aadhaar e-KYC)
+                  </button>
+                </div>
+
+                <div className="sb-fineprint">Trouble signing in? <a href="#">Recover via email</a> · <a href="#">Contact support</a></div>
+              </div>
+            )}
+
+            {stage === "otp" && (
+              <div className="sb-step-card">
+                <div className="sb-step-tag">Verify</div>
+                <h2 className="sb-step-h">Enter the OTP.</h2>
+                <p className="sb-step-p">Sent to <b>+91 {phone}</b>. Valid for 5 minutes.</p>
+                <div className="sb-otp">
+                  {otp.map((d, i) => (
+                    <input key={i} ref={(el) => (refs.current[i] = el)}
+                      className="sb-otp-cell" inputMode="numeric" maxLength={1}
+                      value={d} onChange={(e) => onOtp(i, e.target.value)} onKeyDown={(e) => onOtpKey(i, e)}/>
+                  ))}
+                </div>
+                <div className="sb-otp-meta">
+                  <span>Didn't receive it? <a href="#">Resend in 0:42</a></span>
+                  <span><a href="#">Call me instead</a></span>
+                </div>
+                <div className="sb-actions">
+                  <button className="btn btn-ghost" onClick={() => setStage("phone")} type="button">← Use a different number</button>
+                  <button className="btn btn-primary sb-cta-inline" disabled={!otpOK} type="button"
+                    onClick={() => alert("Welcome back to RentyBase!")}>
+                    Sign in <span className="arr">→</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  };
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>

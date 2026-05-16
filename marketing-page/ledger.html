@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Ledger · RentyBase</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg"/>
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="dashboard.css"/>
+  <link rel="stylesheet" href="ledger.css"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body class="dash-body">
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+  const { useState, useMemo } = React;
+
+  const Mark = ({size=28}) => (
+    <svg viewBox="0 0 40 40" width={size} height={size}>
+      <rect width="40" height="40" rx="9" fill="#0E1413"/>
+      <path d="M20 7 L34 19 V31 a3 3 0 0 1 -3 3 H9 a3 3 0 0 1 -3 -3 V19 Z" fill="#F6F4EE"/>
+      <path d="M13 34 V25 a7 7 0 0 1 14 0 V34 Z" fill="#0E1413"/>
+      <rect x="13" y="33" width="14" height="1.4" fill="#C97A3A"/>
+    </svg>
+  );
+
+  // ── Ledger entries ──
+  const entries = [
+    { id:"L-2025-1187", d:"05 Nov 2025", time:"10:42 AM", t:"Rent received", who:"Aarav Mehta", prop:"Bandra 2BHK", amt:62000, st:"in", method:"UPI · HDFC Bank", ref:"UPI/532109884", sealed:true },
+    { id:"L-2025-1186", d:"05 Nov 2025", time:"10:42 AM", t:"HRA receipt issued · #2025-11-87", who:"Aarav Mehta", prop:"Bandra 2BHK", amt:0, st:"doc", method:"Auto-generated", ref:"PDF · 1 page", sealed:true },
+    { id:"L-2025-1183", d:"03 Nov 2025", time:"04:18 PM", t:"Plumber visit · geyser leak", who:"Vendor: SureFix", prop:"Bandra 2BHK", amt:-1800, st:"out", method:"UPI · split with tenant", ref:"REPAIR-2025-441", sealed:true },
+    { id:"L-2025-1180", d:"02 Nov 2025", time:"09:14 AM", t:"Rent received", who:"Vikram Krishnan", prop:"HSR 3BHK", amt:78000, st:"in", method:"UPI · ICICI Bank", ref:"UPI/981002193", sealed:true },
+    { id:"L-2025-1179", d:"02 Nov 2025", time:"09:14 AM", t:"HRA receipt issued · #2025-11-86", who:"Vikram Krishnan", prop:"HSR 3BHK", amt:0, st:"doc", method:"Auto-generated", ref:"PDF · 1 page", sealed:true },
+    { id:"L-2025-1175", d:"31 Oct 2025", time:"06:32 PM", t:"Move-in proof submitted · 12 photos", who:"Aarav Mehta", prop:"Bandra 2BHK", amt:0, st:"doc", method:"Geo-tagged · Mumbai", ref:"PROOF-487-MIP", sealed:true },
+    { id:"L-2025-1170", d:"30 Oct 2025", time:"08:00 AM", t:"5-day reminder sent", who:"Sneha Rao", prop:"Koregaon 1BHK", amt:0, st:"sys", method:"SMS + Email", ref:"NUDGE-2025-117", sealed:true },
+    { id:"L-2025-1165", d:"28 Oct 2025", time:"02:11 PM", t:"Repair logged · AC servicing", who:"Sneha Rao", prop:"Koregaon 1BHK", amt:0, st:"sys", method:"Tenant raised", ref:"REPAIR-2025-440", sealed:true },
+    { id:"L-2025-1160", d:"15 Oct 2025", time:"11:48 AM", t:"Society maintenance", who:"Mahogany Apts", prop:"HSR 3BHK", amt:-4200, st:"out", method:"UPI · ICICI Bank", ref:"SOC-OCT-2025", sealed:true },
+    { id:"L-2025-1155", d:"05 Oct 2025", time:"11:02 AM", t:"Rent received", who:"Aarav Mehta", prop:"Bandra 2BHK", amt:62000, st:"in", method:"UPI · HDFC Bank", ref:"UPI/532008211", sealed:true },
+    { id:"L-2025-1154", d:"05 Oct 2025", time:"11:02 AM", t:"HRA receipt issued · #2025-10-87", who:"Aarav Mehta", prop:"Bandra 2BHK", amt:0, st:"doc", method:"Auto-generated", ref:"PDF · 1 page", sealed:true },
+    { id:"L-2025-1150", d:"05 Oct 2025", time:"08:33 AM", t:"Rent received", who:"Sneha Rao", prop:"Koregaon 1BHK", amt:34000, st:"in", method:"UPI · Axis Bank", ref:"UPI/118827331", sealed:true },
+    { id:"L-2025-1149", d:"05 Oct 2025", time:"08:33 AM", t:"HRA receipt issued · #2025-10-90", who:"Sneha Rao", prop:"Koregaon 1BHK", amt:0, st:"doc", method:"Auto-generated", ref:"PDF · 1 page", sealed:true },
+    { id:"L-2025-1145", d:"02 Oct 2025", time:"10:11 AM", t:"Rent received", who:"Vikram Krishnan", prop:"HSR 3BHK", amt:78000, st:"in", method:"UPI · ICICI Bank", ref:"UPI/980821221", sealed:true },
+  ];
+
+  const properties = ["All properties","Bandra 2BHK","HSR 3BHK","Koregaon 1BHK"];
+  const types = [
+    {k:"all", l:"All", c:"#0E1413"},
+    {k:"in", l:"Money in", c:"#1F8A5B"},
+    {k:"out", l:"Money out", c:"#B8740F"},
+    {k:"doc", l:"Documents", c:"#C97A3A"},
+    {k:"sys", l:"System", c:"#7a7a78"},
+  ];
+
+  const App = () => {
+    const [tab, setTab] = useState("all");
+    const [prop, setProp] = useState("All properties");
+    const [search, setSearch] = useState("");
+    const [selected, setSelected] = useState(entries[0].id);
+
+    const filtered = useMemo(() => entries.filter(e =>
+      (tab === "all" || e.st === tab) &&
+      (prop === "All properties" || e.prop === prop) &&
+      (search === "" || (e.t + e.who + e.prop + e.id).toLowerCase().includes(search.toLowerCase()))
+    ), [tab, prop, search]);
+
+    const sumIn = entries.filter(e => e.st === "in").reduce((a,b)=>a+b.amt, 0);
+    const sumOut = entries.filter(e => e.st === "out").reduce((a,b)=>a+b.amt, 0);
+    const docs = entries.filter(e => e.st === "doc").length;
+
+    const e = entries.find(x => x.id === selected);
+
+    return (
+      <div className="d-shell">
+        <aside className="d-side">
+          <a href="marketing.html" className="d-logo"><Mark/><span>Renty<span className="ochre">Base</span></span></a>
+          <nav className="d-nav">
+            <a href="dashboard.html" className="d-nav-item"><span className="d-nav-ico">⌂</span><span>Overview</span></a>
+            <a href="properties.html" className="d-nav-item"><span className="d-nav-ico">▦</span><span>Properties</span><span className="d-badge">3</span></a>
+            <a href="#" className="d-nav-item active"><span className="d-nav-ico">≡</span><span>Ledger</span></a>
+            <a href="#" className="d-nav-item"><span className="d-nav-ico">₹</span><span>Receipts</span></a>
+            <a href="#" className="d-nav-item"><span className="d-nav-ico">⚙</span><span>Repairs</span><span className="d-badge">1</span></a>
+            <a href="#" className="d-nav-item"><span className="d-nav-ico">★</span><span>Score</span></a>
+          </nav>
+          <div className="d-side-foot">
+            <div className="d-user">
+              <div className="d-avatar" style={{background:"linear-gradient(135deg,#0F4C5C,#163A47)"}}>P</div>
+              <div>
+                <div className="d-user-name">Priya Sharma</div>
+                <div className="d-user-meta">3 properties · Mumbai</div>
+              </div>
+            </div>
+            <a href="marketing.html" className="d-logout">Sign out</a>
+          </div>
+        </aside>
+
+        <main className="d-main">
+          <header className="d-top">
+            <div>
+              <div className="eyebrow" style={{marginBottom:6}}>
+                <a href="dashboard.html" style={{color:"inherit"}}>Dashboard</a> · Ledger
+              </div>
+              <h1 className="d-h1">Activity ledger.</h1>
+              <div className="d-sub">Every rupee, every signature, every photo. <b>Sealed</b> — nothing here can be edited or deleted.</div>
+            </div>
+            <div className="d-top-r">
+              <div className="d-search ld-search">
+                <input placeholder="Search ledger · ID, tenant, property…" value={search} onChange={e=>setSearch(e.target.value)}/>
+              </div>
+              <button className="btn btn-ghost sm">⤓ Export CSV</button>
+              <button className="btn btn-primary sm">+ Manual entry</button>
+            </div>
+          </header>
+
+          {/* Sealed banner */}
+          <div className="ld-banner">
+            <svg viewBox="0 0 40 40" width="36" height="36" aria-hidden="true">
+              <circle cx="20" cy="20" r="17" fill="none" stroke="#C97A3A" strokeWidth="1.4"/>
+              <circle cx="20" cy="20" r="13" fill="none" stroke="#C97A3A" strokeWidth=".7" strokeDasharray="1.2 1.6"/>
+              <path d="M13 20 l5 5 l9 -10" fill="none" stroke="#C97A3A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <div className="ld-banner-text">
+              <b>Append-only ledger</b>
+              <span>Both you and your tenant see exactly the same record. Each row is timestamped and cryptographically sealed; corrections happen as new entries, never edits.</span>
+            </div>
+            <div className="ld-banner-stamp">
+              <div className="mono">CHAIN HEAD</div>
+              <div className="mono ld-hash">a7c…2f91 · #1187</div>
+            </div>
+          </div>
+
+          {/* Stat tiles */}
+          <section className="ld-stats">
+            <div className="ld-stat">
+              <div className="l">FY 2025–26 RECEIVED</div>
+              <div className="v">₹14,20,000</div>
+              <div className="m"><span className="dot in"/> {entries.filter(e=>e.st==="in").length} payments · 100% on time this month</div>
+            </div>
+            <div className="ld-stat">
+              <div className="l">EXPENSES</div>
+              <div className="v">₹6,000<span> ytd</span></div>
+              <div className="m"><span className="dot out"/> 2 repairs · 1 society maintenance</div>
+            </div>
+            <div className="ld-stat">
+              <div className="l">DOCUMENTS</div>
+              <div className="v">{docs} <span>sealed</span></div>
+              <div className="m"><span className="dot doc"/> HRA receipts &amp; move-in proofs</div>
+            </div>
+            <div className="ld-stat">
+              <div className="l">NEXT EXPECTED</div>
+              <div className="v ochre">₹34,000</div>
+              <div className="m">Sneha Rao · Koregaon · in 3 days</div>
+            </div>
+          </section>
+
+          {/* Filters */}
+          <div className="ld-filters">
+            <div className="ld-tabs">
+              {types.map(t=>(
+                <button key={t.k} className={"ld-tab " + (tab===t.k?"on":"")} onClick={()=>setTab(t.k)}>
+                  <span className="ld-dot" style={{background:t.c}}/>{t.l}
+                  <span className="ld-count">{t.k==="all"?entries.length:entries.filter(e=>e.st===t.k).length}</span>
+                </button>
+              ))}
+            </div>
+            <div className="ld-controls">
+              <select value={prop} onChange={e=>setProp(e.target.value)}>
+                {properties.map(p=><option key={p}>{p}</option>)}
+              </select>
+              <select defaultValue="all">
+                <option>All time</option>
+                <option>This month</option>
+                <option>Last 90 days</option>
+                <option>FY 2025–26</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Two-column: ledger list + detail */}
+          <div className="ld-split">
+            <section className="card ld-list-card">
+              <div className="ld-list-head">
+                <span>{filtered.length} entries</span>
+                <span className="ld-meta">Newest first · timestamped IST</span>
+              </div>
+              <div className="ld-list">
+                {filtered.length === 0 && <div className="ld-empty">No entries match those filters.</div>}
+                {filtered.map(en => (
+                  <button key={en.id} className={"ld-row" + (en.id===selected?" sel":"")} onClick={()=>setSelected(en.id)}>
+                    <div className="ld-row-left">
+                      <div className="ld-row-d">
+                        <div className="ld-row-day">{en.d.split(" ")[0]}</div>
+                        <div className="ld-row-month">{en.d.split(" ")[1]}</div>
+                      </div>
+                      <span className={"d-tag " + en.st}>{en.st==="in"?"IN":en.st==="out"?"OUT":en.st==="doc"?"DOC":"SYS"}</span>
+                    </div>
+                    <div className="ld-row-mid">
+                      <div className="ld-row-t">{en.t}</div>
+                      <div className="ld-row-who">{en.who} · {en.prop}</div>
+                    </div>
+                    <div className="ld-row-r">
+                      {en.amt !== 0 ? (
+                        <div className={"ld-row-amt mono " + (en.amt>0?"pos":"neg")}>
+                          {en.amt>0?"+":""}₹{Math.abs(en.amt).toLocaleString("en-IN")}
+                        </div>
+                      ) : <div className="ld-row-amt mono muted">—</div>}
+                      <div className="ld-row-id mono">{en.id}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="ld-list-foot">
+                <span>Showing 1–{filtered.length} of {entries.length}</span>
+                <div className="ld-pages">
+                  <button>← Older</button>
+                  <button className="on">1</button>
+                  <button>2</button>
+                  <button>3</button>
+                  <button>Newer →</button>
+                </div>
+              </div>
+            </section>
+
+            {/* Detail panel */}
+            {e && (
+              <aside className="card ld-detail">
+                <div className="ld-detail-head">
+                  <span className={"d-tag " + e.st}>{e.st==="in"?"IN":e.st==="out"?"OUT":e.st==="doc"?"DOC":"SYS"}</span>
+                  <span className="ld-detail-id mono">{e.id}</span>
+                  <span className="ld-detail-seal">✓ sealed</span>
+                </div>
+                <h2 className="ld-detail-t">{e.t}</h2>
+                {e.amt !== 0 && (
+                  <div className={"ld-detail-amt " + (e.amt>0?"pos":"neg")}>
+                    {e.amt>0?"+":""}₹{Math.abs(e.amt).toLocaleString("en-IN")}
+                  </div>
+                )}
+
+                <dl className="ld-detail-grid">
+                  <div><dt>When</dt><dd>{e.d} · {e.time}</dd></div>
+                  <div><dt>Counterparty</dt><dd>{e.who}</dd></div>
+                  <div><dt>Property</dt><dd>{e.prop}</dd></div>
+                  <div><dt>Method</dt><dd>{e.method}</dd></div>
+                  <div><dt>Reference</dt><dd className="mono">{e.ref}</dd></div>
+                  <div><dt>Visible to</dt><dd>You · {e.who.split("·")[0]}</dd></div>
+                </dl>
+
+                <div className="ld-chain">
+                  <div className="ld-chain-head">
+                    <span className="mono">CHAIN OF CUSTODY</span>
+                    <span className="mono muted">3 events</span>
+                  </div>
+                  <div className="ld-chain-step">
+                    <span className="ld-step-dot done"/>
+                    <div>
+                      <b>Created</b>
+                      <span className="mono">{e.d} · {e.time} · auto</span>
+                    </div>
+                  </div>
+                  <div className="ld-chain-step">
+                    <span className="ld-step-dot done"/>
+                    <div>
+                      <b>Signed by both parties</b>
+                      <span className="mono">+2s · Aadhaar e-sign</span>
+                    </div>
+                  </div>
+                  <div className="ld-chain-step">
+                    <span className="ld-step-dot done ochre"/>
+                    <div>
+                      <b>Sealed to chain</b>
+                      <span className="mono">a7c1f0…892a · block #1187</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="ld-detail-actions">
+                  <button className="btn btn-primary sm">View receipt PDF</button>
+                  <button className="btn btn-ghost sm">Add note</button>
+                  <button className="btn btn-ghost sm">Dispute</button>
+                </div>
+              </aside>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  };
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>

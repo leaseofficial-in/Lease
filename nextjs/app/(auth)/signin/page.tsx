@@ -175,7 +175,7 @@ export default function SignInPage() {
               still <em style={{ fontStyle: 'italic', color: 'var(--rb-accent)' }}>here.</em>
             </h1>
             <p style={{ fontSize: 16, lineHeight: 1.65, color: 'rgba(246,244,238,.78)', maxWidth: 480, marginTop: 24 }}>
-              Every receipt, every photo, every signature — exactly where you left it. Nothing expires. Nothing disappears.
+              Every receipt, every photo, every signature. Exactly where you left it. Nothing expires. Nothing disappears.
             </p>
             <div style={{ marginTop: 40, display: 'flex', flexDirection: 'column', gap: 14, borderLeft: '1px solid rgba(201,122,58,.4)', paddingLeft: 20, maxWidth: 360 }}>
               {['Same Google account', 'One click', 'Right where you left off'].map((line, i) => (
@@ -197,7 +197,7 @@ export default function SignInPage() {
               <blockquote style={{ fontFamily: 'var(--rb-font-display)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.5, color: 'rgba(246,244,238,.8)', position: 'relative', paddingLeft: 18 }}>
                 <span style={{ position: 'absolute', left: -4, top: -4, fontSize: 32, color: 'var(--rb-accent)', fontStyle: 'normal' }}>"</span>
                 I moved three times and every receipt was still there. Incredible.
-                <cite style={{ display: 'block', marginTop: 8, fontStyle: 'normal', fontFamily: 'var(--rb-font-sans)', fontSize: 12, color: 'rgba(246,244,238,.5)', letterSpacing: '.04em' }}>— Tenant, Hyderabad</cite>
+                <cite style={{ display: 'block', marginTop: 8, fontStyle: 'normal', fontFamily: 'var(--rb-font-sans)', fontSize: 12, color: 'rgba(246,244,238,.5)', letterSpacing: '.04em' }}>· Tenant, Hyderabad</cite>
               </blockquote>
             </div>
             <Seal />
