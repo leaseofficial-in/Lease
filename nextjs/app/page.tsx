@@ -1230,7 +1230,7 @@ export default function Page() {
             <div className="foot-meta">&copy; 2026 RentyBase Technologies Pvt Ltd · Section 10(13A) compliant · No data sold, ever.</div>
             <div className="foot-stamp">
               <svg viewBox="0 0 80 80" width="40" height="40"><circle cx="40" cy="40" r="36" fill="none" stroke="#C97A3A" strokeWidth="1.5" /><circle cx="40" cy="40" r="30" fill="none" stroke="#C97A3A" strokeWidth=".7" strokeDasharray="1.5 2" /><text x="40" y="44" textAnchor="middle" fontFamily="Instrument Serif,serif" fontSize="13" fill="#C97A3A">RB</text></svg>
-              <span>Sealed for India · Made by humans on Earth</span>
+              <span>Sealed for India · Founded by Akhil Madhavaram · Made by humans on Earth</span>
             </div>
           </div>
         </footer>
