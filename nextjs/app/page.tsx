@@ -1125,7 +1125,7 @@ function MMFoot() {
         </svg>
         <span>Renty<em>Base</em></span>
       </div>
-      <p className="tag">A shared, calm record between landlord and tenant. Built in Bengaluru, for India.</p>
+      <p className="tag">A shared, calm record between landlord and tenant. Made for India.</p>
       <div className="links">
         <div>
           <h4>Product</h4>
@@ -1217,7 +1217,7 @@ export default function Page() {
           <div className="container foot-grid">
             <div className="foot-brand">
               <div className="foot-mark"><LogoMark size={40} /><span className="foot-word">Renty<span className="ochre">Base</span></span></div>
-              <p className="foot-tag">A shared, calm record between landlord and tenant. Built in Bengaluru, for India.</p>
+              <p className="foot-tag">A shared, calm record between landlord and tenant. Made for India.</p>
               <div className="foot-mini"><span className="dot-pulse" /> Free during beta · v0.4</div>
             </div>
             <div className="foot-col">

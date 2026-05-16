@@ -36,6 +36,15 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user && isAuthPage) {
+    if (path === '/signup') {
+      // New users return to /signup after OAuth with no role yet — let them through
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      if (!profile?.role) return supabaseResponse
+    }
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
