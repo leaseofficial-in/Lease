@@ -714,7 +714,7 @@ function MMHero() {
       <p>A shared, calm record between landlord and tenant. Built for India. One ledger, both sides, forever.</p>
       <div className="ctas">
         <a href="/signup" className="mm-btn">Start free <span className="arr">→</span></a>
-        <a href="/signin" className="mm-btn ghost">I&apos;m a tenant</a>
+        <a href="/signin" className="mm-btn ghost">Sign in</a>
       </div>
       <div className="mm-stage" ref={stageRef as React.RefObject<HTMLDivElement>}>
         <div className="mm-float r1" data-px="-1.4">
@@ -1106,7 +1106,7 @@ function MMCTA() {
       <p>Free during beta. All features, no card. Export your data any time.</p>
       <div className="ctas">
         <a href="/signup" className="mm-btn ochre">Add a property <span className="arr">→</span></a>
-        <a href="/signin" className="mm-btn ghost">I&apos;m a tenant</a>
+        <a href="/signin" className="mm-btn ghost">Sign in</a>
       </div>
     </section>
   )
@@ -1142,11 +1142,19 @@ function MMFoot() {
           <a href="/contact">Contact</a>
         </div>
       </div>
+      <div className="links" style={{ marginTop: 0 }}>
+        <div>
+          <h4>Account</h4>
+          <a href="/signup">Start free</a>
+          <a href="/signin">Sign in</a>
+        </div>
+      </div>
       <div className="rule"/>
       <div className="meta">
         <span>© 2026 RENTYBASE TECH PVT LTD</span>
         <span>SECTION 10(13A) COMPLIANT</span>
-        <span>NO DATA SOLD, EVER · BUILT IN BLR</span>
+        <span>NO DATA SOLD, EVER</span>
+        <span>FOUNDED BY AKHIL MADHAVARAM</span>
       </div>
     </footer>
   )
