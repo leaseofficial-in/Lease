@@ -234,6 +234,54 @@ export default function DashboardPage() {
 
   const refreshData = useCallback(() => setRefreshKey(k => k + 1), [])
 
+  // ── Pull-to-refresh ───────────────────────────────────────────────────────
+  const pullStartY = useRef(0)
+  const [pullProgress, setPullProgress] = useState(0) // 0–1
+  const [pullRefreshing, setPullRefreshing] = useState(false)
+  const modalOpenRef = useRef(false)
+  useEffect(() => { modalOpenRef.current = !!modal }, [modal])
+
+  useEffect(() => {
+    const THRESHOLD = 72
+    let tracking = false
+    let currentProgress = 0
+
+    function onStart(e: TouchEvent) {
+      if (window.scrollY > 2 || modalOpenRef.current) return
+      pullStartY.current = e.touches[0].clientY
+      tracking = true
+    }
+    function onMove(e: TouchEvent) {
+      if (!tracking) return
+      const dy = e.touches[0].clientY - pullStartY.current
+      if (dy <= 0) { tracking = false; setPullProgress(0); return }
+      currentProgress = Math.min(1, dy / THRESHOLD)
+      setPullProgress(currentProgress)
+      if (dy > 6) e.preventDefault()
+    }
+    function onEnd() {
+      if (!tracking) return
+      tracking = false
+      if (currentProgress >= 1) {
+        setPullRefreshing(true)
+        refreshData()
+        setTimeout(() => { setPullRefreshing(false); setPullProgress(0); currentProgress = 0 }, 1200)
+      } else {
+        setPullProgress(0)
+        currentProgress = 0
+      }
+    }
+
+    document.addEventListener('touchstart', onStart, { passive: true })
+    document.addEventListener('touchmove', onMove, { passive: false })
+    document.addEventListener('touchend', onEnd, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onStart)
+      document.removeEventListener('touchmove', onMove)
+      document.removeEventListener('touchend', onEnd)
+    }
+  }, [refreshData])
+
   // ── Init & data fetch ────────────────────────────────────────────────────
   useEffect(() => {
     ;(async () => {
@@ -4297,6 +4345,30 @@ export default function DashboardPage() {
           .m-tabs{display:none!important}
         }
       `}</style>
+
+      {/* Pull-to-refresh indicator */}
+      {(pullProgress > 0 || pullRefreshing) && (
+        <div style={{
+          position: 'fixed', top: 56, left: '50%', zIndex: 250,
+          transform: `translateX(-50%) translateY(${pullRefreshing ? '8px' : `${-50 + pullProgress * 58}px`})`,
+          width: 36, height: 36, borderRadius: '50%',
+          background: 'var(--rb-canvas)', border: '1px solid var(--rb-border)',
+          boxShadow: '0 4px 16px rgba(14,20,19,.15)',
+          display: 'grid', placeItems: 'center',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="var(--rb-action)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{
+              transform: pullRefreshing ? 'none' : `rotate(${pullProgress * 180}deg)`,
+              animation: pullRefreshing ? 'spin .7s linear infinite' : 'none',
+            }}>
+            {pullRefreshing
+              ? <path d="M21 12a9 9 0 11-6.219-8.56"/>
+              : <><polyline points="16 8 12 4 8 8"/><line x1="12" y1="4" x2="12" y2="20"/></>
+            }
+          </svg>
+        </div>
+      )}
 
       {/* Mobile fixed header */}
       {(() => {
