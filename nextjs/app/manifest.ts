@@ -27,7 +27,6 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/opengraph-image',
         sizes: '1200x630',
         type: 'image/png',
-        // @ts-expect-error — form_factor is valid in spec but not yet in TS types
         form_factor: 'wide',
         label: 'RentyBase Dashboard',
       },
