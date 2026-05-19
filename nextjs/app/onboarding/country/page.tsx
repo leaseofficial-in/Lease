@@ -2,14 +2,14 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback } from 'react'
+import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { REGIONS, COUNTRY_PICKER_ORDER, getRegion } from '@/lib/i18n/regions'
 import { setRegionCookie, getRegionFromCookie } from '@/lib/region'
 import type { CountryCode } from '@/lib/i18n/regions'
 
-export default function CountryOnboarding() {
+function CountryOnboardingInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = searchParams.get('next') || '/dashboard'
@@ -18,7 +18,6 @@ export default function CountryOnboarding() {
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
 
-  // Pre-select from cookie (set by middleware from Vercel IP)
   useEffect(() => {
     const fromCookie = getRegionFromCookie()
     setSelected(fromCookie.countryCode)
@@ -50,7 +49,6 @@ export default function CountryOnboarding() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--rb-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
       <div style={{ width: '100%', maxWidth: 480 }}>
-        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🌍</div>
           <h1 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-.02em', color: 'var(--rb-ink)', margin: 0, marginBottom: 8 }}>
@@ -61,7 +59,6 @@ export default function CountryOnboarding() {
           </p>
         </div>
 
-        {/* Search */}
         <div style={{ position: 'relative', marginBottom: 16 }}>
           <input
             type="text"
@@ -85,7 +82,6 @@ export default function CountryOnboarding() {
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--rb-ink-3)', fontSize: 14 }}>🔍</span>
         </div>
 
-        {/* Country list */}
         <div style={{ border: '1.5px solid var(--rb-border)', borderRadius: 14, overflow: 'hidden', marginBottom: 24 }}>
           {filtered.map((code, i) => {
             const r = REGIONS[code]
@@ -129,7 +125,6 @@ export default function CountryOnboarding() {
           )}
         </div>
 
-        {/* Selected preview */}
         {selectedRegion && (
           <div style={{ padding: '12px 16px', background: 'var(--rb-fill)', borderRadius: 12, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 24 }}>{selectedRegion.flag}</span>
@@ -142,7 +137,6 @@ export default function CountryOnboarding() {
           </div>
         )}
 
-        {/* Confirm */}
         <button
           onClick={handleConfirm}
           disabled={saving}
@@ -168,5 +162,13 @@ export default function CountryOnboarding() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function CountryOnboarding() {
+  return (
+    <Suspense fallback={null}>
+      <CountryOnboardingInner />
+    </Suspense>
   )
 }
