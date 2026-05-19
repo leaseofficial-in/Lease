@@ -578,9 +578,10 @@ export default function SignUpPage() {
         })
         if (oauthError) throw oauthError
       }
-    } catch {
+    } catch (err: any) {
       setLoading(false)
-      setError('Could not connect to Google. Check your connection and try again.')
+      const msg = err?.message || err?.error || JSON.stringify(err)
+      setError(`Sign-in error: ${msg}`)
     }
   }, [role, loading, sb.auth])
 
