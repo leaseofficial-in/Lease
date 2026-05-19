@@ -32,6 +32,11 @@ const config: CapacitorConfig = {
   },
 
   plugins: {
+    GoogleAuth: {
+      scopes: ['profile', 'email'],
+      serverClientId: '721315070243-hhqp60g6cvcis1kr1cg5j5n285n8karb.apps.googleusercontent.com',
+      forceCodeForRefreshToken: false,
+    },
     SplashScreen: {
       launchShowDuration: 1800,
       launchAutoHide: true,

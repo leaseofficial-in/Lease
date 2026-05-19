@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "634614980122",
+    "project_id": "rentybase",
+    "storage_bucket": "rentybase.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:634614980122:android:8b602c63a8a8cbcfa17ba3",
+        "android_client_info": {
+          "package_name": "com.rentybase.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzrdQZXNc9Fi0uODJzwm0RHwcucf9SnB0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

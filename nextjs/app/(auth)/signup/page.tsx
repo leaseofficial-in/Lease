@@ -510,29 +510,6 @@ export default function SignUpPage() {
       setHasSessionNoRole(true)
     })
 
-    if (!isNativeApp()) return
-    let removeListener: (() => void) | undefined
-    ;(async () => {
-      const { createNativeClient } = await import('@/lib/supabase/client')
-      const nativeSb = await createNativeClient()
-      const { App } = await import('@capacitor/app')
-      const { Browser } = await import('@capacitor/browser')
-      const handle = await App.addListener('appUrlOpen', async ({ url }) => {
-        if (!url.startsWith('rentybase://')) return
-        await Browser.close()
-        const code = new URL(url).searchParams.get('code')
-        if (code) {
-          const { error: err } = await nativeSb.auth.exchangeCodeForSession(code)
-          if (err) { setLoading(false); setError(`Sign-in failed: ${err.message}`) }
-          else window.location.replace('/dashboard')
-        } else {
-          setLoading(false)
-          setError('Sign-in was cancelled. Please try again.')
-        }
-      })
-      removeListener = () => handle.remove()
-    })()
-    return () => removeListener?.()
   }, [])
 
   // Desktop-only: user is already signed in, just save the chosen role directly.
@@ -566,16 +543,29 @@ export default function SignUpPage() {
     try {
       sessionStorage.setItem('rb-signup-role', role)
       if (isNativeApp()) {
-        const { createNativeClient } = await import('@/lib/supabase/client')
-        const nativeSb = await createNativeClient()
-        const { data, error: oauthError } = await nativeSb.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: 'rentybase://auth/callback', skipBrowserRedirect: true },
+        // Native Android: show Google account picker inside the app.
+        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+        await GoogleAuth.initialize({
+          clientId: '721315070243-hhqp60g6cvcis1kr1cg5j5n285n8karb.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+          grantOfflineAccess: false,
         })
-        if (oauthError) throw oauthError
-        if (data?.url) {
-          const { Browser } = await import('@capacitor/browser')
-          await Browser.open({ url: data.url, windowName: '_self' })
+        const googleUser = await GoogleAuth.signIn()
+        const idToken = googleUser.authentication.idToken
+        const { error: idTokenError } = await sb.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
+        })
+        if (idTokenError) throw idTokenError
+        const { data: { session } } = await sb.auth.getSession()
+        if (session) {
+          const storedRole = sessionStorage.getItem('rb-signup-role')
+          if (storedRole) {
+            await sb.from('profiles').update({ role: storedRole }).eq('id', session.user.id)
+            sessionStorage.removeItem('rb-signup-role')
+          }
+          const nextParam = new URLSearchParams(window.location.search).get('next')
+          window.location.replace(nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard')
         }
       } else {
         const nextParam = new URLSearchParams(window.location.search).get('next')
@@ -602,16 +592,32 @@ export default function SignUpPage() {
     try {
       sessionStorage.removeItem('rb-signup-role')
       if (isNativeApp()) {
-        const { createNativeClient } = await import('@/lib/supabase/client')
-        const nativeSb = await createNativeClient()
-        const { data, error: oauthError } = await nativeSb.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: 'rentybase://auth/callback', skipBrowserRedirect: true },
+        // Native Android: show Google account picker, then continue to role picker.
+        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+        await GoogleAuth.initialize({
+          clientId: '721315070243-hhqp60g6cvcis1kr1cg5j5n285n8karb.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+          grantOfflineAccess: false,
         })
-        if (oauthError) throw oauthError
-        if (data?.url) {
-          const { Browser } = await import('@capacitor/browser')
-          await Browser.open({ url: data.url, windowName: '_self' })
+        const googleUser = await GoogleAuth.signIn()
+        const idToken = googleUser.authentication.idToken
+        const { error: idTokenError } = await sb.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
+        })
+        if (idTokenError) throw idTokenError
+        const { data: { session } } = await sb.auth.getSession()
+        if (session) {
+          const { data: profile } = await sb.from('profiles').select('role, full_name').eq('id', session.user.id).single()
+          if (profile?.role) {
+            window.location.replace('/dashboard')
+          } else {
+            setGoogleEmail(session.user.email || '')
+            setDisplayName(profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '')
+            setMobileStep('role')
+            setHasSessionNoRole(true)
+            setLoading(false)
+          }
         }
       } else {
         const nextParam = new URLSearchParams(window.location.search).get('next')

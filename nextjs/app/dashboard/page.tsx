@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
+import { useRegion } from '@/lib/hooks/useRegion'
+import { formatCurrencyLocale } from '@/lib/i18n/formatters'
+import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string; pan_number?: string; email?: string }
@@ -17,11 +20,10 @@ type ProofPhoto = { id: string; room_label?: string; public_url?: string; annota
 type DepositTx = { id: string; rental_id: string; type: string; amount: number; note?: string; description?: string; tenant_dispute_note?: string; dispute_status?: string; created_at: string }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-const _inrFmt = typeof Intl !== 'undefined'
-  ? new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
-  : null
+// inr() and methodLabel() are intentionally shadowed inside the component
+// with region-aware versions. These module-level stubs are never called.
 const inr = (n: number | undefined | null) =>
-  '₹' + (_inrFmt ? _inrFmt.format(Number(n || 0)) : Number(n || 0).toLocaleString('en-IN'))
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(n || 0))
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const now = new Date()
 const currentMonth = now.toISOString().slice(0, 7)
@@ -32,18 +34,19 @@ function monthLabel(s?: string) {
   const parts = s.split('-')
   return `${MONTHS[parseInt(parts[1]) - 1]} ${parts[0]}`
 }
-function relDate(iso?: string) {
+// relDate uses 'en-IN' as a stable module-level default; shadowed inside the component via relDateFmt
+function relDate(iso?: string, locale = 'en-IN') {
   if (!iso) return ''
   const d = new Date(iso)
   const diff = Math.floor((now.getTime() - d.getTime()) / 86400000)
-  const timeStr = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const timeStr = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', hour12: true })
   if (diff === 0) return `Today at ${timeStr}`
   if (diff === 1) return `Yesterday at ${timeStr}`
   if (diff < 7) {
-    const dayStr = d.toLocaleDateString('en-IN', { weekday: 'short' })
+    const dayStr = d.toLocaleDateString(locale, { weekday: 'short' })
     return `${dayStr} at ${timeStr}`
   }
-  const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  const dateStr = d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
   return `${dateStr} at ${timeStr}`
 }
 function daysUntil(iso?: string) {
@@ -186,6 +189,14 @@ const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', b
 // ── Main component ────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const sb = createClient()
+  const region = useRegion()
+  const isIndia = region.countryCode === 'IN'
+  // Shadow module-level stubs with region-aware versions
+  const inr = (n: number | undefined | null) =>
+    formatCurrencyLocale(Number(n || 0), region.currency, region.locale)
+  const methodLabel = (m?: string) =>
+    (PAYMENT_METHOD_DISPLAY as Record<string, { label: string }>)[m || '']?.label || m || '—'
+  const relDateFmt = (iso?: string) => relDate(iso, region.locale)
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState(false)
   const [user, setUser] = useState<any>(null)
@@ -463,7 +474,7 @@ export default function DashboardPage() {
           </div>
           <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>
             {r.category && <span style={{ marginRight: 8 }}>{r.category}</span>}
-            {!isLandlord && relDate(r.created_at)}
+            {!isLandlord && relDateFmt(r.created_at)}
           </div>
           {isLandlord && r.rental?.property?.name && (
             <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2, fontWeight: 500 }}>{r.rental.property.name}</div>
@@ -845,7 +856,7 @@ export default function DashboardPage() {
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{n.title}</div>
                       <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.body}</div>
                     </div>
-                    <span style={{ fontSize: 11, color: 'var(--rb-ink-3)', flexShrink: 0 }}>{relDate(n.created_at)}</span>
+                    <span style={{ fontSize: 11, color: 'var(--rb-ink-3)', flexShrink: 0 }}>{relDateFmt(n.created_at)}</span>
                   </div>
                 )
               })}
@@ -1192,7 +1203,7 @@ export default function DashboardPage() {
             <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, letterSpacing: '.14em', color: 'rgba(246,244,238,.6)' }}>{isPaid ? `CURRENT RENT · ${monthLabel(currentMonth).toUpperCase()}` : `NEXT RENT · ${nextMonthStr.toUpperCase()}`}</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 24, marginTop: 14, flexWrap: 'wrap' as const }}>
               <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 64, lineHeight: 1, letterSpacing: '-.03em' }}>{inr(rental.monthly_rent)}</div>
-              {isPaid ? <div style={{ color: 'rgba(168,230,200,.9)' }}>✓ <strong style={{ color: '#A8E6C8' }}>Paid</strong> · {relDate(currentPayment?.updated_at || currentPayment?.created_at)}</div>
+              {isPaid ? <div style={{ color: 'rgba(168,230,200,.9)' }}>✓ <strong style={{ color: '#A8E6C8' }}>Paid</strong> · {relDateFmt(currentPayment?.updated_at || currentPayment?.created_at)}</div>
                 : daysLeft !== null ? <div style={{ color: 'rgba(246,244,238,.78)', fontSize: 15 }}>Due in <strong>{daysLeft} day{daysLeft !== 1 ? 's' : ''}</strong></div> : null}
             </div>
             {isPaid ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(31,122,85,.25)', border: '1px solid rgba(31,122,85,.35)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#A8E6C8' }}>✓ Paid this month</span></div>
@@ -1211,7 +1222,7 @@ export default function DashboardPage() {
                     <Icon k="warning" size={14} stroke={2} /> Overdue · {inr(rental.monthly_rent)} rent + {inr(currentPayment.late_fee!)} late fee = <strong style={{ color: '#fff' }}>{inr(Number(rental.monthly_rent) + currentPayment.late_fee!)} total due</strong>
                   </div>
                 )}
-                {Number(rental.monthly_rent) > 50000 && (
+                {isIndia && Number(rental.monthly_rent) > 50000 && (
                   <div style={{ marginTop: 12 }}>
                     <div style={{ padding: '7px 12px', background: 'rgba(239,68,68,.18)', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#ffaaaa', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Icon k="warning" size={13} stroke={2} /> Rent &gt;₹50,000/mo. You must deduct 2% TDS and file Form 26QC.
@@ -1375,7 +1386,7 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
-          {isPaid ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(31,122,85,.25)', border: '1px solid rgba(31,122,85,.35)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#A8E6C8' }}>✓ Paid · {relDate(currentPayment?.updated_at || currentPayment?.created_at)}</span></div>
+          {isPaid ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(31,122,85,.25)', border: '1px solid rgba(31,122,85,.35)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#A8E6C8' }}>✓ Paid · {relDateFmt(currentPayment?.updated_at || currentPayment?.created_at)}</span></div>
             : isPending ? <div style={{ marginTop: 18 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(201,122,58,.15)', border: '1px solid rgba(201,122,58,.3)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: 'var(--rb-accent)' }}><Icon k="clock" size={14} stroke={2} /> Pending landlord confirmation</span>
               {currentPayment?.payment_method && <div style={{ marginTop: 14, padding: 14, background: 'rgba(246,244,238,.06)', borderRadius: 12 }}>
                 <div style={{ fontSize: 12, color: 'rgba(246,244,238,.6)', marginBottom: 8 }}>Payment details</div>
@@ -1675,7 +1686,7 @@ export default function DashboardPage() {
                   {t.type === 'deduction' && t.dispute_status === 'disputed' && <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(239,68,68,.1)', color: 'var(--rb-danger)', letterSpacing: '.06em' }}>DISPUTED</span>}
                   {t.type === 'deduction' && !t.dispute_status || t.dispute_status === 'none' ? <span style={{ fontSize: 10, color: 'var(--rb-ink-3)' }}>Tap to dispute →</span> : null}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2 }}>{relDate(t.created_at)}</div>
+                <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 2 }}>{relDateFmt(t.created_at)}</div>
               </div>
               <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, color: t.type === 'received' ? 'var(--rb-action)' : 'var(--rb-danger)', flexShrink: 0 }}>{t.type === 'received' ? '+' : '-'}{inr(t.amount)}</div>
             </div>
@@ -1707,8 +1718,8 @@ export default function DashboardPage() {
     const isDraft = !rental.agreement_status || rental.agreement_status === 'draft'
 
     const statusBanner = () => {
-      if (isExecuted) return { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)', icon: 'check', text: `Fully executed · Tenant signed ${relDate(rental.agreement_signed_at)} · Landlord countersigned ${relDate(rental.landlord_signed_at)}` }
-      if (tenantSigned) return { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)', icon: 'clock', text: `You signed on ${relDate(rental.agreement_signed_at)}. Awaiting landlord countersignature.` }
+      if (isExecuted) return { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)', icon: 'check', text: `Fully executed · Tenant signed ${relDateFmt(rental.agreement_signed_at)} · Landlord countersigned ${relDateFmt(rental.landlord_signed_at)}` }
+      if (tenantSigned) return { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)', icon: 'clock', text: `You signed on ${relDateFmt(rental.agreement_signed_at)}. Awaiting landlord countersignature.` }
       if (rental.agreement_status === 'pending_signature') return { bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)', icon: 'clipboard', text: 'Your landlord has sent this agreement for your signature. Read it fully before signing.' }
       return { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)', icon: 'file-text', text: 'Agreement is being prepared by your landlord.' }
     }
@@ -1879,8 +1890,8 @@ export default function DashboardPage() {
             <div className="inner-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderTop: '1px solid var(--rb-border-soft)', marginTop: 20 }}>
               {[
                 { l: 'Phone', v: profile?.phone || '—', mono: false },
-                { l: 'PAN number', v: profile?.pan_number || '—', mono: true },
-                { l: isTenant ? 'UPI (refund)' : 'UPI ID', v: profile?.upi_id || '—', mono: true },
+                ...(isIndia ? [{ l: 'PAN number', v: profile?.pan_number || '—', mono: true }] : []),
+                ...(isIndia ? [{ l: isTenant ? 'UPI (refund)' : 'UPI ID', v: profile?.upi_id || '—', mono: true }] : []),
               ].map((f, i) => (
                 <div key={f.l} style={{ padding: '14px 16px', borderRight: i < 2 ? '1px solid var(--rb-border-soft)' : undefined, ...(i === 0 ? { paddingLeft: 0 } : {}) }}>
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>{f.l}</div>
@@ -1909,8 +1920,8 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* ── Landlord: UPI collection card ── */}
-          {!isTenant && (
+          {/* ── Landlord: UPI collection card (India only) ── */}
+          {!isTenant && isIndia && (
             <section style={{ ...cardStyle, background: profile?.upi_id ? 'var(--rb-surface)' : 'var(--rb-fill)', border: profile?.upi_id ? '1px solid var(--rb-border-soft)' : '1.5px dashed var(--rb-border)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 12 }}>Collect rent · UPI</div>
               {profile?.upi_id ? (
@@ -1921,7 +1932,7 @@ export default function DashboardPage() {
                 </>
               ) : (
                 <>
-                  <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', lineHeight: 1.55, marginBottom: 14 }}>Add your UPI ID so tenants know where to send rent. They'll see it on their pay screen.</p>
+                  <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', lineHeight: 1.55, marginBottom: 14 }}>Add your UPI ID so tenants know where to send rent. They&apos;ll see it on their pay screen.</p>
                   <button onClick={() => setModal('edit-profile')} style={actBtnPrimary}>+ Add UPI ID</button>
                 </>
               )}
@@ -2266,14 +2277,20 @@ export default function DashboardPage() {
         </div>
         <Field label="Payment method">
           <select style={inputStyle} value={method} onChange={e => setMethod(e.target.value)}>
-            <option value="upi">UPI</option><option value="bank_transfer">Bank Transfer</option><option value="cheque">Cheque</option><option value="cash">Cash</option>
+            {region.paymentMethods.map(id => {
+              const m = (PAYMENT_METHOD_DISPLAY as Record<string, { label: string }>)[id]
+              return <option key={id} value={id}>{m?.label ?? id}</option>
+            })}
           </select>
         </Field>
-        {method !== 'cash' && (
-          <Field label={method === 'upi' ? 'UPI Transaction ID (UTR)' : method === 'bank_transfer' ? 'Reference / IFSC number' : method === 'cheque' ? 'Cheque number' : 'Reference number'}>
-            <input style={inputStyle} value={utr} onChange={e => setUtr(e.target.value)} placeholder={method === 'upi' ? 'e.g. 123456789012' : method === 'cheque' ? 'e.g. 001234' : 'e.g. Reference number'} />
-          </Field>
-        )}
+        {method !== 'cash' && (() => {
+          const activeMethod = (PAYMENT_METHOD_DISPLAY as Record<string, { referenceLabel: string; referencePlaceholder: string }>)[method]
+          return (
+            <Field label={activeMethod?.referenceLabel ?? 'Reference number'}>
+              <input style={inputStyle} value={utr} onChange={e => setUtr(e.target.value)} placeholder={activeMethod?.referencePlaceholder ?? 'Reference'} />
+            </Field>
+          )
+        })()}
         <Field label="Note (optional)"><input style={inputStyle} value={note} onChange={e => setNote(e.target.value)} placeholder="Any note for your landlord" /></Field>
         <Field label="Upload receipt (optional)">
           <div style={{ border: '1.5px dashed var(--rb-border)', borderRadius: 10, padding: '20px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
@@ -2531,7 +2548,7 @@ export default function DashboardPage() {
 
     const rows = [
       { l: 'Status', v: stLabel },
-      { l: 'Raised', v: relDate(r.created_at) },
+      { l: 'Raised', v: relDateFmt(r.created_at) },
       ...(r.category ? [{ l: 'Category', v: r.category }] : []),
       ...(r.urgency === 'emergency' ? [{ l: 'Urgency', v: 'Emergency' }] : []),
       ...(r.scheduled_date ? [{ l: 'Scheduled', v: new Date(r.scheduled_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) }] : []),
@@ -2579,7 +2596,7 @@ export default function DashboardPage() {
           {r.status === 'resolved' && !r.resolved_confirmed_at && (
             <button onClick={handleConfirmResolved} disabled={saving} style={{ width: '100%', padding: '10px 0', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Confirming…' : '✓ Confirm issue is fixed'}</button>
           )}
-          {r.resolved_confirmed_at && <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--rb-success)', fontWeight: 600 }}>✓ You confirmed this as fixed on {relDate(r.resolved_confirmed_at)}</div>}
+          {r.resolved_confirmed_at && <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--rb-success)', fontWeight: 600 }}>✓ You confirmed this as fixed on {relDateFmt(r.resolved_confirmed_at)}</div>}
           {canCancel && (
             <button onClick={handleCancel} disabled={saving} style={{ width: '100%', padding: '10px 0', borderRadius: 999, border: '1.5px solid var(--rb-danger)', background: 'transparent', color: 'var(--rb-danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Closing…' : 'Close / cancel request'}</button>
           )}
@@ -2789,7 +2806,7 @@ export default function DashboardPage() {
                       <div style={{ fontSize: 14, fontWeight: 600, color: '#F6F4EE', marginTop: 3 }}>{r.property?.name || 'Your unit'}</div>
                     </div>
                     <div style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(246,244,238,.1)', fontSize: 10, color: 'rgba(246,244,238,.5)', fontFamily: 'var(--rb-font-mono)', flexShrink: 0 }}>
-                      Expires {relDate(r.invite_expires_at)}
+                      Expires {relDateFmt(r.invite_expires_at)}
                     </div>
                   </div>
 
@@ -2954,7 +2971,7 @@ export default function DashboardPage() {
               { l: 'Annual increment', v: `${r.rent_increment_percent ?? 5}%` },
               { l: 'Tenant', v: r.tenant?.full_name || 'No tenant yet' },
               { l: 'Status', v: r.status },
-              { l: 'Agreement', v: r.agreement_signed_at ? `Signed ${relDate(r.agreement_signed_at)}` : 'Not signed' },
+              { l: 'Agreement', v: r.agreement_signed_at ? `Signed ${relDateFmt(r.agreement_signed_at)}` : 'Not signed' },
             ].map(f => (
               <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
                 <span style={{ fontSize: 13, color: 'var(--rb-ink-3)', flexShrink: 0, marginRight: 12 }}>{f.l}</span>
@@ -3550,13 +3567,17 @@ export default function DashboardPage() {
     return (
       <Modal title="Edit profile" onClose={() => setModal(null)}>
         <Field label="Full name"><input style={inputStyle} value={form.full_name} onChange={set('full_name')} placeholder="Your full name" /></Field>
-        <Field label="Phone number"><input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder="+91 98765 43210" /></Field>
-        <Field label={role === 'landlord' ? 'UPI ID (tenants pay you here)' : 'UPI ID (for deposit refunds)'}>
-          <input style={{ ...inputStyle, fontFamily: 'var(--rb-font-mono)' }} value={form.upi_id} onChange={set('upi_id')} placeholder="yourname@upi" />
-        </Field>
-        <Field label="PAN number (for HRA receipts)">
-          <input style={{ ...inputStyle, textTransform: 'uppercase' as const, fontFamily: 'var(--rb-font-mono)' }} value={form.pan_number} onChange={set('pan_number')} placeholder="ABCDE1234F" maxLength={10} />
-        </Field>
+        <Field label="Phone number"><input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder={region.phoneDialCode + ' ...'} /></Field>
+        {isIndia && (
+          <Field label={role === 'landlord' ? 'UPI ID (tenants pay you here)' : 'UPI ID (for deposit refunds)'}>
+            <input style={{ ...inputStyle, fontFamily: 'var(--rb-font-mono)' }} value={form.upi_id} onChange={set('upi_id')} placeholder="yourname@upi" />
+          </Field>
+        )}
+        {isIndia && (
+          <Field label="PAN number (for HRA receipts)">
+            <input style={{ ...inputStyle, textTransform: 'uppercase' as const, fontFamily: 'var(--rb-font-mono)' }} value={form.pan_number} onChange={set('pan_number')} placeholder="ABCDE1234F" maxLength={10} />
+          </Field>
+        )}
         <div style={{ padding: 12, background: 'var(--rb-fill)', borderRadius: 10, fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 4, lineHeight: 1.55 }}>
           Your name and email come from Google and cannot be changed here.
         </div>
@@ -3968,7 +3989,7 @@ export default function DashboardPage() {
               <div key={m.id} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
                 <div style={{ maxWidth: '75%', padding: '9px 14px', borderRadius: isMine ? '16px 16px 4px 16px' : '16px 16px 16px 4px', background: isMine ? 'var(--rb-action)' : 'var(--rb-surface)', color: isMine ? '#fff' : 'var(--rb-ink)', fontSize: 14, lineHeight: 1.45, border: isMine ? 0 : '1px solid var(--rb-border-soft)' }}>
                   <div>{m.body}</div>
-                  <div style={{ fontSize: 10, marginTop: 4, opacity: .6, textAlign: 'right' }}>{relDate(m.created_at)}</div>
+                  <div style={{ fontSize: 10, marginTop: 4, opacity: .6, textAlign: 'right' }}>{relDateFmt(m.created_at)}</div>
                 </div>
               </div>
             )
@@ -4047,7 +4068,7 @@ export default function DashboardPage() {
       <Modal title={alreadyDisputed ? 'Dispute filed' : 'Dispute deduction'} onClose={() => setModal(null)}>
         <div style={{ marginBottom: 18, padding: '12px 16px', background: 'var(--rb-danger-soft,rgba(239,68,68,.08))', borderRadius: 10 }}>
           <div style={{ fontSize: 13, color: 'var(--rb-danger)', fontWeight: 600 }}>Deduction: {inr(t.amount)}</div>
-          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 3 }}>{t.note || t.description || '—'} · {relDate(t.created_at)}</div>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 3 }}>{t.note || t.description || '—'} · {relDateFmt(t.created_at)}</div>
         </div>
         {alreadyDisputed
           ? <><div style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginBottom: 12 }}>Your dispute note:</div><div style={{ padding: 12, background: 'var(--rb-surface)', borderRadius: 10, fontSize: 14, lineHeight: 1.55 }}>{t.tenant_dispute_note}</div><div style={{ marginTop: 14, fontSize: 12, color: 'var(--rb-ink-3)' }}>Your landlord can see this. Disputes are resolved through direct discussion.</div></>
@@ -4220,7 +4241,7 @@ export default function DashboardPage() {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{n.title}</div>
                     <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginTop: 2, lineHeight: 1.5 }}>{n.body}</div>
-                    <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>{relDate(n.created_at)}</div>
+                    <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 4 }}>{relDateFmt(n.created_at)}</div>
                     {action && (
                       <span style={{ display: 'inline-block', marginTop: 8, fontSize: 12, fontWeight: 600, color: 'var(--rb-action)' }}>{action}</span>
                     )}

@@ -20,6 +20,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
+import { useRegion } from '../../stores/regionStore';
 import { Profile, Rental, RentPayment } from '../../types';
 import { formatCurrency, formatMonth, monthKey } from '../../lib/formatters';
 import { canTenantPay, isPaymentSettled, isPaymentPendingVerification } from '../../lib/payments';
@@ -32,30 +33,13 @@ import { pickPhoto, takePhoto, uploadPaymentProof, revokeWebPhotoUrl } from '../
 import { notifyUser } from '../../lib/sendPush';
 import { writeRentalEvent } from '../../lib/events';
 import { sendEmail } from '../../lib/email';
+import { PaymentMethodId, PAYMENT_METHOD_DISPLAY, UPI_APPS, UpiAppId } from '../../lib/i18n/payments';
 
-type PayMethod = 'upi' | 'bank_transfer' | 'cash' | 'cheque';
-type UpiApp = 'phonepe' | 'gpay' | 'paytm';
-
-const METHOD_LABEL: Record<PayMethod, string> = {
-  upi: 'UPI',
-  bank_transfer: 'Bank Transfer',
-  cash: 'Cash',
-  cheque: 'Cheque',
-};
-
-const UPI_APPS: { id: UpiApp; name: string; color: string; abbr: string }[] = [
-  { id: 'phonepe', name: 'PhonePe',    color: '#5F259F', abbr: 'PP' },
-  { id: 'gpay',    name: 'Google Pay', color: '#4285F4', abbr: 'G'  },
-  { id: 'paytm',   name: 'Paytm',      color: '#00BAF2', abbr: 'P'  },
-];
-
-const AnimatedSvg = Animated.createAnimatedComponent(Svg);
-
-// ── Sub-components ─────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Stepper({ step, dark = false }: { step: number; dark?: boolean }) {
-  const active   = dark ? '#F6F4EE'                  : Colors.action;
-  const inactive = dark ? 'rgba(246,244,238,0.18)'   : Colors.fill2;
+  const active   = dark ? '#F6F4EE'                : Colors.action;
+  const inactive = dark ? 'rgba(246,244,238,0.18)' : Colors.fill2;
   return (
     <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 22, marginTop: 4 }}>
       {[0, 1, 2].map((i) => (
@@ -102,12 +86,14 @@ function SpinningRing({ amount }: { amount: number }) {
       <Svg width={180} height={180} style={{ position: 'absolute' }}>
         <SvgCircle cx={90} cy={90} r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={14} />
       </Svg>
-      <AnimatedSvg width={180} height={180} style={{ position: 'absolute', transform: [{ rotate }] }}>
-        <SvgCircle cx={90} cy={90} r={R} fill="none" stroke={Colors.accent} strokeWidth={14} strokeLinecap="round" strokeDasharray={`${filled} ${C}`} transform="rotate(-90 90 90)" />
-      </AnimatedSvg>
+      <Animated.View style={{ position: 'absolute', width: 180, height: 180, transform: [{ rotate }] }}>
+        <Svg width={180} height={180}>
+          <SvgCircle cx={90} cy={90} r={R} fill="none" stroke={Colors.accent} strokeWidth={14} strokeLinecap="round" strokeDasharray={`${filled} ${C}`} transform="rotate(-90 90 90)" />
+        </Svg>
+      </Animated.View>
       <View style={{ position: 'absolute', alignItems: 'center' }}>
         <Text style={{ color: '#F6F4EE', fontFamily: Fonts.serif, fontSize: 30, letterSpacing: -1 }}>{formatCurrency(amount)}</Text>
-        <Text style={{ color: 'rgba(246,244,238,0.5)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 1.8, marginTop: 4, textTransform: 'uppercase' }}>Waiting · UPI</Text>
+        <Text style={{ color: 'rgba(246,244,238,0.5)', fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 1.8, marginTop: 4, textTransform: 'uppercase' }}>Waiting · Payment</Text>
       </View>
     </View>
   );
@@ -135,29 +121,34 @@ function BurstRays({ anim }: { anim: Animated.Value }) {
   );
 }
 
-// ── Main screen ─────────────────────────────────────────────────────────────
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function PayRentScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
   const { showToast } = useUIStore();
   const queryClient = useQueryClient();
+  const region = useRegion();
 
-  const [payStep, setPayStep]       = useState<0 | 1 | 2>(0);
-  const [selectedApp, setSelectedApp] = useState<UpiApp>('phonepe');
-  const [showNeftSheet, setShowNeftSheet] = useState(false);
-  const [reference, setReference]   = useState('');
-  const [note, setNote]             = useState('');
-  const [proofUri, setProofUri]     = useState<string | null>(null);
-  const [stage, setStage]           = useState<null | 'uploading' | 'saving'>(null);
-  const [paidTime, setPaidTime]     = useState<Date | null>(null);
+  const isIndia = region.countryCode === 'IN';
+  const availableMethods = region.paymentMethods;
 
-  const upiLaunched    = useRef(false);
-  const submitRef      = useRef<(m?: PayMethod) => Promise<void>>(async () => {});
-  const burstAnim      = useRef(new Animated.Value(0)).current;
+  // For UPI-style instant-app flow, the first UPI method triggers it
+  const hasInstantApp = isIndia && availableMethods.includes('upi');
 
-  // Keep submitRef current every render
-  // (defined after handleSubmit below — forward reference via ref is fine)
+  const [payStep, setPayStep]          = useState<0 | 1 | 2>(0);
+  const [selectedUpiApp, setSelectedUpiApp] = useState<UpiAppId>('phonepe');
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethodId>(availableMethods[0] ?? 'bank_transfer');
+  const [showTransferSheet, setShowTransferSheet] = useState(false);
+  const [reference, setReference]      = useState('');
+  const [note, setNote]                = useState('');
+  const [proofUri, setProofUri]        = useState<string | null>(null);
+  const [stage, setStage]              = useState<null | 'uploading' | 'saving'>(null);
+  const [paidTime, setPaidTime]        = useState<Date | null>(null);
+
+  const upiLaunched = useRef(false);
+  const submitRef   = useRef<(m?: PaymentMethodId) => Promise<void>>(async () => {});
+  const burstAnim   = useRef(new Animated.Value(0)).current;
 
   // AppState: user returns from UPI app
   useEffect(() => {
@@ -172,7 +163,6 @@ export default function PayRentScreen() {
     return () => sub.remove();
   }, []);
 
-  // Burst on step 2
   useEffect(() => {
     if (payStep === 2) {
       burstAnim.setValue(0);
@@ -180,7 +170,7 @@ export default function PayRentScreen() {
     }
   }, [payStep]);
 
-  // ── Queries ──────────────────────────────────────────────────────────────
+  // ── Queries ──────────────────────────────────────────────────────────────────
 
   const { data: rental, isLoading: loadingRental } = useQuery({
     queryKey: ['tenant-rental', profile?.id],
@@ -213,7 +203,7 @@ export default function PayRentScreen() {
     enabled: !!rental?.id,
   });
 
-  // ── Derived ───────────────────────────────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────────
 
   const baseRent      = currentPayment?.amount ?? rental?.monthly_rent ?? 0;
   const lateFee       = currentPayment?.late_fee ?? 0;
@@ -229,7 +219,10 @@ export default function PayRentScreen() {
     return `#${y}-${m}-${n}`;
   }, [currentPayment?.month]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
+  const methodLookup = PAYMENT_METHOD_DISPLAY as Record<string, typeof PAYMENT_METHOD_DISPLAY[keyof typeof PAYMENT_METHOD_DISPLAY]>;
+  const activeMethodDisplay = methodLookup[selectedMethod];
+
+  // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const ensurePaymentRecord = async (): Promise<string> => {
     if (currentPayment?.id) return currentPayment.id;
@@ -248,9 +241,9 @@ export default function PayRentScreen() {
     return existing.id;
   };
 
-  const handleSubmit = async (overrideMethod?: PayMethod) => {
+  const handleSubmit = async (overrideMethod?: PaymentMethodId) => {
     if (!rental || !profile || stage !== null) return;
-    const payMethod = overrideMethod ?? 'bank_transfer';
+    const payMethod = overrideMethod ?? selectedMethod;
     try {
       setStage('saving');
       const paymentId = await ensurePaymentRecord();
@@ -283,12 +276,17 @@ export default function PayRentScreen() {
       });
       sendEmail({
         type: 'rent_submitted', recipientId: rental.landlord_id, referenceId: paymentId,
-        variables: { tenantName: profile.full_name || 'Your tenant', propertyName: rental.property?.name ?? 'your property',
-          month: formatMonth(currentPayment?.month ?? monthKey()), amount: String(totalAmount), method: METHOD_LABEL[payMethod] },
+        variables: {
+          tenantName: profile.full_name || 'Your tenant',
+          propertyName: rental.property?.name ?? 'your property',
+          month: formatMonth(currentPayment?.month ?? monthKey()),
+          amount: String(totalAmount),
+          method: methodLookup[payMethod]?.label ?? payMethod,
+        },
       });
       void notifyUser({
         recipientId: rental.landlord_id, title: 'Rent payment submitted',
-        body: `${profile.full_name ?? 'Your tenant'} marked rent paid via ${METHOD_LABEL[payMethod]}. Please confirm.`,
+        body: `${profile.full_name ?? 'Your tenant'} marked rent paid via ${methodLookup[payMethod]?.label ?? payMethod}. Please confirm.`,
         type: 'payment_received', data: { rental_id: rental.id },
       });
     } catch (e) {
@@ -298,13 +296,12 @@ export default function PayRentScreen() {
     }
   };
 
-  // Keep ref current
   submitRef.current = handleSubmit;
 
   const handleUPILaunch = async () => {
     if (!rental || !landlordUpiId) {
-      showToast('Landlord has no UPI ID set up. Use NEFT instead.', 'error');
-      setShowNeftSheet(true);
+      showToast('Landlord has no UPI ID set up. Use bank transfer instead.', 'error');
+      setShowTransferSheet(true);
       return;
     }
     const mo = currentPayment?.month ?? monthKey();
@@ -313,23 +310,26 @@ export default function PayRentScreen() {
       note: `Rent ${formatMonth(mo)} — ${rental.property?.name ?? ''}`.trim(),
     });
     if (!opened) {
-      showToast('Could not open UPI app. Use NEFT instead.', 'error');
+      showToast('Could not open UPI app. Use bank transfer instead.', 'error');
       return;
     }
     upiLaunched.current = true;
     setPayStep(1);
   };
 
-  const handlePayPress = () => {
-    if (!landlordUpiId) { setShowNeftSheet(true); return; }
-    void handleUPILaunch();
+  const handlePrimaryPay = () => {
+    if (selectedMethod === 'upi' && hasInstantApp) {
+      void handleUPILaunch();
+    } else {
+      setShowTransferSheet(true);
+    }
   };
 
-  const handleNeftSubmit = async () => {
-    setShowNeftSheet(false);
+  const handleTransferSubmit = async () => {
+    setShowTransferSheet(false);
     setPaidTime(new Date());
     setPayStep(2);
-    await handleSubmit('bank_transfer');
+    await handleSubmit(selectedMethod);
   };
 
   const handlePickProof = async (fromCamera: boolean) => {
@@ -337,7 +337,7 @@ export default function PayRentScreen() {
     if (uri) setProofUri(uri);
   };
 
-  // ── Early returns ─────────────────────────────────────────────────────────
+  // ── Early returns ─────────────────────────────────────────────────────────────
 
   if (loadingRental || loadingPayment) return <LoadingScreen />;
 
@@ -346,10 +346,11 @@ export default function PayRentScreen() {
   const canPay    = canTenantPay(currentPayment);
 
   const now = paidTime ?? new Date();
-  const paidAtStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-    + ' · ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const paidDateStr = now.toLocaleDateString(region.locale, { day: '2-digit', month: 'short' });
+  const paidTimeStr = now.toLocaleTimeString(region.locale, { hour: '2-digit', minute: '2-digit', hour12: true });
+  const paidAtStr = `${paidDateStr} · ${paidTimeStr}`;
 
-  // ── Step 2: Paid / Receipt sealed ────────────────────────────────────────
+  // ── Step 2: Paid / Receipt sealed ────────────────────────────────────────────
 
   if (payStep === 2) {
     return (
@@ -388,7 +389,9 @@ export default function PayRentScreen() {
             <View style={{ backgroundColor: '#FBF6EB', borderRadius: 20, padding: 20, ...Shadow.card }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 14, borderBottomWidth: 1.5, borderBottomColor: Colors.primary }}>
                 <View>
-                  <Text style={{ fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 2, color: Colors.ink3, textTransform: 'uppercase', fontWeight: '700' }}>HRA RECEIPT</Text>
+                  <Text style={{ fontFamily: Fonts.mono, fontSize: 9, letterSpacing: 2, color: Colors.ink3, textTransform: 'uppercase', fontWeight: '700' }}>
+                    {region.receiptLabel.toUpperCase()}
+                  </Text>
                   <Text style={{ fontFamily: Fonts.serif, fontSize: 22, color: Colors.primary, marginTop: 4 }}>{receiptMonth}</Text>
                 </View>
                 <View style={{ transform: [{ rotate: '-12deg' }], marginTop: -6, marginRight: -4 }}>
@@ -402,7 +405,8 @@ export default function PayRentScreen() {
                 { label: 'Paid to',  value: landlordName,                    mono: false },
                 { label: 'Property', value: rental?.property?.name ?? '—',   mono: false },
                 { label: 'Period',   value: receiptMonth,                     mono: false },
-                { label: 'UTR',      value: reference.trim() || '—',          mono: true  },
+                { label: activeMethodDisplay?.referenceLabel ?? 'Ref.',
+                  value: reference.trim() || '—', mono: true },
               ] as const).map(({ label, value, mono }) => (
                 <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
                   <Text style={{ fontFamily: Fonts.sans, fontSize: 13, color: Colors.ink3 }}>{label}</Text>
@@ -411,8 +415,12 @@ export default function PayRentScreen() {
               ))}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.fill2 }}>
                 <View>
-                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: Colors.primary }}>HRA · SEC 10(13A)</Text>
-                  <Text style={{ fontFamily: Fonts.sans, fontSize: 10, color: Colors.muted, marginTop: 2 }}>Use this for tax filing</Text>
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: Colors.primary }}>
+                    {region.receiptFootnote ? `${region.receiptLabel} · ${region.receiptFootnote}` : region.receiptLabel}
+                  </Text>
+                  <Text style={{ fontFamily: Fonts.sans, fontSize: 10, color: Colors.muted, marginTop: 2 }}>
+                    {isIndia ? 'Use this for tax filing' : 'Keep this for your records'}
+                  </Text>
                 </View>
                 <Text style={{ fontFamily: Fonts.serif, fontSize: 22, color: Colors.primary }}>{formatCurrency(totalAmount)}</Text>
               </View>
@@ -432,10 +440,10 @@ export default function PayRentScreen() {
     );
   }
 
-  // ── Step 1: Waiting for UPI ───────────────────────────────────────────────
+  // ── Step 1: Waiting for UPI (India only) ─────────────────────────────────────
 
   if (payStep === 1) {
-    const app = UPI_APPS.find((a) => a.id === selectedApp)!;
+    const app = UPI_APPS.find((a) => a.id === selectedUpiApp)!;
     return (
       <DashboardShell role="tenant">
         <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#0E1413' }}>
@@ -487,7 +495,7 @@ export default function PayRentScreen() {
     );
   }
 
-  // ── Step 0: Select method ─────────────────────────────────────────────────
+  // ── Step 0: Select payment method ─────────────────────────────────────────────
 
   return (
     <DashboardShell role="tenant">
@@ -519,7 +527,7 @@ export default function PayRentScreen() {
               <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, marginTop: 4 }}>This month's rent is confirmed.</Text>
               {currentPayment?.payment_method && (
                 <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 12, marginTop: 4 }}>
-                  Paid via {METHOD_LABEL[currentPayment.payment_method as PayMethod] ?? currentPayment.payment_method}
+                  Paid via {(PAYMENT_METHOD_DISPLAY as Record<string, { label: string }>)[currentPayment.payment_method]?.label ?? currentPayment.payment_method}
                 </Text>
               )}
             </View>
@@ -542,7 +550,7 @@ export default function PayRentScreen() {
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, width: 90 }}>Method</Text>
                     <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, flex: 1 }}>
-                      {METHOD_LABEL[currentPayment.payment_method as PayMethod] ?? currentPayment.payment_method}
+                      {(PAYMENT_METHOD_DISPLAY as Record<string, { label: string }>)[currentPayment.payment_method]?.label ?? currentPayment.payment_method}
                     </Text>
                   </View>
                 )}
@@ -591,47 +599,63 @@ export default function PayRentScreen() {
                 </View>
               </View>
 
-              {/* Pay with header */}
               <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 16, color: Colors.primary, marginTop: 22, marginBottom: 10 }}>Pay with</Text>
 
-              {/* UPI app rows */}
-              {UPI_APPS.map((app) => {
-                const isSel = selectedApp === app.id;
-                return (
-                  <TouchableOpacity key={app.id} onPress={() => setSelectedApp(app.id)} activeOpacity={0.8}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: isSel ? Colors.actionSoft : Colors.surface, borderRadius: 16, padding: 14, marginBottom: 8, borderWidth: 1.5, borderColor: isSel ? Colors.action : Colors.borderSoft }}>
-                    <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: app.color, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ color: '#fff', fontFamily: Fonts.sansBold, fontSize: 13 }}>{app.abbr}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.primary }}>{app.name}</Text>
-                      <Text style={{ fontFamily: Fonts.mono, fontSize: 11, color: Colors.muted, marginTop: 1 }} numberOfLines={1}>
-                        {landlordUpiId ?? 'No UPI ID set'}
-                      </Text>
-                    </View>
-                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: isSel ? 0 : 1.5, borderColor: Colors.border, backgroundColor: isSel ? Colors.action : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                      {isSel && <Ionicons name="checkmark" size={12} color="#fff" />}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+              {/* ── India: UPI apps ── */}
+              {isIndia && availableMethods.includes('upi') && (
+                UPI_APPS.map((app) => {
+                  const isSel = selectedMethod === 'upi' && selectedUpiApp === app.id;
+                  return (
+                    <TouchableOpacity key={app.id}
+                      onPress={() => { setSelectedMethod('upi'); setSelectedUpiApp(app.id); }}
+                      activeOpacity={0.8}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: isSel ? Colors.actionSoft : Colors.surface, borderRadius: 16, padding: 14, marginBottom: 8, borderWidth: 1.5, borderColor: isSel ? Colors.action : Colors.borderSoft }}>
+                      <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: app.color, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: '#fff', fontFamily: Fonts.sansBold, fontSize: 13 }}>{app.abbr}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.primary }}>{app.name}</Text>
+                        <Text style={{ fontFamily: Fonts.mono, fontSize: 11, color: Colors.muted, marginTop: 1 }} numberOfLines={1}>
+                          {landlordUpiId ?? 'No UPI ID set'}
+                        </Text>
+                      </View>
+                      <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: isSel ? 0 : 1.5, borderColor: Colors.border, backgroundColor: isSel ? Colors.action : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                        {isSel && <Ionicons name="checkmark" size={12} color="#fff" />}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
 
-              {/* NEFT row */}
-              <TouchableOpacity onPress={() => setShowNeftSheet(true)} activeOpacity={0.8}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'transparent', borderRadius: 16, padding: 14, marginBottom: 8, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Colors.border }}>
-                <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.fill2, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: Colors.ink3, fontFamily: Fonts.sansBold, fontSize: 18 }}>+</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.primary }}>NEFT / Bank transfer</Text>
-                  <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: Colors.muted, marginTop: 1 }}>Slower · 30 min – 2 hours</Text>
-                </View>
-                <Text style={{ fontFamily: Fonts.sans, fontSize: 14, color: Colors.ink3 }}>→</Text>
-              </TouchableOpacity>
+              {/* ── Other methods (all regions) ── */}
+              {availableMethods
+                .filter((m) => m !== 'upi')
+                .map((methodId) => {
+                  const display = methodLookup[methodId];
+                  const isSel = selectedMethod === methodId;
+                  return (
+                    <TouchableOpacity key={methodId}
+                      onPress={() => setSelectedMethod(methodId)}
+                      activeOpacity={0.8}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: isSel ? Colors.actionSoft : Colors.surface, borderRadius: 16, padding: 14, marginBottom: 8, borderWidth: 1.5, borderColor: isSel ? Colors.action : Colors.borderSoft }}>
+                      <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: isSel ? Colors.action : Colors.fill2, alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name={display.icon as never} size={20} color={isSel ? '#fff' : Colors.ink3} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.primary }}>{display.label}</Text>
+                        <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: Colors.muted, marginTop: 1 }}>
+                          {display.settlementTime}
+                        </Text>
+                      </View>
+                      <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: isSel ? 0 : 1.5, borderColor: Colors.border, backgroundColor: isSel ? Colors.action : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                        {isSel && <Ionicons name="checkmark" size={12} color="#fff" />}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
             </>
           )}
 
-          {/* No rental */}
           {!rental && (
             <View style={{ alignItems: 'center', paddingVertical: 40 }}>
               <Text style={{ color: Colors.muted, fontFamily: Fonts.sansMedium, fontSize: 15 }}>No active rental found</Text>
@@ -645,7 +669,7 @@ export default function PayRentScreen() {
             <TouchableOpacity style={{ width: 52, height: 52, borderRadius: 16, borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' }} activeOpacity={0.8}>
               <Ionicons name="calendar-outline" size={20} color={Colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handlePayPress} disabled={stage !== null}
+            <TouchableOpacity onPress={handlePrimaryPay} disabled={stage !== null}
               style={{ flex: 1, height: 52, borderRadius: 16, backgroundColor: Colors.action, alignItems: 'center', justifyContent: 'center', opacity: stage !== null ? 0.6 : 1 }} activeOpacity={0.85}>
               <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 16, color: '#fff' }}>
                 {stage !== null ? 'Processing…' : `Pay ${formatCurrency(totalAmount)} →`}
@@ -654,18 +678,22 @@ export default function PayRentScreen() {
           </View>
         )}
 
-        {/* NEFT sheet */}
-        <BottomSheet visible={showNeftSheet} onClose={() => setShowNeftSheet(false)} scrollable>
-          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20, marginBottom: 2 }}>NEFT / Bank Transfer</Text>
+        {/* Transfer / bank details sheet (for all non-UPI-instant methods) */}
+        <BottomSheet visible={showTransferSheet} onClose={() => setShowTransferSheet(false)} scrollable>
+          <Text style={{ color: Colors.primary, fontFamily: Fonts.sansSemiBold, fontSize: 20, marginBottom: 2 }}>
+            {activeMethodDisplay.label}
+          </Text>
           <Text style={{ color: Colors.muted, fontFamily: Fonts.sans, fontSize: 13, marginBottom: 20 }}>
             {formatCurrency(totalAmount)} · {currentPayment ? formatMonth(currentPayment.month) : 'Current Month'}
           </Text>
 
           <View style={{ marginBottom: 16 }}>
             <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 6 }}>
-              Reference No. <Text style={{ color: Colors.muted }}>(optional)</Text>
+              {activeMethodDisplay.referenceLabel} <Text style={{ color: Colors.muted }}>(optional)</Text>
             </Text>
-            <TextInput value={reference} onChangeText={setReference} placeholder="NEFT / IMPS ref" placeholderTextColor={Colors.muted}
+            <TextInput value={reference} onChangeText={setReference}
+              placeholder={activeMethodDisplay.referencePlaceholder}
+              placeholderTextColor={Colors.muted}
               style={{ borderWidth: 1, borderColor: Colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontFamily: Fonts.mono, fontSize: 15, color: Colors.primary, backgroundColor: Colors.fill }} />
           </View>
 
@@ -673,7 +701,9 @@ export default function PayRentScreen() {
             <Text style={{ color: Colors.primary, fontFamily: Fonts.sansMedium, fontSize: 13, marginBottom: 6 }}>
               Note <Text style={{ color: Colors.muted }}>(optional)</Text>
             </Text>
-            <TextInput value={note} onChangeText={setNote} placeholder="e.g. Transferred on 3rd May at 6pm" placeholderTextColor={Colors.muted} multiline numberOfLines={3}
+            <TextInput value={note} onChangeText={setNote}
+              placeholder="e.g. Transferred on 3rd May at 6pm"
+              placeholderTextColor={Colors.muted} multiline numberOfLines={3}
               style={{ borderWidth: 1, borderColor: Colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontFamily: Fonts.sans, fontSize: 14, color: Colors.primary, backgroundColor: Colors.fill, minHeight: 76, textAlignVertical: 'top' }} />
           </View>
 
@@ -707,10 +737,10 @@ export default function PayRentScreen() {
             )}
           </View>
 
-          <TouchableOpacity onPress={handleNeftSubmit} disabled={stage !== null}
+          <TouchableOpacity onPress={handleTransferSubmit} disabled={stage !== null}
             style={{ height: 56, borderRadius: 16, backgroundColor: Colors.action, alignItems: 'center', justifyContent: 'center', opacity: stage !== null ? 0.6 : 1 }} activeOpacity={0.85}>
             <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 16, color: '#fff' }}>
-              {stage === 'uploading' ? 'Uploading…' : stage === 'saving' ? 'Saving…' : 'Submit Transfer →'}
+              {stage === 'uploading' ? 'Uploading…' : stage === 'saving' ? 'Saving…' : 'Submit Payment →'}
             </Text>
           </TouchableOpacity>
         </BottomSheet>

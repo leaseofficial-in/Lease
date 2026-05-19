@@ -19,6 +19,7 @@ import {
   useFonts as useInstrumentFonts,
 } from '@expo-google-fonts/instrument-serif';
 import { useAuthStore } from '../stores/authStore';
+import { useRegionStore } from '../stores/regionStore';
 import { registerForPushNotifications } from '../lib/notifications';
 import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { ToastHost } from '../components/ui/ToastHost';
@@ -88,8 +89,14 @@ const queryClient = new QueryClient({
 
 function AuthGate() {
   const { session, profile, isInitialized, isProfileLoading } = useAuthStore();
+  const { syncFromProfile } = useRegionStore();
   const router = useRouter();
   const segments = useSegments();
+
+  // Sync region store whenever profile loads — keeps store in sync with DB value.
+  useEffect(() => {
+    if (profile) syncFromProfile(profile.country_code);
+  }, [profile, syncFromProfile]);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -113,6 +120,14 @@ function AuthGate() {
       return;
     }
 
+    // Returning user who never picked a country (legacy or skipped) → country-select
+    // country_code is null means they haven't gone through the new onboarding.
+    if (!profile.country_code && inAuthFlow && currentPath !== '(auth)/country-select') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      router.replace('/(auth)/country-select' as any);
+      return;
+    }
+
     if (inAuthFlow) {
       router.replace(profile.role === 'landlord' ? '/(landlord)' : '/(tenant)');
     }
@@ -129,6 +144,7 @@ function AuthGate() {
 
 export default function RootLayout() {
   const { isInitialized, initialize } = useAuthStore();
+  const { initialize: initRegion } = useRegionStore();
   const [geistLoaded] = useGeistFonts({
     Geist_400Regular,
     Geist_500Medium,
@@ -142,7 +158,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     initialize();
-  }, [initialize]);
+    initRegion(); // load cached country from AsyncStorage in parallel
+  }, [initialize, initRegion]);
 
   if (!isInitialized || !geistLoaded || !serifLoaded) {
     return <LoadingScreen message="Starting RentyBase..." />;
@@ -163,6 +180,7 @@ export default function RootLayout() {
               <Stack.Screen name="agreement/[rentalId]" />
               <Stack.Screen name="receipt/[paymentId]" />
               <Stack.Screen name="join/[token]" />
+              <Stack.Screen name="(auth)/country-select" />
             </Stack>
             <ConfirmHost />
             <ToastHost />

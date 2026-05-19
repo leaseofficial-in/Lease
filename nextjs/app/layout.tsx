@@ -37,28 +37,28 @@ export const metadata: Metadata = {
 
   // Homepage title — individual pages override with their own `title` export
   title: {
-    default: 'RentyBase — Free Rental Management App for Landlords & Tenants in India',
+    default: 'RentyBase — Free Rental Management for Landlords & Tenants',
     template: '%s | RentyBase',
   },
   description:
-    "India's free rental OS. Generate HRA receipts (Section 10(13A)), track rent payments, manage security deposits, document move-in proof, and log repairs — shared in real time between landlord and tenant.",
+    'Free rental OS for landlords and tenants worldwide. Track rent payments, manage security deposits, document move-in proof, handle repairs, and generate rent receipts — shared in real time.',
 
   applicationName: 'RentyBase',
   keywords: [
-    'rental management app India',
+    'rental management app',
+    'landlord app',
+    'tenant app',
+    'rent payment tracker',
+    'security deposit management',
+    'move-in proof app',
+    'rental agreement',
+    'free property management app',
+    'repair tracking landlord',
+    'rent receipt generator',
+    // India-specific for existing SEO equity
     'HRA rent receipt generator',
     'Section 10(13A) rent receipt',
-    'rent receipt for income tax',
-    'landlord app India',
-    'tenant app India',
-    'rent payment tracker',
-    'security deposit management India',
-    'move-in proof app',
-    'Leave and License agreement',
-    'free property management app',
-    'HRA exemption India',
-    'repair tracking landlord',
-    'Section 80GG deduction',
+    'rental management app India',
   ],
   authors: [{ name: 'RentyBase', url: 'https://rentybase.com' }],
   creator: 'RentyBase',
@@ -69,17 +69,17 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'RentyBase',
-    title: 'RentyBase — Free Rental Management for Landlords & Tenants in India',
+    title: 'RentyBase — Free Rental Management for Landlords & Tenants',
     description:
-      'Generate HRA receipts, track rent payments, manage deposits, log repairs, and share move-in proof — all free. Built for Indian landlords and tenants.',
+      'Track rent payments, manage deposits, log repairs, and share move-in proof — all free. Built for landlords and tenants everywhere.',
     url: siteUrl,
-    locale: 'en_IN',
+    locale: 'en_US',
     images: [
       {
         url: '/opengraph-image',
         width: 1200,
         height: 630,
-        alt: "RentyBase — India's Rental OS",
+        alt: 'RentyBase — Rental Management for Everyone',
         type: 'image/png',
       },
     ],
@@ -87,9 +87,9 @@ export const metadata: Metadata = {
 
   twitter: {
     card: 'summary_large_image',
-    title: 'RentyBase — Free Rental Management for India',
+    title: 'RentyBase — Free Rental Management App',
     description:
-      'Generate HRA receipts, track rent, manage deposits and repairs. Free for landlords and tenants across India.',
+      'Track rent, manage deposits and repairs, generate receipts. Free for landlords and tenants worldwide.',
     images: ['/opengraph-image'],
   },
 
@@ -107,7 +107,12 @@ export const metadata: Metadata = {
 
   alternates: {
     canonical: siteUrl,
-    languages: { 'en-IN': siteUrl },
+    languages: {
+      'en': siteUrl,
+      'en-US': siteUrl,
+      'en-IN': siteUrl,
+      'en-GB': siteUrl,
+    },
   },
 
   robots: {
@@ -141,7 +146,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
-      lang="en-IN"
+      lang="en"
       className={`${dmSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body className="min-h-full">

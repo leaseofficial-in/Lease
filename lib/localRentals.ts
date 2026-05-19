@@ -70,6 +70,7 @@ export const createLocalRental = async (
     city: values.city,
     state: values.state,
     pincode: values.pincode,
+    country_code: null,
     property_type: values.propertyType,
     created_at: now,
     archived_at: null,

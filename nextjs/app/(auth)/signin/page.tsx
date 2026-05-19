@@ -138,32 +138,6 @@ export default function SignInPage() {
     sb.auth.getSession().then(({ data: { session } }) => {
       if (session) window.location.replace('/dashboard')
     })
-
-    // Native deep link handler — only wired when running inside the Android app.
-    // The __RentyBase Java bridge is injected by MainActivity before any JS runs.
-    if (!isNativeApp()) return
-    let removeListener: (() => void) | undefined
-    ;(async () => {
-      const { createNativeClient } = await import('@/lib/supabase/client')
-      const nativeSb = await createNativeClient()
-      const { App } = await import('@capacitor/app')
-      const { Browser } = await import('@capacitor/browser')
-      const handle = await App.addListener('appUrlOpen', async ({ url }) => {
-        if (!url.startsWith('rentybase://')) return
-        await Browser.close()
-        const code = new URL(url).searchParams.get('code')
-        if (code) {
-          const { error: err } = await nativeSb.auth.exchangeCodeForSession(code)
-          if (err) { setLoading(false); setError(`Sign-in failed: ${err.message}`) }
-          else window.location.replace('/dashboard')
-        } else {
-          setLoading(false)
-          setError('Sign-in was cancelled. Please try again.')
-        }
-      })
-      removeListener = () => handle.remove()
-    })()
-    return () => removeListener?.()
   }, [])
 
   const handleGoogle = useCallback(async () => {
@@ -172,20 +146,21 @@ export default function SignInPage() {
     setError('')
     try {
       if (isNativeApp()) {
-        // Native: open OAuth in Capacitor Browser (Chrome Custom Tab),
-        // return via rentybase:// deep link. Uses persistent Preferences storage
-        // so the PKCE verifier survives the WebView → Chrome → app round-trip.
-        const { createNativeClient } = await import('@/lib/supabase/client')
-        const nativeSb = await createNativeClient()
-        const { data, error: oauthError } = await nativeSb.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: 'rentybase://auth/callback', skipBrowserRedirect: true },
+        // Native Android: show Google account picker inside the app — no browser involved.
+        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+        await GoogleAuth.initialize({
+          clientId: '721315070243-hhqp60g6cvcis1kr1cg5j5n285n8karb.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+          grantOfflineAccess: false,
         })
-        if (oauthError) throw oauthError
-        if (data?.url) {
-          const { Browser } = await import('@capacitor/browser')
-          await Browser.open({ url: data.url, windowName: '_self' })
-        }
+        const googleUser = await GoogleAuth.signIn()
+        const idToken = googleUser.authentication.idToken
+        const { error: idTokenError } = await sb.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
+        })
+        if (idTokenError) throw idTokenError
+        window.location.replace('/dashboard')
       } else {
         const nextParam = new URLSearchParams(window.location.search).get('next')
         const callbackUrl = nextParam

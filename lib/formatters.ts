@@ -1,43 +1,53 @@
+// ─── Formatters ───────────────────────────────────────────────────────────────
+// All public functions keep their original signatures for full backward compat.
+// Internally they read the current region from regionStore (outside React is fine
+// with Zustand's getState()). Callers can also pass an explicit locale/currency.
+
 import { PaymentStatus, RentalStatus, RepairStatus, RepairPriority, ProofStatus } from '../types';
+import { formatCurrencyLocale, formatDateLocale, formatDateShortLocale, formatMonthLocale, formatPhoneLocale, normalizePhoneLocale } from './i18n/formatters';
+import { getRegion } from './i18n/regions';
+
+// Lazy-import the store to avoid circular deps at module load time.
+// regionStore → formatters would be circular; this breaks the cycle.
+const getRegionConfig = () => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useRegionStore } = require('../stores/regionStore') as typeof import('../stores/regionStore');
+    return useRegionStore.getState().regionConfig;
+  } catch {
+    return getRegion('IN');
+  }
+};
 
 // ─── Currency ─────────────────────────────────────────────────────────────────
 
 export const formatCurrency = (amount: number, compact = false): string => {
-  if (compact && amount >= 100000) {
-    return `Rs ${(amount / 100000).toFixed(1)}L`;
-  }
-  if (compact && amount >= 1000) {
-    return `Rs ${(amount / 1000).toFixed(1)}K`;
-  }
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(amount);
+  const r = getRegionConfig();
+  return formatCurrencyLocale(amount, r.currency, r.locale, compact);
+};
+
+// Explicit locale override — used by screens that want to display a specific currency
+// regardless of the user's global region setting (e.g. property details in another country).
+export const formatCurrencyFor = (amount: number, countryCode: string, compact = false): string => {
+  const r = getRegion(countryCode);
+  return formatCurrencyLocale(amount, r.currency, r.locale, compact);
 };
 
 // ─── Dates ────────────────────────────────────────────────────────────────────
 
 export const formatDate = (iso: string): string => {
-  return new Date(iso).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  const r = getRegionConfig();
+  return formatDateLocale(iso, r.locale);
 };
 
 export const formatDateShort = (iso: string): string => {
-  return new Date(iso).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-  });
+  const r = getRegionConfig();
+  return formatDateShortLocale(iso, r.locale);
 };
 
 export const formatMonth = (iso: string): string => {
-  return new Date(iso).toLocaleDateString('en-IN', {
-    month: 'long',
-    year: 'numeric',
-  });
+  const r = getRegionConfig();
+  return formatMonthLocale(iso, r.locale);
 };
 
 export const formatRelativeTime = (iso: string): string => {
@@ -61,23 +71,13 @@ export const monthKey = (date: Date = new Date()): string => {
 // ─── Phone ────────────────────────────────────────────────────────────────────
 
 export const formatPhone = (phone: string | null | undefined): string => {
-  if (!phone) return 'Phone not set';
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length === 10) {
-    return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
-  }
-  if (digits.length === 12 && digits.startsWith('91')) {
-    return `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`;
-  }
-  return phone;
+  const r = getRegionConfig();
+  return formatPhoneLocale(phone, r.phoneDialCode, r.phoneLocalLength);
 };
 
 export const normalizePhone = (phone: string): string => {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length === 10) return `+91${digits}`;
-  if (digits.startsWith('91') && digits.length === 12) return `+${digits}`;
-  if (digits.startsWith('0') && digits.length === 11) return `+91${digits.slice(1)}`;
-  return phone;
+  const r = getRegionConfig();
+  return normalizePhoneLocale(phone, r.phoneDialCode, r.phoneLocalLength);
 };
 
 // ─── Status labels ────────────────────────────────────────────────────────────

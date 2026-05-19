@@ -92,8 +92,10 @@ export default function RoleSelectScreen() {
       } else {
         await AsyncStorage.removeItem('rentybase.pending_referrer_tenant');
       }
-      if (selected === 'landlord') router.replace('/(landlord)');
-      else router.replace('/(tenant)');
+      // After role is set, always go to country-select for new users.
+      // country-select will then redirect to the correct dashboard.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      router.replace('/(auth)/country-select' as any);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save your role.';
       showToast(message, 'error');

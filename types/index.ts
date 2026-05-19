@@ -29,6 +29,11 @@ export interface Profile {
   pan_number: string | null;
   aadhaar_last4: string | null;
   upi_id: string | null;
+  // ── Global region fields (nullable; null = legacy India user) ──
+  country_code: string | null;   // ISO 3166-1 alpha-2, e.g. 'US', 'IN'
+  currency_code: string | null;  // ISO 4217, e.g. 'USD', 'INR'
+  timezone: string | null;       // IANA timezone, e.g. 'America/New_York'
+  locale: string | null;         // BCP-47, e.g. 'en-US'
   created_at: string;
   updated_at: string;
 }
@@ -43,7 +48,8 @@ export interface Property {
   address_line2: string | null;
   city: string;
   state: string;
-  pincode: string;
+  pincode: string;           // legacy name; stores postal/ZIP/PIN code for any country
+  country_code: string | null; // ISO 3166-1 alpha-2
   property_type: 'apartment' | 'house' | 'pg' | 'commercial';
   created_at: string;
   archived_at: string | null;
@@ -89,7 +95,7 @@ export interface RentPayment {
   amount: number;
   month: string; // ISO date — first day of the rent month
   status: PaymentStatus;
-  payment_method: 'upi' | 'bank_transfer' | 'cash' | 'cheque' | null;
+  payment_method: 'upi' | 'neft' | 'bank_transfer' | 'zelle' | 'ach' | 'wire' | 'check' | 'cheque' | 'cash' | 'credit_card' | 'faster_payments' | 'direct_debit' | null;
   utr_number: string | null;
   payment_note: string | null;
   payment_proof_url: string | null;
@@ -112,7 +118,7 @@ export interface DepositTransaction {
   created_by: string;
   created_at: string;
   category: 'damage' | 'cleaning' | 'unpaid_rent' | 'other' | null;
-  payment_method: 'upi' | 'bank_transfer' | 'cash' | null;
+  payment_method: 'upi' | 'neft' | 'bank_transfer' | 'zelle' | 'ach' | 'check' | 'cheque' | 'cash' | null;
   reference: string | null;
 }
 
@@ -185,7 +191,8 @@ export interface CreateRentalForm {
   addressLine2: string;
   city: string;
   state: string;
-  pincode: string;
+  pincode: string;           // postal/ZIP/PIN — label shown depends on region
+  countryCode: string;
   propertyType: Property['property_type'];
   monthlyRent: string;
   securityDeposit: string;

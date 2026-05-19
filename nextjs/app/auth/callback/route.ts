@@ -20,12 +20,19 @@ export async function GET(request: Request) {
     if (data.user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, country_code')
         .eq('id', data.user.id)
         .single()
 
       if (profile?.role) {
-        // Existing user — honour the next param (e.g. /join/TOKEN) or fall back to dashboard
+        if (!profile.country_code) {
+          // Existing user without a country — route through country selection first
+          const dest = next && next.startsWith('/') ? next : '/dashboard'
+          return NextResponse.redirect(
+            `${origin}/onboarding/country?next=${encodeURIComponent(dest)}`
+          )
+        }
+        // Existing user with country — honour the next param or fall back to dashboard
         const dest = next && next.startsWith('/') ? next : '/dashboard'
         return NextResponse.redirect(`${origin}${dest}`)
       } else {
