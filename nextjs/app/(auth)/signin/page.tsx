@@ -3,9 +3,15 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
+
+// Reliable native detection: @JavascriptInterface injected in MainActivity
+// before any JS runs, unlike Capacitor bridge which may lag on remote server.url.
+function isNativeApp(): boolean {
+  if (typeof window === 'undefined') return false
+  return typeof (window as any).__RentyBase !== 'undefined'
+}
 
 function GoogleIcon() {
   return (
@@ -133,10 +139,13 @@ export default function SignInPage() {
       if (session) window.location.replace('/dashboard')
     })
 
-    // Capacitor native: listen for the deep link that comes back from Google OAuth
-    if (!Capacitor.isNativePlatform()) return
+    // Native deep link handler — only wired when running inside the Android app.
+    // The __RentyBase Java bridge is injected by MainActivity before any JS runs.
+    if (!isNativeApp()) return
     let removeListener: (() => void) | undefined
     ;(async () => {
+      const { createNativeClient } = await import('@/lib/supabase/client')
+      const nativeSb = await createNativeClient()
       const { App } = await import('@capacitor/app')
       const { Browser } = await import('@capacitor/browser')
       const handle = await App.addListener('appUrlOpen', async ({ url }) => {
@@ -144,7 +153,7 @@ export default function SignInPage() {
         await Browser.close()
         const code = new URL(url).searchParams.get('code')
         if (code) {
-          const { error: err } = await sb.auth.exchangeCodeForSession(code)
+          const { error: err } = await nativeSb.auth.exchangeCodeForSession(code)
           if (err) { setLoading(false); setError(`Sign-in failed: ${err.message}`) }
           else window.location.replace('/dashboard')
         } else {
@@ -155,16 +164,20 @@ export default function SignInPage() {
       removeListener = () => handle.remove()
     })()
     return () => removeListener?.()
-  }, [sb.auth])
+  }, [])
 
   const handleGoogle = useCallback(async () => {
     if (loading) return
     setLoading(true)
     setError('')
     try {
-      if (Capacitor.isNativePlatform()) {
-        // Native: open OAuth in Capacitor Browser, return via rentybase:// deep link
-        const { data, error: oauthError } = await sb.auth.signInWithOAuth({
+      if (isNativeApp()) {
+        // Native: open OAuth in Capacitor Browser (Chrome Custom Tab),
+        // return via rentybase:// deep link. Uses persistent Preferences storage
+        // so the PKCE verifier survives the WebView → Chrome → app round-trip.
+        const { createNativeClient } = await import('@/lib/supabase/client')
+        const nativeSb = await createNativeClient()
+        const { data, error: oauthError } = await nativeSb.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo: 'rentybase://auth/callback', skipBrowserRedirect: true },
         })

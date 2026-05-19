@@ -3,8 +3,12 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
+
+function isNativeApp(): boolean {
+  if (typeof window === 'undefined') return false
+  return typeof (window as any).__RentyBase !== 'undefined'
+}
 import { LogoLockup } from '@/components/brand'
 
 const WaxSeal = ({ size = 96 }: { size?: number }) => (
@@ -506,10 +510,11 @@ export default function SignUpPage() {
       setHasSessionNoRole(true)
     })
 
-    // Capacitor native: listen for the deep link that comes back from Google OAuth
-    if (!Capacitor.isNativePlatform()) return
+    if (!isNativeApp()) return
     let removeListener: (() => void) | undefined
     ;(async () => {
+      const { createNativeClient } = await import('@/lib/supabase/client')
+      const nativeSb = await createNativeClient()
       const { App } = await import('@capacitor/app')
       const { Browser } = await import('@capacitor/browser')
       const handle = await App.addListener('appUrlOpen', async ({ url }) => {
@@ -517,7 +522,7 @@ export default function SignUpPage() {
         await Browser.close()
         const code = new URL(url).searchParams.get('code')
         if (code) {
-          const { error: err } = await sb.auth.exchangeCodeForSession(code)
+          const { error: err } = await nativeSb.auth.exchangeCodeForSession(code)
           if (err) { setLoading(false); setError(`Sign-in failed: ${err.message}`) }
           else window.location.replace('/dashboard')
         } else {
@@ -560,8 +565,10 @@ export default function SignUpPage() {
     setError('')
     try {
       sessionStorage.setItem('rb-signup-role', role)
-      if (Capacitor.isNativePlatform()) {
-        const { data, error: oauthError } = await sb.auth.signInWithOAuth({
+      if (isNativeApp()) {
+        const { createNativeClient } = await import('@/lib/supabase/client')
+        const nativeSb = await createNativeClient()
+        const { data, error: oauthError } = await nativeSb.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo: 'rentybase://auth/callback', skipBrowserRedirect: true },
         })
@@ -594,8 +601,10 @@ export default function SignUpPage() {
     setError('')
     try {
       sessionStorage.removeItem('rb-signup-role')
-      if (Capacitor.isNativePlatform()) {
-        const { data, error: oauthError } = await sb.auth.signInWithOAuth({
+      if (isNativeApp()) {
+        const { createNativeClient } = await import('@/lib/supabase/client')
+        const nativeSb = await createNativeClient()
+        const { data, error: oauthError } = await nativeSb.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo: 'rentybase://auth/callback', skipBrowserRedirect: true },
         })
