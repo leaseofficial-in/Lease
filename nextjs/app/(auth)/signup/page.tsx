@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useCallback, useEffect } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
 
@@ -504,6 +505,29 @@ export default function SignUpPage() {
       setMobileStep('role')
       setHasSessionNoRole(true)
     })
+
+    // Capacitor native: listen for the deep link that comes back from Google OAuth
+    if (!Capacitor.isNativePlatform()) return
+    let removeListener: (() => void) | undefined
+    ;(async () => {
+      const { App } = await import('@capacitor/app')
+      const { Browser } = await import('@capacitor/browser')
+      const handle = await App.addListener('appUrlOpen', async ({ url }) => {
+        if (!url.startsWith('rentybase://')) return
+        await Browser.close()
+        const code = new URL(url).searchParams.get('code')
+        if (code) {
+          const { error: err } = await sb.auth.exchangeCodeForSession(code)
+          if (err) { setLoading(false); setError(`Sign-in failed: ${err.message}`) }
+          else window.location.replace('/dashboard')
+        } else {
+          setLoading(false)
+          setError('Sign-in was cancelled. Please try again.')
+        }
+      })
+      removeListener = () => handle.remove()
+    })()
+    return () => removeListener?.()
   }, [])
 
   // Desktop-only: user is already signed in, just save the chosen role directly.
@@ -536,15 +560,27 @@ export default function SignUpPage() {
     setError('')
     try {
       sessionStorage.setItem('rb-signup-role', role)
-      const nextParam = new URLSearchParams(window.location.search).get('next')
-      const callbackUrl = nextParam
-        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`
-        : `${window.location.origin}/auth/callback`
-      const { error: oauthError } = await sb.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: callbackUrl },
-      })
-      if (oauthError) throw oauthError
+      if (Capacitor.isNativePlatform()) {
+        const { data, error: oauthError } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: 'rentybase://auth/callback', skipBrowserRedirect: true },
+        })
+        if (oauthError) throw oauthError
+        if (data?.url) {
+          const { Browser } = await import('@capacitor/browser')
+          await Browser.open({ url: data.url, windowName: '_self' })
+        }
+      } else {
+        const nextParam = new URLSearchParams(window.location.search).get('next')
+        const callbackUrl = nextParam
+          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`
+          : `${window.location.origin}/auth/callback`
+        const { error: oauthError } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: callbackUrl },
+        })
+        if (oauthError) throw oauthError
+      }
     } catch {
       setLoading(false)
       setError('Could not connect to Google. Check your connection and try again.')
@@ -558,15 +594,27 @@ export default function SignUpPage() {
     setError('')
     try {
       sessionStorage.removeItem('rb-signup-role')
-      const nextParam = new URLSearchParams(window.location.search).get('next')
-      const callbackUrl = nextParam
-        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`
-        : `${window.location.origin}/auth/callback`
-      const { error: oauthError } = await sb.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: callbackUrl },
-      })
-      if (oauthError) throw oauthError
+      if (Capacitor.isNativePlatform()) {
+        const { data, error: oauthError } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: 'rentybase://auth/callback', skipBrowserRedirect: true },
+        })
+        if (oauthError) throw oauthError
+        if (data?.url) {
+          const { Browser } = await import('@capacitor/browser')
+          await Browser.open({ url: data.url, windowName: '_self' })
+        }
+      } else {
+        const nextParam = new URLSearchParams(window.location.search).get('next')
+        const callbackUrl = nextParam
+          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`
+          : `${window.location.origin}/auth/callback`
+        const { error: oauthError } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: callbackUrl },
+        })
+        if (oauthError) throw oauthError
+      }
     } catch {
       setLoading(false)
       setError('Could not connect to Google. Check your connection and try again.')

@@ -41,3 +41,22 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# Capacitor — Android build artifacts (keep source, exclude generated)
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea/
+android/app/release/
+android/app/*.keystore
+android/*.keystore
+
+# Capacitor — iOS build artifacts
+ios/App/Pods/
+ios/App/App.xcworkspace/xcuserdata/
+ios/DerivedData/
+ios/.idea/
+
+# Capacitor static export
+/out/
