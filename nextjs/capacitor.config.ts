@@ -24,7 +24,7 @@ const config: CapacitorConfig = {
     // Allows the app to open links to rentybase.in inside the WebView
     allowMixedContent: false,
     captureInput: true,
-    webContentsDebuggingEnabled: true,
+    webContentsDebuggingEnabled: false,
   },
 
   ios: {
