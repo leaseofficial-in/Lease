@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.rentybase.app",
+      "sha256_cert_fingerprints": [
+        "08:35:31:F7:F7:F0:DB:9D:BC:4F:6D:37:6F:EE:36:80:45:8F:54:D8:71:08:DD:CA:BD:28:2B:77:33:45:1D:15"
+      ]
+    }
+  }
+]
