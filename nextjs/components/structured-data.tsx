@@ -19,9 +19,9 @@ export function RootStructuredData() {
       height: 512,
     },
     description:
-      'RentyBase is India\'s free rental operating system — connecting landlords and tenants through shared rent records, HRA receipts, deposit tracking, move-in proof, and repair management.',
+      'RentyBase is a free rental operating system — connecting landlords and tenants worldwide through shared rent records, rent receipts, deposit tracking, move-in proof, and repair management.',
     foundingDate: '2026',
-    areaServed: { '@type': 'Country', name: 'India' },
+    areaServed: 'Worldwide',
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'customer support',
@@ -41,25 +41,24 @@ export function RootStructuredData() {
     applicationSubCategory: 'Property Management Software',
     operatingSystem: 'Web, Android, iOS',
     url: 'https://rentybase.com',
+    areaServed: 'Worldwide',
     description:
-      'Free rental management app for Indian landlords and tenants. Generate Section 10(13A)-compliant HRA receipts, track rent payments, manage security deposits, log repairs, and document move-in condition with tamper-proof geotagged photos.',
+      'Free rental management app for landlords and tenants worldwide. Generate tax-compliant rent receipts, track rent payments, manage security deposits, log repairs, and document move-in condition with tamper-proof geotagged photos.',
     offers: {
       '@type': 'Offer',
       price: '0',
-      priceCurrency: 'INR',
+      priceCurrency: 'USD',
       description: 'Free for both landlords and tenants. No subscription required.',
     },
     featureList: [
-      'HRA Rent Receipt Generation (Section 10(13A) compliant)',
-      'Shared Rent Ledger — landlord and tenant see the same record',
-      'Security Deposit Tracking with deduction breakdown',
-      'Move-in Photo Proof (timestamped, geotagged, tamper-proof)',
-      'Repair Request Management with status tracking',
-      'Digital Leave & License Agreement',
-      'Tenant Onboarding via Invite Link',
-      'UPI and Bank Transfer Payment Logging',
-      'UTR Number per Payment Entry',
-      'Section 80GG Support for non-HRA earners',
+      'Rent receipt generation (tax-compliant, incl. India HRA under Section 10(13A))',
+      'Shared rent ledger — landlord and tenant see the same record',
+      'Security deposit tracking with deduction breakdown',
+      'Move-in photo proof (timestamped, geotagged, tamper-proof)',
+      'Repair request management with status tracking',
+      'Rental agreement templates (Lease, AST, Leave & License)',
+      'Tenant onboarding via invite link',
+      'Multi-currency rent tracking',
     ],
     screenshot: 'https://rentybase.com/opengraph-image',
     publisher: { '@id': ORG_ID },
@@ -71,9 +70,9 @@ export function RootStructuredData() {
     '@id': WEBSITE_ID,
     name: 'RentyBase',
     url: 'https://rentybase.com',
-    description: "India's free rental OS for landlords and tenants.",
+    description: 'The free rental OS for landlords and tenants worldwide.',
     publisher: { '@id': ORG_ID },
-    inLanguage: 'en-IN',
+    inLanguage: 'en',
   }
 
   return (
@@ -134,6 +133,44 @@ export function BreadcrumbStructuredData({ items }: { items: BreadcrumbItem[] })
       name: item.name,
       item: item.url,
     })),
+  }
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  )
+}
+
+/** SoftwareApplication schema scoped to a place — used on the geo /rentals pages */
+export function SoftwareAppStructuredData({
+  url,
+  areaServed,
+  description,
+  priceCurrency = 'USD',
+}: {
+  url: string
+  areaServed: string
+  description?: string
+  priceCurrency?: string
+}) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'RentyBase',
+    applicationCategory: 'BusinessApplication',
+    applicationSubCategory: 'Property Management Software',
+    operatingSystem: 'Web, Android, iOS',
+    url,
+    areaServed: { '@type': 'Place', name: areaServed },
+    ...(description ? { description } : {}),
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency,
+      description: 'Free for both landlords and tenants. No subscription required.',
+    },
+    publisher: { '@id': ORG_ID },
   }
   return (
     <script

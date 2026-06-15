@@ -231,7 +231,7 @@ function MA2Role({
             </div>
             <div>
               <div className="head">I&apos;m a landlord</div>
-              <div className="desc">List property · collect rent · issue HRA receipts</div>
+              <div className="desc">List property · collect rent · issue rent receipts</div>
             </div>
             <div className="rad" />
           </button>
@@ -245,7 +245,7 @@ function MA2Role({
             </div>
             <div>
               <div className="head">I&apos;m a tenant</div>
-              <div className="desc">Pay rent · collect HRA · keep move-in proof</div>
+              <div className="desc">Pay rent · keep receipts · keep move-in proof</div>
             </div>
             <div className="rad" />
           </button>
@@ -711,7 +711,7 @@ export default function SignUpPage() {
           </a>
 
           <div style={{ marginTop: 60 }}>
-            <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(246,244,238,.6)', marginBottom: 22 }}>India's rental OS</p>
+            <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(246,244,238,.6)', marginBottom: 22 }}>The rental OS</p>
             <h1 style={{ fontFamily: 'var(--rb-font-display)', fontWeight: 400, fontSize: 'clamp(44px,4.6vw,76px)', lineHeight: 1.04, letterSpacing: '-.035em', color: '#F6F4EE' }}>
               Sign up once.<br />
               Carry your record<br />
@@ -733,7 +733,7 @@ export default function SignUpPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 30, marginTop: 60 }}>
             <div style={{ flex: 1, maxWidth: 360 }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 22 }}>
-                {['Google OAuth', 'Supabase', 'Razorpay', 'India-first'].map(t => (
+                {['Google OAuth', 'Supabase', 'Razorpay', 'Worldwide'].map(t => (
                   <span key={t} style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '.08em', padding: '5px 11px', borderRadius: 999, background: 'rgba(246,244,238,.06)', color: 'rgba(246,244,238,.8)', border: '1px solid rgba(246,244,238,.1)' }}>{t}</span>
                 ))}
               </div>

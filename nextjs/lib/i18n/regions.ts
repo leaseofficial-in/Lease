@@ -2,7 +2,7 @@
 // Single source of truth for all country/region configuration.
 // Add new countries here — nothing else needs to change.
 
-export type CountryCode = 'IN' | 'US' | 'GB' | 'CA' | 'AU' | 'AE' | 'SG' | 'DE' | 'FR' | 'NZ';
+export type CountryCode = 'IN' | 'US' | 'GB' | 'CA' | 'AU' | 'AE' | 'SG' | 'DE' | 'FR' | 'NZ' | 'ZA' | 'MY';
 
 export type PaymentMethodId =
   | 'upi'          // India: UPI (PhonePe / GPay / Paytm)
@@ -62,6 +62,8 @@ const AED: CurrencyConfig = { code: 'AED', symbol: 'AED', name: 'UAE Dirham',   
 const SGD: CurrencyConfig = { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', decimals: 2, compactK: 'K', compactM: 'M' };
 const EUR: CurrencyConfig = { code: 'EUR', symbol: '€', name: 'Euro',            decimals: 2, compactK: 'K', compactM: 'M' };
 const NZD: CurrencyConfig = { code: 'NZD', symbol: 'NZ$', name: 'New Zealand Dollar', decimals: 2, compactK: 'K', compactM: 'M' };
+const ZAR: CurrencyConfig = { code: 'ZAR', symbol: 'R',  name: 'South African Rand', decimals: 2, compactK: 'K', compactM: 'M' };
+const MYR: CurrencyConfig = { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit',  decimals: 2, compactK: 'K', compactM: 'M' };
 
 // ─── Region registry ──────────────────────────────────────────────────────────
 
@@ -296,6 +298,52 @@ export const REGIONS: Record<CountryCode, RegionConfig> = {
     receiptLabel: 'Rent Receipt',
     receiptFootnote: null,
   },
+
+  ZA: {
+    countryCode: 'ZA',
+    name: 'South Africa',
+    flag: '🇿🇦',
+    currency: ZAR,
+    locale: 'en-ZA',
+    primaryTimezone: 'Africa/Johannesburg',
+    phoneDialCode: '+27',
+    phoneLocalLength: [9],
+    postalCodeLabel: 'Postal Code',
+    postalCodePlaceholder: '8001',
+    stateLabel: 'Province',
+    dateFormat: 'YYYY-MM-DD',
+    paymentMethods: ['bank_transfer', 'direct_debit', 'credit_card', 'cash'],
+    minRentAmount: 1000,
+    taxIdLabel: null,
+    taxIdPlaceholder: null,
+    measurementSystem: 'metric',
+    rentTerminology: 'rent',
+    receiptLabel: 'Rent Receipt',
+    receiptFootnote: null,
+  },
+
+  MY: {
+    countryCode: 'MY',
+    name: 'Malaysia',
+    flag: '🇲🇾',
+    currency: MYR,
+    locale: 'en-MY',
+    primaryTimezone: 'Asia/Kuala_Lumpur',
+    phoneDialCode: '+60',
+    phoneLocalLength: [9, 10],
+    postalCodeLabel: 'Postcode',
+    postalCodePlaceholder: '50000',
+    stateLabel: 'State',
+    dateFormat: 'DD/MM/YYYY',
+    paymentMethods: ['bank_transfer', 'credit_card', 'cash'],
+    minRentAmount: 500,
+    taxIdLabel: null,
+    taxIdPlaceholder: null,
+    measurementSystem: 'metric',
+    rentTerminology: 'rent',
+    receiptLabel: 'Rent Receipt',
+    receiptFootnote: null,
+  },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -309,5 +357,5 @@ export const ALL_COUNTRIES = Object.values(REGIONS);
 
 // Sorted for the picker: US first (new primary), then India (legacy), rest alphabetically
 export const COUNTRY_PICKER_ORDER: CountryCode[] = [
-  'US', 'IN', 'GB', 'CA', 'AU', 'AE', 'SG', 'DE', 'FR', 'NZ',
+  'US', 'IN', 'GB', 'CA', 'AU', 'AE', 'SG', 'DE', 'FR', 'NZ', 'ZA', 'MY',
 ];

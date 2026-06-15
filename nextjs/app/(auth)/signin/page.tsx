@@ -55,8 +55,8 @@ function MobileSplash({ onGoogle, loading, error }: { onGoogle: () => void; load
             <span className="t">Receipt · Nov</span>
             <span className="n">RB·024·M11</span>
           </div>
-          <div className="rr"><span className="k">Tenant</span><span className="v">Aarav Mehta</span></div>
-          <div className="rr"><span className="k">Property</span><span className="v">2BHK · Bandra W</span></div>
+          <div className="rr"><span className="k">Tenant</span><span className="v">Sam Carter</span></div>
+          <div className="rr"><span className="k">Property</span><span className="v">2BR · North District</span></div>
           <div className="rr"><span className="k">Period</span><span className="v">1–30 Nov '25</span></div>
           <div className="rtot">
             <span className="l">PAID · UPI 2.0</span>

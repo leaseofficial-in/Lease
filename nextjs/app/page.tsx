@@ -45,7 +45,7 @@ function PhoneScreens({ idx }: { idx: number }) {
   return (
     <>
       <div className={'screen' + (idx === 0 ? ' active' : '')}>
-        <div className="s-eyebrow">Good morning, Priya</div>
+        <div className="s-eyebrow">Good morning, Alex</div>
         <div className="s-hero-amount">
           <div className="label">Collected this month</div>
           <div className="amt mono">₹1,24,000</div>
@@ -57,13 +57,13 @@ function PhoneScreens({ idx }: { idx: number }) {
         </div>
         <div className="s-card">
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <div><div className="s-eyebrow">Mumbai</div><div style={{ fontWeight: 600, fontSize: 13, marginTop: 2 }}>Bandra 2BHK</div><div style={{ fontSize: 10, color: '#5C645F' }}>Aarav Mehta · paid 5 Nov</div></div>
+            <div><div className="s-eyebrow">Downtown</div><div style={{ fontWeight: 600, fontSize: 13, marginTop: 2 }}>Main St 2BR</div><div style={{ fontSize: 10, color: '#5C645F' }}>Sam Carter · paid 5 Nov</div></div>
             <span className="s-pill success">Paid</span>
           </div>
         </div>
         <div className="s-card">
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <div><div className="s-eyebrow">Pune</div><div style={{ fontWeight: 600, fontSize: 13, marginTop: 2 }}>Koregaon 1BHK</div><div style={{ fontSize: 10, color: '#5C645F' }}>due in 3 days</div></div>
+            <div><div className="s-eyebrow">Riverside</div><div style={{ fontWeight: 600, fontSize: 13, marginTop: 2 }}>Oak Ave 1BR</div><div style={{ fontSize: 10, color: '#5C645F' }}>due in 3 days</div></div>
             <span className="s-pill warning">Due</span>
           </div>
         </div>
@@ -72,12 +72,12 @@ function PhoneScreens({ idx }: { idx: number }) {
       <div className={'screen' + (idx === 1 ? ' active' : '')}>
         <div className="s-eyebrow">Pay rent</div>
         <div className="s-card">
-          <div style={{ fontSize: 11, color: '#5C645F' }}>To · Priya Sharma</div>
+          <div style={{ fontSize: 11, color: '#5C645F' }}>To · Alex Sharma</div>
           <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 36, marginTop: 6, letterSpacing: '-.02em' }}>₹28,500</div>
-          <div style={{ fontSize: 10, color: '#5C645F', marginTop: 2 }}>Koregaon 1BHK · Nov 2025</div>
+          <div style={{ fontSize: 10, color: '#5C645F', marginTop: 2 }}>Oak Ave 1BR · Nov 2025</div>
         </div>
         <div className="s-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><div style={{ fontSize: 11, fontWeight: 600 }}>UPI</div><div style={{ fontSize: 10, color: '#5C645F' }}>priya@oksbi</div></div>
+          <div><div style={{ fontSize: 11, fontWeight: 600 }}>UPI</div><div style={{ fontSize: 10, color: '#5C645F' }}>alex@okbank</div></div>
           <div className="mono" style={{ fontSize: 10, color: '#5C645F' }}>‹ select ›</div>
         </div>
         <div style={{ flex: 1 }} />
@@ -85,7 +85,7 @@ function PhoneScreens({ idx }: { idx: number }) {
       </div>
 
       <div className={'screen' + (idx === 2 ? ' active' : '')}>
-        <div className="s-eyebrow">HRA receipt</div>
+        <div className="s-eyebrow">Rent receipt</div>
         <div className="s-receipt">
           <div className="top">
             <div><div style={{ fontSize: 9, color: '#5C645F' }}>RECEIPT</div><div className="title">November 2025</div></div>
@@ -93,13 +93,13 @@ function PhoneScreens({ idx }: { idx: number }) {
           </div>
           <div style={{ marginTop: 14 }}>
             <div className="row"><span>Rent</span><span className="v">₹28,500</span></div>
-            <div className="row"><span>Property</span><span className="v">Koregaon 1BHK</span></div>
+            <div className="row"><span>Property</span><span className="v">Oak Ave 1BR</span></div>
             <div className="row"><span>Period</span><span className="v">1 – 30 Nov &apos;25</span></div>
             <div className="row"><span>UTR</span><span className="v">4581 2210</span></div>
             <div className="row"><span>PAN</span><span className="v">AKWPS****K</span></div>
           </div>
           <div className="total">
-            <div style={{ fontSize: 10, color: '#5C645F', letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 600 }}>HRA Eligible</div>
+            <div style={{ fontSize: 10, color: '#5C645F', letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 600 }}>Tax eligible</div>
             <div className="v mono">₹28,500</div>
           </div>
         </div>
@@ -109,7 +109,7 @@ function PhoneScreens({ idx }: { idx: number }) {
         <div className="s-eyebrow">Move-in proof</div>
         <div className="s-proof">
           <div className="photo">
-            <span className="ts">12 NOV 2025 · 11:42 IST<br />Lat 19.0760, Lon 72.8777</span>
+            <span className="ts">12 NOV 2025 · 11:42</span>
             <span className="seal">SEALED<br />11:43</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
@@ -155,7 +155,7 @@ function Hero() {
     <section className="hero">
       <div className="hero-headline-top">
         <h1>Rent that <em>trusts itself.</em></h1>
-        <p className="sub">A shared, calm record between landlord and tenant. Built for India.</p>
+        <p className="sub">A shared, calm record between landlord and tenant.</p>
       </div>
       <div className="hero-grid">
         <div className="hero-side">
@@ -198,10 +198,10 @@ function Hero() {
           <span className="eyebrow"><span className="pip" />For tenants</span>
           <div className="hero-stat">
             <div className="num"><span className="accent">₹{(0.62 * 12).toFixed(2)}L</span></div>
-            <div className="label">HRA SAVED · ANNUAL · ON ₹62K RENT</div>
+            <div className="label">TAX SAVED · ANNUAL · ON ₹62K RENT</div>
           </div>
           <p className="hero-tag">One tap and the receipt is in your inbox. Fields filled, PAN attached, year-on-year stored. Tax season, sorted.</p>
-          <div className="hero-cta"><a className="btn btn-ghost" href="#proof">See HRA receipt <Icon name="arrow-right" size={16} /></a></div>
+          <div className="hero-cta"><a className="btn btn-ghost" href="#proof">See rent receipt <Icon name="arrow-right" size={16} /></a></div>
         </div>
       </div>
     </section>
@@ -242,12 +242,12 @@ function Cinema() {
   const steps = [
     { n: '01', t: 'Add the property. Invite your tenant.', d: 'Property in 30 seconds. Send a link. Your tenant signs in with Google. No app install required, no phone numbers exchanged.', meta: [['Setup', '30 sec'], ['Install', 'Not required']] },
     { n: '02', t: ['Rent', 'in one tap.'], d: '₹28,500 lands. UPI, NEFT, or cash with a UTR. The amount, date, and method get stamped into the shared record automatically.', meta: [['Methods', 'UPI · NEFT · Cash'], ['Settles in', 'Instant']] },
-    { n: '03', t: ['Receipt', 'drops itself.'], d: 'A Section 10(13A)-valid HRA receipt generates the moment payment clears. PAN, period, address: every field already filled.', meta: [['Format', 'PDF · 10(13A)'], ['Delivery', 'Email + dashboard']] },
+    { n: '03', t: ['Receipt', 'drops itself.'], d: 'A valid rent receipt generates automatically the moment payment clears. Period, address: every field already filled.', meta: [['Format', 'PDF'], ['Delivery', 'Email + dashboard']] },
     { n: '04', t: ['Proof, sealed', 'for years.'], d: 'Move-in photos, repair logs, deposit history. All timestamped, locked, and visible to both sides. The same record. Always.', meta: [['Photos', 'Locked at submit'], ['Retention', 'Permanent']] },
   ]
 
   const floatData = [
-    { base: 'translate3d(-220px,-180px,60px) rotate(-4deg)', k: 'Property added', v: 'Bandra 2BHK', show: step >= 0 },
+    { base: 'translate3d(-220px,-180px,60px) rotate(-4deg)', k: 'Property added', v: 'Main St 2BR', show: step >= 0 },
     { base: 'translate3d(240px,-150px,80px) rotate(5deg)', k: 'Rent received', v: '₹28,500', amt: true, show: step >= 1 },
     { base: 'translate3d(-260px,140px,70px) rotate(3deg)', k: 'Receipt no.', v: 'RB-2511-04', show: step >= 2 },
     { base: 'translate3d(220px,180px,50px) rotate(-3deg)', k: 'Move-in proof', v: '12 photos · sealed', show: step >= 3 },
@@ -331,7 +331,7 @@ function ProofFilm() {
           <div className="proof-points">
             <div className="proof-point"><div className="ico"><Icon name="camera" size={16} /></div><div><div className="t">Timestamped at the door</div><div className="d">Server time + GPS captured at submit. Photos can&apos;t be backdated, swapped, or re-uploaded.</div></div></div>
             <div className="proof-point"><div className="ico"><Icon name="lock" size={16} /></div><div><div className="t">Locked for both sides</div><div className="d">Once sealed, neither landlord nor tenant can delete. Same record, same view, forever.</div></div></div>
-            <div className="proof-point"><div className="ico"><Icon name="shield" size={16} /></div><div><div className="t">Court-ready in PDF</div><div className="d">Export the full set as a signed PDF with embedded EXIF, hash, and the Section 10(13A) receipt for the year.</div></div></div>
+            <div className="proof-point"><div className="ico"><Icon name="shield" size={16} /></div><div><div className="t">Court-ready in PDF</div><div className="d">Export the full set as a signed PDF with embedded EXIF, hash, and the rent receipt for the year.</div></div></div>
           </div>
         </div>
         <div className="proof-stage">
@@ -342,7 +342,7 @@ function ProofFilm() {
               <div style={{ borderRadius: 6, overflow: 'hidden', background: 'linear-gradient(135deg,#9aa6a3 0%,#4f5e5b 55%,#1f2724 100%)' }} />
               <div style={{ borderRadius: 6, overflow: 'hidden', background: 'linear-gradient(135deg,#a89280 0%,#5e483a 55%,#28190f 100%)' }} />
             </div>
-            <span className="ts"><span className="lbl">Timestamp</span>12 NOV 2025 · 11:42 IST<br />Lat 19.0760  Lon 72.8777</span>
+            <span className="ts"><span className="lbl">Timestamp</span>12 NOV 2025 · 11:42</span>
             <div className="proof-flash" ref={flashRef} />
           </div>
           <div className={'proof-seal' + (stamped ? ' stamped' : '')} ref={sealRef}>
@@ -373,9 +373,9 @@ function Features() {
         <div className="features-grid"><div className="features-grid-inner">
           <div className="feat-card wide">
             <div className="ico"><Icon name="receipt" size={20} /></div>
-            <h3>HRA receipts in one tap.</h3>
-            <p>Section 10(13A)-compliant PDF with PAN, address, period, and UTR. Year-on-year archived. Export the whole financial year as a single bundle.</p>
-            <div className="stat"><div><div className="l">SAVED PER YEAR</div><div className="n">₹62,400</div></div><div><div className="l">FORMAT</div><div className="n" style={{ fontSize: 18 }}>PDF · 10(13A)</div></div></div>
+            <h3>Rent receipts in one tap.</h3>
+            <p>A tax-ready PDF with address, payment period, and reference number. Year-on-year archived. Export the whole financial year as a single bundle.</p>
+            <div className="stat"><div><div className="l">SAVED PER YEAR</div><div className="n">₹62,400</div></div><div><div className="l">FORMAT</div><div className="n" style={{ fontSize: 18 }}>PDF · tax-ready</div></div></div>
           </div>
           <div className="feat-card accent">
             <div className="ico"><Icon name="vault" size={20} /></div>
@@ -389,8 +389,8 @@ function Features() {
           </div>
           <div className="feat-card">
             <div className="ico"><Icon name="ledger" size={20} /></div>
-            <h3>Leave &amp; License.</h3>
-            <p>Templated agreement built for state-level stamp duty. Generate, e-sign, attach to the property.</p>
+            <h3>Rental agreements.</h3>
+            <p>Templated agreements — Lease, AST, or Leave &amp; License. Generate, e-sign, attach to the property.</p>
           </div>
           <div className="feat-card accent wide">
             <div className="ico"><Icon name="bolt" size={20} /></div>
@@ -496,7 +496,7 @@ function Scores() {
   }
 
   const tBreak = [{ k: 'On-time rent', v: '23/24 months', w: 0.92 }, { k: 'Move-in proof', v: 'Submitted', w: 1.0 }, { k: 'Repair reports', v: 'All resolved', w: 0.85 }, { k: 'Deposit history', v: '2 returned in full', w: 0.95 }]
-  const lBreak = [{ k: 'Deposit returned', v: '100% on time', w: 1.0 }, { k: 'Repair response', v: 'Avg 1.2 days', w: 0.88 }, { k: 'HRA receipts', v: 'Issued every month', w: 0.95 }, { k: 'Lease compliance', v: '0 violations', w: 1.0 }]
+  const lBreak = [{ k: 'Deposit returned', v: '100% on time', w: 1.0 }, { k: 'Repair response', v: 'Avg 1.2 days', w: 0.88 }, { k: 'Rent receipts', v: 'Issued every month', w: 0.95 }, { k: 'Lease compliance', v: '0 violations', w: 1.0 }]
 
   return (
     <section className="scores" ref={ref}>
@@ -510,14 +510,14 @@ function Scores() {
           <div className="score-card">
             <div className="score-tag">For tenants</div>
             <div className="score-dial"><Dial value={tScore} color="#0F4C5C" /><div className="score-num"><div className="n">{tScore}</div><div className="l">/ 900</div><div className="band action">EXCELLENT</div></div></div>
-            <div className="score-id"><div className="who"><div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#c9b388,#7a6042)' }} /><div><div style={{ fontWeight: 600, fontSize: 14 }}>Aarav Mehta</div><div style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>Tenant since Aug 2023 · Mumbai</div></div></div><span className="s-pill action" style={{ padding: '4px 10px' }}>Verified</span></div>
+            <div className="score-id"><div className="who"><div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#c9b388,#7a6042)' }} /><div><div style={{ fontWeight: 600, fontSize: 14 }}>Sam Carter</div><div style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>Tenant since Aug 2023 · Downtown</div></div></div><span className="s-pill action" style={{ padding: '4px 10px' }}>Verified</span></div>
             <div className="score-break">{tBreak.map(b => <div key={b.k} className="b"><div className="row"><span>{b.k}</span><span className="v">{b.v}</span></div><div className="bar"><div className="fill action" style={{ width: shown ? `${b.w * 100}%` : '0%' }} /></div></div>)}</div>
             <div className="score-foot">Carry this to your next landlord →</div>
           </div>
           <div className="score-card accent">
             <div className="score-tag">For landlords</div>
             <div className="score-dial"><Dial value={lScore} color="#C97A3A" /><div className="score-num"><div className="n">{lScore}</div><div className="l">/ 900</div><div className="band ochre">TRUSTED</div></div></div>
-            <div className="score-id"><div className="who"><div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#0F4C5C,#163A47)' }} /><div><div style={{ fontWeight: 600, fontSize: 14 }}>Priya Sharma</div><div style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>3 properties · Bandra, Pune, HSR</div></div></div><span className="s-pill" style={{ background: 'var(--rb-accent-soft)', color: 'var(--rb-accent)', padding: '4px 10px' }}>Verified</span></div>
+            <div className="score-id"><div className="who"><div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#0F4C5C,#163A47)' }} /><div><div style={{ fontWeight: 600, fontSize: 14 }}>Alex Sharma</div><div style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>3 properties · Downtown, Riverside, Midtown</div></div></div><span className="s-pill" style={{ background: 'var(--rb-accent-soft)', color: 'var(--rb-accent)', padding: '4px 10px' }}>Verified</span></div>
             <div className="score-break">{lBreak.map(b => <div key={b.k} className="b"><div className="row"><span>{b.k}</span><span className="v">{b.v}</span></div><div className="bar"><div className="fill ochre" style={{ width: shown ? `${b.w * 100}%` : '0%' }} /></div></div>)}</div>
             <div className="score-foot">Tenants see this before they even ask →</div>
           </div>
@@ -685,7 +685,7 @@ const MMSealCTA = ({ size = 170 }: { size?: number }) => (
     <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(244,229,212,.55)" strokeWidth="1.4" strokeDasharray="2 3"/>
     <text x="100" y="62" textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize="11" letterSpacing="3.4" fill="#F4E5D4" fontWeight="700">FREE · BETA</text>
     <text x="100" y="120" textAnchor="middle" fontFamily="'Instrument Serif', serif" fontStyle="italic" fontSize="34" fill="#F4E5D4">2026</text>
-    <text x="100" y="146" textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize="8" letterSpacing="2.2" fill="rgba(244,229,212,.7)" fontWeight="700">RB · MUMBAI · INDIA</text>
+    <text x="100" y="146" textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize="8" letterSpacing="2.2" fill="rgba(244,229,212,.7)" fontWeight="700">RB · WORLDWIDE</text>
   </svg>
 )
 
@@ -709,9 +709,8 @@ function MMHero() {
 
   return (
     <section className="mm-hero">
-      <span className="city"><span className="dot"/> MUMBAI · INDIA</span>
       <h1>Rent that<br/><em>trusts itself.</em></h1>
-      <p>A shared, calm record between landlord and tenant. Built for India. One ledger, both sides, forever.</p>
+      <p>A shared, calm record between landlord and tenant. One ledger, both sides, forever.</p>
       <div className="ctas">
         <a href="/signup" className="mm-btn">Start free <span className="arr">→</span></a>
         <a href="/signin" className="mm-btn ghost">Sign in</a>
@@ -733,7 +732,7 @@ function MMHero() {
           <div className="strip"/>
         </div>
         <div className="mm-float r4" data-px="-1.2">
-          <div className="lbl">HRA · annual</div>
+          <div className="lbl">Receipts · year</div>
           <div className="val">₹7.44L</div>
           <div className="strip s"/>
         </div>
@@ -742,10 +741,10 @@ function MMHero() {
           <div className="scr">
             <div className="scr-inner">
               <span className="scr-pill">RENT RECEIVED</span>
-              <span className="scr-eyebrow">NOV 2025 · BANDRA W</span>
+              <span className="scr-eyebrow">NOV 2025 · NORTH DISTRICT</span>
               <span className="scr-amt">₹28,500</span>
               <div className="scr-card"><span>UPI · auto-pay</span><span className="v">SETTLED</span></div>
-              <div className="scr-card"><span>HRA receipt</span><span className="v vw">ISSUED ↗</span></div>
+              <div className="scr-card"><span>Rent receipt</span><span className="v vw">ISSUED ↗</span></div>
               <div className="scr-card"><span>Move-in proof</span><span className="v">12 SEALED</span></div>
               <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--rb-font-mono)', fontSize: 7, color: 'var(--rb-ink-3)', letterSpacing: '.14em', fontWeight: 700 }}>
                 <span>RB·024·M11</span><span>SEALED ✓</span>
@@ -787,15 +786,15 @@ function MMCinema() {
     { num: '01', a: 'Add the property.', b: 'Invite your tenant.', em: true,
       d: 'Property in 30 seconds. Send a link. Your tenant signs in with Google. No app install required.',
       meta: [['Setup', '30 sec'], ['Install', 'Not required']],
-      phone: { eb: 'STEP 1 · SETUP', h: 'Bandra W', sub: '2BHK · ₹62,000/mo' } },
+      phone: { eb: 'STEP 1 · SETUP', h: 'North District', sub: '2BR · ₹62,000/mo' } },
     { num: '02', a: 'Rent in', b: 'one tap.', em: true,
       d: '₹28,500 lands. UPI, NEFT, or cash with a UTR. The amount and date stamp into the ledger automatically.',
       meta: [['Methods', 'UPI · NEFT'], ['Settles', 'Instant']],
       phone: { eb: 'RENT RECEIVED', h: '₹28,500', sub: 'UTR · 4581 2210' } },
     { num: '03', a: 'Receipt', b: 'drops itself.', em: true,
-      d: 'A Section 10(13A)-valid HRA receipt generates the moment payment clears. PAN, period, address: all filled.',
-      meta: [['Format', 'PDF · 10(13A)'], ['Sent to', 'Both inboxes']],
-      phone: { eb: 'HRA · ISSUED', h: 'RB-2511-04', sub: 'PDF · 10(13A) ready' } },
+      d: 'A valid rent receipt generates automatically the moment payment clears. Period, address: all filled.',
+      meta: [['Format', 'PDF'], ['Sent to', 'Both inboxes']],
+      phone: { eb: 'RECEIPT · ISSUED', h: 'RB-2511-04', sub: 'PDF · tax-ready' } },
     { num: '04', a: 'Proof, sealed', b: 'for years.', em: false,
       d: 'Move-in photos, repair logs, deposit history. All timestamped, locked, visible to both sides. Forever.',
       meta: [['Retention', 'Permanent'], ['Editable', 'Never']],
@@ -805,25 +804,25 @@ function MMCinema() {
   const phoneScreens = [
     /* Step 0 — Dashboard: add property, see tenants */
     <div key={0} className="scr">
-      <span className="lbl">GOOD MORNING, PRIYA</span>
+      <span className="lbl">GOOD MORNING, ALEX</span>
       <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, letterSpacing: '-.02em', marginTop: 4, lineHeight: 1 }}>₹1,24,000</div>
       <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 5.5, color: 'var(--rb-ink-3)', letterSpacing: '.1em', marginTop: 2 }}>COLLECTED · 3 PROPERTIES</div>
       <div className="card" style={{ marginTop: 8 }}>
-        <span style={{ fontSize: 8 }}>Bandra 2BHK</span>
+        <span style={{ fontSize: 8 }}>Main St 2BR</span>
         <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 7, fontWeight: 700, color: '#1F7A55' }}>PAID</span>
       </div>
       <div className="card">
-        <span style={{ fontSize: 8 }}>Koregaon 1BHK</span>
+        <span style={{ fontSize: 8 }}>Oak Ave 1BR</span>
         <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 7, fontWeight: 700, color: '#B8740F' }}>DUE</span>
       </div>
     </div>,
     /* Step 1 — Pay rent: amount + UPI + button */
     <div key={1} className="scr">
       <span className="lbl">PAY RENT</span>
-      <div style={{ fontSize: 8, color: 'var(--rb-ink-3)', marginTop: 4 }}>To · Priya Sharma</div>
+      <div style={{ fontSize: 8, color: 'var(--rb-ink-3)', marginTop: 4 }}>To · Alex Sharma</div>
       <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24, letterSpacing: '-.025em', marginTop: 2, lineHeight: 1 }}>₹28,500</div>
       <div className="card" style={{ marginTop: 8 }}>
-        <span style={{ fontSize: 8 }}>UPI · priya@oksbi</span>
+        <span style={{ fontSize: 8 }}>UPI · alex@okbank</span>
         <span className="v" style={{ fontSize: 8 }}>›</span>
       </div>
       <div style={{ background: 'var(--rb-action)', color: '#fff', borderRadius: 7, padding: '7px', textAlign: 'center' as const, fontWeight: 600, fontSize: 9, marginTop: 6 }}>
@@ -832,7 +831,7 @@ function MMCinema() {
     </div>,
     /* Step 2 — HRA receipt: rows + verified seal */
     <div key={2} className="scr">
-      <span className="lbl">HRA RECEIPT</span>
+      <span className="lbl">RENT RECEIPT</span>
       <div style={{ fontSize: 7, color: 'var(--rb-ink-3)', marginTop: 4 }}>November 2025</div>
       <div className="card" style={{ flexDirection: 'column' as const, alignItems: 'stretch', gap: 5, marginTop: 6, padding: '6px 7px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7 }}>
@@ -863,7 +862,7 @@ function MMCinema() {
           </div>
         ))}
       </div>
-      <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 6, color: 'var(--rb-ink-3)', letterSpacing: '.08em', marginTop: 6 }}>12 NOV 2025 · 11:42 IST</div>
+      <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 6, color: 'var(--rb-ink-3)', letterSpacing: '.08em', marginTop: 6 }}>12 NOV 2025 · 11:42</div>
       <div className="card" style={{ marginTop: 5 }}>
         <span style={{ fontSize: 8 }}>12 photos</span>
         <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 7, fontWeight: 700, color: 'var(--rb-accent)' }}>SEALED ✓</span>
@@ -890,7 +889,7 @@ function MMCinema() {
             {phoneScreens[step]}
           </div>
           <div className="mm-cinema-orbit">
-            <div className={'item i0' + (step >= 0 ? ' on' : '')}><div className="k">Property</div><div className="v">Bandra 2BHK</div></div>
+            <div className={'item i0' + (step >= 0 ? ' on' : '')}><div className="k">Property</div><div className="v">Main St 2BR</div></div>
             <div className={'item i1' + (step >= 1 ? ' on' : '')}><div className="k">Rent received</div><div className="v amt">₹28,500</div></div>
             <div className={'item i2' + (step >= 2 ? ' on' : '')}><div className="k">Receipt</div><div className="v">RB-2511-04</div></div>
             <div className={'item i3' + (step >= 3 ? ' on' : '')}><div className="k">Move-in proof</div><div className="v">12 · sealed</div></div>
@@ -949,7 +948,7 @@ function MMProof() {
           <div className="cell"><span className="room">BATH</span></div>
           <div className="cell"><span className="room">BEDROOM</span></div>
         </div>
-        <span className="ts"><b>12 NOV 2025 · 11:42 IST</b><br/>LAT 19.0760 · LON 72.8777</span>
+        <span className="ts"><b>12 NOV 2025 · 11:42</b></span>
         <div className={'mm-proof-flash' + (flash ? ' on' : '')}/>
         <div className={'mm-proof-seal' + (sealOn ? ' on' : '')} style={{ '--seal-rot': sealOn ? '-14deg' : '-36deg' } as React.CSSProperties}>
           <MMSeal size={100}/>
@@ -981,7 +980,7 @@ function MMProof() {
               <path d="M8 12 L11 15 L16 9" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <div><div className="t">Court-ready in PDF</div><div className="d">Export the full set as a signed PDF with EXIF, hash, and the Section 10(13A) receipt for the year.</div></div>
+          <div><div className="t">Court-ready in PDF</div><div className="d">Export the full set as a signed PDF with EXIF, hash, and the rent receipt for the year.</div></div>
         </div>
       </div>
     </section>
@@ -1053,9 +1052,9 @@ function MMFeatures() {
       <div className="feat-grid">
         <div className="mm-feat wide dark">
           <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 4 L19 4 L19 21 L16 19 L13 21 L10 19 L7 21 L5 19 Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M9 9 L15 9 M9 13 L15 13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg></div>
-          <div className="t">HRA receipts<br/>in <em>one tap.</em></div>
-          <div className="d">Section 10(13A)-compliant PDF with PAN, address, period, and UTR. Year-on-year archived.</div>
-          <div className="stat"><div><div className="l">SAVED · YEAR</div><div className="n amt">₹62,400</div></div><div><div className="l">FORMAT</div><div className="n">10(13A)</div></div></div>
+          <div className="t">Rent receipts<br/>in <em>one tap.</em></div>
+          <div className="d">A tax-ready PDF with address, payment period, and reference number. Year-on-year archived.</div>
+          <div className="stat"><div><div className="l">SAVED · YEAR</div><div className="n amt">₹62,400</div></div><div><div className="l">FORMAT</div><div className="n">Tax-ready</div></div></div>
         </div>
         <div className="mm-feat">
           <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="14" r="2" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M9 4 L15 4 L15 8 L9 8 Z" fill="none" stroke="currentColor" strokeWidth="1.7"/></svg></div>
@@ -1069,8 +1068,8 @@ function MMFeatures() {
         </div>
         <div className="mm-feat">
           <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 3 L18 3 L18 21 L6 21 Z" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M9 8 L15 8 M9 12 L15 12 M9 16 L13 16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg></div>
-          <div className="t">Leave &amp; License</div>
-          <div className="d">State-level stamp duty templates. Generate, e-sign, file. Done.</div>
+          <div className="t">Rental agreements</div>
+          <div className="d">Lease, AST, or Leave &amp; License templates. Generate, e-sign, file. Done.</div>
         </div>
         <div className="mm-feat">
           <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M13 3 L4 14 L11 14 L9 21 L20 9 L13 9 Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg></div>
@@ -1125,14 +1124,14 @@ function MMFoot() {
         </svg>
         <span>Renty<em>Base</em></span>
       </div>
-      <p className="tag">A shared, calm record between landlord and tenant. Made for India.</p>
+      <p className="tag">A shared, calm record between landlord and tenant. Made for landlords, everywhere.</p>
       <div className="links">
         <div>
           <h4>Product</h4>
           <a href="/features">Move-in proof</a>
-          <a href="/tools">HRA receipts</a>
+          <a href="/tools">Rent receipts</a>
           <a href="/features">Repair ledger</a>
-          <a href="/features">Leave &amp; License</a>
+          <a href="/features">Rental agreements</a>
         </div>
         <div>
           <h4>Company</h4>
@@ -1152,11 +1151,51 @@ function MMFoot() {
       <div className="rule"/>
       <div className="meta">
         <span>© 2026 RENTYBASE TECH PVT LTD</span>
-        <span>SECTION 10(13A) COMPLIANT</span>
+        <span>TAX RECEIPTS INCLUDED</span>
         <span>NO DATA SOLD, EVER</span>
         <span>FOUNDED BY AKHIL MADHAVARAM</span>
       </div>
     </footer>
+  )
+}
+
+/* ── CitiesWorldwide (programmatic SEO entry point) ─────────── */
+const FEATURED_GEO: { label: string; href: string }[] = [
+  { label: 'Mumbai', href: '/rentals/in/mumbai' },
+  { label: 'Delhi', href: '/rentals/in/delhi' },
+  { label: 'Bangalore', href: '/rentals/in/bangalore' },
+  { label: 'London', href: '/rentals/gb/london' },
+  { label: 'Manchester', href: '/rentals/gb/manchester' },
+  { label: 'New York', href: '/rentals/us/new-york' },
+  { label: 'Los Angeles', href: '/rentals/us/los-angeles' },
+  { label: 'Sydney', href: '/rentals/au/sydney' },
+  { label: 'Melbourne', href: '/rentals/au/melbourne' },
+  { label: 'Dubai', href: '/rentals/ae/dubai' },
+  { label: 'Singapore', href: '/rentals/sg/central' },
+  { label: 'Toronto', href: '/rentals/ca/toronto' },
+]
+
+function CitiesWorldwide() {
+  return (
+    <section style={{ padding: '88px 0', background: 'var(--rb-canvas-2)', borderTop: '1px solid var(--rb-border)' }}>
+      <div className="container" style={{ textAlign: 'center' }}>
+        <div className="eyebrow" style={{ display: 'inline-block', marginBottom: 14 }}>AVAILABLE WORLDWIDE</div>
+        <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 'clamp(28px,4vw,42px)', fontWeight: 400, letterSpacing: '-.025em', marginBottom: 14, lineHeight: 1.08 }}>
+          Now in cities <em style={{ fontStyle: 'italic', color: 'var(--rb-action)' }}>around the world.</em>
+        </h2>
+        <p style={{ fontSize: 16, color: 'var(--rb-ink-2)', maxWidth: 520, margin: '0 auto 36px', lineHeight: 1.6 }}>
+          From Mumbai to New York, RentyBase works in your currency, with your local rental rules.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', maxWidth: 760, margin: '0 auto' }}>
+          {FEATURED_GEO.map(c => (
+            <a key={c.href} href={c.href} style={{ textDecoration: 'none', padding: '9px 16px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'var(--rb-surface)', fontSize: 14, fontWeight: 600, color: 'var(--rb-ink)' }}>{c.label}</a>
+          ))}
+        </div>
+        <div style={{ marginTop: 28 }}>
+          <a href="/rentals" className="btn btn-ghost" style={{ padding: '11px 22px', fontSize: 14 }}>Explore all cities →</a>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -1212,17 +1251,18 @@ export default function Page() {
         <Features />
         <Trust />
         <Scores />
+        <CitiesWorldwide />
         <FinalCTA />
         <footer className="rb-foot">
           <div className="container foot-grid">
             <div className="foot-brand">
               <div className="foot-mark"><LogoMark size={40} /><span className="foot-word">Renty<span className="ochre">Base</span></span></div>
-              <p className="foot-tag">A shared, calm record between landlord and tenant. Made for India.</p>
+              <p className="foot-tag">A shared, calm record between landlord and tenant. Made for landlords, everywhere.</p>
               <div className="foot-mini"><span className="dot-pulse" /> Free during beta · v0.4</div>
             </div>
             <div className="foot-col">
               <div className="foot-h">Product</div>
-              <a href="#proof">Move-in proof</a><a href="#features">HRA receipts</a><a href="#features">Repair ledger</a><a href="#features">Leave &amp; License</a>
+              <a href="#proof">Move-in proof</a><a href="#features">Rent receipts</a><a href="#features">Repair ledger</a><a href="#features">Rental agreements</a>
             </div>
             <div className="foot-col">
               <div className="foot-h">Coming soon</div>
@@ -1235,10 +1275,10 @@ export default function Page() {
           </div>
           <div className="foot-rule" />
           <div className="container foot-bot">
-            <div className="foot-meta">&copy; 2026 RentyBase Technologies Pvt Ltd · Section 10(13A) compliant · No data sold, ever.</div>
+            <div className="foot-meta">&copy; 2026 RentyBase Technologies Pvt Ltd · Tax receipts included · No data sold, ever.</div>
             <div className="foot-stamp">
               <svg viewBox="0 0 80 80" width="40" height="40"><circle cx="40" cy="40" r="36" fill="none" stroke="#C97A3A" strokeWidth="1.5" /><circle cx="40" cy="40" r="30" fill="none" stroke="#C97A3A" strokeWidth=".7" strokeDasharray="1.5 2" /><text x="40" y="44" textAnchor="middle" fontFamily="Instrument Serif,serif" fontSize="13" fill="#C97A3A">RB</text></svg>
-              <span>Sealed for India · Founded by Akhil Madhavaram · Made by humans on Earth</span>
+              <span>Sealed worldwide · Founded by Akhil Madhavaram · Made by humans on Earth</span>
             </div>
           </div>
         </footer>
@@ -1255,6 +1295,7 @@ export default function Page() {
         <MMProof/>
         <MMVault/>
         <MMFeatures/>
+        <CitiesWorldwide />
         <MMCTA/>
         <MMFoot/>
       </div>

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { LogoMark } from './brand'
+import { REGIONS, COUNTRY_PICKER_ORDER, type CountryCode } from '@/lib/i18n/regions'
+import { getRegionFromCookie, setRegionCookie } from '@/lib/region'
 
 export function MarketingNav() {
   const [open, setOpen] = useState(false)
@@ -25,6 +27,7 @@ export function MarketingNav() {
           <a href="/features">Features</a>
           <a href="/for/landlords">Landlords</a>
           <a href="/for/tenants">Tenants</a>
+          <a href="/rentals">Cities</a>
           <a href="/compare">Compare</a>
           <a href="/blog">Blog</a>
         </div>
@@ -44,6 +47,7 @@ export function MarketingNav() {
         <a href="/features">Features</a>
         <a href="/for/landlords">For landlords</a>
         <a href="/for/tenants">For tenants</a>
+        <a href="/rentals">Cities</a>
         <a href="/tools">Tools</a>
         <a href="/compare">Compare</a>
         <a href="/blog">Blog</a>
@@ -52,6 +56,50 @@ export function MarketingNav() {
         <a href="/signup">Start free →</a>
       </div>
     </nav>
+  )
+}
+
+function FooterRegionSelector() {
+  const [code, setCode] = useState<CountryCode>('IN')
+
+  useEffect(() => {
+    setCode(getRegionFromCookie().countryCode)
+  }, [])
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <label htmlFor="rb-footer-region" style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(246,244,238,.4)', marginBottom: 8 }}>
+        Region
+      </label>
+      <select
+        id="rb-footer-region"
+        aria-label="Choose your region"
+        value={code}
+        onChange={(e) => {
+          const v = e.target.value as CountryCode
+          setRegionCookie(v)
+          setCode(v)
+          if (typeof window !== 'undefined') window.location.reload()
+        }}
+        style={{
+          background: 'rgba(246,244,238,.06)',
+          color: 'var(--rb-canvas)',
+          border: '1px solid rgba(246,244,238,.16)',
+          borderRadius: 8,
+          padding: '8px 10px',
+          fontSize: 13,
+          fontFamily: 'inherit',
+          cursor: 'pointer',
+          maxWidth: 220,
+        }}
+      >
+        {COUNTRY_PICKER_ORDER.map((c) => (
+          <option key={c} value={c} style={{ color: '#0E1413' }}>
+            {REGIONS[c].flag} {REGIONS[c].name} ({REGIONS[c].currency.code})
+          </option>
+        ))}
+      </select>
+    </div>
   )
 }
 
@@ -67,7 +115,7 @@ export function MarketingFooter() {
               Renty<em style={{ fontStyle: 'italic', color: 'var(--rb-accent)' }}>Base</em>
             </div>
             <p style={{ fontSize: 13, color: 'rgba(246,244,238,.5)', maxWidth: 220, lineHeight: 1.65, marginBottom: 16 }}>
-              India&apos;s rental OS — free for landlords and tenants.
+              The rental OS for landlords and tenants — free, worldwide.
             </p>
             <a
               href="mailto:hello@rentybase.com"
@@ -75,6 +123,7 @@ export function MarketingFooter() {
             >
               <span style={{ opacity: 0.6 }}>✉</span> hello@rentybase.com
             </a>
+            <FooterRegionSelector />
           </div>
 
           {/* Links */}
@@ -116,7 +165,7 @@ export function MarketingFooter() {
 
         {/* Bottom bar */}
         <div style={{ borderTop: '1px solid rgba(246,244,238,.1)', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <span style={{ fontSize: 12, color: 'rgba(246,244,238,.35)' }}>© {new Date().getFullYear()} RentyBase · Built for India</span>
+          <span style={{ fontSize: 12, color: 'rgba(246,244,238,.35)' }}>© {new Date().getFullYear()} RentyBase · Worldwide</span>
           <div style={{ display: 'flex', gap: 20 }}>
             <a href="/privacy" style={{ fontSize: 12, color: 'rgba(246,244,238,.35)', textDecoration: 'none' }}>Privacy</a>
             <a href="/terms" style={{ fontSize: 12, color: 'rgba(246,244,238,.35)', textDecoration: 'none' }}>Terms</a>
