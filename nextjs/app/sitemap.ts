@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { SEO_COUNTRIES } from '@/data/locations'
+import { BLOG_POSTS } from '@/data/blog-posts'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = 'https://rentybase.com'
@@ -18,6 +19,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/privacy`,       lastModified: now, changeFrequency: 'yearly',  priority: 0.3 },
     { url: `${base}/terms`,         lastModified: now, changeFrequency: 'yearly',  priority: 0.3 },
   ]
+
+  const blogPosts: MetadataRoute.Sitemap = BLOG_POSTS.map(p => ({
+    url: `${base}/blog/${p.slug}`,
+    lastModified: new Date(p.dateModified),
+    changeFrequency: 'monthly' as const,
+    priority: 0.7,
+  }))
 
   // Programmatic SEO: worldwide index + per-country + per-city geo landing pages.
   const rentalsIndex: MetadataRoute.Sitemap = [
@@ -40,5 +48,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })),
   )
 
-  return [...core, ...rentalsIndex, ...countryPages, ...cityPages]
+  return [...core, ...blogPosts, ...rentalsIndex, ...countryPages, ...cityPages]
 }
