@@ -12,6 +12,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/for/landlords`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${base}/for/tenants`,   lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${base}/tools`,         lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
+    // Free, no-signup tool — high intent, so it outranks the hub in priority.
+    { url: `${base}/tools/hra-receipt-generator`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${base}/blog`,          lastModified: now, changeFrequency: 'weekly',  priority: 0.8 },
     { url: `${base}/compare`,       lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${base}/company`,       lastModified: now, changeFrequency: 'monthly', priority: 0.6 },

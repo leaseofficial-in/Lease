@@ -57,7 +57,7 @@ export function HraWithoutReceiptsArticle() {
       <h2>Option 1: Generate the receipt and ask for a signature</h2>
       <p>
         This is the most practical solution for the March rush. You generate a properly formatted rent receipt using
-        our <a href="/tools">free receipt tools</a>, print it, and get your landlord to sign it. Landlords who refuse
+        our <a href="/tools/hra-receipt-generator">free HRA rent receipt generator</a>, print it, and get your landlord to sign it. Landlords who refuse
         to &ldquo;issue&rdquo; receipts are often willing to sign a document you bring them — it feels less like creating
         paperwork and more like approving something you&apos;ve already done.
       </p>
@@ -137,7 +137,7 @@ export function HraWithoutReceiptsArticle() {
 
       <h2>Summary: what to do right now</h2>
       <ol>
-        <li><strong>Generate receipts</strong> using the <a href="/tools">free tools</a> for each month you paid rent this year.</li>
+        <li><strong>Generate receipts</strong> using the <a href="/tools/hra-receipt-generator">free generator</a> for each month you paid rent this year.</li>
         <li><strong>Approach your landlord</strong> with pre-filled printed receipts and ask for a signature. Make it as easy as possible for them.</li>
         <li><strong>Gather bank statements</strong> showing all rent transfers as supporting evidence.</li>
         <li><strong>Include the landlord&apos;s PAN</strong> in the receipt — look for it in the original rental agreement or ask directly.</li>

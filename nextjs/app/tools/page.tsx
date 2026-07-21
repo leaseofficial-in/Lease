@@ -2,22 +2,26 @@ import type { Metadata } from 'next'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
 import { FAQStructuredData, BreadcrumbStructuredData } from '@/components/structured-data'
 
+// This page is the tools *hub*. The receipt generator query is owned by
+// /tools/hra-receipt-generator, which actually contains the tool — pointing both at
+// "HRA rent receipt generator" cannibalised the term and promised a generator that
+// wasn't on this page.
 export const metadata: Metadata = {
-  title: 'Free HRA Rent Receipt Generator — Section 10(13A) Valid',
+  title: 'Free Rental Tools for Landlords & Tenants',
   description:
-    'Generate Section 10(13A)-compliant HRA rent receipts online, free. Enter tenant name, landlord PAN, amount, and period — download as PDF instantly. Valid for income tax and HRA exemption claims in India.',
+    'Free tools for renting in India: an HRA rent receipt generator, a shared rent ledger, deposit tracking, and a tamper-proof move-in photo vault. No subscription, no credit card.',
   alternates: { canonical: 'https://rentybase.com/tools' },
   openGraph: {
-    title: 'Free HRA Rent Receipt Generator India — Section 10(13A) Valid | RentyBase',
+    title: 'Free Rental Tools for Landlords & Tenants | RentyBase',
     description:
-      'Create valid HRA rent receipts in seconds. Free, no sign-up for basic generation. Download PDF, submit to employer, claim tax exemption.',
+      'Rent receipt generator, rent ledger, deposit tracker, and move-in proof vault. Free for both sides of the tenancy.',
     url: 'https://rentybase.com/tools',
-    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'RentyBase HRA Receipt Generator' }],
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'RentyBase free rental tools' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Free HRA Rent Receipt Generator — Section 10(13A) | RentyBase',
-    description: 'Generate valid HRA receipts free. Enter rent details, download PDF instantly.',
+    title: 'Free Rental Tools for Landlords & Tenants | RentyBase',
+    description: 'Receipt generator, rent ledger, deposit tracker, move-in proof. All free.',
   },
 }
 
@@ -47,11 +51,11 @@ const toolsFaqs = [
 const tools = [
   {
     icon: '📄',
-    tag: 'MOST POPULAR',
+    tag: 'FREE · NO SIGNUP',
     title: 'HRA Rent Receipt Generator',
-    body: 'Generate a Section 10(13A)-compliant rent receipt in seconds. Enter tenant name, landlord PAN, rent amount, period, and address. Download as PDF immediately.',
-    cta: 'Generate receipt',
-    href: '/signup',
+    body: 'Generate a Section 10(13A)-compliant rent receipt in seconds. Enter tenant name, landlord PAN, rent amount, period, and address. Download as PDF immediately — no account needed.',
+    cta: 'Open the generator',
+    href: '/tools/hra-receipt-generator',
   },
   {
     icon: '📊',
@@ -147,7 +151,7 @@ export default function ToolsPage() {
             What makes a rent receipt legally valid for HRA?
           </h2>
           <p style={{ fontSize: 16, lineHeight: 1.65, color: 'rgba(246,244,238,.75)', marginBottom: 32 }}>
-            Under Section 10(13A) of the Income Tax Act, a rent receipt must include: tenant's full name, landlord's full name and PAN (if annual rent exceeds ₹1 lakh), the monthly rent amount, the rental period it covers, and the full rental property address. RentyBase auto-fills every field from your rental profile.
+            Under Section 10(13A) of the Income Tax Act, a rent receipt must include: tenant&apos;s full name, landlord&apos;s full name and PAN (if annual rent exceeds ₹1 lakh), the monthly rent amount, the rental period it covers, and the full rental property address. RentyBase auto-fills every field from your rental profile.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 24 }}>
             {[

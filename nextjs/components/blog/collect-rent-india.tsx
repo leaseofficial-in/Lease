@@ -96,7 +96,7 @@ export function CollectRentIndiaArticle() {
         <li>Landlord&apos;s signature</li>
       </ul>
       <p>
-        Use the <a href="/tools">free RentyBase receipt tools</a> to create properly formatted receipts, or use the
+        Use the <a href="/tools/hra-receipt-generator">free HRA rent receipt generator</a> to create properly formatted receipts, or use the
         RentyBase app where receipts are generated automatically every month once rent is marked paid.
       </p>
 
