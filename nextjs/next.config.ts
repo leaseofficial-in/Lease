@@ -91,6 +91,28 @@ const nextConfig: NextConfig = {
 
   poweredByHeader: false,
 
+  /**
+   * URLs from the original static landing site that Google still has indexed. They
+   * 404'd after the move into Next.js. Each target already covers the same intent, so
+   * these are permanent redirects that preserve the existing link equity rather than
+   * new pages — a second page on "RentyBase vs NoBroker" would only cannibalise
+   * /compare, which already ranks for it.
+   */
+  async redirects() {
+    return [
+      {
+        source: "/compare/rentybase-vs-nobroker",
+        destination: "/compare",
+        permanent: true,
+      },
+      {
+        source: "/features/hra-receipts",
+        destination: "/features",
+        permanent: true,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { LogoMark } from './brand'
 import { REGIONS, COUNTRY_PICKER_ORDER, type CountryCode } from '@/lib/i18n/regions'
 import { getRegionFromCookie, setRegionCookie } from '@/lib/region'
@@ -19,21 +20,21 @@ export function MarketingNav() {
   return (
     <nav className="nav">
       <div className="nav-inner">
-        <a href="/" className="nav-logo" aria-label="RentyBase home">
+        <Link href="/" className="nav-logo" aria-label="RentyBase home">
           <span className="nav-mark" aria-hidden="true"><LogoMark size={30} /></span>
           <span className="nav-word">Renty<span className="ochre">Base</span></span>
-        </a>
+        </Link>
         <div className="nav-links">
-          <a href="/features">Features</a>
-          <a href="/for/landlords">Landlords</a>
-          <a href="/for/tenants">Tenants</a>
-          <a href="/rentals">Cities</a>
-          <a href="/compare">Compare</a>
-          <a href="/blog">Blog</a>
+          <Link href="/features">Features</Link>
+          <Link href="/pricing">Pricing</Link>
+          <Link href="/for/landlords">Landlords</Link>
+          <Link href="/for/tenants">Tenants</Link>
+          <Link href="/rentals">Cities</Link>
+          <Link href="/blog">Blog</Link>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <a href="/signin" style={{ fontSize: 14, fontWeight: 500, color: 'var(--rb-ink-3)' }}>Sign in</a>
-          <a className="btn btn-primary" href="/signup" style={{ padding: '8px 16px' }}>Start free</a>
+          <Link href="/signin" style={{ fontSize: 14, fontWeight: 500, color: 'var(--rb-ink-3)' }}>Sign in</Link>
+          <Link className="btn btn-primary" href="/signup" style={{ padding: '8px 16px' }}>Start free</Link>
           <button
             className={'nav-hamburger' + (open ? ' open' : '')}
             aria-label="Menu"
@@ -44,16 +45,16 @@ export function MarketingNav() {
         </div>
       </div>
       <div className={'nav-drawer' + (open ? ' open' : '')} onClick={() => setOpen(false)}>
-        <a href="/features">Features</a>
-        <a href="/for/landlords">For landlords</a>
-        <a href="/for/tenants">For tenants</a>
-        <a href="/rentals">Cities</a>
-        <a href="/tools">Tools</a>
-        <a href="/compare">Compare</a>
-        <a href="/blog">Blog</a>
-        <a href="/company">Company</a>
-        <a href="/signin">Sign in</a>
-        <a href="/signup">Start free →</a>
+        <Link href="/features">Features</Link>
+        <Link href="/for/landlords">For landlords</Link>
+        <Link href="/for/tenants">For tenants</Link>
+        <Link href="/rentals">Cities</Link>
+        <Link href="/tools">Tools</Link>
+        <Link href="/compare">Compare</Link>
+        <Link href="/blog">Blog</Link>
+        <Link href="/company">Company</Link>
+        <Link href="/signin">Sign in</Link>
+        <Link href="/signup">Start free →</Link>
       </div>
     </nav>
   )
@@ -130,17 +131,23 @@ export function MarketingFooter() {
           <div style={{ display: 'flex', gap: '40px 56px', flexWrap: 'wrap', flex: 1 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(246,244,238,.4)', marginBottom: 14 }}>Product</div>
-              {[['Features', '/features'], ['For landlords', '/for/landlords'], ['For tenants', '/for/tenants'], ['Tools', '/tools'], ['Compare', '/compare']].map(([l, h]) => (
+              {[['Features', '/features'], ['Pricing', '/pricing'], ['For landlords', '/for/landlords'], ['For tenants', '/for/tenants'], ['Tools', '/tools'], ['Compare', '/compare']].map(([l, h]) => (
                 <div key={h} style={{ marginBottom: 10 }}>
-                  <a href={h} style={{ fontSize: 13, color: 'rgba(246,244,238,.65)', textDecoration: 'none' }}>{l}</a>
+                  <Link href={h} style={{ fontSize: 13, color: 'rgba(246,244,238,.65)', textDecoration: 'none' }}>{l}</Link>
                 </div>
               ))}
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(246,244,238,.4)', marginBottom: 14 }}>Compare</div>
-              {[['vs NoBroker', '/compare'], ['vs Manual tracking', '/compare'], ['All comparisons', '/compare']].map(([l, h]) => (
-                <div key={l} style={{ marginBottom: 10 }}>
-                  <a href={h} style={{ fontSize: 13, color: 'rgba(246,244,238,.65)', textDecoration: 'none' }}>{l}</a>
+              {/* Was three labels all pointing at /compare — no crawl or user value.
+                  Now distinct destinations across the free-tools and guides cluster. */}
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(246,244,238,.4)', marginBottom: 14 }}>Free tools</div>
+              {[
+                ['Rent receipt generator', '/tools/hra-receipt-generator'],
+                ['All free tools', '/tools'],
+                ['vs NoBroker & spreadsheets', '/compare'],
+              ].map(([l, h]) => (
+                <div key={h} style={{ marginBottom: 10 }}>
+                  <Link href={h} style={{ fontSize: 13, color: 'rgba(246,244,238,.65)', textDecoration: 'none' }}>{l}</Link>
                 </div>
               ))}
             </div>
@@ -148,7 +155,7 @@ export function MarketingFooter() {
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(246,244,238,.4)', marginBottom: 14 }}>Resources</div>
               {[['Blog', '/blog'], ['Sign in', '/signin'], ['Start free', '/signup']].map(([l, h]) => (
                 <div key={h} style={{ marginBottom: 10 }}>
-                  <a href={h} style={{ fontSize: 13, color: 'rgba(246,244,238,.65)', textDecoration: 'none' }}>{l}</a>
+                  <Link href={h} style={{ fontSize: 13, color: 'rgba(246,244,238,.65)', textDecoration: 'none' }}>{l}</Link>
                 </div>
               ))}
             </div>
@@ -156,7 +163,7 @@ export function MarketingFooter() {
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(246,244,238,.4)', marginBottom: 14 }}>Company</div>
               {[['About', '/company'], ['Contact', '/contact'], ['Privacy', '/privacy'], ['Terms', '/terms']].map(([l, h]) => (
                 <div key={h} style={{ marginBottom: 10 }}>
-                  <a href={h} style={{ fontSize: 13, color: 'rgba(246,244,238,.65)', textDecoration: 'none' }}>{l}</a>
+                  <Link href={h} style={{ fontSize: 13, color: 'rgba(246,244,238,.65)', textDecoration: 'none' }}>{l}</Link>
                 </div>
               ))}
             </div>
@@ -167,8 +174,8 @@ export function MarketingFooter() {
         <div style={{ borderTop: '1px solid rgba(246,244,238,.1)', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <span style={{ fontSize: 12, color: 'rgba(246,244,238,.35)' }}>© {new Date().getFullYear()} RentyBase · Worldwide</span>
           <div style={{ display: 'flex', gap: 20 }}>
-            <a href="/privacy" style={{ fontSize: 12, color: 'rgba(246,244,238,.35)', textDecoration: 'none' }}>Privacy</a>
-            <a href="/terms" style={{ fontSize: 12, color: 'rgba(246,244,238,.35)', textDecoration: 'none' }}>Terms</a>
+            <Link href="/privacy" style={{ fontSize: 12, color: 'rgba(246,244,238,.35)', textDecoration: 'none' }}>Privacy</Link>
+            <Link href="/terms" style={{ fontSize: 12, color: 'rgba(246,244,238,.35)', textDecoration: 'none' }}>Terms</Link>
             <span style={{ fontSize: 12, color: 'rgba(246,244,238,.35)' }}>Free · No credit card required</span>
           </div>
         </div>
