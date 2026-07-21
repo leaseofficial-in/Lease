@@ -39,6 +39,34 @@ export function notifyAdmin(subject: string, html: string) {
   return sendEmail({ to: ADMIN, subject, html })
 }
 
+/**
+ * Escapes a value for interpolation into email HTML.
+ *
+ * Every template below is a tagged-free template literal, so any unescaped value
+ * lands directly in the markup. Contact-form input reaches the admin inbox and the
+ * sender's own auto-reply, so raw interpolation let an attacker inject arbitrary
+ * links and markup into mail sent from our domain. Escape at the boundary — always
+ * wrap user-controlled values in `esc()`.
+ *
+ * Escapes quotes too, so it is also safe inside an HTML attribute value.
+ */
+export function esc(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Escapes a value for use as an email *subject*. Subjects are plain text, so the
+ * risk is header injection via CR/LF rather than HTML.
+ */
+function escSubject(value: unknown): string {
+  return String(value ?? '').replace(/[\r\n]+/g, ' ').trim().slice(0, 200)
+}
+
 // ── Shared layout wrapper ────────────────────────────────────────
 export function emailLayout(content: string) {
   return `<!DOCTYPE html>
@@ -101,7 +129,7 @@ export function welcomeEmail({ name, role, email }: { name: string; role: string
     <tr><td style="background:linear-gradient(135deg,#0F4C5C 0%,#0E1413 100%);padding:36px 40px 32px;">
       <p style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.14em;color:rgba(201,122,58,.9);text-transform:uppercase;margin:0 0 12px;">WELCOME TO RENTYBASE</p>
       <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:36px;font-weight:400;line-height:1.1;color:#F6F4EE;margin:0 0 8px;letter-spacing:-.02em;">
-        Welcome, <em style="font-style:italic;color:#C97A3A;">${firstName}.</em>
+        Welcome, <em style="font-style:italic;color:#C97A3A;">${esc(firstName)}.</em>
       </h1>
       <p style="font-size:14px;color:rgba(246,244,238,.7);margin:0;">Your rental record is live.</p>
     </td></tr>
@@ -109,7 +137,7 @@ export function welcomeEmail({ name, role, email }: { name: string; role: string
     <!-- Body -->
     <tr><td style="padding:36px 40px;">
       <p style="font-size:15px;line-height:1.7;color:#2A332F;margin:0 0 24px;">
-        You're signed in as a <strong style="color:#0E1413;">${roleLabel}</strong> with <strong>${email}</strong>.
+        You're signed in as a <strong style="color:#0E1413;">${esc(roleLabel)}</strong> with <strong>${esc(email)}</strong>.
         Everything you need for your rental — receipts, ledger, deposit, proof — is in one place. Free.
       </p>
 
@@ -157,27 +185,27 @@ export function welcomeEmail({ name, role, email }: { name: string; role: string
     </td></tr>
   `)
 
-  return { subject: `Welcome to RentyBase, ${firstName} — your ledger is live`, html }
+  return { subject: escSubject(`Welcome to RentyBase, ${firstName} — your ledger is live`), html }
 }
 
 export function contactAdminEmail({ name, email, subject, message }: { name: string; email: string; subject: string; message: string }) {
   const html = emailLayout(`
     <tr><td style="background:#0F4C5C;padding:24px 36px;">
       <p style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.14em;color:rgba(201,122,58,.9);text-transform:uppercase;margin:0 0 8px;">NEW CONTACT FORM MESSAGE</p>
-      <h2 style="font-family:'Instrument Serif',Georgia,serif;font-size:26px;font-weight:400;color:#F6F4EE;margin:0;letter-spacing:-.015em;">${subject}</h2>
+      <h2 style="font-family:'Instrument Serif',Georgia,serif;font-size:26px;font-weight:400;color:#F6F4EE;margin:0;letter-spacing:-.015em;">${esc(subject)}</h2>
     </td></tr>
     <tr><td style="padding:32px 36px;">
       <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#F6F4EE;border-radius:10px;padding:18px 20px;margin-bottom:24px;">
         <tr><td>
-          <p style="margin:0 0 8px;font-size:13px;"><span style="color:#5C645F;">From:</span> <strong>${name}</strong></p>
-          <p style="margin:0;font-size:13px;"><span style="color:#5C645F;">Email:</span> <a href="mailto:${email}" style="color:#0F4C5C;">${email}</a></p>
+          <p style="margin:0 0 8px;font-size:13px;"><span style="color:#5C645F;">From:</span> <strong>${esc(name)}</strong></p>
+          <p style="margin:0;font-size:13px;"><span style="color:#5C645F;">Email:</span> <a href="mailto:${encodeURIComponent(email)}" style="color:#0F4C5C;">${esc(email)}</a></p>
         </td></tr>
       </table>
-      <p style="font-size:15px;line-height:1.75;color:#2A332F;white-space:pre-wrap;margin:0 0 28px;">${message}</p>
-      <a href="mailto:${email}?subject=Re: ${encodeURIComponent(subject)}" style="display:inline-block;background:#0F4C5C;color:#F6F4EE;font-size:14px;font-weight:600;padding:11px 22px;border-radius:999px;text-decoration:none;">Reply to ${name} →</a>
+      <p style="font-size:15px;line-height:1.75;color:#2A332F;white-space:pre-wrap;margin:0 0 28px;">${esc(message)}</p>
+      <a href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`Re: ${subject}`)}" style="display:inline-block;background:#0F4C5C;color:#F6F4EE;font-size:14px;font-weight:600;padding:11px 22px;border-radius:999px;text-decoration:none;">Reply to ${esc(name)} →</a>
     </td></tr>
   `)
-  return { subject: `[RentyBase Contact] ${subject}`, html }
+  return { subject: `[RentyBase Contact] ${escSubject(subject)}`, html }
 }
 
 export function contactAutoReplyEmail({ name, subject, message }: { name: string; subject: string; message: string }) {
@@ -186,7 +214,7 @@ export function contactAutoReplyEmail({ name, subject, message }: { name: string
     <tr><td style="background:linear-gradient(135deg,#0F4C5C 0%,#0E1413 100%);padding:32px 40px;">
       <p style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.14em;color:rgba(201,122,58,.9);text-transform:uppercase;margin:0 0 10px;">MESSAGE RECEIVED</p>
       <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:30px;font-weight:400;color:#F6F4EE;margin:0;letter-spacing:-.02em;">
-        Got it, <em style="font-style:italic;color:#C97A3A;">${firstName}.</em>
+        Got it, <em style="font-style:italic;color:#C97A3A;">${esc(firstName)}.</em>
       </h1>
     </td></tr>
     <tr><td style="padding:32px 40px;">
@@ -198,8 +226,8 @@ export function contactAutoReplyEmail({ name, subject, message }: { name: string
       <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#F6F4EE;border-radius:12px;border-left:3px solid #0F4C5C;margin-bottom:28px;">
         <tr><td style="padding:20px 24px;">
           <p style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8E948D;margin:0 0 10px;">YOUR MESSAGE</p>
-          <p style="font-size:13px;font-weight:600;color:#0E1413;margin:0 0 6px;">${subject}</p>
-          <p style="font-size:14px;line-height:1.65;color:#5C645F;margin:0;white-space:pre-wrap;">${message.length > 300 ? message.slice(0, 300) + '…' : message}</p>
+          <p style="font-size:13px;font-weight:600;color:#0E1413;margin:0 0 6px;">${esc(subject)}</p>
+          <p style="font-size:14px;line-height:1.65;color:#5C645F;margin:0;white-space:pre-wrap;">${esc(message.length > 300 ? message.slice(0, 300) + '…' : message)}</p>
         </td></tr>
       </table>
 

@@ -138,8 +138,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Pinch-zoom must stay enabled. `maximumScale: 1` + `userScalable: false` fails
+  // WCAG 2.2 SC 1.4.4 (Resize Text) and is flagged by Lighthouse accessibility.
+  // Low-vision users on mobile rely on zoom; the layout is responsive and handles it.
   themeColor: '#0E1413',
 }
 

@@ -655,17 +655,22 @@ export default function SignUpPage() {
       const { data: { session } } = await sb.auth.getSession()
       if (!session) { setMobileStep('splash'); return }
       await sb.from('profiles').update({ full_name: displayName.trim() }).eq('id', session.user.id)
-      // Fire welcome email — non-blocking
+      // Fire welcome email — non-blocking. The recipient is derived server-side from
+      // the session, so no email is sent from the client. The bearer token is required
+      // by the native app, whose session lives in Capacitor Preferences, not cookies.
       fetch('/api/email/welcome', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: displayName.trim(), role, email: googleEmail }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ name: displayName.trim(), role }),
       }).catch(() => {})
       setMobileStep('sealed')
     } finally {
       setSaving(false)
     }
-  }, [displayName, role, googleEmail, sb])
+  }, [displayName, role, sb])
 
   const nextParam = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('next') || pendingInviteNext
