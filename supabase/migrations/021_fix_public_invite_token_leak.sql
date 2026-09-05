@@ -181,16 +181,23 @@ drop policy if exists "Tenants can accept rental invites" on public.rentals;
 -- == 4. Rotate tokens exposed while the policy was live ========================
 --
 -- Every unclaimed invite token that existed under the old policy must be assumed
--- public. Expiring them forces landlords to reissue, which is the correct trade:
+-- public. Replacing them forces landlords to reissue, which is the correct trade:
 -- a stale link is an annoyance, a leaked one is a takeover.
+--
+-- Both columns are NOT NULL and invite_token carries a UNIQUE index, so the token
+-- is REPLACED with a fresh value rather than nulled, and the expiry is backdated
+-- rather than cleared. A uuid with the dashes stripped is used for the replacement:
+-- 32 hex chars, so there is no chance of colliding with the unique index, and the
+-- table already contains tokens of that shape. The rotated rows are dead either
+-- way -- the landlord regenerates a short code from the dashboard, which renders
+-- the "expired, regenerate" state for exactly this condition.
 --
 -- Only unclaimed invites are touched. Rentals a tenant already joined keep working.
 
 update public.rentals
-set invite_token      = null,
-    invite_expires_at = null
-where tenant_id is null
-  and invite_token is not null;
+set invite_token      = replace(gen_random_uuid()::text, '-', ''),
+    invite_expires_at = now() - interval '1 second'
+where tenant_id is null;
 
 -- == Rollout order =============================================================
 --   1. Apply sections 1 and 2 only (create both functions). Nothing breaks: the
