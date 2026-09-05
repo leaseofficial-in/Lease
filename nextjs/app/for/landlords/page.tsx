@@ -25,7 +25,7 @@ const landlordFaqs = [
   {
     question: 'How do I invite a tenant to RentyBase?',
     answer:
-      'Create a rental by adding your property details and rent amount. RentyBase generates a unique invite link valid for 72 hours. Share it with your tenant via WhatsApp or any messaging app. Your tenant signs in with Google and joins your rental in one tap — no app install required on web.',
+      'Create a rental by adding your property details and rent amount. RentyBase generates a unique invite link valid for 7 days. Share it with your tenant via WhatsApp or any messaging app. Your tenant signs in with Google and joins your rental in one tap — no app install required on web.',
   },
   {
     question: 'Can I manage multiple properties or rentals on RentyBase?',

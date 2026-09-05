@@ -13,7 +13,11 @@ import { rateLimit, clientIp, tooManyRequests } from '@/lib/rate-limit'
  * session and the body's `email` field is ignored entirely.
  */
 
-const ROLES = new Set(['landlord', 'tenant'])
+// The signup screen offers three roles but the email only has two variants. 'pg'
+// (PG / hostel manager) is a landlord-side role, so it must map to the landlord
+// email — it previously fell through to the 'tenant' default and sent PG managers
+// the wrong welcome mail.
+const ROLE_ALIASES: Record<string, string> = { landlord: 'landlord', pg: 'landlord', tenant: 'tenant' }
 
 /**
  * Resolves the caller. Web uses cookie auth; the Capacitor Android app stores its
@@ -57,7 +61,7 @@ export async function POST(req: Request) {
     // Only `name` and `role` come from the client, and both are constrained. The
     // recipient is always the session user's own verified address.
     const name = typeof body.name === 'string' ? body.name.trim().slice(0, 80) : ''
-    const role = typeof body.role === 'string' && ROLES.has(body.role) ? body.role : 'tenant'
+    const role = (typeof body.role === 'string' && ROLE_ALIASES[body.role]) || 'tenant'
     if (!name) {
       return NextResponse.json({ error: 'Missing name' }, { status: 400 })
     }

@@ -455,6 +455,38 @@ function MA2Sealed({ firstName, role, next }: { firstName: string; role: string;
 }
 
 // ─── main component ───────────────────────────────────────────
+// ─── Welcome email ────────────────────────────────────────────────────────────
+// Fired once, by whichever signup path actually completes the account. It used to
+// be called only from the mobile step-through, so desktop-web and native Android
+// signups received no welcome mail at all — 6 of the first 7 real signups heard
+// nothing after signing up.
+//
+// `keepalive` matters: the desktop and native paths call this immediately before
+// window.location.replace(), and without it the browser cancels the in-flight
+// request on navigation. Fire-and-forget is deliberate — a failed welcome email
+// must never block or fail a signup (the route itself also swallows its errors).
+//
+// The recipient is derived server-side from the session; only name and role are
+// sent from the client, and the bearer token is required by the native app, whose
+// session lives in Capacitor Preferences rather than cookies.
+function sendWelcomeEmail(accessToken: string, name: string, role: string) {
+  if (!name) return
+  fetch('/api/email/welcome', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ name, role }),
+    keepalive: true,
+  }).catch(() => {})
+}
+
+// The route rejects a blank name, and Google always supplies one, but the profile
+// row may not have been populated yet on a first sign-in — so fall back to the
+// OAuth metadata.
+function welcomeName(profileName: string | null | undefined, session: { user: { user_metadata?: Record<string, unknown> } }): string {
+  const meta = session.user.user_metadata || {}
+  return (profileName || (meta.full_name as string) || (meta.name as string) || '').trim()
+}
+
 type MobileStep = 'splash' | 'role' | 'about' | 'sealed'
 
 export default function SignUpPage() {
@@ -493,6 +525,7 @@ export default function SignUpPage() {
       if (storedRole && ['landlord', 'tenant', 'pg'].includes(storedRole)) {
         await sb.from('profiles').update({ role: storedRole }).eq('id', session.user.id)
         sessionStorage.removeItem('rb-signup-role')
+        sendWelcomeEmail(session.access_token, welcomeName(profile?.full_name, session), storedRole)
         const nextParam = new URLSearchParams(window.location.search).get('next')
         const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard'
         window.location.replace(dest)
@@ -563,6 +596,7 @@ export default function SignUpPage() {
           if (storedRole) {
             await sb.from('profiles').update({ role: storedRole }).eq('id', session.user.id)
             sessionStorage.removeItem('rb-signup-role')
+            sendWelcomeEmail(session.access_token, welcomeName(null, session), storedRole)
           }
           const nextParam = new URLSearchParams(window.location.search).get('next')
           window.location.replace(nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard')
@@ -655,17 +689,7 @@ export default function SignUpPage() {
       const { data: { session } } = await sb.auth.getSession()
       if (!session) { setMobileStep('splash'); return }
       await sb.from('profiles').update({ full_name: displayName.trim() }).eq('id', session.user.id)
-      // Fire welcome email — non-blocking. The recipient is derived server-side from
-      // the session, so no email is sent from the client. The bearer token is required
-      // by the native app, whose session lives in Capacitor Preferences, not cookies.
-      fetch('/api/email/welcome', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ name: displayName.trim(), role }),
-      }).catch(() => {})
+      sendWelcomeEmail(session.access_token, displayName.trim(), role)
       setMobileStep('sealed')
     } finally {
       setSaving(false)

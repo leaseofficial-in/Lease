@@ -91,7 +91,10 @@ function genToken() {
   crypto.getRandomValues(buf)
   return Array.from(buf, b => b.toString(36).padStart(2, '0')).join('').toUpperCase().slice(0, 8)
 }
-function tokenExpiry() { return new Date(Date.now() + 72 * 3600000).toISOString() }
+// 7 days, matching the DB default set in 011_invite_token_7day_default.sql.
+// This value is always supplied by the client, so that migration's default never
+// applied and every invite kept expiring in 72h -- which is what killed them.
+function tokenExpiry() { return new Date(Date.now() + 7 * 24 * 3600000).toISOString() }
 
 // ── Nav icons (Lucide-style SVG paths) ────────────────────────────────────
 const NAV_PATHS: Record<string, string> = {
@@ -2668,7 +2671,7 @@ export default function DashboardPage() {
       `*Property:* ${r.property?.name || 'Your unit'}\n` +
       `*Rent:* ₹${Number(r.monthly_rent).toLocaleString('en-IN')}/mo, due ${r.rent_due_day}th of each month\n\n` +
       `Tap to join: ${inviteLink}\n\n` +
-      `Or enter code *${r.invite_token}* at the app.\n\n_(Link valid for 72 hours)_`
+      `Or enter code *${r.invite_token}* at the app.\n\n_(Link valid for 7 days)_`
     ) : ''
     const smsMsg = inviteLink ? encodeURIComponent(
       `Join your rental on RentyBase. Code: ${r.invite_token}. Link: ${inviteLink}`

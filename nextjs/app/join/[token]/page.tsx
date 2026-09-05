@@ -86,12 +86,13 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
     try { sessionStorage.setItem('rb-invite-token', tok) } catch {}
 
     try {
-      // Query WITHOUT expiry filter so we can distinguish expired vs notfound vs taken
-      const { data } = await sb
-        .from('rentals')
-        .select('*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(full_name)')
-        .eq('invite_token', tok)
-        .maybeSingle()
+      // Looked up through an RPC, not a table select: the token is a real argument
+      // enforced server-side. The old `.from('rentals').eq('invite_token', tok)`
+      // relied on a policy that let anyone read every live invite (see
+      // 021_fix_public_invite_token_leak.sql). No expiry filter here, so we can
+      // still distinguish expired vs notfound vs taken.
+      const { data: rows } = await sb.rpc('rental_invite_preview', { invite_token_input: tok })
+      const data = Array.isArray(rows) ? rows[0] : rows
 
       // 1. Token never existed
       if (!data) { setState('notfound'); return }
@@ -108,14 +109,9 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
       const { data: { session } } = await sb.auth.getSession()
       const uid = session?.user?.id
 
-      if (data.tenant_id) {
-        if (uid && data.tenant_id === uid) {
-          // 5. Viewer is already the tenant
-          setState('already')
-          return
-        }
-        // 6. Taken by a different account
-        setState('taken')
+      if (data.is_taken) {
+        // 5. Viewer is already the tenant, else 6. taken by a different account
+        setState(data.viewer_is_tenant ? 'already' : 'taken')
         return
       }
 
@@ -126,7 +122,7 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
       if (!session) { setAuthState('noauth'); return }
 
       // 7. Viewer is the landlord — can't join their own property
-      if (data.landlord_id === uid) { setState('is-landlord'); return }
+      if (data.viewer_is_landlord) { setState('is-landlord'); return }
 
       const { data: prof } = await sb.from('profiles').select('role').eq('id', uid!).maybeSingle()
 
@@ -161,37 +157,29 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
       const { data: { user } } = await sb.auth.getUser()
       if (!user) { window.location.href = `/signin?next=${encodeURIComponent(`/join/${token}`)}`; return }
 
-      // Safety: re-check the rental is still available before claiming it
-      const { data: fresh } = await sb
-        .from('rentals')
-        .select('id, tenant_id, status, invite_expires_at')
-        .eq('id', rental.id)
-        .maybeSingle()
+      // One atomic server-side claim. This replaces a read-then-update pair that
+      // leaned on an UPDATE policy allowing any authenticated user to claim any
+      // unassigned rental by id, token or not (021_fix_public_invite_token_leak.sql).
+      // The RPC re-validates expiry, status and ownership under the token, and
+      // returns which case it hit instead of raising.
+      const { data: result, error } = await sb.rpc('claim_rental_invite', { invite_token_input: token })
+      if (error) { setState('error'); setJoining(false); return }
 
-      if (!fresh) { setState('notfound'); return }
-      if (fresh.status === 'ended') { setState('ended'); return }
-      const expiresAt = fresh.invite_expires_at ? new Date(fresh.invite_expires_at) : null
-      if (!expiresAt || expiresAt < new Date()) { setState('expired'); return }
-      if (fresh.tenant_id && fresh.tenant_id !== user.id) { setState('claimed'); return }
-      if (fresh.tenant_id === user.id) {
+      if (result === 'unauthenticated') {
+        window.location.href = `/signin?next=${encodeURIComponent(`/join/${token}`)}`
+        return
+      }
+      if (result === 'notfound')    { setState('notfound'); return }
+      if (result === 'ended')       { setState('ended'); return }
+      if (result === 'expired')     { setState('expired'); return }
+      if (result === 'is_landlord') { setState('is-landlord'); return }
+      if (result === 'taken' || result === 'claimed') { setState('claimed'); return }
+      if (result === 'already') {
         try { sessionStorage.removeItem('rb-invite-token') } catch {}
         setState('already')
         return
       }
-
-      // Atomic update: only succeeds if tenant_id is still null (prevents race)
-      const { data: updated } = await sb
-        .from('rentals')
-        .update({ tenant_id: user.id, status: 'active' })
-        .eq('id', rental.id)
-        .is('tenant_id', null)
-        .select('id')
-
-      if (!updated || updated.length === 0) {
-        // Row wasn't updated — someone else claimed it between our check and update
-        setState('claimed')
-        return
-      }
+      if (result !== 'ok') { setState('error'); setJoining(false); return }
 
       try { sessionStorage.removeItem('rb-invite-token') } catch {}
       setState('joined')
@@ -226,12 +214,12 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
         {/* ── Valid invite preview ── */}
         {state === 'preview' && rental && (() => {
           const fields = [
-            { l: 'Property',         v: rental.property?.name || rental.property?.address_line1 || '—' },
-            { l: 'City',             v: rental.property?.city || '—' },
+            { l: 'Property',         v: rental.property_name || '—' },
+            { l: 'City',             v: rental.property_city || '—' },
             { l: 'Monthly rent',     v: inr(rental.monthly_rent) },
             { l: 'Security deposit', v: inr(rental.security_deposit) },
             { l: 'Rent due',         v: `${rental.rent_due_day}th of every month` },
-            { l: 'Landlord',         v: rental.landlord?.full_name || '—' },
+            { l: 'Landlord',         v: rental.landlord_name || '—' },
           ]
           return (
             <div>
@@ -242,7 +230,7 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
                 Join this rental.
               </h1>
               <p style={{ color: 'var(--rb-ink-2)', fontSize: 15, lineHeight: 1.55, marginTop: 14 }}>
-                {rental.landlord?.full_name || 'Your landlord'} has invited you to join their property on RentyBase.
+                {rental.landlord_name || 'Your landlord'} has invited you to join their property on RentyBase.
               </p>
 
               {/* Property details card */}
@@ -269,7 +257,7 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
                     <a href={signInUrl} style={{ color: 'var(--rb-action)', fontWeight: 600, textDecoration: 'none' }}>Sign in →</a>
                   </div>
                   <p style={{ marginTop: 16, fontSize: 12, color: 'var(--rb-ink-3)', lineHeight: 1.55, textAlign: 'center' }}>
-                    Free to join · No credit card needed · Link expires 72 hours after it was sent.
+                    Free to join · No credit card needed · Link expires 7 days after it was sent.
                   </p>
                 </div>
               )}
@@ -298,7 +286,7 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
                     {joining ? 'Joining…' : 'Accept & join rental →'}
                   </button>
                   <p style={{ marginTop: 14, fontSize: 12, color: 'var(--rb-ink-3)', lineHeight: 1.55, textAlign: 'center' }}>
-                    By joining you agree to the rental terms above. This link expires 72 hours after it was sent.
+                    By joining you agree to the rental terms above. This link expires 7 days after it was sent.
                   </p>
                 </>
               )}
@@ -312,7 +300,7 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
             iconColor="var(--rb-fill-2)"
             iconPaths={CLOCK}
             title="Link expired"
-            body="This invite link has expired. Links are valid for 72 hours. Ask your landlord to generate a new one from their dashboard."
+            body="This invite link has expired. Links are valid for 7 days. Ask your landlord to generate a new one from their dashboard."
             cta={<BorderLink href="/signin" label="Sign in to your account" />}
           />
         )}
