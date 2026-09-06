@@ -2950,6 +2950,19 @@ export default function DashboardPage() {
         const rn = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${currentPmt.id.slice(-4).toUpperCase()}`
         setReceiptNum(rn)
         setConfirmStep(2)
+        // Tell the tenant. This is the receipt moment and, until now, nothing told
+        // them it had happened: every notification trigger is landlord-directed.
+        // Same shape as the tenant->landlord mail: fire-and-forget, keepalive, only
+        // the id and the receipt number over the wire; the recipient is derived
+        // server-side from the payment under the landlord's own RLS.
+        sb.auth.getSession().then(({ data }) => {
+          fetch('/api/email/payment-confirmed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {}) },
+            body: JSON.stringify({ payment_id: currentPmt.id, receipt_number: rn }),
+            keepalive: true,
+          }).catch(() => {})
+        })
       } catch (e: any) { toast(e?.message || 'Failed to confirm payment', 'error'); setConfirmStep(0) }
     }
 

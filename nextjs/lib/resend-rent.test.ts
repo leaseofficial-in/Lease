@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rentDueSoonEmail, rentOverdueEmail, paymentAwaitingConfirmationEmail } from './resend-rent'
+import { rentDueSoonEmail, rentOverdueEmail, paymentAwaitingConfirmationEmail, paymentConfirmedEmail } from './resend-rent'
 
 // These templates are string-concatenated HTML that goes to real people's inboxes
 // and cannot be corrected after it is read. The first live run of the reminder job
@@ -107,6 +107,34 @@ describe('escaping', () => {
   it('escapes a property name in the subject line too', () => {
     // Subjects are plain text; the concern is a newline enabling header injection.
     const { subject } = rentDueSoonEmail({ ...base, propertyName: 'Flat\r\nBcc: x@y.z', daysUntilDue: 1 })
+    expect(subject).not.toMatch(/[\r\n]/)
+  })
+})
+
+describe('paymentConfirmedEmail', () => {
+  const input = {
+    tenantName: 'Aarav', landlordName: 'Priya Sharma', propertyName: 'Flat 4B',
+    amount: '£1,250.00', period: 'September 2026', receiptNumber: '2026-09-A1B2',
+  }
+
+  it('names the period and property in the subject, and carries the receipt number', () => {
+    const { subject, html } = paymentConfirmedEmail(input)
+    expect(subject).toContain('September 2026')
+    expect(subject).toContain('Flat 4B')
+    expect(html).toContain('2026-09-A1B2')
+    expect(html).toContain('£1,250.00')
+    expect(html).toContain('https://rentybase.com/dashboard')
+  })
+
+  it('is a complete document with nothing unresolved', () => {
+    const { html } = paymentConfirmedEmail(input)
+    expect(html).toContain('<!DOCTYPE html>')
+    expect(html).not.toContain('undefined')
+    expect(html).not.toContain('NaN')
+  })
+
+  it('escapes the subject against header injection', () => {
+    const { subject } = paymentConfirmedEmail({ ...input, propertyName: 'X\r\nBcc: a@b.c' })
     expect(subject).not.toMatch(/[\r\n]/)
   })
 })

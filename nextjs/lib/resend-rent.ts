@@ -137,3 +137,34 @@ export function paymentAwaitingConfirmationEmail(input: {
     `),
   }
 }
+
+/**
+ * Sent to the TENANT when the landlord confirms a payment. This is the receipt
+ * moment -- the one thing the product promises a tenant they will have later --
+ * and until this existed nothing told them it had happened. Notifications are
+ * landlord-only by trigger; tenants have received zero, ever.
+ */
+export function paymentConfirmedEmail(input: {
+  tenantName: string
+  landlordName: string
+  propertyName: string
+  amount: string
+  /** Already localized, e.g. "September 2026". */
+  period: string
+  receiptNumber: string
+}) {
+  const { tenantName, landlordName, propertyName, amount, period, receiptNumber } = input
+  return {
+    subject: escSubject(`Rent for ${period} confirmed — ${propertyName}`),
+    html: emailLayout(`
+      ${H1('Payment confirmed.', propertyName)}
+      ${BODY(`
+        ${P(`Hi ${esc(tenantName)},`)}
+        ${P(`${esc(landlordName)} has confirmed your rent of <strong>${esc(amount)}</strong> for <strong>${esc(period)}</strong>.`)}
+        ${P(`Receipt <strong style="font-family:'JetBrains Mono',monospace;">${esc(receiptNumber)}</strong> is now on your ledger. It is the record both of you hold; keep it for tax and for your next rental.`)}
+        ${CTA('https://rentybase.com/dashboard', 'View receipt')}
+        ${MUTED('Sent once, when your landlord confirms. Nothing further to do.')}
+      `)}
+    `),
+  }
+}

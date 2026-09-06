@@ -73,6 +73,14 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
     and had never once succeeded. Postgres grants EXECUTE to PUBLIC on every new
     function — always revoke, or rely on the schema default set in 036.
 
+13. A `FOR ALL` policy with USING and no WITH CHECK reuses USING for INSERT and
+    UPDATE. "Caller is a party to this rental" says nothing about `sender_id`;
+    `messages` let a tenant post as the landlord and edit/delete the other side's
+    messages for the life of the product. Every write policy needs WITH CHECK that
+    binds the author column to `auth.uid()`. Separately: RLS does not apply to
+    TRUNCATE, and Supabase's default grants included it for anon/authenticated on
+    every table. Revoked in 038 and removed from the defaults.
+
 ## Incident log
 
 - **2026-09-07 — 23 unintended emails.** Fired `/api/cron/rent-reminders` at prod
@@ -153,6 +161,28 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   footer selector read `useRegion()` instead of seeding state from an effect;
   homepage `Dial` hoisted to module scope; seal flash is a ref-driven class toggle.
 
+- **Batch 21 — in-thread impersonation + the receipt moment (038).** Fresh audit
+  angle: the `messages` policy was FOR ALL with no WITH CHECK. Proven live as a
+  real tenant (JWT claims simulated in a DO block ending in `raise` so nothing
+  persisted): forging the landlord's `sender_id` accepted before, denied after;
+  reassigning a message denied; own message allowed. Split into SELECT / INSERT
+  (sender bound) / UPDATE (sender only, re-bound) / DELETE (sender only), `to
+  authenticated`; anon revoked from the table; TRUNCATE revoked from the API
+  roles on all 23 tables + default privileges. Harness: probe is now made
+  landlord of a throwaway property+rental with the service key, posts as `OTHER`
+  → 403, as itself → 201, PATCH sender → []; seeded rows deleted before the user
+  (rentals.landlord_id has no cascade). 39 → 42 checks. Also: `notifications`
+  has no INSERT policy (triggers only — correct) but every trigger is
+  landlord-directed; tenants have received 0 of 15 ever. Added
+  `/api/email/payment-confirmed` — landlord-authenticated mirror of
+  payment-submitted, reads payment→tenant under the landlord's own RLS, sends only
+  when `status='paid'`, property currency, long-form month — wired into
+  `handleAcceptPayment` (keepalive, id + receipt number only). `monthLabel` /
+  `formatMonthYear` gained a `'long'` style. Tests 198 → 202.
+  `read_at` is not writable by the recipient under the new policies; the client
+  never writes it. When "mark read" is built it needs a BEFORE UPDATE trigger
+  (documented in 038), or the write silently matches zero rows.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -167,6 +197,10 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   Edge Function; the Next.js app renders agreements inline and prints. Orphaned.
 - Edge Functions all run as service_role; triggers exempt null uid → unaffected.
 - sitemap/robots, updated_at triggers, service-role-only policies: all correct.
+- `notifications`: SELECT own + UPDATE own only, no INSERT policy; the four
+  `notify_*` triggers are the sole writers. Correct. (Tenant-facing gap covered by
+  the payment-confirmed email, not by in-app rows they never open.)
+- `messages`: four bound policies as of 038; anon has no grant.
 
 ### P0 / P1 — open
 - **Acquisition**: 7 signups in ~2 months, 0 in last 4 days. Not a code problem.
@@ -245,7 +279,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-198/198 tests · typecheck clean · build clean · security 39/39 · lint 0 (gates verify).
+202/202 tests · typecheck clean · build clean · security 42/42 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -257,7 +291,12 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-Final pass: re-run the complete verify chain and the authenticated harness, confirm
-production health, and write the sprint summary into this file. Remaining open work
-is owner-gated (assetlinks fingerprints, geotag claim, reminder cron re-enable,
-acquisition) or visually-unverifiable (Badge/Card primitives, dashboard split).
+`/api/email/payment-confirmed` is deployed but has not been exercised end-to-end on
+production (the sibling route was). After the Vercel deploy: unauthenticated → 401;
+probe landlord JWT + bogus id → 202 with no send. A real send needs a landlord
+confirming a payment whose tenant address is controllable — do it with a probe
+landlord + probe tenant + seeded paid payment, or leave to the next real
+confirmation and check Resend's log. Then keep auditing from angles not yet
+covered: `proofs`/`proof_photos` UPDATE binding (`submitted_by`/`uploaded_by`),
+`repair_requests` `raised_by`, `deposit_transactions` `created_by` — the same
+class of hole as 038 wherever an author column exists.

@@ -13,22 +13,25 @@
 // Greenwich is the previous day — and therefore, on the 1st, the previous MONTH.
 
 /** "Sep 2026", "sept. 2026", "2026年9月" — per locale. */
-export function monthLabel(ym: string | null | undefined, locale: string = 'en'): string {
+export function monthLabel(ym: string | null | undefined, locale: string = 'en', style: MonthStyle = 'short'): string {
   if (!ym) return ''
   const m = /^(\d{4})-(\d{2})/.exec(ym)
   if (!m) return ''
   const year = Number(m[1])
   const monthIndex = Number(m[2]) - 1
   if (monthIndex < 0 || monthIndex > 11) return ''
-  return formatMonthYear(new Date(year, monthIndex, 1), locale)
+  return formatMonthYear(new Date(year, monthIndex, 1), locale, style)
 }
 
 /** Same label from a Date, using its LOCAL month. */
-export function formatMonthYear(d: Date, locale: string = 'en'): string {
+/** 'short' for ledger rows ('Sep 2026'); 'long' where there is room and it is read once, like an email ('September 2026'). */
+export type MonthStyle = 'short' | 'long'
+
+export function formatMonthYear(d: Date, locale: string = 'en', style: MonthStyle = 'short'): string {
   try {
-    return new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(d)
+    return new Intl.DateTimeFormat(locale, { month: style, year: 'numeric' }).format(d)
   } catch {
     // An unknown locale tag must not take down a ledger row.
-    return new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric' }).format(d)
+    return new Intl.DateTimeFormat('en', { month: style, year: 'numeric' }).format(d)
   }
 }

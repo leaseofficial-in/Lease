@@ -45,3 +45,11 @@ describe('formatMonthYear', () => {
     expect(formatMonthYear(new Date(2026, 8, 15))).toBe('Sep 2026')
   })
 })
+
+describe('long style', () => {
+  it('spells the month out for surfaces read once, like email', () => {
+    expect(monthLabel('2026-09-01', 'en', 'long')).toBe('September 2026')
+    expect(monthLabel('2026-09-01', 'fr', 'long').toLowerCase()).toMatch(/septembre 2026/)
+    expect(monthLabel('2026-09-01', 'en')).toBe('Sep 2026')
+  })
+})

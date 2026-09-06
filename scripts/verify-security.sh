@@ -86,7 +86,7 @@ echo
 # without security_invoker, so it ignored RLS entirely (022).
 echo "Tables and views must return no rows:"
 for t in profiles properties rentals rent_payments deposit_transactions \
-         repair_requests notifications rental_events messages buildings \
+         repair_requests notifications rental_events buildings \
          proofs proof_photos rental_activity_feed; do
   expect_no_rows "$t"
 done
@@ -96,6 +96,9 @@ echo "Analytics tables must not be readable at all:"
 # No SELECT policy AND no SELECT grant — a table nobody can read cannot leak.
 expect_forbidden product_events
 expect_forbidden client_errors
+# messages lost its anon grant entirely in 038: an anonymous caller gets 42501,
+# not an empty array. Stronger than RLS returning nothing.
+expect_forbidden messages
 
 # ── 2. Writes ─────────────────────────────────────────────────────────────────
 echo
@@ -273,6 +276,61 @@ else
     else
       bad "own avatar write blocked" "expected 200, got $code"
     fi
+
+    # ── Sender binding on messages (038) ──
+    # The messages policy was FOR ALL with no WITH CHECK, so any party to a
+    # rental could insert a message carrying the OTHER party's sender_id, and
+    # edit or delete the other side's messages. A stranger cannot test that —
+    # membership fails first — so the probe is made landlord of a throwaway
+    # rental with the service key, then tries to speak as someone else.
+    SR="Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+    PROBE_PROP=$(curl -s -X POST "$URL/rest/v1/properties" \
+      -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" \
+      -H "Prefer: return=representation" \
+      -d "{\"landlord_id\":\"$PROBE_ID\",\"name\":\"rls-probe\"}" \
+      | python -c 'import sys,json; d=json.load(sys.stdin); print(d[0]["id"] if isinstance(d,list) and d else "")' 2>/dev/null)
+    PROBE_RENTAL=""
+    if [[ -n "$PROBE_PROP" ]]; then
+      PROBE_RENTAL=$(curl -s -X POST "$URL/rest/v1/rentals" \
+        -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" \
+        -H "Prefer: return=representation" \
+        -d "{\"property_id\":\"$PROBE_PROP\",\"landlord_id\":\"$PROBE_ID\",\"monthly_rent\":1,\"start_date\":\"2026-01-01\"}" \
+        | python -c 'import sys,json; d=json.load(sys.stdin); print(d[0]["id"] if isinstance(d,list) and d else "")' 2>/dev/null)
+    fi
+    if [[ -z "$PROBE_RENTAL" ]]; then
+      bad "could not seed a probe rental for the messages check" "property=$PROBE_PROP"
+    else
+      code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/rest/v1/messages" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+        -d "{\"rental_id\":\"$PROBE_RENTAL\",\"sender_id\":\"$OTHER\",\"body\":\"probe\"}")
+      if [[ "$code" == "403" ]]; then
+        ok "rental party cannot post a message as someone else (HTTP $code)"
+      else
+        bad "MESSAGE SENDER FORGEABLE" "expected 403, got $code"
+      fi
+      code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/rest/v1/messages" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+        -d "{\"rental_id\":\"$PROBE_RENTAL\",\"sender_id\":\"$PROBE_ID\",\"body\":\"probe\"}")
+      if [[ "$code" == "201" ]]; then
+        ok "rental party can post a message as themselves (HTTP $code)"
+      else
+        bad "own message blocked" "expected 201, got $code"
+      fi
+      # Reassigning an existing message to another sender must also be refused.
+      body=$(curl -s -X PATCH "$URL/rest/v1/messages?rental_id=eq.$PROBE_RENTAL" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+        -H "Prefer: return=representation" \
+        -d "{\"sender_id\":\"$OTHER\"}")
+      if [[ "$body" == "[]" || "$body" == *"42501"* ]]; then
+        ok "message cannot be reassigned to another sender"
+      else
+        bad "MESSAGE SENDER REASSIGNABLE" "${body:0:140}"
+      fi
+      # Seeded rows go before the user: rentals.landlord_id has no cascade.
+      curl -s -o /dev/null -X DELETE "$URL/rest/v1/messages?rental_id=eq.$PROBE_RENTAL" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
+      curl -s -o /dev/null -X DELETE "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
+    fi
+    [[ -n "$PROBE_PROP" ]] && curl -s -o /dev/null -X DELETE "$URL/rest/v1/properties?id=eq.$PROBE_PROP" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
 
     # Clean up regardless of outcome.
     curl -s -o /dev/null -X DELETE "$URL/auth/v1/admin/users/$PROBE_ID" \
