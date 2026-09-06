@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'reac
 import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
 import { useRegion } from '@/lib/hooks/useRegion'
+import { getRegion } from '@/lib/i18n/regions'
+import { localMonth, startOfLocalDay, calendarDaysBetween } from '@/lib/date/calendar'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string; pan_number?: string; email?: string }
+type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string; pan_number?: string; email?: string; country_code?: string; currency_code?: string; timezone?: string; locale?: string }
 type Building = { id: string; name: string; address_line1: string; address_line2?: string; city: string; state: string; pincode: string; property_type?: string; total_units?: number; created_at: string }
 type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; landlord_signed_at?: string; agreement_status?: string; agreement_custom_clauses?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; start_date?: string; end_date?: string; notice_given_at?: string; move_out_date?: string; escalation_applied_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
 type Message = { id: string; rental_id: string; sender_id: string; body: string; read_at?: string; created_at: string; sender?: { full_name?: string; avatar_url?: string } }
@@ -20,14 +22,27 @@ type ProofPhoto = { id: string; room_label?: string; public_url?: string; annota
 type DepositTx = { id: string; rental_id: string; type: string; amount: number; note?: string; description?: string; tenant_dispute_note?: string; dispute_status?: string; created_at: string }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-// inr() and methodLabel() are intentionally shadowed inside the component
-// with region-aware versions. These module-level stubs are never called.
-const inr = (n: number | undefined | null) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(n || 0))
+// There is deliberately NO module-level inr() here. One used to exist as an
+// "unused stub" hardcoded to INR, shadowed by a region-aware version inside the
+// component. Anything at module scope that called it would have silently rendered
+// every currency as rupees, so the stub is gone rather than merely unused.
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const now = new Date()
-const currentMonth = now.toISOString().slice(0, 7)
-const currentMonthDate = currentMonth + '-01'
+
+// ── Dates are LOCAL-CALENDAR, never UTC ──────────────────────────────────────
+// This file previously held `const now = new Date()` at module scope and derived
+// the current month from `now.toISOString()`. Both were wrong:
+//
+//   1. toISOString() is UTC. East of UTC the first hours of the 1st still read as
+//      the previous month (in IST, until 05:30); west of UTC the last hours of a
+//      month already read as the next one. That value is not merely displayed —
+//      it is written as the `month` on the rent_payments row, so a tenant paying
+//      inside that window filed their rent against the wrong month.
+//   2. A module-level `now` is frozen at first import, so a dashboard left open
+//      across midnight kept rendering the previous day's relative dates.
+//
+// Everything below therefore reads the clock per call and uses local getters.
+// The helpers themselves live in lib/date/calendar.ts, where they are unit-tested
+// against fixed instants including both UTC month boundaries.
 
 function monthLabel(s?: string) {
   if (!s) return ''
@@ -38,7 +53,9 @@ function monthLabel(s?: string) {
 function relDate(iso?: string, locale = 'en-IN') {
   if (!iso) return ''
   const d = new Date(iso)
-  const diff = Math.floor((now.getTime() - d.getTime()) / 86400000)
+  // Calendar-day difference, not elapsed hours: something logged at 23:00 last
+  // night is "Yesterday" at 08:00 today, even though under 24 hours have passed.
+  const diff = calendarDaysBetween(new Date(), d)
   const timeStr = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', hour12: true })
   if (diff === 0) return `Today at ${timeStr}`
   if (diff === 1) return `Yesterday at ${timeStr}`
@@ -51,7 +68,7 @@ function relDate(iso?: string, locale = 'en-IN') {
 }
 function daysUntil(iso?: string) {
   if (!iso) return 0
-  return Math.max(0, Math.ceil((new Date(iso).getTime() - now.getTime()) / 86400000))
+  return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000))
 }
 function scoreBand(score: number) {
   if (score >= 850) return { label: 'EXCELLENT', color: 'var(--rb-action)' }
@@ -63,16 +80,17 @@ function scoreBand(score: number) {
 const methodLabel = (m?: string) => ({ upi: 'UPI', bank_transfer: 'Bank Transfer', cheque: 'Cheque', cash: 'Cash' } as Record<string, string>)[m || ''] || m || '—'
 function leaseExpiryDays(rental: Rental): number | null {
   if (!rental.end_date) return null
-  const d = Math.ceil((new Date(rental.end_date).getTime() - now.getTime()) / 86400000)
+  const d = Math.ceil((new Date(rental.end_date).getTime() - Date.now()) / 86400000)
   return d >= 0 ? d : null
 }
 function escalationDueDays(rental: Rental): number | null {
   if (!rental.start_date) return null
+  const today = new Date()
   const start = new Date(rental.start_date)
   const ann = new Date(start)
-  ann.setFullYear(now.getFullYear())
-  if (ann <= now) ann.setFullYear(ann.getFullYear() + 1)
-  const d = Math.ceil((ann.getTime() - now.getTime()) / 86400000)
+  ann.setFullYear(today.getFullYear())
+  if (ann <= today) ann.setFullYear(ann.getFullYear() + 1)
+  const d = Math.ceil((ann.getTime() - today.getTime()) / 86400000)
   return d <= 90 ? d : null
 }
 function computeLateFee(rental: Rental): number {
@@ -192,7 +210,36 @@ const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', b
 // ── Main component ────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const sb = createClient()
-  const region = useRegion()
+  // Geolocated guess from the rb_country cookie. Authoritative only until the
+  // profile loads — see the note on `region` below.
+  const cookieRegion = useRegion()
+  // Evaluated per render, from the viewer's local calendar. See the note on
+  // localMonth() above — currentMonthDate is written to rent_payments.month, so
+  // getting the boundary wrong misfiles a payment, not just a label.
+  const now = new Date()
+  const currentMonth = localMonth(now)
+  const currentMonthDate = currentMonth + '-01'
+  const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+
+  // ── Region: the ACCOUNT's country, not the network's ───────────────────────
+  // `useRegion()` reads the rb_country cookie, which proxy.ts seeds from the
+  // Vercel IP-geolocation header. That is the right default for a first-time
+  // visitor on a marketing page, and the wrong one for money.
+  //
+  // Rent is stored as a bare numeric with no currency attached, so whatever
+  // currency the UI picks IS the currency the number appears to be in. Driving
+  // that from an IP means a landlord on holiday, behind a VPN, or simply
+  // mis-geolocated on their first visit sees ₹8,000 of rent redrawn as $8,000 —
+  // the same digits, silently reinterpreted, which is exactly the kind of
+  // inconsistency a ledger must never introduce.
+  //
+  // profiles.country_code is set during onboarding and owned by the user, so it
+  // is stable and correct. Fall back to the cookie only before the profile has
+  // loaded, or for a profile predating the country column.
+  const region = profile?.country_code ? getRegion(profile.country_code) : cookieRegion
   const isIndia = region.countryCode === 'IN'
   // Shadow module-level stubs with region-aware versions
   const inr = (n: number | undefined | null) =>
@@ -200,10 +247,7 @@ export default function DashboardPage() {
   const methodLabel = (m?: string) =>
     (PAYMENT_METHOD_DISPLAY as Record<string, { label: string }>)[m || '']?.label || m || '—'
   const relDateFmt = (iso?: string) => relDate(iso, region.locale)
-  const [loading, setLoading] = useState(true)
-  const [authError, setAuthError] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
+
   const [viewStack, setViewStack] = useState<string[]>(['home'])
   const activeView = viewStack[viewStack.length - 1]
   const [refreshKey, setRefreshKey] = useState(0)
@@ -1140,7 +1184,7 @@ export default function DashboardPage() {
                       {mPayments.map((p: any) => {
                         const st = stMap[p.status] || { t: p.status?.toUpperCase() || '?', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
                         const payDate = new Date(p.created_at)
-                        const dateStr = payDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                        const dateStr = payDate.toLocaleDateString(region.locale, { day: 'numeric', month: 'short' })
                         const propName   = p.rental?.property?.name || '—'
                         const tenantName = p.rental?.tenant?.full_name || '—'
                         const amtColor   = p.status === 'paid' ? 'var(--rb-action)' : p.status === 'overdue' ? 'var(--rb-danger)' : 'var(--rb-ink-2)'
@@ -1264,7 +1308,7 @@ export default function DashboardPage() {
                       <div style={{ width: 34, height: 34, borderRadius: 8, background: exDays <= 30 ? 'rgba(239,68,68,.1)' : 'var(--rb-warning-soft)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{exDays <= 30 ? '🔴' : '🟡'}</div>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: exDays <= 30 ? 'var(--rb-danger)' : 'var(--rb-warning)' }}>Lease expires in {exDays} day{exDays !== 1 ? 's' : ''}</div>
-                        <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{new Date(rental.end_date!).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · Talk to your landlord about renewal.</div>
+                        <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{new Date(rental.end_date!).toLocaleDateString(region.locale, { day: 'numeric', month: 'long', year: 'numeric' })} · Talk to your landlord about renewal.</div>
                       </div>
                     </div>
                     <button onClick={() => { setSelectedRental(rental); setModal('give-notice') }} style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', color: 'var(--rb-danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>Give notice</button>
@@ -2150,14 +2194,14 @@ export default function DashboardPage() {
           </div>
         </Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Monthly rent (₹) *">
+          <Field label={`Monthly rent (${region.currency.symbol}) *`}>
             <input style={{ ...inputStyle, borderColor: fieldErrors.monthly_rent ? 'var(--rb-danger)' : undefined }} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} onBlur={onBlur('monthly_rent')} placeholder="25000" />
             <ErrMsg field="monthly_rent" />
           </Field>
-          <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
+          <Field label={`Security deposit (${region.currency.symbol})`}><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Maintenance / society (₹/mo)"><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
+          <Field label={`Maintenance / society (${region.currency.symbol}/mo)`}><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
           <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -2496,9 +2540,9 @@ export default function DashboardPage() {
             {vendorPhoneError && <span style={{ fontSize: 11, color: 'var(--rb-danger)', marginTop: 3, display: 'block' }}>{vendorPhoneError}</span>}
           </Field>
         </div>
-        <Field label="Estimated cost (₹, optional)">
+        <Field label={`Estimated cost (${region.currency.symbol}, optional)`}>
           <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--rb-ink-2)', fontSize: 14, pointerEvents: 'none' }}>₹</span>
+            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--rb-ink-2)', fontSize: 14, pointerEvents: 'none' }}>{region.currency.symbol}</span>
             <input style={{ ...inputStyle, paddingLeft: 28 }} type="number" value={cost} onChange={e => setCost(e.target.value)} placeholder="0" />
           </div>
         </Field>
@@ -2513,7 +2557,7 @@ export default function DashboardPage() {
         </div>
         {deductFromDeposit && status === 'resolved' && (
           <div style={{ background: 'var(--rb-warning-soft)', border: '1px solid var(--rb-warning)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#92400e', marginTop: 8 }}>
-            ⚠️ This will deduct ₹{cost || 0} from the tenant&apos;s deposit. The tenant will be notified and can file a dispute.
+            ⚠️ This will deduct {inr(Number(cost) || 0)} from the tenant&apos;s deposit. The tenant will be notified and can file a dispute.
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
               <button onClick={() => setDeductConfirmed(c => !c)} style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${deductConfirmed ? 'var(--rb-warning)' : '#92400e'}`, background: deductConfirmed ? 'var(--rb-warning)' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 11 }}>{deductConfirmed ? '✓' : ''}</button>
               <label style={{ fontSize: 12, cursor: 'pointer' }} onClick={() => setDeductConfirmed(c => !c)}>I confirm this deduction is valid</label>
@@ -2554,9 +2598,9 @@ export default function DashboardPage() {
       { l: 'Raised', v: relDateFmt(r.created_at) },
       ...(r.category ? [{ l: 'Category', v: r.category }] : []),
       ...(r.urgency === 'emergency' ? [{ l: 'Urgency', v: 'Emergency' }] : []),
-      ...(r.scheduled_date ? [{ l: 'Scheduled', v: new Date(r.scheduled_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) }] : []),
+      ...(r.scheduled_date ? [{ l: 'Scheduled', v: new Date(r.scheduled_date).toLocaleDateString(region.locale, { day: 'numeric', month: 'short', year: 'numeric' }) }] : []),
       ...(r.vendor_name ? [{ l: 'Contractor', v: r.vendor_name + (r.vendor_phone ? ` · ${r.vendor_phone}` : '') }] : []),
-      ...(r.cost ? [{ l: 'Estimated cost', v: '₹' + Number(r.cost).toLocaleString('en-IN') }] : []),
+      ...(r.cost ? [{ l: 'Estimated cost', v: inr(Number(r.cost)) }] : []),
       ...(r.deduct_from_deposit ? [{ l: 'Deposit impact', v: 'Will be deducted from deposit' }] : []),
     ]
 
@@ -2669,7 +2713,7 @@ export default function DashboardPage() {
     const waMsg = inviteLink ? encodeURIComponent(
       `Hi! I've added your unit on RentyBase 🏠\n\n` +
       `*Property:* ${r.property?.name || 'Your unit'}\n` +
-      `*Rent:* ₹${Number(r.monthly_rent).toLocaleString('en-IN')}/mo, due ${r.rent_due_day}th of each month\n\n` +
+      `*Rent:* ${inr(r.monthly_rent)}/mo, due ${r.rent_due_day}th of each month\n\n` +
       `Tap to join: ${inviteLink}\n\n` +
       `Or enter code *${r.invite_token}* at the app.\n\n_(Link valid for 7 days)_`
     ) : ''
@@ -2934,11 +2978,11 @@ export default function DashboardPage() {
               </div>
             </Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Monthly rent (₹)"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} /></Field>
-              <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} /></Field>
+              <Field label={`Monthly rent (${region.currency.symbol})`}><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} /></Field>
+              <Field label={`Security deposit (${region.currency.symbol})`}><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} /></Field>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Maintenance (₹/mo)"><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} /></Field>
+              <Field label={`Maintenance (${region.currency.symbol}/mo)`}><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} /></Field>
               <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -3341,11 +3385,11 @@ export default function DashboardPage() {
             </div>
           </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Monthly rent (₹) *"><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} placeholder="25000" /></Field>
-            <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
+            <Field label={`Monthly rent (${region.currency.symbol}) *`}><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} placeholder="25000" /></Field>
+            <Field label={`Security deposit (${region.currency.symbol})`}><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Maintenance (₹/mo)"><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
+            <Field label={`Maintenance (${region.currency.symbol}/mo)`}><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
             <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -3429,11 +3473,11 @@ export default function DashboardPage() {
             </div>
           </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Monthly rent (₹) *"><input style={inputStyle} type="number" value={bulk.monthly_rent} onChange={setB('monthly_rent')} placeholder="8000" /></Field>
-            <Field label="Security deposit (₹)"><input style={inputStyle} type="number" value={bulk.security_deposit} onChange={setB('security_deposit')} placeholder="16000" /></Field>
+            <Field label={`Monthly rent (${region.currency.symbol}) *`}><input style={inputStyle} type="number" value={bulk.monthly_rent} onChange={setB('monthly_rent')} placeholder="8000" /></Field>
+            <Field label={`Security deposit (${region.currency.symbol})`}><input style={inputStyle} type="number" value={bulk.security_deposit} onChange={setB('security_deposit')} placeholder="16000" /></Field>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Maintenance (₹/mo)"><input style={inputStyle} type="number" value={bulk.maintenance_charges} onChange={setB('maintenance_charges')} placeholder="0" /></Field>
+            <Field label={`Maintenance (${region.currency.symbol}/mo)`}><input style={inputStyle} type="number" value={bulk.maintenance_charges} onChange={setB('maintenance_charges')} placeholder="0" /></Field>
             <Field label="Rent due day"><select style={inputStyle} value={bulk.rent_due_day} onChange={setB('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -3599,10 +3643,10 @@ export default function DashboardPage() {
   }) {
     const p = rental.property
     const execDate = rental.agreement_signed_at
-      ? new Date(rental.agreement_signed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-      : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-    const startFmt = rental.start_date ? new Date(rental.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
-    const endFmt = rental.end_date ? new Date(rental.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Month-to-month'
+      ? new Date(rental.agreement_signed_at).toLocaleDateString(region.locale, { day: 'numeric', month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString(region.locale, { day: 'numeric', month: 'long', year: 'numeric' })
+    const startFmt = rental.start_date ? new Date(rental.start_date).toLocaleDateString(region.locale, { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
+    const endFmt = rental.end_date ? new Date(rental.end_date).toLocaleDateString(region.locale, { day: 'numeric', month: 'long', year: 'numeric' }) : 'Month-to-month'
     const lName = landlordProf?.full_name || 'Landlord'
     const tName = tenantProf?.full_name || 'Tenant'
     const docStyle: React.CSSProperties = { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 14, lineHeight: 1.75, color: '#1a1a1a', maxWidth: 720, margin: '0 auto', padding: printMode ? '0' : '32px 28px' }
@@ -3610,8 +3654,8 @@ export default function DashboardPage() {
     const h2s: React.CSSProperties = { fontSize: 15, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 28, marginBottom: 10, paddingBottom: 6, borderBottom: '2px solid #1a1a1a' }
     const clauseStyle: React.CSSProperties = { marginBottom: 10, paddingLeft: 20 }
     const bold = (t: string) => <strong>{t}</strong>
-    const tenantSigTs = rental.agreement_signed_at ? new Date(rental.agreement_signed_at).toLocaleString('en-IN') : null
-    const landlordSigTs = rental.landlord_signed_at ? new Date(rental.landlord_signed_at).toLocaleString('en-IN') : null
+    const tenantSigTs = rental.agreement_signed_at ? new Date(rental.agreement_signed_at).toLocaleString(region.locale) : null
+    const landlordSigTs = rental.landlord_signed_at ? new Date(rental.landlord_signed_at).toLocaleString(region.locale) : null
 
     return (
       <div style={docStyle} id="agreement-document">
@@ -3860,12 +3904,22 @@ export default function DashboardPage() {
     const [saving, setSaving] = useState(false)
     if (!r) return null
 
+    // Suggestions only — the landlord edits freely. The first four apply anywhere;
+    // generator backup and society maintenance are Indian apartment conventions and
+    // would read as noise to a landlord in, say, Austin or Manchester.
     const EXAMPLES = [
       'Pets allowed with prior written approval from the Landlord.',
       'Parking space number [X] is included in the rent.',
-      'Generator backup charges of ₹[X]/month to be paid separately.',
       'Tenant is responsible for pest control.',
-      'Society maintenance charges are borne by the Landlord.',
+      ...(isIndia
+        ? [
+            `Generator backup charges of ${region.currency.symbol}[X]/month to be paid separately.`,
+            'Society maintenance charges are borne by the Landlord.',
+          ]
+        : [
+            `Utilities of ${region.currency.symbol}[X]/month are to be paid separately by the Tenant.`,
+            'Building or HOA fees are borne by the Landlord.',
+          ]),
     ]
 
     const handleSave = async () => {
@@ -3923,7 +3977,7 @@ export default function DashboardPage() {
       <Modal title="Countersign agreement" onClose={() => setModal(null)}>
         <div style={{ padding: '12px 16px', background: 'var(--rb-action-soft)', borderRadius: 10, marginBottom: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--rb-action)' }}>Tenant has signed ✓</div>
-          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name} signed on {r.agreement_signed_at ? new Date(r.agreement_signed_at).toLocaleDateString('en-IN') : '—'}</div>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name} signed on {r.agreement_signed_at ? new Date(r.agreement_signed_at).toLocaleDateString(region.locale) : '—'}</div>
         </div>
         <p style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.6, marginBottom: 16 }}>
           By countersigning, you confirm that you have reviewed the agreement, all terms are correct, and you authorise the tenancy for <strong>{r.tenant?.full_name || 'the tenant'}</strong> at <strong>{r.property?.name || 'the property'}</strong>.
@@ -4092,7 +4146,7 @@ export default function DashboardPage() {
     const effectiveDate = new Date()
     effectiveDate.setDate(1)
     effectiveDate.setMonth(effectiveDate.getMonth() + 1)
-    const effectiveDateStr = effectiveDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    const effectiveDateStr = effectiveDate.toLocaleDateString(region.locale, { day: 'numeric', month: 'long', year: 'numeric' })
 
     const handleApply = async () => {
       setSaving(true)

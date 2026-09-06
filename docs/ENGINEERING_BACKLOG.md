@@ -58,7 +58,7 @@ there. `repair_requests.photos` stores URLs in an array and needs paths instead
 **Also.** Every bucket has `file_size_limit: null` and `allowed_mime_types: null` —
 any authenticated user can upload any file of any size.
 
-### P1-2 · Current month computed in UTC · OPEN
+### P1-2 · Current month computed in UTC · SHIPPED
 **Problem.** `app/dashboard/page.tsx` computes `const now = new Date()` and
 `currentMonth = now.toISOString().slice(0, 7)` at **module level**, in UTC.
 **Impact.** Two distinct bugs. (a) In IST, between 00:00 and 05:30 on the 1st, UTC
@@ -69,9 +69,14 @@ midnight renders "Today"/"Yesterday" against a stale date.
 **Fix.** Compute the current month from the viewer's local date, and evaluate
 `now` per render rather than once at module scope.
 **Related.** `007_cron_overdue_payments.sql` compares against `current_date` on a
-UTC server, so a tenant in UTC+13 can be marked overdue up to a day early.
+UTC server, so a tenant in UTC+13 can be marked overdue up to a day early. NOT yet
+fixed — tracked as P2-8.
+**Validation.** Helpers extracted to `lib/date/calendar.ts` with 13 unit tests
+covering both UTC boundaries (00:30 on the 1st, 23:30 on the last day), the year
+rollover, and the sub-24-hour "yesterday" case. Suite went 9 -> 22 tests. Typecheck
+and build pass.
 
-### P1-3 · Product UI is hardcoded to India · OPEN
+### P1-3 · Product UI is hardcoded to India · SHIPPED
 **Problem.** The region system (`lib/i18n/`) is real and the dashboard *does* use
 it for computed amounts — but the surrounding UI does not:
 - Every rent/deposit/maintenance input is labelled `(₹)` — 13 sites across four
@@ -79,14 +84,18 @@ it for computed amounts — but the surrounding UI does not:
 - `app/join/[token]/page.tsx:192` hardcodes `'₹' + toLocaleString('en-IN')`. This
   is on the invite path, shown to every tenant in every country.
 - ~10 `toLocaleDateString('en-IN')` calls (agreements, payments, repairs).
-- Lines 1231/1239 show an Indian TDS warning to all users regardless of country —
-  legally wrong content for a non-Indian landlord.
+- ~~Lines 1231/1239 show an Indian TDS warning to all users~~ — **this entry was
+  wrong.** The TDS block was already correctly gated behind `isIndia`. Corrected on
+  re-reading rather than left to mislead the next person.
 - `relDate()` defaults to `en-IN`; the module-level `inr()` stub hardcodes INR.
 **Impact.** Marketing advertises 10 countries and 56 cities; a landlord arriving
 from `/rentals/us/austin` lands in a dashboard denominated in rupees. Directly
 undermines the global positioning.
 **Note.** Blog, `/tools`, and geo marketing pages are deliberately India-specific
 content and are correct as they are.
+**Validation.** 13 money-field labels and 13 `en-IN` date calls now derive from
+`region`; the repair-cost prefix, the WhatsApp invite line and the agreement clause
+suggestions follow suit. Typecheck, 22 tests, build all pass.
 
 ### P1-4 · No product analytics · OPEN
 **Problem.** Only `@vercel/analytics` (pageviews) and Speed Insights. No funnel, no
@@ -100,7 +109,7 @@ autocapture. PostHog connector needs OAuth authorization first.
 ### P1-5 · No error tracking · OPEN
 Production exceptions are invisible. No Sentry or equivalent.
 
-### P1-6 · 21 foreign keys without indexes · OPEN
+### P1-6 · 21 foreign keys without indexes · SHIPPED
 Includes hot paths: `rentals.property_id`, `rent_payments.tenant_id`,
 `deposit_transactions.rental_id`, `messages.rental_id`, `proof_photos.proof_id`.
 RLS policies run `exists (select 1 from rentals where id = X.rental_id ...)` on
@@ -108,6 +117,42 @@ every row check, so these columns are hit constantly. Irrelevant at 52 rentals, 
 cliff at 10–100x. Safe to fix (`create index concurrently`).
 Note: `agent_*`, `api_tokens`, `brands`, `content_*`, `engagement_metrics`,
 `social_accounts` belong to a different product sharing this database — leave them.
+**Validation.** 023 adds 14 indexes; re-running the unindexed-FK audit leaves only
+the other product's 7. Applied to production.
+
+### P1-8 · Migration 003 was never applied · SHIPPED
+**Problem.** `003_global_support.sql` — the entire i18n data layer — had never
+reached the database. None of `profiles.country_code / currency_code / timezone /
+locale` nor `properties.country_code` existed, and neither did its two indexes.
+The "multi-region system shipped May 2026" was frontend-only; region lived
+exclusively in an IP-geolocation cookie and was never persisted.
+**Impact — this was the root cause of a live auth defect.** `app/auth/callback`
+runs `.select('role, country_code')`. Against a missing column PostgREST returns
+**HTTP 400**, so `profile` came back `null`, `profile?.role` was always falsy, and
+**every returning web user was routed to `/signup` instead of `/dashboard`**. They
+still reached the dashboard, because the signup page re-checks the session and
+redirects — but via a bounce through the signup screen. It also made
+`/onboarding/country` unreachable, which is precisely why no user has ever had a
+country set.
+**Fix.** Applied 003 as written; it is additive-only (ADD COLUMN with defaults).
+**Validation.** All five columns present with correct defaults; 22/22 profiles and
+all properties backfilled non-null; the callback's exact query now returns 200.
+
+### P1-9 · Money was denominated by the viewer's IP · SHIPPED
+**Problem.** `useRegion()` reads the `rb_country` cookie that `proxy.ts` seeds from
+the Vercel IP header, and the dashboard formatted every amount with it. Rent is
+stored as a bare numeric with no currency attached, so the currency the UI picks
+*is* the currency the number appears to be in. A landlord travelling, on a VPN, or
+mis-geolocated on first visit saw ₹8,000 of rent redrawn as $8,000 — same digits,
+silently reinterpreted. The join page was worse: it hardcoded `'₹'`, so every
+invite worldwide was drawn in rupees.
+**Fix.** Dashboard currency now derives from `profiles.country_code` (owned by the
+user, set at onboarding), falling back to the cookie only before the profile loads.
+The invite screen uses the **property's** country — money belongs to the property,
+not to whoever is looking at it — delivered by extending `rental_invite_preview` in
+`024_invite_preview_currency.sql`.
+**Validation.** RPC returns `property_country`; bogus tokens still return `[]` and
+`rentals` is still unreadable by anon, so 021's guarantees are intact.
 
 ### P1-7 · Dashboard accessibility · OPEN
 153 `<button>` elements with 4 `aria-label`s, zero `role=` attributes, 5
@@ -142,6 +187,19 @@ geotagging or drop the claim — an unsupported trust claim is worse than no cla
 Every other money column is `numeric(12,2)`. This one cannot represent cents, so it
 breaks for any currency with subunits in normal use. `repair_requests.cost` and
 `rentals.rent_increment_percent` are unconstrained `numeric` — inconsistent.
+
+### P2-8 · Overdue cron uses UTC `current_date` · OPEN
+`007_cron_overdue_payments.sql` marks rent overdue by comparing the due day against
+`current_date` on a UTC server. A tenant in UTC+13 can be flagged overdue up to a
+day early, one in UTC-11 a day late. Needs the tenant's timezone
+(`profiles.timezone`, which now finally exists) folded into the comparison.
+
+### P2-9 · New users are never asked for their country · OPEN
+`003` defaults `country_code` to `'IN'`, and `auth/callback` only routes to
+`/onboarding/country` when the column is null — which it now never is. So a US or
+UK landlord is silently assigned India and sees rupees until they change it
+manually. The page exists and works; nothing reaches it. Correct fix is to ask
+during signup, seeded from the IP guess rather than defaulting silently.
 
 ### P2-6 · Test coverage is one file · OPEN
 9 tests, all in `lib/format/amount-in-words.test.ts`. No tests for the invite flow,

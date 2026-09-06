@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
+import { getRegion } from '@/lib/i18n/regions'
+import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 
 // ── State machine ──────────────────────────────────────────────────────────
 type PageState =
@@ -189,7 +191,17 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
     }
   }
 
-  const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN')
+  // Formatted in the PROPERTY's currency, never the viewer's.
+  //
+  // Rent is stored as a bare numeric, so whichever currency this picks is the
+  // currency the number appears to be in. Using the viewer's region would show a
+  // tenant opening an Indian landlord's invite from the US "$8,000" for a rental
+  // that costs ₹8,000 — the same digits, silently reinterpreted. The property's
+  // country comes from the invite preview RPC (024_invite_preview_currency.sql);
+  // getRegion falls back to India for a null, matching the column default.
+  const propertyRegion = getRegion(rental?.property_country)
+  const inr = (n: number) =>
+    formatCurrencyLocale(Number(n || 0), propertyRegion.currency, propertyRegion.locale)
   const signInUrl = `/signin?next=${encodeURIComponent(`/join/${token}`)}`
   const signUpUrl = `/signup?next=${encodeURIComponent(`/join/${token}`)}`
 
