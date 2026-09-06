@@ -9,6 +9,7 @@ import { useRegion } from '@/lib/hooks/useRegion'
 import { getRegion } from '@/lib/i18n/regions'
 import { SecureImage } from '@/components/secure-image'
 import { track } from '@/lib/analytics/track'
+import { assertAffected } from '@/lib/supabase/write'
 import { sha256Hex } from '@/lib/crypto/file-hash'
 import { localMonth, calendarDaysBetween } from '@/lib/date/calendar'
 import { leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge } from '@/lib/rentals/terms'
@@ -1677,8 +1678,7 @@ export default function DashboardPage() {
     const handleDelete = async (photoId: string) => {
       if (isApproved) return
       try {
-        const { error } = await sb.from('proof_photos').delete().eq('id', photoId)
-        if (error) throw error
+        assertAffected(await sb.from('proof_photos').delete().eq('id', photoId).select('id'), 'photo')
         const next = photos.filter(p => p.id !== photoId)
         setPhotos(next)
         setTenantData((d: any) => ({ ...d, proofs: { ...d.proofs, proof_photos: next } }))
@@ -2402,14 +2402,32 @@ export default function DashboardPage() {
           proofUrl = urlData?.publicUrl || ''
         }
         const pmtData = { payment_method: method, utr_number: utr, payment_note: note, payment_proof_url: proofUrl, status: 'pending_verification' }
+        let paymentId: string
         if (currentPayment) {
-          const { error: updErr } = await sb.from('rent_payments').update(pmtData).eq('id', currentPayment.id)
-          if (updErr) throw updErr
+          assertAffected(await sb.from('rent_payments').update(pmtData).eq('id', currentPayment.id).select('id'), 'payment')
+          paymentId = currentPayment.id
         } else {
-          const { error: insErr } = await sb.from('rent_payments').insert({ ...pmtData, rental_id: rental.id, tenant_id: user.id, month: currentMonthDate, amount: rental.monthly_rent })
-          if (insErr) throw insErr
+          const [row] = assertAffected(
+            await sb.from('rent_payments').insert({ ...pmtData, rental_id: rental.id, tenant_id: user.id, month: currentMonthDate, amount: rental.monthly_rent }).select('id'),
+            'payment',
+          )
+          paymentId = row.id
         }
         setStep(3)
+        // Tell the landlord there is something to confirm. Fire-and-forget: the
+        // payment is already sealed, and a failed notification must never read as
+        // a failed payment. keepalive so the request survives the modal closing.
+        // The recipient is derived server-side from the payment; only the id goes
+        // over the wire. Bearer token for the native app, whose session is not in
+        // cookies.
+        sb.auth.getSession().then(({ data }) => {
+          fetch('/api/email/payment-submitted', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {}) },
+            body: JSON.stringify({ payment_id: paymentId }),
+            keepalive: true,
+          }).catch(() => {})
+        })
       } catch (e: any) { console.error('[PayRent]', e); toast(e?.message || 'Failed to record payment', 'error'); setStep(1) }
     }
 
@@ -2622,7 +2640,7 @@ export default function DashboardPage() {
       setSaving(true)
       try {
         const wasResolved = r.status !== 'resolved' && status === 'resolved'
-        const { error } = await sb.from('repair_requests').update({
+        assertAffected(await sb.from('repair_requests').update({
           status,
           cost: cost ? Number(cost) : null,
           landlord_note: landlordNote || null,
@@ -2630,8 +2648,7 @@ export default function DashboardPage() {
           deduct_from_deposit: deductFromDeposit,
           vendor_name: vendorName || null,
           vendor_phone: vendorPhone || null,
-        }).eq('id', r.id)
-        if (error) throw error
+        }).eq('id', r.id).select('id'), 'repair request')
         // Auto-create deposit deduction when resolving with cost
         if (wasResolved && deductFromDeposit && cost) {
           await sb.from('deposit_transactions').insert({
@@ -2736,8 +2753,7 @@ export default function DashboardPage() {
       if (!confirm('Cancel this repair request?')) return
       setSaving(true)
       try {
-        const { error } = await sb.from('repair_requests').update({ status: 'resolved' }).eq('id', r.id)
-        if (error) throw error
+        assertAffected(await sb.from('repair_requests').update({ status: 'resolved' }).eq('id', r.id).select('id'), 'repair request')
         toast('Repair request closed', 'success')
         setModal(null)
         refreshData()
@@ -2758,8 +2774,7 @@ export default function DashboardPage() {
     const handleConfirmResolved = async () => {
       setSaving(true)
       try {
-        const { error } = await sb.from('repair_requests').update({ resolved_confirmed_at: new Date().toISOString() }).eq('id', r.id)
-        if (error) throw error
+        assertAffected(await sb.from('repair_requests').update({ resolved_confirmed_at: new Date().toISOString() }).eq('id', r.id).select('id'), 'repair request')
         toast('Confirmed as resolved ✓', 'success')
         setModal(null)
         refreshData()
@@ -2887,8 +2902,7 @@ export default function DashboardPage() {
     const handleRegenerateLink = async () => {
       setSaving(true)
       try {
-        const { error } = await sb.from('rentals').update({ invite_token: genToken(), invite_expires_at: tokenExpiry() }).eq('id', r.id)
-        if (error) throw error
+        assertAffected(await sb.from('rentals').update({ invite_token: genToken(), invite_expires_at: tokenExpiry() }).eq('id', r.id).select('id'), 'invite')
         track('invite_regenerated')
         toast('New invite link generated!', 'success')
         setModal(null); setSelectedRental(null); refreshData()
@@ -2899,7 +2913,7 @@ export default function DashboardPage() {
       setSaving(true)
       try {
         if (r.property?.id) {
-          const { error } = await sb.from('properties').update({
+          assertAffected(await sb.from('properties').update({
             name: form.name, address_line1: form.address_line1, address_line2: form.address_line2 || null,
             city: form.city, state: form.state, pincode: form.pincode, property_type: form.property_type,
             bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
@@ -2907,10 +2921,9 @@ export default function DashboardPage() {
             area_sqft: form.area_sqft ? Number(form.area_sqft) : null,
             floor_number: form.floor_number ? Number(form.floor_number) : null,
             parking: form.parking,
-          }).eq('id', r.property.id)
-          if (error) throw error
+          }).eq('id', r.property.id).select('id'), 'property')
         }
-        const { error } = await sb.from('rentals').update({
+        assertAffected(await sb.from('rentals').update({
           monthly_rent: Number(form.monthly_rent), security_deposit: Number(form.security_deposit),
           maintenance_charges: Number(form.maintenance_charges || 0),
           rent_due_day: Number(form.rent_due_day), furnished_status: form.furnished_status,
@@ -2918,8 +2931,7 @@ export default function DashboardPage() {
           lock_in_period_months: Number(form.lock_in_period_months || 11),
           late_fee_percent: Number(form.late_fee_percent || 5),
           rent_increment_percent: Number(form.rent_increment_percent || 5),
-        }).eq('id', r.id)
-        if (error) throw error
+        }).eq('id', r.id).select('id'), 'rental terms')
         toast('Property updated!', 'success')
         setModal(null); setSelectedRental(null); refreshData()
       } catch (e: any) { console.error('[EditProperty]', e); toast(e?.message || 'Failed to update property', 'error') } finally { setSaving(false) }
@@ -3224,8 +3236,7 @@ export default function DashboardPage() {
     const handleEnd = async () => {
       setSaving(true)
       try {
-        const { error } = await sb.from('rentals').update({ status: 'ended' }).eq('id', r.id)
-        if (error) throw error
+        assertAffected(await sb.from('rentals').update({ status: 'ended' }).eq('id', r.id).select('id'), 'lease')
         toast('Lease ended.', 'success')
         setModal(null); setSelectedRental(null); refreshData()
       } catch (e: any) { console.error('[EndLease]', e); toast(e?.message || 'Failed to end lease', 'error') } finally { setSaving(false) }
@@ -3270,11 +3281,10 @@ export default function DashboardPage() {
       if (!confirmed) { toast('Confirm you have read the full agreement', 'error'); return }
       setSaving(true)
       try {
-        const { error } = await sb.from('rentals').update({
+        assertAffected(await sb.from('rentals').update({
           agreement_signed_at: new Date().toISOString(),
           agreement_status: 'tenant_signed',
-        }).eq('id', rental.id)
-        if (error) throw error
+        }).eq('id', rental.id).select('id'), 'agreement')
         toast('Agreement signed ✓ Landlord will countersign.', 'success')
         setModal(null); refreshData()
       } catch (e: any) { console.error('[SignAgreement]', e); toast(e?.message || 'Failed to sign agreement', 'error') } finally { setSaving(false) }
@@ -3707,13 +3717,12 @@ export default function DashboardPage() {
     const handleSave = async () => {
       setSaving(true)
       try {
-        const { error } = await sb.from('buildings').update({
+        assertAffected(await sb.from('buildings').update({
           name: form.name, property_type: form.property_type,
           total_units: form.total_units ? Number(form.total_units) : null,
           address_line1: form.address_line1, address_line2: form.address_line2 || null,
           city: form.city, state: form.state, pincode: form.pincode,
-        }).eq('id', building.id)
-        if (error) throw error
+        }).eq('id', building.id).select('id'), 'building')
         toast('Building updated!', 'success')
         setModal(null); setSelectedBuilding(null); refreshData()
       } catch (e: any) { console.error('[EditBuilding]', e); toast(e?.message || 'Failed to update building', 'error') } finally { setSaving(false) }
@@ -3786,13 +3795,12 @@ export default function DashboardPage() {
     const handleSave = async () => {
       setSaving(true)
       try {
-        const { error } = await sb.from('profiles').update({
+        assertAffected(await sb.from('profiles').update({
           full_name:  form.full_name  || null,
           phone:      form.phone      || null,
           upi_id:     form.upi_id     || null,
           pan_number: form.pan_number ? form.pan_number.toUpperCase() : null,
-        }).eq('id', user.id)
-        if (error) throw error
+        }).eq('id', user.id).select('id'), 'profile')
         toast('Profile updated!', 'success')
         setModal(null); refreshData()
       } catch (e: any) { console.error('[EditProfile]', e); toast(e?.message || 'Failed to update', 'error') } finally { setSaving(false) }
@@ -4044,8 +4052,8 @@ export default function DashboardPage() {
                     setModal('property-detail')
                     return
                   }
-                  const { error } = await sb.from('rentals').update({ agreement_status: 'pending_signature' }).eq('id', activeRental.id)
-                  if (error) { toast(error.message || 'Could not send the agreement', 'error'); return }
+                  const sent = await sb.from('rentals').update({ agreement_status: 'pending_signature' }).eq('id', activeRental.id).select('id')
+                  if (sent.error || !sent.data?.length) { toast(sent.error?.message || 'Could not send the agreement', 'error'); return }
                   toast('Agreement sent to tenant for signature', 'success')
                   refreshData()
                 }} style={actBtnPrimary}>Send to tenant →</button>
@@ -4124,8 +4132,7 @@ export default function DashboardPage() {
     const handleSave = async () => {
       setSaving(true)
       try {
-        const { error } = await sb.from('rentals').update({ agreement_custom_clauses: clauses || null }).eq('id', r.id)
-        if (error) throw error
+        assertAffected(await sb.from('rentals').update({ agreement_custom_clauses: clauses || null }).eq('id', r.id).select('id'), 'clauses')
         toast('Custom clauses saved', 'success')
         setModal(null); refreshData()
       } catch (e: any) { console.error('[CustomClauses]', e); toast(e?.message || 'Failed to save', 'error'); setSaving(false) }
@@ -4162,11 +4169,10 @@ export default function DashboardPage() {
       if (!confirmed) { toast('Confirm you have read the agreement', 'error'); return }
       setSaving(true)
       try {
-        const { error } = await sb.from('rentals').update({
+        assertAffected(await sb.from('rentals').update({
           landlord_signed_at: new Date().toISOString(),
           agreement_status: 'executed',
-        }).eq('id', r.id)
-        if (error) throw error
+        }).eq('id', r.id).select('id'), 'agreement')
         toast('Agreement fully executed ✓', 'success')
         setModal(null); refreshData()
       } catch (e: any) { console.error('[LandlordSign]', e); toast(e?.message || 'Failed to sign', 'error'); setSaving(false) }
@@ -4312,8 +4318,7 @@ export default function DashboardPage() {
       if (!note.trim()) { toast('Add a note explaining your dispute', 'error'); return }
       setSaving(true)
       try {
-        const { error } = await sb.from('deposit_transactions').update({ tenant_dispute_note: note, dispute_status: 'disputed' }).eq('id', t.id)
-        if (error) throw error
+        assertAffected(await sb.from('deposit_transactions').update({ tenant_dispute_note: note, dispute_status: 'disputed' }).eq('id', t.id).select('id'), 'dispute')
         toast('Dispute filed — your landlord will be notified', 'success')
         setModal(null)
         refreshData()
@@ -4350,11 +4355,10 @@ export default function DashboardPage() {
     const handleApply = async () => {
       setSaving(true)
       try {
-        const { error } = await sb.from('rentals').update({
+        assertAffected(await sb.from('rentals').update({
           monthly_rent: newRent,
           escalation_applied_at: new Date().toISOString().split('T')[0],
-        }).eq('id', rental.id)
-        if (error) throw error
+        }).eq('id', rental.id).select('id'), 'rent escalation')
         if (rental.tenant_id) {
           try {
             await sb.from('notifications').insert({
@@ -4412,8 +4416,7 @@ export default function DashboardPage() {
       if (!moveOutDate) { toast('Select a move-out date', 'error'); return }
       setSaving(true)
       try {
-        const { error } = await sb.from('rentals').update({ notice_given_at: new Date().toISOString(), move_out_date: moveOutDate }).eq('id', rental.id)
-        if (error) throw error
+        assertAffected(await sb.from('rentals').update({ notice_given_at: new Date().toISOString(), move_out_date: moveOutDate }).eq('id', rental.id).select('id'), 'notice')
         toast('Notice given — landlord will be informed', 'success')
         setModal(null)
         refreshData()
@@ -4464,6 +4467,7 @@ export default function DashboardPage() {
     const markAllRead = async () => {
       const ids = notifications.map(n => n.id)
       if (!ids.length) return
+      // Deliberately unchecked: marking read is best-effort and the list is cleared locally either way.
       await sb.from('notifications').update({ read: true }).in('id', ids)
       setNotifications([])
     }

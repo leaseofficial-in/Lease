@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 import { sendEmail, welcomeEmail } from '@/lib/resend'
-import { createClient } from '@/lib/supabase/server'
+import { getAuthedUser } from '@/lib/auth/authed-user'
 import { rateLimit, clientIp, tooManyRequests } from '@/lib/rate-limit'
 
 /**
@@ -19,31 +18,6 @@ import { rateLimit, clientIp, tooManyRequests } from '@/lib/rate-limit'
 // the wrong welcome mail.
 const ROLE_ALIASES: Record<string, string> = { landlord: 'landlord', pg: 'landlord', tenant: 'tenant' }
 
-/**
- * Resolves the caller. Web uses cookie auth; the Capacitor Android app stores its
- * session in native Preferences rather than cookies, so it sends a bearer token.
- */
-async function getAuthedUser(req: Request) {
-  const cookieClient = await createClient()
-  const { data: cookieAuth } = await cookieClient.auth.getUser()
-  if (cookieAuth.user) return cookieAuth.user
-
-  const authHeader = req.headers.get('authorization')
-  const token = authHeader?.toLowerCase().startsWith('bearer ')
-    ? authHeader.slice(7).trim()
-    : null
-  if (!token) return null
-
-  // Fresh client with no cookie adapter — we only want to validate this token.
-  const bearerClient = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => [], setAll: () => {} } },
-  )
-  const { data } = await bearerClient.auth.getUser(token)
-  return data.user ?? null
-}
-
 export async function POST(req: Request) {
   try {
     const limit = rateLimit(`welcome:${clientIp(req)}`, { limit: 5, windowMs: 60 * 60 * 1000 })
@@ -51,7 +25,7 @@ export async function POST(req: Request) {
       return tooManyRequests(limit, 'Too many requests. Please try again later.')
     }
 
-    const user = await getAuthedUser(req)
+    const user = (await getAuthedUser(req))?.user
     if (!user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
