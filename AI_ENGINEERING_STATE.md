@@ -103,7 +103,9 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   `/join` normalises internal whitespace, phone-friendly input attrs, 10-char placeholder.
 - `track()` and `reportError()` pinned by mocked tests (insert shape, null user_id for
   anonymous, PII-free route patterns, dedup, per-page cap, truncation).
-- Tests 65 → 101. Lint 10 → **0**. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
+- `components/ui/empty-state.tsx`: the 8 verbatim "icon + one line" empty states
+  migrated by exact-match regex; the 6 variants left. `role="status"` added.
+- Tests 65 → 101. Lint 10 → **0**. Security 34/34 re-run after all DB changes. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
   (an `<a href="/rentals/">`). Every file I own is lint-clean. signin derives the
   auth-failed message from `useSearchParams` (Suspense-wrapped); country page and
   footer selector read `useRegion()` instead of seeding state from an effect;
@@ -116,7 +118,7 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
 - **Reminder cron re-enable** after stale-data cleanup. (Owner.)
 
 ### P2 — open
-- Component primitives: Button DONE (31 sites). Badge/Card/EmptyState still open.
+- Component primitives: Button (31 sites) and EmptyState (8 sites) DONE. Badge/Card open.
 - Dashboard decomposition (extracting terms found a live money bug; do more).
 - Analytics/error capture: insert shapes verified by mocked tests. Browser-level
   observation still unverified (no browser here). Tables have 0 rows = 0 traffic.
@@ -150,6 +152,5 @@ preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
   pixels I cannot see. Left.
 
 ## Next task
-EmptyState primitive: 8 of 14 `emptyStyle` blocks share one verbatim shape
-(wrapper → 32px Icon → single <p>). Migrate those by regex; leave the other 6.
-Then a fresh full audit pass (Phase 12) assuming this one missed things.
+Phase 12 fresh audit: sitemap/robots vs authenticated routes; native (Capacitor)
+path on /join; DB hygiene (updated_at triggers, any remaining auth.role() policies).

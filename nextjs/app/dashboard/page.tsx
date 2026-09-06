@@ -11,6 +11,7 @@ import { SecureImage } from '@/components/secure-image'
 import { track } from '@/lib/analytics/track'
 import { assertAffected } from '@/lib/supabase/write'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { sha256Hex } from '@/lib/crypto/file-hash'
 import { localMonth, calendarDaysBetween } from '@/lib/date/calendar'
 import { monthLabel as monthLabelIntl, formatMonthYear } from '@/lib/date/month-label'
@@ -1137,7 +1138,7 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
-          {filteredRepairs.length > 0 ? filteredRepairs.map((r: RepairRequest) => <RepairRow key={r.id} r={r} isLandlord />) : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="wrench" size={32} stroke={1.5} /></div><p>No repair requests.</p></div>}
+          {filteredRepairs.length > 0 ? filteredRepairs.map((r: RepairRequest) => <RepairRow key={r.id} r={r} isLandlord />) : <EmptyState icon={<Icon k="wrench" size={32} stroke={1.5} />}>No repair requests.</EmptyState>}
         </section>
       </>
     )
@@ -1162,7 +1163,7 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--rb-border)', fontSize: 13, color: 'var(--rb-ink-2)', alignItems: 'center' }}>
               <span>YTD income</span><strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: 'var(--rb-action)', letterSpacing: '-.015em' }}>{inr(landlordData?.ytdTotal)}</strong>
             </div>
-          </> : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="file" size={32} stroke={1.5} /></div><p>No receipts yet.</p></div>}
+          </> : <EmptyState icon={<Icon k="file" size={32} stroke={1.5} />}>No receipts yet.</EmptyState>}
         </section>
       </>
     )
@@ -1259,7 +1260,7 @@ export default function DashboardPage() {
 
         <section style={cardStyle}>
           {tabFiltered.length === 0
-            ? <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="clipboard" size={32} stroke={1.5} /></div><p>No entries for this period.</p></div>
+            ? <EmptyState icon={<Icon k="clipboard" size={32} stroke={1.5} />}>No entries for this period.</EmptyState>
             : (() => {
                 // Compute running balance across all filtered entries (oldest→newest for accumulation)
                 const sorted = [...tabFiltered].sort((a, b) => a.month.localeCompare(b.month))
@@ -1480,7 +1481,7 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--rb-border)', fontSize: 13, color: 'var(--rb-ink-2)', alignItems: 'center' }}>
                 <span>YTD HRA eligible</span><strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: 'var(--rb-action)', letterSpacing: '-.015em' }}>{inr(ytdTotal)}</strong>
               </div>
-            </> : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="file" size={32} stroke={1.5} /></div><p>Receipts appear after confirmed payments.</p></div>}
+            </> : <EmptyState icon={<Icon k="file" size={32} stroke={1.5} />}>Receipts appear after confirmed payments.</EmptyState>}
           </section>
 
           <section style={cardStyle}>
@@ -1598,7 +1599,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-          </> : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="file" size={32} stroke={1.5} /></div><p>No receipts yet. They appear after confirmed payments.</p></div>}
+          </> : <EmptyState icon={<Icon k="file" size={32} stroke={1.5} />}>No receipts yet. They appear after confirmed payments.</EmptyState>}
         </section>
       </>
     )
@@ -1851,7 +1852,7 @@ export default function DashboardPage() {
               </div>
               <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, color: t.type === 'received' ? 'var(--rb-action)' : 'var(--rb-danger)', flexShrink: 0 }}>{t.type === 'received' ? '+' : '-'}{inr(t.amount)}</div>
             </div>
-          )) : <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="lock" size={32} stroke={1.5} /></div><p>No deposit transactions yet.</p></div>}
+          )) : <EmptyState icon={<Icon k="lock" size={32} stroke={1.5} />}>No deposit transactions yet.</EmptyState>}
           {transactions.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 0', marginTop: 6, fontSize: 13, color: 'var(--rb-ink-2)', alignItems: 'center' }}>
               <span>Estimated refund at move-out</span>
@@ -4090,7 +4091,7 @@ export default function DashboardPage() {
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Agreements</div><h1 style={h1Style}>Agreements.</h1><p style={subStyle}>{rentals.length} rental{rentals.length !== 1 ? 's' : ''}</p></div></div>
         <section style={cardStyle}>
-          {rentals.length === 0 ? <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="clipboard" size={32} stroke={1.5} /></div><p>No rentals yet. Create a rental to generate an agreement.</p></div>
+          {rentals.length === 0 ? <EmptyState icon={<Icon k="clipboard" size={32} stroke={1.5} />}>No rentals yet. Create a rental to generate an agreement.</EmptyState>
             : rentals.map((r: Rental) => {
                 const pill = statusPill(r)
                 const isExecuted = r.agreement_signed_at && r.landlord_signed_at
@@ -4292,7 +4293,7 @@ export default function DashboardPage() {
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Messages</div><h1 style={h1Style}>Messages.</h1><p style={subStyle}>{rentals.length} active tenant{rentals.length !== 1 ? 's' : ''}</p></div></div>
         <section style={cardStyle}>
-          {rentals.length === 0 ? <div style={emptyStyle}><div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="chat" size={32} stroke={1.5} /></div><p>No active tenants yet. Add a tenant to start messaging.</p></div>
+          {rentals.length === 0 ? <EmptyState icon={<Icon k="chat" size={32} stroke={1.5} />}>No active tenants yet. Add a tenant to start messaging.</EmptyState>
             : rentals.map((r: Rental) => (
               <div key={r.id} onClick={() => setActiveThread(r)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: '1px solid var(--rb-border-soft)', cursor: 'pointer' }}>
                 <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg,#c9b388,#7a6042)', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 16, fontWeight: 700, flexShrink: 0 }}>{(r.tenant?.full_name || 'T').charAt(0).toUpperCase()}</div>
