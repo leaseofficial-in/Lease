@@ -11,6 +11,7 @@ import { SecureImage } from '@/components/secure-image'
 import { track } from '@/lib/analytics/track'
 import { sha256Hex } from '@/lib/crypto/file-hash'
 import { localMonth, calendarDaysBetween } from '@/lib/date/calendar'
+import { computeLateFee, leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge } from '@/lib/rentals/terms'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 
@@ -70,37 +71,6 @@ function relDate(iso?: string, locale = 'en-IN') {
   }
   const dateStr = d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
   return `${dateStr} at ${timeStr}`
-}
-function scoreBand(score: number) {
-  if (score >= 850) return { label: 'EXCELLENT', color: 'var(--rb-action)' }
-  if (score >= 750) return { label: 'TRUSTED', color: 'var(--rb-action)' }
-  if (score >= 650) return { label: 'GOOD', color: 'var(--rb-accent)' }
-  if (score >= 550) return { label: 'FAIR', color: 'var(--rb-accent)' }
-  return { label: 'BUILDING', color: 'var(--rb-ink-3)' }
-}
-function leaseExpiryDays(rental: Rental): number | null {
-  if (!rental.end_date) return null
-  const d = Math.ceil((new Date(rental.end_date).getTime() - Date.now()) / 86400000)
-  return d >= 0 ? d : null
-}
-function escalationDueDays(rental: Rental): number | null {
-  if (!rental.start_date) return null
-  const today = new Date()
-  const start = new Date(rental.start_date)
-  const ann = new Date(start)
-  ann.setFullYear(today.getFullYear())
-  if (ann <= today) ann.setFullYear(ann.getFullYear() + 1)
-  const d = Math.ceil((ann.getTime() - today.getTime()) / 86400000)
-  return d <= 90 ? d : null
-}
-function computeLateFee(rental: Rental): number {
-  return Math.round(Number(rental.monthly_rent) * (Number(rental.late_fee_percent || 5) / 100))
-}
-function scoreNudge(score: number, _months: number): string {
-  if (score >= 850) return 'Excellent! Keep paying on time to maintain your top rating.'
-  if (score >= 750) return `Pay on time for ${Math.max(1, Math.ceil((850 - score) / 12))} more month${Math.ceil((850 - score) / 12) === 1 ? '' : 's'} to reach Excellent (850+).`
-  if (score >= 650) return `${Math.max(1, Math.ceil((750 - score) / 12))} more on-time payments to reach Trusted (750+).`
-  return `Each on-time payment adds ~12 points. You need ${Math.max(1, Math.ceil((650 - score) / 12))} more months to reach Good (650+).`
 }
 
 // ── Invite token helper ───────────────────────────────────────────────────
@@ -2019,7 +1989,7 @@ export default function DashboardPage() {
           )}
           <div style={{ marginTop: 20, padding: 16, background: 'var(--rb-action-soft)', borderRadius: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-action)', marginBottom: 6 }}>Next step</div>
-            <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.55 }}>{scoreNudge(score, r.length)}</div>
+            <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.55 }}>{scoreNudge(score)}</div>
             <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 8 }}>Score carries to your next rental. Landlords see this.</div>
           </div>
         </section>

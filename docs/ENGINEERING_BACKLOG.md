@@ -365,9 +365,24 @@ because those columns are what any server-side job would have to trust.
 Chose seeding-plus-correctable over adding a country step to signup: it adds no
 friction to the funnel, and the funnel is the thing that is already failing.
 
-### P2-6 · Test coverage is one file · OPEN
-9 tests, all in `lib/format/amount-in-words.test.ts`. No tests for the invite flow,
-rent calculation, late fees, deposit ledger, or any RLS boundary.
+### P2-6 · Test coverage is one file · PARTIAL
+Was 9 tests in one file. Now **53 across five**: calendar boundaries, storage-ref
+parsing, SHA-256 vectors, and rental terms (late fee, lease expiry, escalation
+window, score bands).
+
+Extracting the rental-terms logic to `lib/rentals/terms.ts` found a live money bug.
+`computeLateFee` used `Number(rental.late_fee_percent || 5)`, so a stored `0` — a
+landlord who deliberately waived the late fee — was read as falsy and charged 5%
+anyway. **12 of 52 rentals have `late_fee_percent = 0.00`.** It is not
+display-only: the function writes to `rent_payments.late_fee`, so it lands on a
+tenant's ledger. No payment exists against those 12 yet, so nobody has been
+wrongly charged — it was armed for the first tenant on a waived rental to go
+overdue. Same shape as the invite-token leak: latent, and one ordinary event away
+from real.
+
+**Still untested:** the invite claim path, deposit ledger arithmetic, and every RLS
+boundary. RLS in particular is verified only by manual anonymous probes during
+audits; it deserves a real harness with two seeded users.
 
 ### P2-7 · `/dashboard` redirect drops the destination · SHIPPED
 `proxy.ts` redirected unauthenticated dashboard hits to `/signin` with no `next`,
