@@ -97,6 +97,11 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
     policy had to carry the rental rule itself (040). Check `confdeltype` on every
     FK before trusting a child's policy.
 
+17. Supabase blocks direct SQL DELETE on `storage.objects` ("Use the Storage API
+    instead"), so the simulate-claims-in-a-DO-block trick cannot prove a storage
+    policy. Prove those over HTTP with two real probe sessions, which is why the
+    harness builds a landlord *and* a tenant.
+
 ## Incident log
 
 - **2026-09-07 — 23 unintended emails.** Fired `/api/cron/rent-reminders` at prod
@@ -236,6 +241,20 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   unclaimed rental), so a regression that blocks legitimate deletes also fails.
   46 → 49 checks.
 
+- **Batch 24 — nobody could ever delete a file (041).** `storage.objects` had five
+  policies and not one DELETE, for any bucket. So 040's restored remove-photo
+  button deleted the row and left the image; every failed-insert-after-upload
+  stranded a blob (proof-photos held 10 objects against 9 rows — one orphan, live);
+  and no user could remove their own avatar. 041 adds two DELETE policies: the
+  uploader (`owner = auth.uid()`, populated on every object) who is still a party
+  to the rental, blocked once the proof is approved so the file and the row freeze
+  together as 040 intended; and own-avatar. `agreements` (15 files, retired Expo
+  Edge Function, service_role only) deliberately untouched. Client `handleDelete`
+  now takes the row, then the blob, in that order — the row is the record, and a
+  storage failure costs bytes rather than correctness. Harness proves it over HTTP
+  with both probe sessions: uploader deletes (200), the other party to the same
+  rental cannot (400). 49 → 52 checks.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -260,6 +279,8 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   `notify_*` triggers are the sole writers. Correct. (Tenant-facing gap covered by
   the payment-confirmed email, not by in-app rows they never open.)
 - `messages`: four bound policies as of 038; anon has no grant.
+- Anonymous listing of `avatars` (public bucket) and `proof-photos` both return
+  `[]` — no user-id enumeration through the storage API.
 - `profiles`: SELECT own + counterparty-scoped, UPDATE own. No DELETE, no INSERT
   (the `on_auth_user_created` trigger is the only writer). Correct.
 - `buildings` FOR ALL (landlord_id = uid): properties FK is ON DELETE SET NULL, so
@@ -346,7 +367,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-202/202 tests · typecheck clean · build clean · security 49/49 · lint 0 (gates verify).
+202/202 tests · typecheck clean · build clean · security 52/52 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -358,14 +379,13 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-Three migrations (038/039/040) are applied to prod and pushed. Still to verify on
-the deployed build: `/api/email/payment-confirmed` unauthenticated → 401, probe
-landlord JWT + bogus id → 202 with no send.
-
-Then the next angle, in order of what has never been looked at:
-1. Storage object policies for `proof-photos` and `rental-photos` — INSERT/DELETE
-   by path, the same author-binding question as 038-040 but in `storage.objects`.
-2. The three dead-write findings all came from walking client writes against
-   `pg_policies`. Do the same for client *reads*: a `.select()` that returns [] to
-   the party who should see it is the same bug wearing the other face.
-3. `rentals.invite_token` rotation — a claimed invite's token stays in the row.
+038-041 applied to prod, pushed, and each proven live. `/api/email/payment-confirmed`
+is deployed and answers 401 unauthenticated; site health 200 across the public
+routes. Remaining angles, in order:
+1. Client *reads*: the three dead-write findings came from walking client writes
+   against `pg_policies`. A `.select()` that returns [] to the party who should see
+   it is the same bug wearing the other face — walk every read the same way.
+2. `rentals.invite_token` is never rotated or cleared once claimed; the row keeps a
+   live-looking token for the life of the tenancy.
+3. One orphan blob remains in `proof-photos` (10 objects, 9 rows). Its uploader can
+   now clear it, but nothing prompts them. A service-role sweep is the owner's call.

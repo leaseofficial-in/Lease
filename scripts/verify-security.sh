@@ -390,6 +390,39 @@ else
           bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
         fi
       fi
+      # ── Storage delete scope (041) ──
+      # storage.objects had no DELETE policy for any bucket, so nobody could ever
+      # remove a file they uploaded: every removed photo and every failed-insert
+      # orphan stayed in the bucket forever (there was one such orphan in
+      # proof-photos). Direct SQL deletes on storage tables are blocked by
+      # Supabase, so this can only be checked through the Storage API — with both
+      # probe sessions, which is exactly what is set up here.
+      OBJ="$PROBE_RENTAL/probe-$RANDOM.jpg"
+      code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/storage/v1/object/repair-photos/$OBJ" \
+        -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: image/jpeg" --data-binary "probe")
+      if [[ "$code" == "200" ]]; then
+        ok "tenant can upload a repair photo for their rental (HTTP $code)"
+      else
+        bad "rental photo upload blocked" "expected 200, got $code"
+      fi
+      # The other party to the same rental may read it but must not destroy it.
+      code=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$URL/storage/v1/object/repair-photos/$OBJ" \
+        -H "apikey: $KEY" -H "$AUTH")
+      if [[ "$code" == "400" || "$code" == "403" ]]; then
+        ok "the other party cannot delete a file they did not upload (HTTP $code)"
+      else
+        bad "OTHER PARTY DELETED SOMEONE ELSE'S UPLOAD" "expected 400/403, got $code"
+      fi
+      code=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$URL/storage/v1/object/repair-photos/$OBJ" \
+        -H "apikey: $KEY" -H "$TAUTH")
+      if [[ "$code" == "200" ]]; then
+        ok "uploader can delete their own file (HTTP $code)"
+      else
+        bad "UPLOADER CANNOT DELETE THEIR OWN FILE" "expected 200, got $code"
+        curl -s -o /dev/null -X DELETE "$URL/storage/v1/object/repair-photos/$OBJ" \
+          -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
+      fi
+
       # ── Delete scope (040) ──
       # rentals and properties were each one FOR ALL policy, and everything hangs
       # off rentals with ON DELETE CASCADE — so one REST call could erase a

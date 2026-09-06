@@ -1682,7 +1682,17 @@ export default function DashboardPage() {
     const handleDelete = async (photoId: string) => {
       if (isApproved) return
       try {
-        assertAffected(await sb.from('proof_photos').delete().eq('id', photoId).select('id'), 'photo')
+        // Take the row first: it is the record, and it is the thing the landlord
+        // sees. Then the file. Until 040/041 neither delete had a policy behind
+        // it -- the row survived and the image stayed in the bucket forever.
+        const gone = assertAffected(
+          await sb.from('proof_photos').delete().eq('id', photoId).select('id, storage_path'),
+          'photo',
+        ) as unknown as { id: string; storage_path?: string }[]
+        const path = gone[0]?.storage_path
+        // The image is now unreferenced either way; a failure here costs storage,
+        // not correctness, so it must not surface as a failed delete.
+        if (path) await sb.storage.from('proof-photos').remove([path])
         const next = photos.filter(p => p.id !== photoId)
         setPhotos(next)
         setTenantData((d: any) => ({ ...d, proofs: { ...d.proofs, proof_photos: next } }))
