@@ -1502,6 +1502,13 @@ export default function DashboardPage() {
         <div style={{ background: 'linear-gradient(135deg,var(--rb-action),var(--rb-action-hover))', borderRadius: 16, padding: '28px 32px', color: '#F6F4EE' }}>
           <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28, fontWeight: 400 }}>Join your rental.</h2>
           <p style={{ fontSize: 14, color: 'rgba(246,244,238,.8)', marginTop: 8, lineHeight: 1.55 }}>Ask your landlord to share an invite link. Your receipts and history will appear here once active.</p>
+          {/* A tenant who signed up before their landlord sent anything used to hit a
+              dead end here. The invite code is the same credential as the link, and
+              /join already accepts it typed in — so offer that path. */}
+          <div style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+            <Link href="/join" style={{ ...actBtnPrimary, background: 'rgba(246,244,238,.15)', border: '1px solid rgba(246,244,238,.3)', textDecoration: 'none' }}>Have an invite code? Enter it →</Link>
+            <span style={{ fontSize: 12, color: 'rgba(246,244,238,.6)' }}>It&rsquo;s in the message your landlord sent.</span>
+          </div>
         </div>
       </>
     )

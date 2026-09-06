@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
@@ -10,7 +12,9 @@ export default function JoinPage() {
   const [error, setError] = useState('')
 
   const handleSubmit = () => {
-    const trimmed = code.trim().toUpperCase()
+    // Same normalisation as /join/[token]: people paste codes with spaces and in
+    // lowercase, and a code is a credential, so "close enough" must resolve.
+    const trimmed = code.replace(/\s+/g, '').toUpperCase()
     if (trimmed.length < 4) {
       setError('Please enter your invite code.')
       return
@@ -49,10 +53,15 @@ export default function JoinPage() {
               type="text"
               value={code}
               onChange={e => { setCode(e.target.value); setError('') }}
-              placeholder="e.g. RB7XYZ"
+              placeholder="e.g. K7MN3PQ2WX"
               style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 20, letterSpacing: '.08em', textTransform: 'uppercase' }}
               autoFocus
               autoComplete="off"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              inputMode="text"
+              aria-label="Invite code"
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
             />
           </div>
@@ -73,9 +82,9 @@ export default function JoinPage() {
             Join ledger <span className="arr">→</span>
           </button>
           <div className="row" style={{ justifyContent: 'center' }}>
-            <a href="/signup" style={{ color: 'var(--rb-ink-3)' }}>
+            <Link href="/signup" style={{ color: 'var(--rb-ink-3)' }}>
               Don&apos;t have an invite? <strong style={{ color: 'var(--rb-action)' }}>Create account instead</strong>
-            </a>
+            </Link>
           </div>
         </div>
       </div>
