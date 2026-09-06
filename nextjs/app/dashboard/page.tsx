@@ -2313,7 +2313,7 @@ export default function DashboardPage() {
 
         {/* ── Configuration ── */}
         <SectionHead label="Configuration" />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="grid-2" style={{ gap: 16 }}>
           <Field label="Bedrooms (BHK)">
             <div style={{ display: 'flex', gap: 6 }}>
               {['1','2','3','4'].map(v => <button key={v} style={chip('bedrooms', v)} onClick={() => setForm(f => ({ ...f, bedrooms: v }))}>{v === '4' ? '4+' : v}</button>)}
@@ -2325,7 +2325,7 @@ export default function DashboardPage() {
             </div>
           </Field>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-2" style={{ gap: 12 }}>
           <Field label="Area (sq ft)"><input style={inputStyle} type="number" value={form.area_sqft} onChange={set('area_sqft')} placeholder="850" /></Field>
           <Field label="Floor number"><input style={inputStyle} type="number" value={form.floor_number} onChange={set('floor_number')} placeholder="3" /></Field>
         </div>
@@ -2340,7 +2340,7 @@ export default function DashboardPage() {
         <SectionHead label="Location" />
         <Field label="Street address"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} placeholder="Flat no., building, street" /></Field>
         <Field label="Landmark / area (optional)"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} placeholder="Near Metro station" /></Field>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-2" style={{ gap: 12 }}>
           <Field label="City">
             <input style={{ ...inputStyle, borderColor: fieldErrors.city ? 'var(--rb-danger)' : undefined }} value={form.city} onChange={set('city')} onBlur={onBlur('city')} placeholder="Hyderabad" />
             <ErrMsg field="city" />
@@ -2364,15 +2364,15 @@ export default function DashboardPage() {
           </div>
         </Field>
         <Field label={`Security deposit (${region.currency.symbol})`}><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-2" style={{ gap: 12 }}>
           <Field label={`Maintenance / society (${region.currency.symbol}/mo)`}><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
           <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-2" style={{ gap: 12 }}>
           <Field label="Notice period (days)"><input style={inputStyle} type="number" value={form.notice_period_days} onChange={set('notice_period_days')} placeholder="30" /></Field>
           <Field label="Lock-in period (months)"><input style={inputStyle} type="number" value={form.lock_in_period_months} onChange={set('lock_in_period_months')} placeholder="11" /></Field>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-2" style={{ gap: 12 }}>
           <Field label="Late fee (% of rent)"><input style={inputStyle} type="number" value={form.late_fee_percent} onChange={set('late_fee_percent')} placeholder="5" /></Field>
           <Field label="Annual rent increment (%)"><input style={inputStyle} type="number" value={form.rent_increment_percent} onChange={set('rent_increment_percent')} placeholder="5" /></Field>
         </div>
@@ -3140,7 +3140,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             </Field>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="grid-2" style={{ gap: 16 }}>
               <Field label="Bedrooms">
                 <div style={{ display: 'flex', gap: 6 }}>
                   {['1','2','3','4'].map(v => <button key={v} style={chip('bedrooms', v)} onClick={() => setForm(f => ({ ...f, bedrooms: v }))}>{v === '4' ? '4+' : v}</button>)}
@@ -3152,7 +3152,7 @@ export default function DashboardPage() {
                 </div>
               </Field>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="grid-2" style={{ gap: 12 }}>
               <Field label="Area (sq ft)"><input style={inputStyle} type="number" value={form.area_sqft} onChange={set('area_sqft')} placeholder="850" /></Field>
               <Field label="Floor number"><input style={inputStyle} type="number" value={form.floor_number} onChange={set('floor_number')} placeholder="3" /></Field>
             </div>
@@ -3166,7 +3166,7 @@ export default function DashboardPage() {
             <Field label="Property name / label"><input style={inputStyle} value={form.name} onChange={set('name')} /></Field>
             <Field label="Street address"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} /></Field>
             <Field label="Landmark / area"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} /></Field>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="grid-2" style={{ gap: 12 }}>
               <Field label="City"><input style={inputStyle} value={form.city} onChange={set('city')} /></Field>
               <Field label="State"><input style={inputStyle} value={form.state} onChange={set('state')} /></Field>
             </div>
@@ -3179,19 +3179,19 @@ export default function DashboardPage() {
                 ))}
               </div>
             </Field>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="grid-2" style={{ gap: 12 }}>
               <Field label={`Monthly rent (${region.currency.symbol})`}><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} /></Field>
               <Field label={`Security deposit (${region.currency.symbol})`}><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} /></Field>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="grid-2" style={{ gap: 12 }}>
               <Field label={`Maintenance (${region.currency.symbol}/mo)`}><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} /></Field>
               <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="grid-2" style={{ gap: 12 }}>
               <Field label="Notice period (days)"><input style={inputStyle} type="number" value={form.notice_period_days} onChange={set('notice_period_days')} /></Field>
               <Field label="Lock-in (months)"><input style={inputStyle} type="number" value={form.lock_in_period_months} onChange={set('lock_in_period_months')} /></Field>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="grid-2" style={{ gap: 12 }}>
               <Field label="Late fee (%)"><input style={inputStyle} type="number" value={form.late_fee_percent} onChange={set('late_fee_percent')} /></Field>
               <Field label="Annual increment (%)"><input style={inputStyle} type="number" value={form.rent_increment_percent} onChange={set('rent_increment_percent')} /></Field>
             </div>
@@ -3377,13 +3377,13 @@ export default function DashboardPage() {
             ))}
           </div>
         </Field>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-2" style={{ gap: 12 }}>
           <Field label="Building name *"><input style={inputStyle} value={form.name} onChange={set('name')} placeholder="e.g. Sunrise Heights" /></Field>
           <Field label="Total units"><input style={inputStyle} type="number" value={form.total_units} onChange={set('total_units')} placeholder="12" /></Field>
         </div>
         <Field label="Street address *"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} placeholder="Building no., street name" /></Field>
         <Field label="Landmark / area"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} placeholder="Near Metro station" /></Field>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-2" style={{ gap: 12 }}>
           <Field label="City *"><input style={inputStyle} value={form.city} onChange={set('city')} placeholder="Hyderabad" /></Field>
           <Field label="State *"><input style={inputStyle} value={form.state} onChange={set('state')} placeholder="Telangana" /></Field>
         </div>
@@ -3562,7 +3562,7 @@ export default function DashboardPage() {
         {/* ── SINGLE UNIT FORM ── */}
         {mode === 'single' && (<>
           <Field label="Unit number *"><input style={inputStyle} value={form.unit_number} onChange={set('unit_number')} placeholder="e.g. 4B, 201, G1" /></Field>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="grid-2" style={{ gap: 16 }}>
             <Field label="Bedrooms (BHK)">
               <div style={{ display: 'flex', gap: 6 }}>
                 {['1','2','3','4'].map(v => <button key={v} style={chip((form as any).bedrooms === v)} onClick={() => setForm(f => ({ ...f, bedrooms: v }))}>{v === '4' ? '4+' : v}</button>)}
@@ -3574,7 +3574,7 @@ export default function DashboardPage() {
               </div>
             </Field>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-2" style={{ gap: 12 }}>
             <Field label="Area (sq ft)"><input style={inputStyle} type="number" value={form.area_sqft} onChange={set('area_sqft')} placeholder="850" /></Field>
             <Field label="Floor number"><input style={inputStyle} type="number" value={form.floor_number} onChange={set('floor_number')} placeholder="3" /></Field>
           </div>
@@ -3592,19 +3592,19 @@ export default function DashboardPage() {
               ))}
             </div>
           </Field>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-2" style={{ gap: 12 }}>
             <Field label={`Monthly rent (${region.currency.symbol}) *`}><input style={inputStyle} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} placeholder="25000" /></Field>
             <Field label={`Security deposit (${region.currency.symbol})`}><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-2" style={{ gap: 12 }}>
             <Field label={`Maintenance (${region.currency.symbol}/mo)`}><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
             <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-2" style={{ gap: 12 }}>
             <Field label="Notice period (days)"><input style={inputStyle} type="number" value={form.notice_period_days} onChange={set('notice_period_days')} placeholder="30" /></Field>
             <Field label="Lock-in (months)"><input style={inputStyle} type="number" value={form.lock_in_period_months} onChange={set('lock_in_period_months')} placeholder="11" /></Field>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-2" style={{ gap: 12 }}>
             <Field label="Late fee (% of rent)"><input style={inputStyle} type="number" value={form.late_fee_percent} onChange={set('late_fee_percent')} placeholder="5" /></Field>
             <Field label="Annual increment (%)"><input style={inputStyle} type="number" value={form.rent_increment_percent} onChange={set('rent_increment_percent')} placeholder="5" /></Field>
           </div>
@@ -3680,19 +3680,19 @@ export default function DashboardPage() {
               {['1','2','3','4'].map(v => <button key={v} style={chip(bulk.bedrooms === v)} onClick={() => setBulk(b => ({ ...b, bedrooms: v }))}>{v === '4' ? '4+' : v}</button>)}
             </div>
           </Field>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-2" style={{ gap: 12 }}>
             <Field label={`Monthly rent (${region.currency.symbol}) *`}><input style={inputStyle} type="number" value={bulk.monthly_rent} onChange={setB('monthly_rent')} placeholder="8000" /></Field>
             <Field label={`Security deposit (${region.currency.symbol})`}><input style={inputStyle} type="number" value={bulk.security_deposit} onChange={setB('security_deposit')} placeholder="16000" /></Field>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-2" style={{ gap: 12 }}>
             <Field label={`Maintenance (${region.currency.symbol}/mo)`}><input style={inputStyle} type="number" value={bulk.maintenance_charges} onChange={setB('maintenance_charges')} placeholder="0" /></Field>
             <Field label="Rent due day"><select style={inputStyle} value={bulk.rent_due_day} onChange={setB('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-2" style={{ gap: 12 }}>
             <Field label="Notice period (days)"><input style={inputStyle} type="number" value={bulk.notice_period_days} onChange={setB('notice_period_days')} placeholder="30" /></Field>
             <Field label="Lock-in (months)"><input style={inputStyle} type="number" value={bulk.lock_in_period_months} onChange={setB('lock_in_period_months')} placeholder="11" /></Field>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-2" style={{ gap: 12 }}>
             <Field label="Late fee (% of rent)"><input style={inputStyle} type="number" value={bulk.late_fee_percent} onChange={setB('late_fee_percent')} placeholder="5" /></Field>
             <Field label="Annual increment (%)"><input style={inputStyle} type="number" value={bulk.rent_increment_percent} onChange={setB('rent_increment_percent')} placeholder="5" /></Field>
           </div>
@@ -3754,13 +3754,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             </Field>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="grid-2" style={{ gap: 12 }}>
               <Field label="Building name"><input style={inputStyle} value={form.name} onChange={set('name')} /></Field>
               <Field label="Total units"><input style={inputStyle} type="number" value={form.total_units} onChange={set('total_units')} placeholder="12" /></Field>
             </div>
             <Field label="Street address"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} /></Field>
             <Field label="Landmark / area"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} /></Field>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="grid-2" style={{ gap: 12 }}>
               <Field label="City"><input style={inputStyle} value={form.city} onChange={set('city')} /></Field>
               <Field label="State"><input style={inputStyle} value={form.state} onChange={set('state')} /></Field>
             </div>
@@ -4621,6 +4621,14 @@ export default function DashboardPage() {
             border:none!important;
           }
           body{background:#fff!important}
+        }
+        /* Two-column field pairs inside modals. A 480px modal on a 360px phone
+           gives each column ~140px, which is where labels wrap and number inputs
+           get truncated. Below 520px they stack. Desktop is unchanged: the gap
+           stays inline at each site, so nothing moves above the breakpoint. */
+        .grid-2{display:grid;grid-template-columns:1fr 1fr}
+        @media(max-width:520px){
+          .grid-2{grid-template-columns:1fr!important}
         }
         @media(max-width:767px){
           .d-shell{display:block!important}

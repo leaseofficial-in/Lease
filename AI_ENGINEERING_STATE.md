@@ -138,6 +138,10 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   as non-party, 400 on malformed id; `welcome` 200 via the shared bearer helper.
   Resend shows both mails; landlord notification renders £1,250.00 and "Faster
   Payments" (no raw id), names, CTA. Probe fully removed; baseline 22/52/54/41.
+- Mobile: 27 modal field-pair grids (`1fr 1fr`, gap 12/16) → `.grid-2` class that
+  stacks under 520px; gap kept inline so desktop is pixel-identical. The 3 non-modal
+  two-column grids (agreement parties block, two landlord stat rows) deliberately
+  untouched — the agreement must stay two-column in print.
 - Tests 65 → 189. Lint 10 → **0**. Security 39/39. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
   (an `<a href="/rentals/">`). Every file I own is lint-clean. signin derives the
   auth-failed message from `useSearchParams` (Suspense-wrapped); country page and
@@ -200,6 +204,6 @@ preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
   pixels I cannot see. Left.
 
 ## Next task
-Mobile: collapse the 33 two-column modal grids to one column under 480px via a class
-+ media rule (CSS-only, structural, no pixel change on desktop). Then locale-aware
-relative dates (`relDate` "Today at" is English). Then re-audit anything touched.
+Locale-aware relative dates (`relDate` "Today at"/"Yesterday at" are English; use
+Intl.RelativeTimeFormat + tests). Then a final full-audit pass of everything touched
+this sprint before wrapping.
