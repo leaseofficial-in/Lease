@@ -22,6 +22,11 @@ export default function RentalsError({
           >
             Try again
           </button>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages --
+              Deliberate. This is an error boundary: the React tree has already
+              failed, and a client-side <Link> navigation would reuse the same
+              broken runtime. A plain anchor forces a full document load, which is
+              the only reliable way back to a working app from here. */}
           <a
             href="/rentals"
             style={{ padding: '10px 22px', borderRadius: 999, border: '1.5px solid var(--rb-border)', color: 'var(--rb-ink)', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}
