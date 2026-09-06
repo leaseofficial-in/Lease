@@ -142,7 +142,12 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   stacks under 520px; gap kept inline so desktop is pixel-identical. The 3 non-modal
   two-column grids (agreement parties block, two landlord stat rows) deliberately
   untouched — the agreement must stay two-column in print.
-- Tests 65 → 189. Lint 10 → **0**. Security 39/39. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
+- `lib/date/relative.ts`: "Today"/"Yesterday" via Intl.RelativeTimeFormat (fr/de/es
+  verified), weekday + short date via Intl; dashboard `relDate` wired to it. The one
+  English word left is the joiner "at" — joining day+time is locale grammar Intl
+  has no primitive for; documented as the single place to change when translations
+  arrive. Test caught a throw on malformed locales in toLocaleUpperCase; guarded.
+- Tests 65 → 198. Lint 10 → **0**. Security 39/39. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
   (an `<a href="/rentals/">`). Every file I own is lint-clean. signin derives the
   auth-failed message from `useSearchParams` (Suspense-wrapped); country page and
   footer selector read `useRegion()` instead of seeding state from an effect;
@@ -192,7 +197,7 @@ tracking, error boundaries, welcome email on all paths, country onboarding, next
 preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
 
 ## Test status
-189/189 tests · typecheck clean · build clean · security 39/39 · lint 0 (gates verify).
+198/198 tests · typecheck clean · build clean · security 39/39 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -204,6 +209,7 @@ preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
   pixels I cannot see. Left.
 
 ## Next task
-Locale-aware relative dates (`relDate` "Today at"/"Yesterday at" are English; use
-Intl.RelativeTimeFormat + tests). Then a final full-audit pass of everything touched
-this sprint before wrapping.
+Final pass: re-run the complete verify chain and the authenticated harness, confirm
+production health, and write the sprint summary into this file. Remaining open work
+is owner-gated (assetlinks fingerprints, geotag claim, reminder cron re-enable,
+acquisition) or visually-unverifiable (Badge/Card primitives, dashboard split).

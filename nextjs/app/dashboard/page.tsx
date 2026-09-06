@@ -13,7 +13,8 @@ import { assertAffected } from '@/lib/supabase/write'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { sha256Hex } from '@/lib/crypto/file-hash'
-import { localMonth, calendarDaysBetween } from '@/lib/date/calendar'
+import { localMonth } from '@/lib/date/calendar'
+import { relativeDateTime } from '@/lib/date/relative'
 import { monthLabel as monthLabelIntl, formatMonthYear } from '@/lib/date/month-label'
 import { leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge } from '@/lib/rentals/terms'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
@@ -53,22 +54,11 @@ type DepositTx = { id: string; rental_id: string; type: string; amount: number; 
 // The helpers themselves live in lib/date/calendar.ts, where they are unit-tested
 // against fixed instants including both UTC month boundaries.
 
-// relDate uses 'en-IN' as a stable module-level default; shadowed inside the component via relDateFmt
-function relDate(iso?: string, locale = 'en-IN') {
-  if (!iso) return ''
-  const d = new Date(iso)
-  // Calendar-day difference, not elapsed hours: something logged at 23:00 last
-  // night is "Yesterday" at 08:00 today, even though under 24 hours have passed.
-  const diff = calendarDaysBetween(new Date(), d)
-  const timeStr = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', hour12: true })
-  if (diff === 0) return `Today at ${timeStr}`
-  if (diff === 1) return `Yesterday at ${timeStr}`
-  if (diff < 7) {
-    const dayStr = d.toLocaleDateString(locale, { weekday: 'short' })
-    return `${dayStr} at ${timeStr}`
-  }
-  const dateStr = d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
-  return `${dateStr} at ${timeStr}`
+// Relative day labels come from lib/date/relative (Intl.RelativeTimeFormat), so
+// "Today"/"Yesterday" are in the viewer's language rather than English literals.
+// The component shadows this with a locale-bound relDateFmt.
+function relDate(iso?: string, locale = 'en') {
+  return relativeDateTime(iso, locale)
 }
 
 // ── Invite token helper ───────────────────────────────────────────────────
