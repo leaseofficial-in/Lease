@@ -241,11 +241,32 @@ assistive technology.
 
 ## P2 — Important
 
-### P2-1 · No design system · OPEN
-847 inline `style={{…}}` objects in `app/dashboard/page.tsx` alone. No shared
-Button / Input / Card / Dialog / Badge / EmptyState primitives, so every surface is
-one-off. This is the single biggest reason the product reads as a solo build rather
-than a designed system, and it makes both theming and i18n harder.
+### P2-1 · Component primitives are missing (token layer exists) · OPEN
+**This entry was overstated and is corrected here.** The original claim — "no design
+system" — was drawn from a raw count of `style={{` and was wrong.
+
+What actually exists: a real token layer of ~20 CSS custom properties
+(`--rb-ink`, `--rb-action`, `--rb-canvas`, `--rb-border`, …), used by **495 of the
+896** inline styles, plus shared style objects (`cardStyle`, `inputStyle`,
+`topStyle`, `eyebrowStyle`, `subStyle`, `gridStyle`, `emptyStyle`, `actBtnPrimary`).
+Most of the remaining inline styles are one-off layout — flex, grid, padding —
+which is unremarkable.
+
+The genuine gaps, in order:
+1. **No component primitives.** Styles are shared; components are not. There is no
+   `Button`, `Badge`, `EmptyState`, `Card`. `Modal` and `Field` are the only two,
+   and both were rebuilt during the accessibility pass — which is precisely the
+   argument for primitives: fixing `Field` once fixed ~80 inputs.
+2. **116 hardcoded hex values** bypass the tokens. Most are legitimate (`#fff` ×83
+   is white text on dark cards, and the agreement print view is deliberately
+   document-styled rather than themed). The real bypasses are `#0e1413`,
+   `#0f4c5c` and `#f6f4ee`, which duplicate `--rb-ink`, `--rb-action` and
+   `--rb-canvas`, and would not follow a rebrand.
+3. Those bypasses mostly sit **inside gradients** whose other stop (`#163A47`,
+   `#14403E`, `#0F2A2D`) has no token at all. Swapping one stop to a var and
+   leaving the other would be less consistent, not more — doing this properly
+   means introducing gradient tokens, which is a design decision rather than a
+   mechanical refactor. Deliberately not half-done.
 
 ### P2-2 · Dashboard is one 4,559-line file · OPEN
 Landlord and tenant products, ~20 views, all modals and all data fetching in one
