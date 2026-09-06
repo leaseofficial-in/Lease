@@ -102,6 +102,15 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
     policy. Prove those over HTTP with two real probe sessions, which is why the
     harness builds a landlord *and* a tenant.
 
+18. PostgREST rejects the WHOLE request for one unknown column in a `select`, and
+    the client's `data || []` turns that 400 into "nothing here". Two migrations
+    were both numbered 002; one was never applied; the tenant's deposit screen has
+    been blank ever since. Grep the client's select strings against
+    `information_schema.columns` — it is a two-minute check that no test covers.
+19. `.insert()` without `.select()` and without an error check is invisible. The
+    repair auto-deduction had a wrong column AND a missing `created_by` its own
+    policy required, and reported success for months.
+
 ## Incident log
 
 - **2026-09-07 — 23 unintended emails.** Fired `/api/cron/rent-reminders` at prod
@@ -268,6 +277,28 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   `claim_rental_invite` is atomic on `tenant_id is null` + expiry + not-ended.
   No behaviour change beyond the copy; the 7-day window is the owner's call (below).
 
+- **Batch 26 — the tenant's deposit ledger has always been empty (client/schema
+  drift).** Walking client *reads* against the schema, as the write walk was done:
+  the tenant's deposit query asks for `category, payment_method, reference`, which
+  do not exist — they live in `002_deposit_enhancements.sql`, a migration that
+  collided with `002_dashboard_columns.sql` and was never applied. PostgREST 400s
+  the entire request for one unknown column (proven live: 42703), and `depRes.data
+  || []` renders that as "no deductions". Every tenant has seen an empty deposit
+  screen, including the one rental holding a real ₹50,000 entry — and 039's new
+  dispute button sits on that list. The mirror bug in the same table: the repair
+  auto-deduction insert used `description` (not a column; the column is `note`) and
+  omitted `created_by`, which its own INSERT policy requires — unchecked, so
+  resolving a repair with "deduct from deposit" has never written anything to the
+  deposit ledger. Both proven live (fixed payload inserts 1 row; the old one is
+  refused by RLS), rolled back. Fixed the select, the payload, the `DepositTx`
+  type and two `t.description` renders; the deduction now surfaces a failure to the
+  landlord without making the repair update look failed. The three phantom columns
+  were NOT added: nothing writes or renders them. Harness gained two checks that
+  run the client's exact select string and exact insert payload, so this drift
+  cannot return silently. Helpers now retry once on curl 000 and report
+  "could not reach the API" instead of crying breach at a dropped connection.
+  52 → 54 checks.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -394,7 +425,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-202/202 tests · typecheck clean · build clean · security 52/52 · lint 0 (gates verify).
+202/202 tests · typecheck clean · build clean · security 54/54 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -406,12 +437,12 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-Batches 21-25 are applied, pushed and live-proven. Next, unexplored:
-1. Client *reads*: the dead-write findings came from walking client writes against
-   `pg_policies`. Do the same for every `.select()` — a read that returns [] to the
-   party who should see it is the same bug wearing the other face.
-2. `rentals.invite_token` is never cleared after a claim; a leaked code keeps
-   resolving through `rental_invite_preview` (rent, deposit, landlord name, city)
-   for the life of the tenancy, even though it can no longer be claimed.
-3. One orphan blob in `proof-photos` (10 objects, 9 rows) — its uploader can now
-   clear it, but nothing prompts them.
+The read-walk found one live bug (batch 26) and is only half done. Finish it: for
+every remaining client `.select()` string, check each column against
+`information_schema.columns` for that table — `rent_payments`, `repair_requests`,
+`proofs`, `rentals`, `properties`, `profiles` all have long explicit column lists
+and long histories of migrations that may or may not have been applied. The same
+question for `.insert()`/`.update()` payload keys, which fail the same way but
+louder. `002_deposit_enhancements.sql` being unapplied means OTHER numbered
+migrations may be too — reconcile every file in supabase/migrations against the
+live schema, not just the ones that looked interesting.

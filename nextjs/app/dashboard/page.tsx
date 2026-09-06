@@ -30,7 +30,7 @@ type RentPayment = { id: string; rental_id: string; month: string; amount: numbe
 type RepairRequest = { id: string; rental_id: string; title: string; description?: string; status: string; cost?: number; category?: string; urgency?: string; photo_url?: string; landlord_note?: string; scheduled_date?: string; deduct_from_deposit?: boolean; vendor_name?: string; vendor_phone?: string; resolved_confirmed_at?: string; created_at: string; rental?: { property?: Property } }
 type Proof = { id: string; rental_id: string; type: string; status: string; proof_photos?: ProofPhoto[] }
 type ProofPhoto = { id: string; room_label?: string; public_url?: string; annotation?: string; created_at: string }
-type DepositTx = { id: string; rental_id: string; type: string; amount: number; note?: string; description?: string; tenant_dispute_note?: string; dispute_status?: string; created_at: string }
+type DepositTx = { id: string; rental_id: string; type: string; amount: number; note?: string; tenant_dispute_note?: string; dispute_status?: string; created_at: string }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 // There is deliberately NO module-level inr() here. One used to exist as an
@@ -494,7 +494,7 @@ export default function DashboardPage() {
               sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('status', 'paid').order('month', { ascending: false }).limit(12),
               sb.from('repair_requests').select('*').eq('rental_id', rental.id).in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(10),
               sb.from('proofs').select('*, proof_photos(id, room_label, public_url, annotation, created_at)').eq('rental_id', rental.id).eq('type', 'move_in').maybeSingle(),
-              sb.from('deposit_transactions').select('id,rental_id,type,amount,note,category,payment_method,reference,tenant_dispute_note,dispute_status,created_at').eq('rental_id', rental.id).order('created_at', { ascending: false }),
+              sb.from('deposit_transactions').select('id,rental_id,type,amount,note,tenant_dispute_note,dispute_status,created_at').eq('rental_id', rental.id).order('created_at', { ascending: false }),
             ])
             currentPayment = pmtRes.data
             recentPayments = histRes.data || []
@@ -1844,7 +1844,7 @@ export default function DashboardPage() {
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--rb-border-soft)', cursor: t.type === 'deduction' ? 'pointer' : 'default' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>{t.note || t.description || t.type}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{t.note || t.type}</span>
                   {t.type === 'deduction' && t.dispute_status === 'disputed' && <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(239,68,68,.1)', color: 'var(--rb-danger)', letterSpacing: '.06em' }}>DISPUTED</span>}
                   {t.type === 'deduction' && !t.dispute_status || t.dispute_status === 'none' ? <span style={{ fontSize: 10, color: 'var(--rb-ink-3)' }}>Tap to dispute →</span> : null}
                 </div>
@@ -2663,12 +2663,30 @@ export default function DashboardPage() {
           vendor_name: vendorName || null,
           vendor_phone: vendorPhone || null,
         }).eq('id', r.id).select('id'), 'repair request')
-        // Auto-create deposit deduction when resolving with cost
+        // Auto-create deposit deduction when resolving with cost.
+        //
+        // This has never once worked: the payload used `description`, which is not
+        // a column on deposit_transactions (the column is `note`), and omitted
+        // `created_by`, which the INSERT policy requires to equal auth.uid(). The
+        // result was never checked either, so every repair resolved with "deduct
+        // from deposit" quietly failed to touch the deposit ledger -- money the
+        // landlord believes is accounted for and the tenant never sees deducted.
         if (wasResolved && deductFromDeposit && cost) {
-          await sb.from('deposit_transactions').insert({
+          const { error: depErr } = await sb.from('deposit_transactions').insert({
             rental_id: r.rental_id, type: 'deduction',
-            amount: Number(cost), description: `Repair: ${r.title}`,
+            amount: Number(cost), note: `Repair: ${r.title}`,
+            created_by: user?.id,
           })
+          // The repair itself is already saved. A failed deduction is a money
+          // error the landlord has to know about, but it must not read as a
+          // failed repair update.
+          if (depErr) {
+            console.error('[RepairDeduction]', depErr)
+            toast('Repair updated, but the deposit deduction could not be recorded — add it from the deposit screen', 'error')
+            setModal(null)
+            refreshData()
+            return
+          }
         }
         toast('Repair updated', 'success')
         setModal(null)
@@ -4367,7 +4385,7 @@ export default function DashboardPage() {
       <Modal title={alreadyDisputed ? 'Dispute filed' : 'Dispute deduction'} onClose={() => setModal(null)}>
         <div style={{ marginBottom: 18, padding: '12px 16px', background: 'var(--rb-danger-soft,rgba(239,68,68,.08))', borderRadius: 10 }}>
           <div style={{ fontSize: 13, color: 'var(--rb-danger)', fontWeight: 600 }}>Deduction: {inr(t.amount)}</div>
-          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 3 }}>{t.note || t.description || '—'} · {relDateFmt(t.created_at)}</div>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 3 }}>{t.note || '—'} · {relDateFmt(t.created_at)}</div>
         </div>
         {alreadyDisputed
           ? <><div style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginBottom: 12 }}>Your dispute note:</div><div style={{ padding: 12, background: 'var(--rb-surface)', borderRadius: 10, fontSize: 14, lineHeight: 1.55 }}>{t.tenant_dispute_note}</div><div style={{ marginTop: 14, fontSize: 12, color: 'var(--rb-ink-3)' }}>Your landlord can see this. Disputes are resolved through direct discussion.</div></>

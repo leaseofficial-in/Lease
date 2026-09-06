@@ -41,15 +41,43 @@ FAIL=0
 ok()   { printf '  \033[32mPASS\033[0m  %s\n' "$1"; PASS=$((PASS+1)); }
 bad()  { printf '  \033[31mFAIL\033[0m  %s\n         %s\n' "$1" "$2"; FAIL=$((FAIL+1)); }
 
+# curl reports 000 when it never got a response at all — DNS, a dropped
+# connection, a timeout. That is not a security finding, and a harness that cries
+# breach at network noise is one people learn to ignore. Retry once, briefly,
+# then report whatever the second attempt says.
+CURL="curl -s --max-time 20"
+
+retry_code() {
+  local code
+  code=$($CURL -o /dev/null -w '%{http_code}' "$@")
+  if [[ "$code" == "000" ]]; then
+    sleep 2
+    code=$($CURL -o /dev/null -w '%{http_code}' "$@")
+  fi
+  printf '%s' "$code"
+}
+
+retry_body() {
+  local body
+  body=$($CURL "$@")
+  if [[ -z "$body" ]]; then
+    sleep 2
+    body=$($CURL "$@")
+  fi
+  printf '%s' "$body"
+}
+
 # A table an anonymous caller must never read rows from. RLS returns an empty
 # array rather than an error, so "[]" is the pass condition — a non-empty body
 # means rows leaked.
 expect_no_rows() {
   local table="$1"
   local body
-  body=$(curl -s "$URL/rest/v1/$table?select=*&limit=3" -H "apikey: $KEY")
+  body=$(retry_body "$URL/rest/v1/$table?select=*&limit=3" -H "apikey: $KEY")
   if [[ "$body" == "[]" ]]; then
     ok "$table returns no rows to anon"
+  elif [[ -z "$body" ]]; then
+    bad "$table check could not reach the API" "no response after a retry"
   else
     bad "$table LEAKED ROWS to anon" "${body:0:160}"
   fi
@@ -59,9 +87,11 @@ expect_no_rows() {
 expect_forbidden() {
   local table="$1"
   local code
-  code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/rest/v1/$table?select=*&limit=1" -H "apikey: $KEY")
+  code=$(retry_code "$URL/rest/v1/$table?select=*&limit=1" -H "apikey: $KEY")
   if [[ "$code" == "401" || "$code" == "403" ]]; then
     ok "$table is not readable by anon (HTTP $code)"
+  elif [[ "$code" == "000" ]]; then
+    bad "$table check could not reach the API" "no response after a retry"
   else
     bad "$table readable by anon" "expected 401/403, got $code"
   fi
@@ -390,6 +420,37 @@ else
           bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
         fi
       fi
+      # ── The client's queries match the schema ──
+      # Not a permission check: a correctness one, in the only place that can
+      # catch it. The tenant's deposit screen asked PostgREST for
+      # category/payment_method/reference — columns from 002_deposit_enhancements,
+      # a migration that collided with another 002 and was never applied. PostgREST
+      # 400s the whole request for one unknown column and the client's `|| []`
+      # turned that into "no deductions", so every tenant saw an empty deposit
+      # ledger. The repair auto-deduction had the mirror bug: `description` (not a
+      # column) and no created_by (which its own INSERT policy requires), unchecked,
+      # so resolving a repair with "deduct from deposit" never wrote anything.
+      # These two strings must stay identical to the ones in the dashboard.
+      TENANT_DEPOSIT_SELECT='id,rental_id,type,amount,note,tenant_dispute_note,dispute_status,created_at'
+      code=$(curl -s -o /dev/null -w '%{http_code}' \
+        "$URL/rest/v1/deposit_transactions?select=$TENANT_DEPOSIT_SELECT&limit=1" \
+        -H "apikey: $KEY" -H "$AUTH")
+      if [[ "$code" == "200" ]]; then
+        ok "the tenant's deposit query matches the schema (HTTP $code)"
+      else
+        bad "TENANT DEPOSIT QUERY IS INVALID" "expected 200, got $code — a column in the select does not exist"
+      fi
+      DEP=$(curl -s -X POST "$URL/rest/v1/deposit_transactions" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+        -d "{\"rental_id\":\"$PROBE_RENTAL\",\"type\":\"deduction\",\"amount\":1,\"note\":\"probe\",\"created_by\":\"$PROBE_ID\"}" \
+        | python -c 'import sys,json; d=json.load(sys.stdin); print(d[0]["id"] if isinstance(d,list) and d else "")' 2>/dev/null)
+      if [[ -n "$DEP" ]]; then
+        ok "the repair auto-deduction payload is actually insertable"
+        curl -s -o /dev/null -X DELETE "$URL/rest/v1/deposit_transactions?id=eq.$DEP" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
+      else
+        bad "REPAIR DEDUCTION PAYLOAD REJECTED" "the deposit ledger silently misses repair deductions"
+      fi
+
       # ── Storage delete scope (041) ──
       # storage.objects had no DELETE policy for any bucket, so nobody could ever
       # remove a file they uploaded: every removed photo and every failed-insert
