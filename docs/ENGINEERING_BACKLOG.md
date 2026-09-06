@@ -55,8 +55,24 @@ people's homes, used as deposit evidence.
 `proof_photos` already stores `storage_path` alongside `public_url`, so the data is
 there. `repair_requests.photos` stores URLs in an array and needs paths instead
 (all rows are currently empty, so the migration is free).
-**Also.** Every bucket has `file_size_limit: null` and `allowed_mime_types: null` —
-any authenticated user can upload any file of any size.
+**Also.** ~~Every bucket has `file_size_limit: null` and `allowed_mime_types: null`~~
+— **fixed** in `025_storage_upload_limits.sql`. Photo buckets now cap at 15 MB and
+accept only real image types (SVG deliberately excluded: it is an executable
+document format, and no camera produces one). Verified that zero existing objects
+would be rejected — which is how a regression was caught mid-flight: agreements are
+stored as **HTML**, not PDF, so the first draft would have blocked every future
+agreement upload, and `text/html; charset=utf-8` needed listing separately because
+Supabase matches mime strings exactly.
+
+**Remaining work for P1-1** is only the public→private flip, which must ship in this
+order or every stored photo stops rendering:
+1. Deploy a client that resolves images through `createSignedUrl`, derived from the
+   path inside the stored public URL (works while the buckets are still public, so
+   this step is invisible).
+2. Verify photos still render for a real landlord and tenant.
+3. Flip `proof-photos` and `repair-photos` to `public = false`.
+No data migration is needed — `proof_photos.storage_path` already holds the path,
+and the path is recoverable from the stored URL for the other two tables.
 
 ### P1-2 · Current month computed in UTC · SHIPPED
 **Problem.** `app/dashboard/page.tsx` computes `const now = new Date()` and
