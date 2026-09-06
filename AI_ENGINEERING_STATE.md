@@ -133,6 +133,11 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   broken since 034, one payment stuck pending. Column + set_updated_at trigger added;
   job now runs; stuck payment marked. Lesson 12: after replacing a job, RUN the
   replacement once by hand before retiring the old one.
+- **E2E-verified on production** (lesson 12 applied to my own new code): with a
+  disposable GB landlord/tenant pair — `payment-submitted` 200 as tenant, 202 no-op
+  as non-party, 400 on malformed id; `welcome` 200 via the shared bearer helper.
+  Resend shows both mails; landlord notification renders £1,250.00 and "Faster
+  Payments" (no raw id), names, CTA. Probe fully removed; baseline 22/52/54/41.
 - Tests 65 → 189. Lint 10 → **0**. Security 39/39. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
   (an `<a href="/rentals/">`). Every file I own is lint-clean. signin derives the
   auth-failed message from `useSearchParams` (Suspense-wrapped); country page and
@@ -195,10 +200,6 @@ preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
   pixels I cannot see. Left.
 
 ## Next task
-Phase 12 continued. Verified clean: sitemap/robots, updated_at triggers, service-role
-policies. Next angles not yet examined this sprint: the tenant portal's "documents"
-surface (agreements bucket read path — is there a signed-URL flow for the HTML
-agreement?), the HRA receipt generator's Edge Function (generate-hra-receipt) and
-whether it still works against the tightened policies, and the Android app's
-assetlinks fingerprint placeholder (`app/.well-known/assetlinks.json/route.ts` has
-"Replace the placeholder" in a comment — is it real?).
+Mobile: collapse the 33 two-column modal grids to one column under 480px via a class
++ media rule (CSS-only, structural, no pixel change on desktop). Then locale-aware
+relative dates (`relDate` "Today at" is English). Then re-audit anything touched.
