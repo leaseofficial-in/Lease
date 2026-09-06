@@ -101,7 +101,6 @@ export const normalizePhoneLocale = (
 ): string => {
   const digits = phone.replace(/\D/g, '');
   const dialDigits = dialCode.replace(/\D/g, '');
-  const maxLen = Math.max(...localLength);
 
   if (localLength.includes(digits.length)) return `${dialCode}${digits}`;
 

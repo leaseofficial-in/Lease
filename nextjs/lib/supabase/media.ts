@@ -104,27 +104,32 @@ export async function signStorageUrl(value?: string | null): Promise<string | nu
  * unsigned URL 403s, so rendering the raw value first would guarantee that flash.
  */
 export function useSignedUrl(value?: string | null): string | null {
-  const [resolved, setResolved] = useState<string | null>(() => {
-    if (!value) return null
-    const ref = parseStorageRef(value)
-    if (!ref) return value
-    const cached = signedCache.get(`${ref.bucket}/${ref.path}`)
-    return cached && cached.expiresAt > Date.now() ? cached.url : null
-  })
+  const ref = value ? parseStorageRef(value) : null
+  // Not a storage URL (an external image, a data: URI) — pass it through as-is.
+  const passthrough = value && !ref ? value : null
+  const key = ref ? `${ref.bucket}/${ref.path}` : null
+
+  // Keyed by bucket+path so that when the source changes, the previous image's
+  // URL is never rendered against the new one — the mismatch resolves to null and
+  // the caller falls back to its placeholder for a frame.
+  const [resolved, setResolved] = useState<{ key: string; url: string } | null>(null)
 
   useEffect(() => {
+    if (!value || !key) return
     let active = true
-    if (!value) {
-      setResolved(null)
-      return
-    }
-    signStorageUrl(value).then(url => {
-      if (active) setResolved(url)
+    // signStorageUrl owns cache freshness. Deliberately not consulted during
+    // render: it reads the clock to decide whether an entry has expired, and a
+    // render that depends on wall-clock time is not pure — it would give
+    // different results across React's double-render in development and under
+    // concurrent rendering. When the entry is warm this resolves in a microtask,
+    // so the placeholder is not perceptible.
+    void signStorageUrl(value).then(url => {
+      if (active && url) setResolved({ key, url })
     })
     return () => {
       active = false
     }
-  }, [value])
+  }, [value, key])
 
-  return resolved
+  return passthrough ?? (resolved?.key === key ? resolved.url : null)
 }

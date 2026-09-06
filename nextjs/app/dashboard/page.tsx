@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState, useEffect, useCallback, useRef, useId, Children, isValidElement, cloneElement, type ChangeEvent, type ReactElement } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
@@ -7,7 +9,7 @@ import { useRegion } from '@/lib/hooks/useRegion'
 import { getRegion } from '@/lib/i18n/regions'
 import { SecureImage } from '@/components/secure-image'
 import { track } from '@/lib/analytics/track'
-import { localMonth, startOfLocalDay, calendarDaysBetween } from '@/lib/date/calendar'
+import { localMonth, calendarDaysBetween } from '@/lib/date/calendar'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 
@@ -68,10 +70,6 @@ function relDate(iso?: string, locale = 'en-IN') {
   const dateStr = d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
   return `${dateStr} at ${timeStr}`
 }
-function daysUntil(iso?: string) {
-  if (!iso) return 0
-  return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000))
-}
 function scoreBand(score: number) {
   if (score >= 850) return { label: 'EXCELLENT', color: 'var(--rb-action)' }
   if (score >= 750) return { label: 'TRUSTED', color: 'var(--rb-action)' }
@@ -79,7 +77,6 @@ function scoreBand(score: number) {
   if (score >= 550) return { label: 'FAIR', color: 'var(--rb-accent)' }
   return { label: 'BUILDING', color: 'var(--rb-ink-3)' }
 }
-const methodLabel = (m?: string) => ({ upi: 'UPI', bank_transfer: 'Bank Transfer', cheque: 'Cheque', cash: 'Cash' } as Record<string, string>)[m || ''] || m || '—'
 function leaseExpiryDays(rental: Rental): number | null {
   if (!rental.end_date) return null
   const d = Math.ceil((new Date(rental.end_date).getTime() - Date.now()) / 86400000)
@@ -98,7 +95,7 @@ function escalationDueDays(rental: Rental): number | null {
 function computeLateFee(rental: Rental): number {
   return Math.round(Number(rental.monthly_rent) * (Number(rental.late_fee_percent || 5) / 100))
 }
-function scoreNudge(score: number, months: number): string {
+function scoreNudge(score: number, _months: number): string {
   if (score >= 850) return 'Excellent! Keep paying on time to maintain your top rating.'
   if (score >= 750) return `Pay on time for ${Math.max(1, Math.ceil((850 - score) / 12))} more month${Math.ceil((850 - score) / 12) === 1 ? '' : 's'} to reach Excellent (850+).`
   if (score >= 650) return `${Math.max(1, Math.ceil((750 - score) / 12))} more on-time payments to reach Trusted (750+).`
@@ -892,10 +889,14 @@ export default function DashboardPage() {
   }
 
   function LandlordHome() {
+    // Hooks first, unconditionally. Calling useState after the early return below
+    // means this component renders a different number of hooks depending on
+    // whether data has loaded, and React throws "Rendered fewer hooks than
+    // expected" the first time it flips.
+    const [confirmEscalationId, setConfirmEscalationId] = useState<string | null>(null)
     const d = landlordData
     if (!d || (d.rentals?.length === 0 && d.buildings?.length === 0)) return <LandlordEmpty />
     const { rentals, buildings, currentPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs } = d
-    const [confirmEscalationId, setConfirmEscalationId] = useState<string | null>(null)
     const band = scoreBand(score)
     const pct = totalMonthlyRent > 0 ? Math.min(100, Math.round(paidThisMonth / totalMonthlyRent * 100)) : 0
     const openRepairs = recentRepairs.filter((r: RepairRequest) => r.status === 'open' || r.status === 'in_progress')
@@ -1232,7 +1233,7 @@ export default function DashboardPage() {
       overdue:              { t: 'OVERDUE', bg: 'rgba(239,68,68,.1)',          c: 'var(--rb-danger)' },
       partial:              { t: 'PARTIAL', bg: 'var(--rb-warning-soft)',      c: 'var(--rb-warning)' },
     }
-    const filterBtn = (f: string, label: string) => ({
+    const filterBtn = (f: string, _label: string) => ({
       padding: '6px 14px', borderRadius: 999,
       background: filter === f ? 'var(--rb-ink)' : 'transparent',
       color: filter === f ? 'var(--rb-canvas)' : 'var(--rb-ink-3)',
@@ -1347,6 +1348,9 @@ export default function DashboardPage() {
 
   // ── Tenant views ─────────────────────────────────────────────────────────
   function TenantHome() {
+    // See the note in LandlordHome: hooks must run before the early return.
+    const [showTDS, setShowTDS] = useState(false)
+    const [heroExpanded, setHeroExpanded] = useState(true)
     const d = tenantData
     if (!d?.rental) return <TenantEmpty />
     const { rental, currentPayment, recentPayments, openRepairs, proofs, ytdTotal, score, nextDueDate } = d
@@ -1357,9 +1361,6 @@ export default function DashboardPage() {
     const nextMonthStr = nextDueDate ? `${MONTHS[nextDueDate.getMonth()]} ${nextDueDate.getFullYear()}` : ''
     const property = rental.property || {}
     const propLine = [property.name, property.city].filter(Boolean).join(' · ')
-    const landlordName = rental.landlord?.full_name || 'Landlord'
-    const [showTDS, setShowTDS] = useState(false)
-    const [heroExpanded, setHeroExpanded] = useState(true)
     return (
       <>
         <div style={topStyle}><div>
@@ -1521,7 +1522,7 @@ export default function DashboardPage() {
   function TenantEmpty() {
     return (
       <>
-        <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · Dashboard</div><h1 style={h1Style}>Hi, {firstName}.</h1><p style={subStyle}>You haven't joined a rental yet.</p></div></div>
+        <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · Dashboard</div><h1 style={h1Style}>Hi, {firstName}.</h1><p style={subStyle}>You haven&rsquo;t joined a rental yet.</p></div></div>
         <div style={{ background: 'linear-gradient(135deg,var(--rb-action),var(--rb-action-hover))', borderRadius: 16, padding: '28px 32px', color: '#F6F4EE' }}>
           <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28, fontWeight: 400 }}>Join your rental.</h2>
           <p style={{ fontSize: 14, color: 'rgba(246,244,238,.8)', marginTop: 8, lineHeight: 1.55 }}>Ask your landlord to share an invite link. Your receipts and history will appear here once active.</p>
@@ -1533,7 +1534,7 @@ export default function DashboardPage() {
   function TenantPay() {
     const d = tenantData
     if (!d?.rental) return <TenantEmpty />
-    const { rental, currentPayment, nextDueDate } = d
+    const { rental, currentPayment } = d
     const isPaid = currentPayment?.status === 'paid'
     const isPending = currentPayment?.status === 'pending_verification'
     return (
@@ -1586,7 +1587,6 @@ export default function DashboardPage() {
   function TenantHRA() {
     const d = tenantData
     const paidPayments: RentPayment[] = ((d?.recentPayments || []) as RentPayment[]).filter((p: RentPayment) => p.status === 'paid')
-    const propLine = d?.rental ? [d.rental.property?.name, d.rental.property?.city].filter(Boolean).join(' · ') : ''
     return (
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · HRA</div><h1 style={h1Style}>HRA receipts.</h1><p style={subStyle}>Section 10(13A) · FY {now.getFullYear()-1}–{String(now.getFullYear()).slice(2)}</p></div></div>
@@ -1703,7 +1703,7 @@ export default function DashboardPage() {
         const next = photos.filter(p => p.id !== photoId)
         setPhotos(next)
         setTenantData((d: any) => ({ ...d, proofs: { ...d.proofs, proof_photos: next } }))
-      } catch (e: any) { toast('Failed to delete photo', 'error') }
+      } catch { toast('Failed to delete photo', 'error') }
     }
 
     const handleNotifyLandlord = async () => {
@@ -1719,7 +1719,7 @@ export default function DashboardPage() {
         })
         setNotified(true)
         toast('Landlord notified ✓', 'success')
-      } catch (e: any) { toast('Failed to notify landlord', 'error') } finally { setNotifying(false) }
+      } catch { toast('Failed to notify landlord', 'error') } finally { setNotifying(false) }
     }
 
     return (
@@ -1883,8 +1883,6 @@ export default function DashboardPage() {
     const tenantSigned = !!rental.agreement_signed_at
     const landlordSigned = !!rental.landlord_signed_at
     const isExecuted = tenantSigned && landlordSigned
-    const isPending = rental.agreement_status === 'pending_signature' || (tenantSigned && !landlordSigned)
-    const isDraft = !rental.agreement_status || rental.agreement_status === 'draft'
 
     const statusBanner = () => {
       if (isExecuted) return { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)', icon: 'check', text: `Fully executed · Tenant signed ${relDateFmt(rental.agreement_signed_at)} · Landlord countersigned ${relDateFmt(rental.landlord_signed_at)}` }
@@ -1920,7 +1918,7 @@ export default function DashboardPage() {
             {!tenantSigned && (
               <div style={{ padding: '20px 28px', borderTop: '2px solid var(--rb-border)', background: 'var(--rb-fill)' }}>
                 <p style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.6, marginBottom: 16 }}>
-                  By clicking "Sign agreement" you confirm you have read and understood all terms above.
+                  By clicking &ldquo;Sign agreement&rdquo; you confirm you have read and understood all terms above.
                   Your name, timestamp, and unique session ID will be recorded as your digital signature.
                 </p>
                 <button onClick={() => setModal('sign-agreement')} style={{ ...actBtnPrimary, width: '100%', justifyContent: 'center', padding: '13px 0', fontSize: 15 }}><Icon k="pen" size={15} stroke={2} /> Sign agreement</button>
@@ -1932,7 +1930,7 @@ export default function DashboardPage() {
             <div style={{ textAlign: 'center', padding: '32px 0' }}>
               <div style={{ marginBottom: 16, color: 'var(--rb-ink-3)' }}><Icon k="clipboard" size={48} stroke={1.2} /></div>
               <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--rb-ink)' }}>Agreement being prepared</div>
-              <p style={{ fontSize: 14, color: 'var(--rb-ink-3)', marginTop: 8, lineHeight: 1.6 }}>Your landlord is finalising the agreement. You'll be able to read and sign it here once it's sent.</p>
+              <p style={{ fontSize: 14, color: 'var(--rb-ink-3)', marginTop: 8, lineHeight: 1.6 }}>Your landlord is finalising the agreement. You&rsquo;ll be able to read and sign it here once it&rsquo;s sent.</p>
             </div>
           </section>
         )}
@@ -2804,28 +2802,34 @@ export default function DashboardPage() {
   // ── Property detail modal (landlord) ────────────────────────────────────
   function PropertyDetailModal() {
     const r = selectedRental
-    if (!r) return null
-    const currentPmt = landlordData?.currentPayments?.find((p: RentPayment) => p.rental_id === r.id)
-    const hasPending = currentPmt?.status === 'pending_verification'
+    // Every hook runs before the `if (!r)` guard below. They used to sit after it,
+    // so this component rendered eight hooks with a rental selected and none
+    // without — React throws "Rendered fewer hooks than expected" the first time
+    // that flips. It is currently unreachable only because every
+    // setSelectedRental(null) happens to be batched with setModal(null), which is
+    // a coincidence of the call sites rather than a guarantee.
+    //
+    // The optional chaining on `r` matters: these are useState INITIALISERS, read
+    // once on first render, and `r` can legitimately be null at that point.
     const [editMode, setEditMode] = useState(false)
     const [form, setForm] = useState({
-      property_type: r.property?.property_type || 'apartment',
-      bedrooms: r.property?.bedrooms ? String(r.property.bedrooms) : '2',
-      bathrooms: r.property?.bathrooms ? String(r.property.bathrooms) : '1',
-      area_sqft: r.property?.area_sqft ? String(r.property.area_sqft) : '',
-      floor_number: r.property?.floor_number ? String(r.property.floor_number) : '',
-      parking: r.property?.parking || false,
-      name: r.property?.name || '', address_line1: r.property?.address_line1 || '',
-      address_line2: r.property?.address_line2 || '',
-      city: r.property?.city || '', state: r.property?.state || '', pincode: r.property?.pincode || '',
-      monthly_rent: String(r.monthly_rent), security_deposit: String(r.security_deposit),
-      maintenance_charges: String(r.maintenance_charges ?? 0),
-      rent_due_day: String(r.rent_due_day || 5),
-      furnished_status: r.furnished_status || 'unfurnished',
-      notice_period_days: String(r.notice_period_days ?? 30),
-      lock_in_period_months: String(r.lock_in_period_months ?? 11),
-      late_fee_percent: String(r.late_fee_percent ?? 5),
-      rent_increment_percent: String(r.rent_increment_percent ?? 5),
+      property_type: r?.property?.property_type || 'apartment',
+      bedrooms: r?.property?.bedrooms ? String(r.property.bedrooms) : '2',
+      bathrooms: r?.property?.bathrooms ? String(r.property.bathrooms) : '1',
+      area_sqft: r?.property?.area_sqft ? String(r.property.area_sqft) : '',
+      floor_number: r?.property?.floor_number ? String(r.property.floor_number) : '',
+      parking: r?.property?.parking || false,
+      name: r?.property?.name || '', address_line1: r?.property?.address_line1 || '',
+      address_line2: r?.property?.address_line2 || '',
+      city: r?.property?.city || '', state: r?.property?.state || '', pincode: r?.property?.pincode || '',
+      monthly_rent: String(r?.monthly_rent ?? ''), security_deposit: String(r?.security_deposit ?? ''),
+      maintenance_charges: String(r?.maintenance_charges ?? 0),
+      rent_due_day: String(r?.rent_due_day || 5),
+      furnished_status: r?.furnished_status || 'unfurnished',
+      notice_period_days: String(r?.notice_period_days ?? 30),
+      lock_in_period_months: String(r?.lock_in_period_months ?? 11),
+      late_fee_percent: String(r?.late_fee_percent ?? 5),
+      rent_increment_percent: String(r?.rent_increment_percent ?? 5),
     })
     const [saving, setSaving] = useState(false)
     const [copied, setCopied] = useState(false)
@@ -2833,6 +2837,11 @@ export default function DashboardPage() {
     const [confirmStep, setConfirmStep] = useState<0 | 1 | 2>(0)
     const [confirmRegen, setConfirmRegen] = useState(false)
     const [receiptNum, setReceiptNum] = useState('')
+
+    if (!r) return null
+
+    const currentPmt = landlordData?.currentPayments?.find((p: RentPayment) => p.rental_id === r.id)
+    const hasPending = currentPmt?.status === 'pending_verification'
     const inviteLink = r.invite_token ? `${window.location.origin}/join/${r.invite_token}` : null
     const inviteExpired = r.invite_expires_at ? new Date(r.invite_expires_at) < new Date() : true
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -3183,9 +3192,10 @@ export default function DashboardPage() {
 
   // ── End lease modal ──────────────────────────────────────────────────────
   function EndLeaseModal() {
+    // Hook before the guard — see PropertyDetailModal.
+    const [saving, setSaving] = useState(false)
     const r = selectedRental || tenantData?.rental
     if (!r) return null
-    const [saving, setSaving] = useState(false)
     const isLandlord = role === 'landlord'
 
     const handleEnd = async () => {
@@ -3218,12 +3228,13 @@ export default function DashboardPage() {
 
   // ── Sign agreement modal (tenant) ────────────────────────────────────────
   function SignAgreementModal() {
-    const rental: Rental | null = tenantData?.rental || null
-    if (!rental) return null
+    // Hooks before the guard — see PropertyDetailModal.
     const [confirmed, setConfirmed] = useState(false)
     const [saving, setSaving] = useState(false)
     const [scrollPct, setScrollPct] = useState(0)
     const scrollRef = useRef<HTMLDivElement>(null)
+    const rental: Rental | null = tenantData?.rental || null
+    if (!rental) return null
     const hasReadAll = scrollPct >= 95
 
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -3340,9 +3351,11 @@ export default function DashboardPage() {
 
   // ── Add unit to a building ───────────────────────────────────────────────
   function AddUnitModal() {
-    const building = selectedBuilding
-    if (!building) return null
-
+    // All four hooks run before the `if (!building)` guard. The bulk-generate
+    // state used to be declared ~50 lines further down, after the guard and after
+    // the handlers, which made the hook count depend on whether a building was
+    // selected. Every initialiser here is a literal, so hoisting them changes
+    // nothing about their values.
     const [mode, setMode] = useState<'single' | 'bulk'>('single')
 
     // ── Single unit form ──────────────────────────────────────────────────
@@ -3353,6 +3366,20 @@ export default function DashboardPage() {
       late_fee_percent: '5', rent_increment_percent: '5',
     })
     const [saving, setSaving] = useState(false)
+
+    // ── Bulk generate form ────────────────────────────────────────────────
+    const [bulk, setBulk] = useState({
+      floorFrom: '0', floorTo: '2', unitsPerFloor: '10',
+      pattern: 'floor',   // 'floor' | 'sequential' | 'custom'
+      customPrefix: 'Room ', startNum: '1',
+      monthly_rent: '', security_deposit: '', maintenance_charges: '0',
+      rent_due_day: '5', furnished_status: 'unfurnished',
+      bedrooms: '1', notice_period_days: '30', lock_in_period_months: '11',
+      late_fee_percent: '5', rent_increment_percent: '5',
+    })
+
+    const building = selectedBuilding
+    if (!building) return null
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
     const toggle = (k: string) => setForm(f => ({ ...f, [k]: !(f as any)[k] }))
     const chip = (active: boolean) => ({
@@ -3396,16 +3423,6 @@ export default function DashboardPage() {
       } catch (e: any) { console.error('[AddUnit]', e); toast(e?.message || 'Failed to add unit', 'error'); setSaving(false) }
     }
 
-    // ── Bulk generate form ────────────────────────────────────────────────
-    const [bulk, setBulk] = useState({
-      floorFrom: '0', floorTo: '2', unitsPerFloor: '10',
-      pattern: 'floor',   // 'floor' | 'sequential' | 'custom'
-      customPrefix: 'Room ', startNum: '1',
-      monthly_rent: '', security_deposit: '', maintenance_charges: '0',
-      rent_due_day: '5', furnished_status: 'unfurnished',
-      bedrooms: '1', notice_period_days: '30', lock_in_period_months: '11',
-      late_fee_percent: '5', rent_increment_percent: '5',
-    })
     const setB = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setBulk(b => ({ ...b, [k]: e.target.value }))
 
@@ -3647,15 +3664,18 @@ export default function DashboardPage() {
   // ── Building detail / edit modal ─────────────────────────────────────────
   function BuildingDetailModal() {
     const building = selectedBuilding
-    if (!building) return null
+    // Hooks before the guard. Optional chaining on `building` because these are
+    // useState initialisers, read on first render, when it may still be null.
     const [editMode, setEditMode] = useState(false)
     const [form, setForm] = useState({
-      name: building.name, property_type: building.property_type || 'apartment',
-      total_units: building.total_units ? String(building.total_units) : '',
-      address_line1: building.address_line1, address_line2: building.address_line2 || '',
-      city: building.city, state: building.state, pincode: building.pincode,
+      name: building?.name ?? '', property_type: building?.property_type || 'apartment',
+      total_units: building?.total_units ? String(building.total_units) : '',
+      address_line1: building?.address_line1 ?? '', address_line2: building?.address_line2 || '',
+      city: building?.city ?? '', state: building?.state ?? '', pincode: building?.pincode ?? '',
     })
     const [saving, setSaving] = useState(false)
+
+    if (!building) return null
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
     const chip = (k: string, v: string) => {
       const active = (form as any)[k] === v
@@ -3811,16 +3831,16 @@ export default function DashboardPage() {
 
         {/* Parties */}
         <div style={h2s}>1. Parties</div>
-        <p style={clauseStyle}>This Rental Agreement ("Agreement") is entered into between:</p>
+        <p style={clauseStyle}>This Rental Agreement (&ldquo;Agreement&rdquo;) is entered into between:</p>
         <div style={{ background: '#f9f8f4', border: '1px solid #e8e4d8', borderRadius: 8, padding: '14px 18px', marginBottom: 14 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>LANDLORD</div>
           <div>{bold(lName)}{landlordProf?.phone ? ` · ${landlordProf.phone}` : ''}{landlordProf?.pan_number ? ` · PAN: ${landlordProf.pan_number}` : ''}</div>
-          <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>(hereinafter referred to as "Landlord")</div>
+          <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>(hereinafter referred to as &ldquo;Landlord&rdquo;)</div>
         </div>
         <div style={{ background: '#f9f8f4', border: '1px solid #e8e4d8', borderRadius: 8, padding: '14px 18px', marginBottom: 14 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>TENANT</div>
           <div>{bold(tName)}{tenantProf?.phone ? ` · ${tenantProf.phone}` : ''}{tenantProf?.pan_number ? ` · PAN: ${tenantProf.pan_number}` : ''}</div>
-          <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>(hereinafter referred to as "Tenant")</div>
+          <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>(hereinafter referred to as &ldquo;Tenant&rdquo;)</div>
         </div>
 
         {/* Property */}
@@ -4605,9 +4625,9 @@ export default function DashboardPage() {
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160, fontSize: 16, fontWeight: 700, color: 'var(--rb-ink)' }}>{currentLabel}</span>
               </button>
             ) : (
-              <a href="/" style={{ textDecoration: 'none' }}>
+              <Link href="/" style={{ textDecoration: 'none' }}>
                 <LogoLockup size={26} fontSize={18} gap={9} />
-              </a>
+              </Link>
             )}
             {/* Right: bell + avatar */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -4627,9 +4647,9 @@ export default function DashboardPage() {
       <div className="d-shell" style={{ display: 'grid', gridTemplateColumns: '240px 1fr', minHeight: '100vh' }}>
         {/* Sidebar */}
         <aside className="d-side" style={{ padding: '28px 18px', background: 'var(--rb-canvas)', borderRight: '1px solid var(--rb-border)', display: 'flex', flexDirection: 'column', gap: 28, position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
-          <a href="/" style={{ textDecoration: 'none', padding: '0 8px' }}>
+          <Link href="/" style={{ textDecoration: 'none', padding: '0 8px' }}>
             <LogoLockup size={28} fontSize={19} gap={10} />
-          </a>
+          </Link>
 
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
             {navItems.map(it => (

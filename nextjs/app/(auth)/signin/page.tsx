@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 export const dynamic = 'force-dynamic'
 
 import { useState, useCallback, useEffect } from 'react'
@@ -57,7 +59,7 @@ function MobileSplash({ onGoogle, loading, error }: { onGoogle: () => void; load
           </div>
           <div className="rr"><span className="k">Tenant</span><span className="v">Sam Carter</span></div>
           <div className="rr"><span className="k">Property</span><span className="v">2BR · North District</span></div>
-          <div className="rr"><span className="k">Period</span><span className="v">1–30 Nov '25</span></div>
+          <div className="rr"><span className="k">Period</span><span className="v">1–30 Nov &rsquo;25</span></div>
           <div className="rtot">
             <span className="l">PAID · UPI 2.0</span>
             <span className="v">₹62,000</span>
@@ -116,7 +118,7 @@ function MobileSplash({ onGoogle, loading, error }: { onGoogle: () => void; load
 
           <div className="gate-alt">
             <span>Have an invite code?</span>
-            <a href="/join">Enter it →</a>
+            <Link href="/join">Enter it →</Link>
           </div>
         </div>
       </div>
@@ -189,9 +191,9 @@ export default function SignInPage() {
       <div className="d-auth-only sb-shell">
         {/* Brand pane */}
         <div className="sb-pane">
-          <a href="/" style={{ textDecoration: 'none' }}>
+          <Link href="/" style={{ textDecoration: 'none' }}>
             <LogoLockup size={32} fontSize={20} gap={11} dark />
-          </a>
+          </Link>
 
           <div style={{ marginTop: 60 }}>
             <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(246,244,238,.6)', marginBottom: 22 }}>Welcome back</p>
@@ -220,7 +222,7 @@ export default function SignInPage() {
                 ))}
               </div>
               <blockquote style={{ fontFamily: 'var(--rb-font-display)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.5, color: 'rgba(246,244,238,.8)', position: 'relative', paddingLeft: 18 }}>
-                <span style={{ position: 'absolute', left: -4, top: -4, fontSize: 32, color: 'var(--rb-accent)', fontStyle: 'normal' }}>"</span>
+                <span style={{ position: 'absolute', left: -4, top: -4, fontSize: 32, color: 'var(--rb-accent)', fontStyle: 'normal' }}>&ldquo;</span>
                 I moved three times and every receipt was still there. Incredible.
                 <cite style={{ display: 'block', marginTop: 8, fontStyle: 'normal', fontFamily: 'var(--rb-font-sans)', fontSize: 12, color: 'rgba(246,244,238,.5)', letterSpacing: '.04em' }}>· Tenant, Hyderabad</cite>
               </blockquote>

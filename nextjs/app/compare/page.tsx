@@ -66,7 +66,7 @@ export default function ComparePage() {
             RentyBase vs everything<br /><em style={{ fontStyle: 'italic', color: 'var(--rb-action)' }}>else.</em>
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.65, color: 'var(--rb-ink-2)', maxWidth: 560, margin: '0 auto 36px' }}>
-            How does RentyBase stack up against NoBroker, manual spreadsheets, and WhatsApp tracking? Here's the full picture.
+            How does RentyBase stack up against NoBroker, manual spreadsheets, and WhatsApp tracking? Here&rsquo;s the full picture.
           </p>
         </div>
       </section>

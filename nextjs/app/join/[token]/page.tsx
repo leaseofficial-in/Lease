@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
@@ -68,8 +70,24 @@ const LINK    = `<path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.
 const WARN    = `<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`
 const CLOCK   = `<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`
 const HOME    = `<path d="M3 12l2-2m0 0l7-7 7 7m-2 2v7a1 1 0 01-1 1H5a1 1 0 01-1-1v-7m5 8v-5a1 1 0 011-1h2a1 1 0 011 1v5"/>`
-const USER    = `<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>`
 const LOCK    = `<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>`
+
+// Defined at module scope, not inside JoinTokenPage. A component declared during
+// render gets a new identity on every pass, so React unmounts and remounts the
+// subtree each time rather than updating it — losing DOM state and restarting any
+// animation. Neither of these closes over anything from the page, so there was
+// never a reason for them to live inside it.
+function DashLink({ label = 'Go to dashboard →' }: { label?: string }) {
+  return (
+    <Link href="/dashboard" style={{ display: 'inline-flex', padding: '11px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>{label}</Link>
+  )
+}
+
+function BorderLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={href} style={{ display: 'inline-flex', padding: '9px 20px', borderRadius: 999, border: '1.5px solid var(--rb-border)', color: 'var(--rb-ink)', fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>{label}</Link>
+  )
+}
 
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function JoinTokenPage({ params }: { params: Promise<{ token: string }> }) {
@@ -211,20 +229,12 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
   const signInUrl = `/signin?next=${encodeURIComponent(`/join/${token}`)}`
   const signUpUrl = `/signup?next=${encodeURIComponent(`/join/${token}`)}`
 
-  const DashLink = ({ label = 'Go to dashboard →' }: { label?: string }) => (
-    <a href="/dashboard" style={{ display: 'inline-flex', padding: '11px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>{label}</a>
-  )
-
-  const BorderLink = ({ href, label }: { href: string; label: string }) => (
-    <a href={href} style={{ display: 'inline-flex', padding: '9px 20px', borderRadius: 999, border: '1.5px solid var(--rb-border)', color: 'var(--rb-ink)', fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>{label}</a>
-  )
-
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--rb-canvas)', padding: 24 }}>
       <div style={{ maxWidth: 440, width: '100%' }}>
-        <a href="/" style={{ textDecoration: 'none', display: 'inline-flex', marginBottom: 40 }}>
+        <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', marginBottom: 40 }}>
           <LogoLockup size={28} fontSize={20} gap={10} />
-        </a>
+        </Link>
 
         {/* ── Loading ── */}
         {state === 'loading' && <Spinner />}

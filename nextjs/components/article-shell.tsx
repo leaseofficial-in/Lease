@@ -1,6 +1,7 @@
 // Presentational pieces shared by every /blog/<slug> article page.
 // Prose styling is scoped via the .rb-article class defined in globals.css.
 
+import Link from 'next/link'
 import type { ReactNode } from 'react'
 import type { BlogPost } from '@/data/blog-posts'
 
@@ -8,9 +9,9 @@ export function ArticleBreadcrumb({ current }: { current: string }) {
   return (
     <div style={{ paddingTop: 96, background: 'var(--rb-canvas-2)' }}>
       <div className="container" style={{ maxWidth: 1080, fontSize: 13, color: 'var(--rb-muted)' }}>
-        <a href="/" style={{ color: 'var(--rb-muted)', textDecoration: 'none' }}>Home</a>
+        <Link href="/" style={{ color: 'var(--rb-muted)', textDecoration: 'none' }}>Home</Link>
         <span style={{ margin: '0 8px' }}>›</span>
-        <a href="/blog" style={{ color: 'var(--rb-muted)', textDecoration: 'none' }}>Blog</a>
+        <Link href="/blog" style={{ color: 'var(--rb-muted)', textDecoration: 'none' }}>Blog</Link>
         <span style={{ margin: '0 8px' }}>›</span>
         <span style={{ color: 'var(--rb-ink-2)' }}>{current}</span>
       </div>

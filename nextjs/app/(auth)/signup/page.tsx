@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 export const dynamic = 'force-dynamic'
 
 import { useState, useCallback, useEffect } from 'react'
@@ -119,7 +121,7 @@ function MA2Splash({ onGoogle, loading, error }: { onGoogle: () => void; loading
           </div>
           <div className="rr"><span className="k">Tenant</span><span className="v">Aarav Mehta</span></div>
           <div className="rr"><span className="k">Property</span><span className="v">2BHK · Bandra W</span></div>
-          <div className="rr"><span className="k">Period</span><span className="v">1–30 Nov '25</span></div>
+          <div className="rr"><span className="k">Period</span><span className="v">1–30 Nov &rsquo;25</span></div>
           <div className="rtot">
             <span className="l">PAID · UPI 2.0</span>
             <span className="v">₹62,000</span>
@@ -762,9 +764,9 @@ export default function SignUpPage() {
       <div className="d-auth-only sb-shell">
         {/* Brand pane */}
         <div className="sb-pane">
-          <a href="/" style={{ textDecoration: 'none' }}>
+          <Link href="/" style={{ textDecoration: 'none' }}>
             <LogoLockup size={32} fontSize={20} gap={11} dark />
-          </a>
+          </Link>
 
           <div style={{ marginTop: 60 }}>
             <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(246,244,238,.6)', marginBottom: 22 }}>The rental OS</p>
@@ -794,7 +796,7 @@ export default function SignUpPage() {
                 ))}
               </div>
               <blockquote style={{ fontFamily: 'var(--rb-font-display)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.5, color: 'rgba(246,244,238,.8)', position: 'relative', paddingLeft: 18 }}>
-                <span style={{ position: 'absolute', left: -4, top: -4, fontSize: 32, color: 'var(--rb-accent)', fontStyle: 'normal' }}>"</span>
+                <span style={{ position: 'absolute', left: -4, top: -4, fontSize: 32, color: 'var(--rb-accent)', fontStyle: 'normal' }}>&ldquo;</span>
                 Finally, a rental app that doesn&apos;t disappear after the lease ends.
                 <cite style={{ display: 'block', marginTop: 8, fontStyle: 'normal', fontFamily: 'var(--rb-font-sans)', fontSize: 12, color: 'rgba(246,244,238,.5)', letterSpacing: '.04em' }}>· Early beta user, Bengaluru</cite>
               </blockquote>

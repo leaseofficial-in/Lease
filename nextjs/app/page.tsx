@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import React, { useState, useEffect, useRef } from 'react'
 import { LogoMark } from '@/components/brand'
 
@@ -1192,7 +1193,7 @@ function CitiesWorldwide() {
           ))}
         </div>
         <div style={{ marginTop: 28 }}>
-          <a href="/rentals" className="btn btn-ghost" style={{ padding: '11px 22px', fontSize: 14 }}>Explore all cities →</a>
+          <Link href="/rentals" className="btn btn-ghost" style={{ padding: '11px 22px', fontSize: 14 }}>Explore all cities →</Link>
         </div>
       </div>
     </section>

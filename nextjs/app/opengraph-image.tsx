@@ -3,7 +3,7 @@ import { ImageResponse } from 'next/og'
 export const runtime = 'edge'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
-export const alt = "RentyBase — India's Rental OS"
+export const alt = "RentyBase — India&rsquo;s Rental OS"
 
 export default function OGImage() {
   return new ImageResponse(
@@ -31,7 +31,7 @@ export default function OGImage() {
 
         {/* Headline */}
         <div style={{ color: '#F6F4EE', fontSize: 68, fontWeight: 800, lineHeight: 1.05, letterSpacing: '-0.035em', marginBottom: 28 }}>
-          India's<br />Rental OS.
+          India&rsquo;s<br />Rental OS.
         </div>
 
         {/* Subtitle */}

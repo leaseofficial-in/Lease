@@ -74,10 +74,10 @@ export default function CompanyPage() {
               Most rental transactions in India happen with no shared record. A landlord sends a WhatsApp message confirming rent received. A tenant screenshots it. The deposit is tracked in a notebook. Move-in condition is undocumented. HRA receipts are generated manually in Word. Or not at all.
             </p>
             <p>
-              This creates predictable problems: disputes at move-out over damage that was pre-existing, confusion about deposit deductions, tenants unable to claim HRA exemption because receipts weren't issued on time, landlords with no legal documentation if a tenant stops paying.
+              This creates predictable problems: disputes at move-out over damage that was pre-existing, confusion about deposit deductions, tenants unable to claim HRA exemption because receipts weren&rsquo;t issued on time, landlords with no legal documentation if a tenant stops paying.
             </p>
             <p>
-              RentyBase is a shared record layer for the rental relationship. Payments, receipts, photos, deposits, repairs. All live in one place both sides can always access. We don't take sides. We give both sides a record they can trust.
+              RentyBase is a shared record layer for the rental relationship. Payments, receipts, photos, deposits, repairs. All live in one place both sides can always access. We don&rsquo;t take sides. We give both sides a record they can trust.
             </p>
           </div>
         </div>

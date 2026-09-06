@@ -87,6 +87,11 @@ export default function Error({
           >
             Try again
           </button>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages --
+              Deliberate. This is an error boundary: the React tree has already
+              failed, and a client-side <Link> navigation would reuse the same
+              broken runtime. A plain anchor forces a full document load, which is
+              the only reliable way back to a working app from here. */}
           <a
             href="/"
             style={{
