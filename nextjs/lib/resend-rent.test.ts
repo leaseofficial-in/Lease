@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rentDueSoonEmail, rentOverdueEmail, paymentAwaitingConfirmationEmail, paymentConfirmedEmail } from './resend-rent'
+import { rentDueSoonEmail, rentOverdueEmail, paymentAwaitingConfirmationEmail, paymentConfirmedEmail, proofSubmittedEmail } from './resend-rent'
 
 // These templates are string-concatenated HTML that goes to real people's inboxes
 // and cannot be corrected after it is read. The first live run of the reminder job
@@ -136,5 +136,28 @@ describe('paymentConfirmedEmail', () => {
   it('escapes the subject against header injection', () => {
     const { subject } = paymentConfirmedEmail({ ...input, propertyName: 'X\r\nBcc: a@b.c' })
     expect(subject).not.toMatch(/[\r\n]/)
+  })
+})
+
+describe('proofSubmittedEmail', () => {
+  const input = { landlordName: 'Priya', tenantName: 'Aarav', propertyName: 'Flat 4B', photoCount: 12 }
+
+  it('names the tenant and the count, and points at review', () => {
+    const { subject, html } = proofSubmittedEmail(input)
+    expect(subject).toContain('Aarav')
+    expect(subject).toContain('Flat 4B')
+    expect(html).toContain('12 photos')
+    expect(html).toContain('https://rentybase.com/dashboard')
+  })
+
+  it('singularises one photo', () => {
+    expect(proofSubmittedEmail({ ...input, photoCount: 1 }).html).toContain('1 photo<')
+  })
+
+  it('is a complete document with nothing unresolved', () => {
+    const { html } = proofSubmittedEmail(input)
+    expect(html).toContain('<!DOCTYPE html>')
+    expect(html).not.toContain('undefined')
+    expect(html).not.toContain('NaN')
   })
 })

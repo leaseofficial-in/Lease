@@ -116,6 +116,12 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
     exclude `updated_at` or it fires on every write. Named 042's trigger
     `rent_payments_transitions` to sort after the existing two.
 
+21. Four dead client writes have now been found the same way (repair cancel/confirm,
+    deposit dispute, notify-landlord). The tell is always `await sb.from(...)`
+    with no `.select()` and no error check: supabase-js RETURNS the error rather
+    than throwing, so `try/catch` around it catches nothing and the success toast
+    fires regardless. Grep for `.insert(`/`.update(` not followed by `.select(`.
+
 ## Incident log
 
 - **2026-09-07 — 23 unintended emails.** Fired `/api/cron/rent-reminders` at prod
@@ -370,6 +376,33 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   stored as today — and the happy path end to end. Harness drives the full signing
   sequence over REST. 61 → 67.
 
+- **Batch 30 — the move-in proof was a dead-end flow, end to end (044, 045).**
+  The tenant's most-promoted feature ("protect your deposit") went nowhere:
+  * "Notify landlord" INSERTed into `notifications`, a table with **no INSERT
+    policy** — RLS refused every one, supabase-js returned the error instead of
+    throwing, nothing checked it, and the tenant was told "Landlord notified ✓".
+    Proven live. Fourth dead write of this shape.
+  * The landlord had no proof screen at all: `proof` is in `tNavItems` only, and
+    the notification's own "View photos →" navigated to the properties list.
+  * `proofs` had a landlord UPDATE policy with no transition scope, so an
+    **approved** proof could be moved back to `pending` — which unfreezes photo
+    deletion under 040/041 — and `reviewed_by` was unbound.
+  044: `enforce_proof_review` (pending → approved|rejected|dispute, rejected →
+  pending, approved → dispute only, reviewer stamped from `auth.uid()`), plus
+  `notify_rental_counterparty(rental_id, kind)` — a SECURITY DEFINER RPC that owns
+  its own wording, because an INSERT policy on `notifications` would let either
+  party write arbitrary text into the other's inbox under the product's chrome.
+  045: "open for editing" became `pending OR rejected` across all three photo
+  policies — otherwise a rejected proof is frozen and the tenant cannot add the
+  photos they were just asked for, making reject a dead end.
+  Client: the tenant's button now calls the RPC with a real error check and fires
+  a new `/api/email/proof-submitted` (tenant-authenticated, photo count read
+  server-side) so the landlord hears about it where they actually are; a review
+  card in `PropertyDetailModal` shows the photos with Approve / Ask for more; the
+  notification now opens that rental. Approving notifies the tenant — the first
+  landlord→tenant notification in the product. Everything proven live and rolled
+  back. 67 → 74 checks, 202 → 205 tests.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -511,7 +544,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-202/202 tests · typecheck clean · build clean · security 67/67 · lint 0 (gates verify).
+205/205 tests · typecheck clean · build clean · security 74/74 · lint 0 errors (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -523,12 +556,14 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-Every party-writable table now has column and transition scope (038 messages, 039
-repairs/deposits, 040 deletes, 041 storage, 042 payments, 043 signing), each proven
-live and driven by the harness. Remaining:
-1. `proofs.status` — the landlord review path has a policy and no transition scope,
-   the same gap 042 and 043 just closed elsewhere. Can a landlord move a proof from
-   approved back to pending, or a tenant approve their own?
-2. `rentals.invite_token` is never cleared after a claim: a leaked code keeps
-   resolving through `rental_invite_preview` for the life of the tenancy.
-3. The lease-terms-after-signing question above needs the owner.
+The move-in proof loop is closed end to end (044/045) but only the database half
+is machine-verified. The review card and the two new emails have not been seen in a
+browser or an inbox — worth a manual pass: landlord opens a unit with photos,
+Approve, tenant sees the approved state and gets the notification.
+
+Then, unexplored:
+1. Grep every `.insert(`/`.update(` in the client that is NOT followed by
+   `.select(` — that shape is what hid all four dead writes. `markNotifRead` is one
+   (`notifications.update({read:true})`, unchecked); there may be more.
+2. `rentals.invite_token` is never cleared after a claim.
+3. The lease-terms-after-signing question (owner).

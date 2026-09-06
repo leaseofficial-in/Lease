@@ -1703,16 +1703,33 @@ export default function DashboardPage() {
       if (!rental || !photos.length) return
       setNotifying(true)
       try {
-        await sb.from('notifications').insert({
-          user_id: rental.landlord_id,
-          title: 'Move-in photos submitted',
-          body: `${profile?.full_name || 'Your tenant'} has uploaded ${totalCount} move-in photo${totalCount !== 1 ? 's' : ''} for ${rental.property?.name || 'the property'}. Review when ready.`,
-          type: 'general',
-          data: { rental_id: rental.id, proof_id: proofs?.id, type: 'move_in_proof' },
+        // This used to INSERT into `notifications` directly. That table has no
+        // INSERT policy -- only the notify_* triggers write it -- so RLS refused
+        // every one of these, supabase-js returned the error instead of throwing,
+        // nothing checked it, and the tenant was told the landlord had been
+        // notified. Nobody was. 044 replaced it with an RPC that owns the wording,
+        // so neither party can put words in the other's inbox.
+        const { error } = await sb.rpc('notify_rental_counterparty', {
+          rental_id_input: rental.id,
+          kind: 'move_in_proof',
         })
+        if (error) throw error
         setNotified(true)
         toast('Landlord notified ✓', 'success')
-      } catch { toast('Failed to notify landlord', 'error') } finally { setNotifying(false) }
+        // And reach them where they actually are. Fire-and-forget: the photos and
+        // the notification are already saved.
+        sb.auth.getSession().then(({ data }) => {
+          fetch('/api/email/proof-submitted', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {}) },
+            body: JSON.stringify({ rental_id: rental.id }),
+            keepalive: true,
+          }).catch(() => {})
+        })
+      } catch (e: any) {
+        console.error('[NotifyLandlord]', e)
+        toast(e?.message || 'Failed to notify landlord', 'error')
+      } finally { setNotifying(false) }
     }
 
     return (
@@ -2869,6 +2886,19 @@ export default function DashboardPage() {
     // The optional chaining on `r` matters: these are useState INITIALISERS, read
     // once on first render, and `r` can legitimately be null at that point.
     const [editMode, setEditMode] = useState(false)
+    // Move-in proof, loaded here rather than with the dashboard's opening query:
+    // it is one row per rental and only ever looked at from this modal.
+    const [proof, setProof] = useState<Proof | null>(null)
+    const [proofBusy, setProofBusy] = useState(false)
+    useEffect(() => {
+      let live = true
+      if (!r?.id) { setProof(null); return }
+      sb.from('proofs')
+        .select('*, proof_photos(id, room_label, public_url, annotation, created_at)')
+        .eq('rental_id', r.id).eq('type', 'move_in').maybeSingle()
+        .then(({ data }) => { if (live) setProof((data as Proof) || null) })
+      return () => { live = false }
+    }, [r?.id])
     const [form, setForm] = useState({
       property_type: r?.property?.property_type || 'apartment',
       bedrooms: r?.property?.bedrooms ? String(r.property.bedrooms) : '2',
@@ -2969,6 +2999,33 @@ export default function DashboardPage() {
       } catch (e: any) { console.error('[EditProperty]', e); toast(e?.message || 'Failed to update property', 'error') } finally { setSaving(false) }
     }
 
+    // Reviewing the move-in proof. Until now the tenant could upload photos and
+    // press "Notify landlord" and the landlord had no screen to look at them on --
+    // the notification's own "View photos" went to the properties list. The two
+    // outcomes match what the database allows (044): approved freezes the photos
+    // for both sides, rejected sends it back and keeps it editable (045).
+    const reviewProof = async (status: 'approved' | 'rejected') => {
+      if (!proof) return
+      setProofBusy(true)
+      try {
+        assertAffected(
+          await sb.from('proofs').update({ status }).eq('id', proof.id).select('id'),
+          'move-in proof',
+        )
+        setProof(pr => (pr ? { ...pr, status } : pr))
+        if (status === 'approved') {
+          // The tenant hears about it; the wording belongs to the database (044).
+          await sb.rpc('notify_rental_counterparty', { rental_id_input: r!.id, kind: 'proof_approved' })
+          toast('Move-in photos approved \u2713', 'success')
+        } else {
+          toast('Sent back to your tenant for more photos', 'info')
+        }
+      } catch (e: any) {
+        console.error('[ReviewProof]', e)
+        toast(e?.message || 'Failed to review the photos', 'error')
+      } finally { setProofBusy(false) }
+    }
+
     const handleAcceptPayment = async () => {
       if (!currentPmt) return
       setConfirmStep(1)
@@ -3020,6 +3077,41 @@ export default function DashboardPage() {
 
     return (
       <Modal title={editMode ? 'Edit property' : (r.property?.name || 'Property')} onClose={() => { setModal(null); setSelectedRental(null) }}>
+        {/* Move-in proof review */}
+        {proof && proof.proof_photos && proof.proof_photos.length > 0 && (
+          <div style={{ marginBottom: 20, padding: 16, borderRadius: 12, background: proof.status === 'approved' ? 'var(--rb-action-soft)' : 'var(--rb-fill-2)', border: `1px solid ${proof.status === 'approved' ? 'rgba(15,76,92,.25)' : 'var(--rb-border)'}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: proof.status === 'approved' ? 'var(--rb-action)' : 'var(--rb-ink-3)', marginBottom: 10 }}>
+              Move-in proof · {proof.proof_photos.length} photo{proof.proof_photos.length === 1 ? '' : 's'}
+            </div>
+            <ProofGrid photos={proof.proof_photos} />
+            {proof.status === 'approved' ? (
+              <div style={{ fontSize: 12, color: 'var(--rb-action)', marginTop: 12, fontWeight: 600 }}>
+                ✓ Approved — these are now the agreed record of the condition at move-in.
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 12, lineHeight: 1.5 }}>
+                  {proof.status === 'rejected'
+                    ? 'Sent back to your tenant. They can add more photos; approve once it is complete.'
+                    : 'Approving fixes the condition at move-in for both of you. It is what a deposit deduction is argued against later.'}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                  <button onClick={() => reviewProof('approved')} disabled={proofBusy} aria-busy={proofBusy}
+                    style={{ ...actBtnPrimary, fontSize: 12, padding: '7px 16px', background: 'var(--rb-success)' }}>
+                    {proofBusy ? '…' : '✓ Approve photos'}
+                  </button>
+                  {proof.status !== 'rejected' && (
+                    <button onClick={() => reviewProof('rejected')} disabled={proofBusy}
+                      style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--rb-ink-2)' }}>
+                      Ask for more
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Pending payment review */}
         {hasPending && currentPmt && confirmStep === 0 && (
           <div style={{ marginBottom: 20, padding: 16, background: 'var(--rb-warning-soft)', borderRadius: 12, border: '1px solid rgba(184,116,15,.25)' }}>
@@ -4628,7 +4720,11 @@ export default function DashboardPage() {
       if (r) { setSelectedRental(r); setModal('property-detail') }
       else navigate('led')
     } else if (d.type === 'move_in_proof') {
-      navigate('props')
+      // The notification says "View photos"; take them to the photos. Before the
+      // review card existed this went to the properties list, which showed none.
+      const r = landlordData?.rentals?.find((r: Rental) => r.id === d.rental_id)
+      if (r) { setSelectedRental(r); setModal('property-detail') }
+      else navigate('props')
     } else if (d.type === 'repair_request' || d.urgency !== undefined || d.category !== undefined) {
       navigate('rep')
     } else if (n.type === 'info') {

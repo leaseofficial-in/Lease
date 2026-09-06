@@ -420,6 +420,70 @@ else
           bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
         fi
       fi
+      # ── Proof review and counterparty notifications (044) ──
+      # `notifications` has no INSERT policy, so the tenant's "Notify landlord"
+      # button was refused every time while reporting success. The replacement is
+      # an RPC that owns its own wording -- neither party can put words in the
+      # other's inbox -- and the proof state machine now has the transition scope
+      # 042/043 gave payments and agreements.
+      code=$(retry_code -X POST "$URL/rest/v1/rpc/notify_rental_counterparty" \
+        -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" \
+        -d "{\"rental_id_input\":\"$PROBE_RENTAL\",\"kind\":\"move_in_proof\"}")
+      expect_http "tenant can notify their landlord through the RPC" "200" "$code"
+
+      code=$(retry_code -X POST "$URL/rest/v1/rpc/notify_rental_counterparty" \
+        -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" \
+        -d "{\"rental_id_input\":\"$PROBE_RENTAL\",\"kind\":\"<b>anything they like</b>\"}")
+      expect_http "a party cannot choose the wording of a notification" "400" "$code"
+
+      code=$(retry_code -X POST "$URL/rest/v1/rpc/notify_rental_counterparty" \
+        -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" \
+        -d "{\"rental_id_input\":\"00000000-0000-0000-0000-000000000009\",\"kind\":\"move_in_proof\"}")
+      expect_http "a party cannot notify on a rental they are not in" "400" "$code"
+
+      code=$(retry_code -X POST "$URL/rest/v1/rpc/notify_rental_counterparty" \
+        -H "apikey: $KEY" -H "Content-Type: application/json" \
+        -d "{\"rental_id_input\":\"$PROBE_RENTAL\",\"kind\":\"move_in_proof\"}")
+      expect_http "anon cannot send a notification" "401" "$code"
+
+      PROOF=$(curl -s -X POST "$URL/rest/v1/proofs" \
+        -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" \
+        -H "Prefer: return=representation" \
+        -d "{\"rental_id\":\"$PROBE_RENTAL\",\"type\":\"move_in\",\"status\":\"pending\",\"submitted_by\":\"$T_ID\"}" \
+        | python -c 'import sys,json; d=json.load(sys.stdin); print(d[0]["id"] if isinstance(d,list) and d else "")' 2>/dev/null)
+      if [[ -z "$PROOF" ]]; then
+        bad "could not seed a probe proof" "skipping the review checks"
+      else
+        # No tenant UPDATE policy at all, so RLS filters the row out before the
+        # trigger ever sees it: the honest answer is "nothing was updated".
+        body=$(retry_body -X PATCH "$URL/rest/v1/proofs?id=eq.$PROOF" \
+          -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+          -d '{"status":"approved"}')
+        if [[ "$body" == "[]" ]]; then
+          ok "tenant cannot approve their own move-in proof"
+        else
+          bad "TENANT APPROVED THEIR OWN PROOF" "${body:0:140}"
+        fi
+
+        body=$(retry_body -X PATCH "$URL/rest/v1/proofs?id=eq.$PROOF" \
+          -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+          -d '{"status":"approved"}')
+        if [[ "$body" == *"$PROBE_ID"* ]]; then
+          ok "landlord approves, and the reviewer is stamped server-side"
+        elif [[ "$body" == "[{"* ]]; then
+          bad "reviewer not recorded" "${body:0:140}"
+        else
+          bad "landlord cannot approve a proof" "${body:0:140}"
+        fi
+
+        code=$(retry_code -X PATCH "$URL/rest/v1/proofs?id=eq.$PROOF" \
+          -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+          -d '{"status":"pending"}')
+        expect_http "an approved proof cannot be reopened (it would unfreeze the photos)" "400" "$code"
+
+        curl -s -o /dev/null -X DELETE "$URL/rest/v1/proofs?id=eq.$PROOF" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
+      fi
+
       # ── Agreement signing (043) ──
       # The agreement is the one document meant to bind two people, and the
       # dashboard prints both signature timestamps on it. Nothing enforced the

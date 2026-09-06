@@ -168,3 +168,34 @@ export function paymentConfirmedEmail(input: {
     `),
   }
 }
+
+/**
+ * Sent to the LANDLORD when a tenant submits their move-in photos.
+ *
+ * The tenant's screen had a "Notify landlord" button that inserted into
+ * `notifications` -- a table with no INSERT policy. Every one of those inserts was
+ * refused, the result was never checked, and the tenant was told the landlord had
+ * been notified. Nobody was. This is the half that actually reaches someone.
+ */
+export function proofSubmittedEmail(input: {
+  landlordName: string
+  tenantName: string
+  propertyName: string
+  photoCount: number
+}) {
+  const { landlordName, tenantName, propertyName, photoCount } = input
+  const photos = `${photoCount} photo${photoCount === 1 ? '' : 's'}`
+  return {
+    subject: escSubject(`${tenantName} submitted move-in photos — ${propertyName}`),
+    html: emailLayout(`
+      ${H1('Move-in photos are in.', propertyName)}
+      ${BODY(`
+        ${P(`Hi ${esc(landlordName)},`)}
+        ${P(`${esc(tenantName)} has uploaded <strong>${esc(photos)}</strong> recording the condition of ${esc(propertyName)} at move-in.`)}
+        ${P(`Review them now, while the state of the place is not in question. Approving them fixes the record for both of you — it is what a deposit deduction is argued against later.`)}
+        ${CTA('https://rentybase.com/dashboard', 'Review the photos')}
+        ${MUTED('Sent once, when your tenant submits.')}
+      `)}
+    `),
+  }
+}
