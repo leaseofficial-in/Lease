@@ -320,16 +320,33 @@ Honest framing of what the hash is: the client computes it, so it attests to wha
 that browser saw, not to who saw it. It is not a signature and should not be
 described as one.
 
-### P2-5 · `maintenance_charges` is `integer` · OPEN
+### P2-5 · `maintenance_charges` is `integer` · SHIPPED
 Every other money column is `numeric(12,2)`. This one cannot represent cents, so it
 breaks for any currency with subunits in normal use. `repair_requests.cost` and
 `rentals.rent_increment_percent` are unconstrained `numeric` — inconsistent.
+**Fixed in `029`.** Widening is lossless (all existing values are whole numbers);
+verified the sum is identical before and after (4900 → 4900.00). `cost` pinned to
+`numeric(12,2)` and `rent_increment_percent` to `numeric(5,2)` — unbounded numeric
+lets two amounts that display identically compare unequal.
 
-### P2-8 · Overdue cron uses UTC `current_date` · OPEN
-`007_cron_overdue_payments.sql` marks rent overdue by comparing the due day against
-`current_date` on a UTC server. A tenant in UTC+13 can be flagged overdue up to a
-day early, one in UTC-11 a day late. Needs the tenant's timezone
-(`profiles.timezone`, which now finally exists) folded into the comparison.
+### P2-8 · Overdue cron used UTC `current_date` · SHIPPED
+`007` marked rent overdue by comparing the due day against `current_date` on a UTC
+server, so "is this late?" was answered in the server's calendar rather than the
+tenant's.
+
+**This was not theoretical.** Checked live: at the time of the fix, IST was already
+on 2026-09-07 while UTC was on 2026-09-06 — so the comparison was a full day out for
+every Indian tenant, which is the entire current user base. Auckland diverges the
+same way; Honolulu and Los Angeles diverge in the other direction at other hours.
+The damaging direction is being marked overdue while it is still the due date where
+you live: an incorrect late fee on a ledger the product asks both sides to trust.
+
+**Fixed in `029`.** Replaced the inline SQL with `mark_overdue_payments()`, which
+compares against `(now() at time zone profiles.timezone)::date`, falling back to
+UTC. `profiles.timezone` only became real when `003` was applied earlier today.
+The fallback matters: an empty or invalid IANA name would otherwise raise inside
+the job and abort the entire run rather than skipping one row. The pg_cron schedule
+is unscheduled-then-rescheduled so re-running cannot create a duplicate job.
 
 ### P2-9 · New users are never asked for their country · SHIPPED
 `003` defaults `country_code` to `'IN'`, and `auth/callback` only routes to
