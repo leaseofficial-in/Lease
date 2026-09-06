@@ -81,6 +81,17 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
     TRUNCATE, and Supabase's default grants included it for anon/authenticated on
     every table. Revoked in 038 and removed from the defaults.
 
+14. `git push origin main` hangs on a credential prompt in this shell, and pushes
+    through a token URL do not move `refs/remotes/origin/main` — so `git status`
+    says "ahead N" forever. Truth is `git ls-remote origin refs/heads/main`. Push
+    with the token from `nextjs/.env.local` read into the URL, output masked, then
+    `git fetch origin` to realign the ref.
+15. A table with no UPDATE policy for a role is not "safe by default" if the UI
+    offers that role a button. `repair_requests` (tenant cancel / confirm-fixed) and
+    `deposit_transactions` (tenant dispute) had never accepted a tenant write; the
+    buttons faked success until assertAffected, then failed honestly. Walk every
+    client write site against `pg_policies` by (table, cmd, role).
+
 ## Incident log
 
 - **2026-09-07 — 23 unintended emails.** Fired `/api/cron/rent-reminders` at prod
@@ -183,6 +194,22 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   never writes it. When "mark read" is built it needs a BEFORE UPDATE trigger
   (documented in 038), or the write silently matches zero rows.
 
+- **Batch 22 — three dead tenant buttons + review scope (039).** Walking every
+  client write against `pg_policies` found `repair_requests` has only a landlord
+  UPDATE policy and `deposit_transactions` none: the tenant's "Cancel request",
+  "Confirm it's fixed" and "File a dispute" were zero-row writes since they were
+  built. Proven live as the real tenant (0 rows on both tables). The landlord
+  policies on `proofs`/`repair_requests` were the 038 shape (USING only) — a
+  landlord could rewrite the tenant's description or `raised_by`. 039 adds tenant
+  UPDATE policies on both tables and three BEFORE UPDATE scope triggers
+  (030-style): tenant may change only `status→resolved` / `resolved_confirmed_at`
+  and `dispute_status→disputed` / `tenant_dispute_note`; landlord may not touch the
+  tenant's content columns or confirmation; nobody re-parents, re-attributes, or
+  edits a deposit ledger line's amount/type/note. EXECUTE revoked on all three.
+  Proven live both sides (rolled back). Harness seeds a probe tenant on the probe
+  rental with a repair request: tenant confirm 1 row / cost 400, landlord note 1
+  row / description 400. 42 → 46 checks.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -191,6 +218,12 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   regenerate it): `keytool -list -v -keystore rentybase.keystore -alias rentybase`
   → SHA-256, plus Play Console → Setup → App Integrity → app signing SHA-256. Paste
   both into `app/.well-known/assetlinks.json/route.ts`.
+
+- **Deposit disputes cannot be resolved.** Tenants can now file one (039), and
+  `dispute_resolved_note` / `dispute_status='resolved'` exist, but there is no
+  landlord UPDATE policy and no UI. Product decision needed: does "resolved" reverse
+  the deduction (a correcting entry) or merely annotate it? Trigger 039 already
+  reserves those two columns for the landlord.
 
 ### Verified clean this round (do not re-audit)
 - `agreements` bucket: no policy, no live reader. 15 HTML files from the old Expo
@@ -201,6 +234,10 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   `notify_*` triggers are the sole writers. Correct. (Tenant-facing gap covered by
   the payment-confirmed email, not by in-app rows they never open.)
 - `messages`: four bound policies as of 038; anon has no grant.
+- Every INSERT policy binds its author column (`created_by`, `submitted_by`,
+  `uploaded_by`, `raised_by`, `actor_id`, `landlord_id`). `buildings` FOR ALL binds
+  via USING fallback (landlord_id = uid) — fine for a single-owner table.
+  `deposit_transactions` has no DELETE, `repair_requests`/`proofs` no DELETE: immutable.
 
 ### P0 / P1 — open
 - **Acquisition**: 7 signups in ~2 months, 0 in last 4 days. Not a code problem.
@@ -279,7 +316,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-202/202 tests · typecheck clean · build clean · security 42/42 · lint 0 (gates verify).
+202/202 tests · typecheck clean · build clean · security 46/46 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -291,12 +328,9 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-`/api/email/payment-confirmed` is deployed but has not been exercised end-to-end on
-production (the sibling route was). After the Vercel deploy: unauthenticated → 401;
-probe landlord JWT + bogus id → 202 with no send. A real send needs a landlord
-confirming a payment whose tenant address is controllable — do it with a probe
-landlord + probe tenant + seeded paid payment, or leave to the next real
-confirmation and check Resend's log. Then keep auditing from angles not yet
-covered: `proofs`/`proof_photos` UPDATE binding (`submitted_by`/`uploaded_by`),
-`repair_requests` `raised_by`, `deposit_transactions` `created_by` — the same
-class of hole as 038 wherever an author column exists.
+After the Vercel deploy of a48eb19+: `/api/email/payment-confirmed` unauthenticated
+→ 401; probe landlord JWT + bogus id → 202, no send. Then the next audit angle:
+DELETE — which roles can delete what (`messages` sender-only now; `properties`,
+`rentals`, `buildings` landlord FOR ALL — can a landlord delete a rental with a
+paid ledger, and what cascades?). Then storage: `proof-photos` object DELETE by the
+landlord after approval. Keep every finding live-proven and rolled back.

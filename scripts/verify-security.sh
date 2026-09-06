@@ -326,6 +326,75 @@ else
       else
         bad "MESSAGE SENDER REASSIGNABLE" "${body:0:140}"
       fi
+      # ── Column scope on repair requests (039) ──
+      # The tenant side had NO update policy (cancel / confirm-fixed / dispute
+      # were zero-row writes); the landlord side could rewrite the tenant's
+      # description. A second throwaway user becomes the tenant of the probe
+      # rental and raises a request; each side then tries the other's columns.
+      T_EMAIL="rls-probe-t-$RANDOM@rentybase-test.invalid"
+      T_PASS="Probe!Test-$RANDOM-bB"
+      T_ID=$(curl -s -X POST "$URL/auth/v1/admin/users" \
+        -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" \
+        -d "{\"email\":\"$T_EMAIL\",\"password\":\"$T_PASS\",\"email_confirm\":true}" \
+        | python -c 'import sys,json; print(json.load(sys.stdin).get("id",""))' 2>/dev/null)
+      T_JWT=""
+      REPAIR=""
+      if [[ -n "$T_ID" ]]; then
+        T_JWT=$(curl -s -X POST "$URL/auth/v1/token?grant_type=password" \
+          -H "apikey: $KEY" -H "Content-Type: application/json" \
+          -d "{\"email\":\"$T_EMAIL\",\"password\":\"$T_PASS\"}" \
+          | python -c 'import sys,json; print(json.load(sys.stdin).get("access_token",""))' 2>/dev/null)
+        curl -s -o /dev/null -X PATCH "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
+          -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" \
+          -d "{\"tenant_id\":\"$T_ID\"}"
+        REPAIR=$(curl -s -X POST "$URL/rest/v1/repair_requests" \
+          -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" \
+          -H "Prefer: return=representation" \
+          -d "{\"rental_id\":\"$PROBE_RENTAL\",\"raised_by\":\"$T_ID\",\"title\":\"probe\",\"description\":\"probe\",\"status\":\"open\"}" \
+          | python -c 'import sys,json; d=json.load(sys.stdin); print(d[0]["id"] if isinstance(d,list) and d else "")' 2>/dev/null)
+      fi
+      if [[ -z "$REPAIR" || -z "$T_JWT" ]]; then
+        bad "could not seed a probe tenant + repair request" "tenant=$T_ID repair=$REPAIR"
+      else
+        TAUTH="Authorization: Bearer $T_JWT"
+        body=$(curl -s -X PATCH "$URL/rest/v1/repair_requests?id=eq.$REPAIR" \
+          -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+          -d "{\"resolved_confirmed_at\":\"2026-01-02T00:00:00Z\"}")
+        if [[ "$body" == "[{"* ]]; then
+          ok "tenant can confirm their own repair as fixed (1 row)"
+        else
+          bad "TENANT CONFIRM-FIXED IS A DEAD WRITE" "${body:0:140}"
+        fi
+        code=$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$URL/rest/v1/repair_requests?id=eq.$REPAIR" \
+          -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" \
+          -d "{\"cost\":1}")
+        if [[ "$code" == "400" ]]; then
+          ok "tenant cannot set the cost on their repair request (HTTP $code)"
+        else
+          bad "TENANT SET REPAIR COST" "expected 400, got $code"
+        fi
+        body=$(curl -s -X PATCH "$URL/rest/v1/repair_requests?id=eq.$REPAIR" \
+          -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+          -d "{\"landlord_note\":\"probe\"}")
+        if [[ "$body" == "[{"* ]]; then
+          ok "landlord can add a note to the tenant's repair request (1 row)"
+        else
+          bad "landlord repair update blocked" "${body:0:140}"
+        fi
+        code=$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "$URL/rest/v1/repair_requests?id=eq.$REPAIR" \
+          -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+          -d "{\"description\":\"rewritten by landlord\"}")
+        if [[ "$code" == "400" ]]; then
+          ok "landlord cannot rewrite the tenant's description (HTTP $code)"
+        else
+          bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
+        fi
+      fi
+      [[ -n "$REPAIR" ]] && curl -s -o /dev/null -X DELETE "$URL/rest/v1/repair_requests?id=eq.$REPAIR" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
+      # Detach the tenant before the rental goes (rentals.tenant_id has no cascade).
+      [[ -n "$T_ID" ]] && curl -s -o /dev/null -X PATCH "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
+        -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" -d '{"tenant_id":null}'
+
       # Seeded rows go before the user: rentals.landlord_id has no cascade.
       curl -s -o /dev/null -X DELETE "$URL/rest/v1/messages?rental_id=eq.$PROBE_RENTAL" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
       curl -s -o /dev/null -X DELETE "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
@@ -333,6 +402,8 @@ else
     [[ -n "$PROBE_PROP" ]] && curl -s -o /dev/null -X DELETE "$URL/rest/v1/properties?id=eq.$PROBE_PROP" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
 
     # Clean up regardless of outcome.
+    [[ -n "${T_ID:-}" ]] && curl -s -o /dev/null -X DELETE "$URL/auth/v1/admin/users/$T_ID" \
+      -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
     curl -s -o /dev/null -X DELETE "$URL/auth/v1/admin/users/$PROBE_ID" \
       -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
     echo "  ....  probe user removed"
