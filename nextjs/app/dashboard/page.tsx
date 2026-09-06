@@ -11,7 +11,7 @@ import { SecureImage } from '@/components/secure-image'
 import { track } from '@/lib/analytics/track'
 import { sha256Hex } from '@/lib/crypto/file-hash'
 import { localMonth, calendarDaysBetween } from '@/lib/date/calendar'
-import { computeLateFee, leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge } from '@/lib/rentals/terms'
+import { leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge } from '@/lib/rentals/terms'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 
@@ -523,17 +523,15 @@ export default function DashboardPage() {
     })()
   }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-apply late fee when tenant has an overdue payment without one yet
-  useEffect(() => {
-    const pmt = tenantData?.currentPayment
-    const rental = tenantData?.rental
-    if (!pmt || !rental || pmt.status !== 'overdue' || pmt.late_fee) return
-    const fee = computeLateFee(rental)
-    if (fee <= 0) return
-    sb.from('rent_payments').update({ late_fee: fee }).eq('id', pmt.id).then(({ error }) => {
-      if (!error) setTenantData((d: any) => ({ ...d, currentPayment: { ...d.currentPayment, late_fee: fee } }))
-    })
-  }, [tenantData?.currentPayment?.id])
+  // Late fees are applied server-side by mark_overdue_payments()
+  // (031_server_side_late_fees.sql), not here.
+  //
+  // This used to be a useEffect in the TENANT's dashboard that computed the fee
+  // and PATCHed it onto their own payment row. The party who owes the money was
+  // deciding whether to record it: a tenant who never opened the app was never
+  // charged, and one who did could PATCH it back to zero. It also duplicated the
+  // calculation in TypeScript, where `late_fee_percent || 5` turned a waived 0
+  // into 5%.
 
   const handleSignOut = async () => { await sb.auth.signOut(); window.location.href = '/signin' }
 

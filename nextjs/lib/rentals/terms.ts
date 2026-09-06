@@ -16,7 +16,20 @@ export interface RentalTerms {
   end_date?: string | null
 }
 
-/** Late fee charged on overdue rent, in the rental's currency. */
+/**
+ * Late fee charged on overdue rent, in the rental's currency.
+ *
+ * REFERENCE IMPLEMENTATION, not the one that runs in production. Since
+ * 031_server_side_late_fees.sql the fee is applied by mark_overdue_payments(),
+ * because the previous arrangement had the tenant's own browser deciding whether
+ * to record a charge against the tenant.
+ *
+ * Kept, with its tests, because those tests are the executable statement of a rule
+ * that is easy to get wrong and was got wrong: a stored 0 means the landlord
+ * waived the fee, and only an absent value falls back to 5%. The SQL must agree
+ * with this — it uses coalesce, which has the same semantics — and if the two ever
+ * diverge, these tests are where the intended behaviour is written down.
+ */
 export function computeLateFee(rental: RentalTerms): number {
   const rent = Number(rental.monthly_rent)
   if (!Number.isFinite(rent) || rent <= 0) return 0
