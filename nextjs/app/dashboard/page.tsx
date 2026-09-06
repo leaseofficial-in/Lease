@@ -9,6 +9,7 @@ import { useRegion } from '@/lib/hooks/useRegion'
 import { getRegion } from '@/lib/i18n/regions'
 import { SecureImage } from '@/components/secure-image'
 import { track } from '@/lib/analytics/track'
+import { sha256Hex } from '@/lib/crypto/file-hash'
 import { localMonth, calendarDaysBetween } from '@/lib/date/calendar'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
@@ -1679,10 +1680,20 @@ export default function DashboardPage() {
         for (const file of files) {
           const ext = file.name.split('.').pop()
           const path = `move-in/${rental.id}/${activeRoom.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.${ext}`
-          const { error: upErr } = await sb.storage.from('proof-photos').upload(path, file, { upsert: true })
+          // Hash the bytes BEFORE upload, so the recorded digest describes exactly
+          // what was submitted. Null on a non-secure origin, where crypto.subtle
+          // is unavailable — recorded as unknown rather than blocking a tenant
+          // from filing their own deposit evidence.
+          const sha256 = await sha256Hex(file)
+          // upsert:false on purpose. Every path already carries a timestamp (and
+          // a random suffix here), so a collision is effectively impossible; what
+          // upsert:true allowed was silently replacing the bytes behind an
+          // already-submitted proof photo while its row stayed identical. For
+          // evidence, an error is the correct outcome.
+          const { error: upErr } = await sb.storage.from('proof-photos').upload(path, file, { upsert: false })
           if (upErr) throw upErr
           const { data: urlData } = sb.storage.from('proof-photos').getPublicUrl(path)
-          const { data: row, error: photoErr } = await sb.from('proof_photos').insert({ proof_id: proofId, room_label: activeRoom, storage_path: path, public_url: urlData.publicUrl, uploaded_by: user.id }).select().single()
+          const { data: row, error: photoErr } = await sb.from('proof_photos').insert({ proof_id: proofId, room_label: activeRoom, storage_path: path, public_url: urlData.publicUrl, uploaded_by: user.id, sha256 }).select().single()
           if (photoErr) throw photoErr
           newPhotos.push(row as ProofPhoto)
         }
@@ -2386,7 +2397,7 @@ export default function DashboardPage() {
           const ts = Date.now()
           const ext = file.name.split('.').pop()
           const path = `payment-receipts/${rental.id}/${ts}.${ext}`
-          const { error: uploadErr } = await sb.storage.from('proof-photos').upload(path, file, { upsert: true })
+          const { error: uploadErr } = await sb.storage.from('proof-photos').upload(path, file, { upsert: false })
           if (uploadErr) throw uploadErr
           const { data: urlData } = sb.storage.from('proof-photos').getPublicUrl(path)
           proofUrl = urlData?.publicUrl || ''
@@ -2518,7 +2529,7 @@ export default function DashboardPage() {
         if (file) {
           const ext = file.name.split('.').pop()
           const path = `${rentalId}/${Date.now()}.${ext}`
-          const { error: upErr } = await sb.storage.from('repair-photos').upload(path, file, { upsert: true })
+          const { error: upErr } = await sb.storage.from('repair-photos').upload(path, file, { upsert: false })
           if (upErr) throw upErr
           const { data: urlData } = sb.storage.from('repair-photos').getPublicUrl(path)
           photo_url = urlData.publicUrl

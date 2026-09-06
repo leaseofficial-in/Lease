@@ -286,10 +286,39 @@ the end of a long session — a careless pass here would introduce exactly the c
 of bug it is meant to remove. Best done alongside P2-2 (splitting the file), where
 each extracted component can be fixed and reviewed in isolation.
 
-### P2-4 · Marketing claims "geotagged" move-in photos · OPEN
-`/for/landlords` advertises "tamper-proof, geotagged move-in photos". The stored
-JPEG inspected during the audit has EXIF but **no GPSInfo tag**. Either implement
-geotagging or drop the claim — an unsupported trust claim is worse than no claim.
+### P2-4 · Move-in proof did not deliver what the copy promises · PARTIAL — **needs a decision**
+Raised as a copy nit; it is bigger than that. Across 14 places the marketing claims
+move-in photos are "tamper-proof", "sealed", carry "a cryptographic seal", that
+"neither side can edit them", and that "server time + GPS" is captured at submit.
+
+Checked against the code. There was **no hashing anywhere in the repository**, no
+geolocation capture anywhere, and the stored JPEGs carry no GPSInfo EXIF tag. The
+whole "sealed record" value proposition rested on nothing.
+
+Worse, migration `026` — from earlier in this same session — had *granted* UPDATE
+on the photo buckets, reasoning that uploads pass `upsert: true`. That reasoning
+was wrong twice over: every upload path already carries a timestamp so collisions
+cannot realistically happen, and what the policy actually permitted was replacing
+the bytes behind an already-submitted proof photo while its row — id, timestamp,
+uploader — stayed identical. Exactly the substitution "tamper-proof" promises is
+impossible. Caught on re-reading and reverted in `028`.
+
+**Now true:** the UPDATE policy is gone, uploads pass `upsert: false` so a
+collision errors instead of replacing evidence, `proof_photos` carries a SHA-256 of
+the bytes computed before upload, and the table already had only SELECT and INSERT
+policies so its rows were never editable. If a stored object stops matching its
+recorded hash, either party can demonstrate the file changed. Pinned by 5 tests
+against published SHA-256 vectors, because a hash column that silently changes
+encoding would make untouched photos look tampered with.
+
+**Still not true, and needs your decision:** nothing is geotagged. Implementing it
+means a location-permission prompt at the moment a tenant is mid-task, which is a
+product call, not an engineering one. Either build it or drop the claim from those
+14 places. Deliberately not changed unilaterally — it is public-facing positioning.
+
+Honest framing of what the hash is: the client computes it, so it attests to what
+that browser saw, not to who saw it. It is not a signature and should not be
+described as one.
 
 ### P2-5 · `maintenance_charges` is `integer` · OPEN
 Every other money column is `numeric(12,2)`. This one cannot represent cents, so it
