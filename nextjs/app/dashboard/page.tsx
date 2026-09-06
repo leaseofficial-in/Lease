@@ -3132,12 +3132,23 @@ export default function DashboardPage() {
 
               </div>
             ) : (
-              /* No valid link yet */
+              /* No usable link: either none was ever made, or the one the landlord
+                 already sent has lapsed. Those are different situations and saying
+                 "No invite link yet" for both hides the second one entirely -- the
+                 landlord believes the code they shared still works while the tenant
+                 is being told it has expired. Every unclaimed invite in production
+                 is in exactly this state. */
               <div style={{ padding: '24px 20px', borderRadius: 16, border: '2px dashed var(--rb-border)', textAlign: 'center' }}>
-                <div style={{ marginBottom: 10, color: 'var(--rb-ink-3)' }}><Icon k="link" size={36} stroke={1.3} /></div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--rb-ink)', marginBottom: 6 }}>No invite link yet</div>
-                <div style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 18, lineHeight: 1.5 }}>Generate a link to invite your tenant via WhatsApp, SMS, or any messaging app</div>
-                <Button variant="primary" onClick={handleRegenerateLink} disabled={saving}>{saving ? 'Generating…' : <><Icon k="link" size={14} stroke={2} /> Generate invite link</>}</Button>
+                <div style={{ marginBottom: 10, color: r.invite_token ? 'var(--rb-warning)' : 'var(--rb-ink-3)' }}><Icon k="link" size={36} stroke={1.3} /></div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--rb-ink)', marginBottom: 6 }}>
+                  {r.invite_token ? 'This invite has expired' : 'No invite link yet'}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 18, lineHeight: 1.5 }}>
+                  {r.invite_token
+                    ? <>The code <strong style={{ fontFamily: 'var(--rb-font-mono)', color: 'var(--rb-ink-2)' }}>{r.invite_token}</strong> stopped working {relDateFmt(r.invite_expires_at)}. Generate a new one and send it again — your tenant cannot join with the old code.</>
+                    : 'Generate a link to invite your tenant via WhatsApp, SMS, or any messaging app'}
+                </div>
+                <Button variant="primary" onClick={handleRegenerateLink} disabled={saving}>{saving ? 'Generating…' : <><Icon k="link" size={14} stroke={2} /> {r.invite_token ? 'Generate a new link' : 'Generate invite link'}</>}</Button>
               </div>
             )}
           </div>

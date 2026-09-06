@@ -255,6 +255,19 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   with both probe sessions: uploader deletes (200), the other party to the same
   rental cannot (400). 49 → 52 checks.
 
+- **Batch 25 — every invite in production is dead, and the landlord is not told.**
+  `select count(*) from rentals where tenant_id is null`: 43 expired, **0 live**.
+  Nine rentals of 52 ever got a tenant. The invite modal renders on
+  `inviteLink && !inviteExpired`; the else branch says "No invite link yet" whether
+  the landlord never made one or the one they sent by WhatsApp lapsed after 7 days.
+  So the landlord believes the shared code works while the tenant is told it has
+  expired, and neither is looking at the same screen. The regenerate path did exist
+  (`handleRegenerateLink`), just behind copy that gave nobody a reason to press it.
+  Now: "This invite has expired", the dead code shown inline with when it stopped
+  working, and "Generate a new link". The invite-claim RPCs themselves are sound —
+  `claim_rental_invite` is atomic on `tenant_id is null` + expiry + not-ended.
+  No behaviour change beyond the copy; the 7-day window is the owner's call (below).
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -269,6 +282,20 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   landlord UPDATE policy and no UI. Product decision needed: does "resolved" reverse
   the deduction (a correcting entry) or merely annotate it? Trigger 039 already
   reserves those two columns for the landlord.
+
+- **The 7-day invite window is the biggest funnel drop in the product.** 43 of 52
+  rentals hold an expired, never-claimed invite; 0 are live. A landlord adds a unit,
+  sends a WhatsApp code, and the tenant — who has to download an app and sign up —
+  takes longer than a week. Extending to 30 days (`011_invite_token_7day_default.sql`
+  plus `tokenExpiry()` in the dashboard) is a one-line change on each side, but it
+  widens the window in which a leaked code can claim a tenancy, so it is a product
+  decision, not mine. The copy fix in Batch 25 is the safe half. Also worth the
+  owner's attention: nothing emails a landlord when an invite lapses unclaimed.
+- **`accept_rental_invite` contradicts `claim_rental_invite`.** The former sets
+  `status = 'pending_proof'`, a value no other code path produces (live values are
+  active / pending_tenant / ended) and no CHECK constraint forbids. EXECUTE was
+  revoked in 036 so it is unreachable from the API and nothing calls it; dropping it
+  is safe but is a deletion, so it is recorded rather than done.
 
 ### Verified clean this round (do not re-audit)
 - `agreements` bucket: no policy, no live reader. 15 HTML files from the old Expo
@@ -379,13 +406,12 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-038-041 applied to prod, pushed, and each proven live. `/api/email/payment-confirmed`
-is deployed and answers 401 unauthenticated; site health 200 across the public
-routes. Remaining angles, in order:
-1. Client *reads*: the three dead-write findings came from walking client writes
-   against `pg_policies`. A `.select()` that returns [] to the party who should see
-   it is the same bug wearing the other face — walk every read the same way.
-2. `rentals.invite_token` is never rotated or cleared once claimed; the row keeps a
-   live-looking token for the life of the tenancy.
-3. One orphan blob remains in `proof-photos` (10 objects, 9 rows). Its uploader can
-   now clear it, but nothing prompts them. A service-role sweep is the owner's call.
+Batches 21-25 are applied, pushed and live-proven. Next, unexplored:
+1. Client *reads*: the dead-write findings came from walking client writes against
+   `pg_policies`. Do the same for every `.select()` — a read that returns [] to the
+   party who should see it is the same bug wearing the other face.
+2. `rentals.invite_token` is never cleared after a claim; a leaked code keeps
+   resolving through `rental_invite_preview` (rent, deposit, landlord name, city)
+   for the life of the tenancy, even though it can no longer be claimed.
+3. One orphan blob in `proof-photos` (10 objects, 9 rows) — its uploader can now
+   clear it, but nothing prompts them.
