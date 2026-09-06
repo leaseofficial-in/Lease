@@ -196,6 +196,54 @@ signed images, a11y (Field/Modal/keyboard), hooks-order fixes, Link conversions,
 tracking, error boundaries, welcome email on all paths, country onboarding, next-param
 preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
 
+## Sprint summary — 2026-09-07
+
+**Starting point:** 65 tests · lint 10 errors (not gating) · security harness 34 ·
+two cron jobs silently dead · one activation-blocking form · reminders never sent.
+
+**Ending point:** 198 tests · lint 0 (gating `verify`) · security harness 39, all
+green, self-cleaning · production healthy on every route · every DB change applied,
+verified by execution, and committed as a migration.
+
+### What materially changed
+- **Ledger correctness.** The SQL overdue job had NEVER run (missing column, 037);
+  process-rent judged every tenant by Indian time (034 retired it); rent-row creation
+  now happens in Postgres per tenant timezone. Late fees respect a waived 0%.
+- **Security.** Anon could execute privileged functions via /rpc (036). Any user
+  could overwrite any avatar (035). Invite pages were indexable (noindex layouts).
+  Every dashboard write now fails loudly on zero rows (`assertAffected`) instead of
+  green-toasting an RLS denial. Function EXECUTE now defaults to private.
+- **Retention loop.** Landlord is emailed when a tenant records a payment
+  (`payment-submitted`, least-privilege, e2e-verified on prod with £ formatting).
+  Reminder planning is a pure, tested function; the incident shape (8 mails to one
+  person) is a regression test.
+- **Globalisation.** Locale month labels, Intl relative days (fr/de/es verified),
+  12-region registry integrity test, timezone-correct cron.
+- **Product/UX.** Tenants have a self-serve invite-code path; `/join` normalises
+  pasted codes; modal field pairs stack on phones; Button + EmptyState primitives
+  (39 sites, pixel-identical); hydration effects removed; token entropy ~50 bits.
+
+### What I got wrong this sprint, and caught
+- Retired process-rent before running its replacement by hand → overdue marking
+  broken until 037. (Lesson 12.)
+- First cut of the cron-route rewrite spliced into the wrong `return`. Typecheck.
+- Three new modules each had a real bug found by their own first test run
+  (planner clamp window, RelativeTimeFormat upper-casing throw, Kolkata alias).
+- Repeated cwd slips on this Windows shell cost several retries. Use absolute paths.
+
+### Still open — needs the owner
+1. `assetlinks.json` serves placeholder fingerprints → Android deep links open Chrome.
+2. Reminder cron disabled pending cleanup of stale founder test rentals.
+3. "Geotagged" claim on 14 marketing surfaces is untrue.
+4. Acquisition: 0 signups in 5 days. Technical SEO is correct; this is distribution.
+
+### Still open — engineering, lower priority
+- Badge/Card primitives (visual change, needs a browser to verify).
+- Dashboard split (4,800 lines); `AgreementDocument` is the safe first extraction.
+- Vercel KV for the rate limiter before any per-call-cost endpoint.
+- String extraction for real i18n once a translation source exists.
+- Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
+
 ## Test status
 198/198 tests · typecheck clean · build clean · security 39/39 · lint 0 (gates verify).
 
