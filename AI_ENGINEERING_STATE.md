@@ -113,11 +113,30 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   → any user could overwrite anyone's public profile picture). Dormant (no upload
   feature, 0 objects) but reachable via API. Harness now checks it (36 checks).
 - `lib/native.ts`: `isNativeApp` was duplicated verbatim in signin + signup.
-- Tests 65 → 101. Lint 10 → **0**. Security 36/36. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
+- `lib/i18n/regions.test.ts`: 12 regions × (locale, IANA timezone, currency,
+  phone, payment-method labels, currency formatting) + picker coverage + fallback.
+  A broken region now fails the build instead of silently breaking a country.
+  Note: ICU canonicalises `Asia/Kolkata`→`Asia/Calcutta`; the test compares offsets.
+- Tests 65 → 189. Lint 10 → **0**. Security 36/36. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
   (an `<a href="/rentals/">`). Every file I own is lint-clean. signin derives the
   auth-failed message from `useSearchParams` (Suspense-wrapped); country page and
   footer selector read `useRegion()` instead of seeding state from an effect;
   homepage `Dial` hoisted to module scope; seal flash is a ref-driven class toggle.
+
+### P1 — needs the owner (found this sprint)
+- **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
+  serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
+  `REPLACE_WITH_PLAY_SIGNING_SHA256`. Effect: an invite link tapped on Android opens
+  Chrome, never the installed app. Fix needs the local release keystore (never
+  regenerate it): `keytool -list -v -keystore rentybase.keystore -alias rentybase`
+  → SHA-256, plus Play Console → Setup → App Integrity → app signing SHA-256. Paste
+  both into `app/.well-known/assetlinks.json/route.ts`.
+
+### Verified clean this round (do not re-audit)
+- `agreements` bucket: no policy, no live reader. 15 HTML files from the old Expo
+  Edge Function; the Next.js app renders agreements inline and prints. Orphaned.
+- Edge Functions all run as service_role; triggers exempt null uid → unaffected.
+- sitemap/robots, updated_at triggers, service-role-only policies: all correct.
 
 ### P0 / P1 — open
 - **Acquisition**: 7 signups in ~2 months, 0 in last 4 days. Not a code problem.
@@ -148,7 +167,7 @@ tracking, error boundaries, welcome email on all paths, country onboarding, next
 preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
 
 ## Test status
-101/101 tests · typecheck clean · build clean · security 36/36 · lint 0 (gates verify).
+189/189 tests · typecheck clean · build clean · security 36/36 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
