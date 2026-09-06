@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react'
+import { useState, useEffect, useCallback, useRef, useId, Children, isValidElement, cloneElement, type ChangeEvent, type ReactElement } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
 import { useRegion } from '@/lib/hooks/useRegion'
@@ -186,22 +186,123 @@ let toastId = 0
 
 // ── Modal ─────────────────────────────────────────────────────────────────
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const titleId = useId()
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // A dialog that cannot be closed from the keyboard, does not announce itself,
+  // and lets Tab wander off behind the backdrop is not usable without a mouse.
+  // This covers the three things that matter: Escape closes it, focus moves in on
+  // open and returns to the trigger on close, and Tab is trapped inside.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null
+
+    const focusable = () =>
+      Array.from(
+        panelRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter(el => el.offsetParent !== null)
+
+    // Prefer the first real field over the close button, so a keyboard user lands
+    // where the work is rather than on "dismiss".
+    const initial = focusable().find(el => el.tagName !== 'BUTTON') ?? focusable()[0]
+    initial?.focus()
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const items = focusable()
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      if (e.shiftKey && (active === first || !panelRef.current?.contains(active))) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    // The page behind a modal must not scroll under it.
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = prevOverflow
+      previouslyFocused?.focus?.()
+    }
+  }, [onClose])
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(14,20,19,.55)', backdropFilter: 'blur(5px)', display: 'grid', placeItems: 'center', padding: 20 }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ background: 'var(--rb-canvas)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId}
+        style={{ background: 'var(--rb-canvas)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
         <button aria-label="Close" onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, border: 0, background: 'var(--rb-fill-2)', borderRadius: '50%', cursor: 'pointer', fontSize: 18, lineHeight: 1, display: 'grid', placeItems: 'center', color: 'var(--rb-ink-3)' }}>×</button>
-        <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 26, fontWeight: 400, letterSpacing: '-.02em', marginBottom: 18 }}>{title}</h2>
+        <h2 id={titleId} style={{ fontFamily: 'var(--rb-font-display)', fontSize: 26, fontWeight: 400, letterSpacing: '-.02em', marginBottom: 18 }}>{title}</h2>
         {children}
       </div>
     </div>
   )
 }
 
+// Makes a non-semantic clickable element reachable and operable from a keyboard.
+// A bare <div onClick> is invisible to Tab and inert to Enter/Space, so these rows
+// and tiles were mouse-only. Spread onto the element alongside its onClick.
+function clickableProps(onActivate: () => void, label?: string) {
+  return {
+    role: 'button' as const,
+    tabIndex: 0,
+    'aria-label': label,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        onActivate()
+      }
+    },
+  }
+}
+
+const FIELD_LABEL_STYLE = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--rb-ink-3)', marginBottom: 5, letterSpacing: '.1em', textTransform: 'uppercase' as const }
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId()
+  // The label used to be a bare <label> sitting next to the control with no
+  // association at all, so a screen reader announced ~80 inputs across this
+  // dashboard as unlabelled "edit text". htmlFor + a generated id fixes that
+  // wherever the field holds exactly one control.
+  //
+  // Fields that wrap a GROUP of controls -- the status chips, the payment-method
+  // picker -- get a labelled group instead. htmlFor would name only the first of
+  // them, and wrapping them in a <label> would be worse still: clicking the label
+  // text would activate that first control.
+  const items = Children.toArray(children)
+  const only = items.length === 1 ? items[0] : null
+  const isSingleControl =
+    isValidElement(only) &&
+    typeof only.type === 'string' &&
+    ['input', 'select', 'textarea'].includes(only.type)
+
+  if (isSingleControl) {
+    return (
+      <div style={{ marginBottom: 14 }}>
+        <label htmlFor={id} style={FIELD_LABEL_STYLE}>{label}</label>
+        {cloneElement(only as ReactElement<{ id?: string }>, { id })}
+      </div>
+    )
+  }
+
   return (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--rb-ink-3)', marginBottom: 5, letterSpacing: '.1em', textTransform: 'uppercase' }}>{label}</label>
+    <div style={{ marginBottom: 14 }} role="group" aria-label={label}>
+      <div style={FIELD_LABEL_STYLE}>{label}</div>
       {children}
     </div>
   )
@@ -251,6 +352,8 @@ export default function DashboardPage() {
   const relDateFmt = (iso?: string) => relDate(iso, region.locale)
 
   const [viewStack, setViewStack] = useState<string[]>(['home'])
+
+
   const activeView = viewStack[viewStack.length - 1]
   const [refreshKey, setRefreshKey] = useState(0)
   const [landlordData, setLandlordData] = useState<any>(null)
@@ -265,6 +368,22 @@ export default function DashboardPage() {
   const [messagingRental, setMessagingRental] = useState<Rental | null>(null)
   const [notifications, setNotifications] = useState<any[]>([])
   const [showMoreMenu, setShowMoreMenu] = useState(false)
+
+  // Escape closes the overlays that are not <Modal> -- the photo lightbox and the
+  // mobile "more" sheet. Their backdrops are click-to-dismiss, which leaves a
+  // keyboard user with no way out at all. The backdrops stay aria-hidden rather
+  // than becoming role="button": a full-screen scrim announced as a button is
+  // noise, and Escape is the expected gesture for dismissal.
+  useEffect(() => {
+    if (!lightbox && !showMoreMenu) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (lightbox) setLightbox(null)
+      else if (showMoreMenu) setShowMoreMenu(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [lightbox, showMoreMenu])
   const msgChannelRef = useRef<any>(null)
 
   const toast = useCallback((msg: string, type: Toast['type'] = 'info') => {
@@ -514,7 +633,7 @@ export default function DashboardPage() {
       setModal(isLandlord ? 'repair-update' : 'repair-detail')
     }
     return (
-      <div onClick={handleClick} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center', padding: 12, borderRadius: 10, background: 'var(--rb-surface)', marginBottom: 8, cursor: 'pointer' }}>
+      <div onClick={handleClick} {...clickableProps(handleClick, `Repair: ${r.title}`)} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center', padding: 12, borderRadius: 10, background: 'var(--rb-surface)', marginBottom: 8, cursor: 'pointer' }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
@@ -546,6 +665,7 @@ export default function DashboardPage() {
               </button>
             )}
             <div onClick={() => setLightbox({ url: p.public_url || '', label: p.room_label || 'Room' })}
+              {...clickableProps(() => setLightbox({ url: p.public_url || '', label: p.room_label || 'Room' }), `View photo: ${p.room_label || 'Room'}`)}
               style={{ aspectRatio: '1', borderRadius: 8, position: 'relative', overflow: 'hidden', cursor: 'pointer', background: p.public_url ? 'none' : `linear-gradient(135deg,${colors[i % colors.length]},#2c1c0e)` }}>
               {p.public_url && <SecureImage src={p.public_url} alt={p.room_label || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(transparent 50%,rgba(0,0,0,.55))' }} />
@@ -565,7 +685,7 @@ export default function DashboardPage() {
     const pillMap = { paid: { t: 'Paid', bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }, pending_verification: { t: 'Review', bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)' }, pending: { t: 'Due', bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' }, overdue: { t: 'Overdue', bg: 'rgba(239,68,68,.1)', c: 'var(--rb-danger)' } }
     const pill = (pmt && (pillMap as any)[pmt.status]) || (!r.tenant_id ? { t: 'Vacant', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' } : { t: 'Pending', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' })
     return (
-      <div onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ display: 'grid', gridTemplateColumns: '48px 1fr auto', gap: 12, alignItems: 'center', padding: '10px 12px', background: 'var(--rb-surface)', borderRadius: 10, cursor: 'pointer', border: '1px solid var(--rb-border-soft)' }}>
+      <div onClick={() => { setSelectedRental(r); setModal('property-detail') }} {...clickableProps(() => { setSelectedRental(r); setModal('property-detail') }, `Property: ${r.property?.name || 'Unit'}`)} style={{ display: 'grid', gridTemplateColumns: '48px 1fr auto', gap: 12, alignItems: 'center', padding: '10px 12px', background: 'var(--rb-surface)', borderRadius: 10, cursor: 'pointer', border: '1px solid var(--rb-border-soft)' }}>
         <div style={{ width: 48, height: 48, borderRadius: 8, background: r.tenant_id ? 'linear-gradient(135deg,#2a5298,#1e3c72)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', color: r.tenant_id ? '#fff' : 'var(--rb-ink-3)' }}>{r.tenant_id ? <Icon k="key" size={20} stroke={1.8} /> : <Icon k="unlock" size={20} stroke={1.8} />}</div>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--rb-ink)' }}>
@@ -4542,7 +4662,7 @@ export default function DashboardPage() {
 
       {/* Mobile "More" sheet backdrop */}
       {showMoreMenu && (
-        <div onClick={() => setShowMoreMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 290, background: 'rgba(0,0,0,.35)' }} />
+        <div onClick={() => setShowMoreMenu(false)} aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 290, background: 'rgba(0,0,0,.35)' }} />
       )}
 
       {/* Mobile "More" sheet */}
@@ -4611,7 +4731,7 @@ export default function DashboardPage() {
 
       {/* Lightbox */}
       {lightbox && (
-        <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(0,0,0,.88)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={() => setLightbox(null)} role="dialog" aria-modal="true" aria-label={lightbox.label} style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(0,0,0,.88)', display: 'grid', placeItems: 'center', padding: 20 }}>
           <SecureImage
             src={lightbox.url}
             alt={lightbox.label}

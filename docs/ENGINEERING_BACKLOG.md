@@ -210,10 +210,32 @@ not to whoever is looking at it — delivered by extending `rental_invite_previe
 **Validation.** RPC returns `property_country`; bogus tokens still return `[]` and
 `rentals` is still unreadable by anon, so 021's guarantees are intact.
 
-### P1-7 · Dashboard accessibility · OPEN
+### P1-7 · Dashboard accessibility · PARTIAL
 153 `<button>` elements with 4 `aria-label`s, zero `role=` attributes, 5
 click-handling `<div>`s that keyboard users cannot reach, 82 inputs whose
 label association is unverified. No focus-visible styling audit has been done.
+
+**Done 2026-09-06 — the structural blockers:**
+- `Field` rendered a bare `<label>` beside its control with no association, so
+  roughly 80 inputs were announced as unlabelled "edit text". Now `htmlFor` + a
+  generated id when the field holds exactly one control, and `role="group"` +
+  `aria-label` when it wraps several (the status chips, the payment-method
+  picker) — `htmlFor` would have named only the first of those, and wrapping them
+  in a `<label>` would make clicking the text activate it.
+- `Modal` had no dialog semantics, no Escape, and no focus management. Now
+  `role="dialog"` + `aria-modal` + `aria-labelledby`, Escape to close, focus moved
+  in on open (to the first real field rather than the close button) and returned to
+  the trigger on close, Tab trapped inside, and body scroll locked.
+- The three click-handling `<div>`s are keyboard-operable via a shared
+  `clickableProps` helper (role, tabIndex, Enter/Space).
+- The lightbox and mobile "more" sheet close on Escape; their scrims are
+  `aria-hidden` rather than announced as buttons.
+
+**Still open:** icon-only buttons largely lack `aria-label`; no `:focus-visible`
+styling audit; colour-contrast has not been measured; no screen-reader pass has
+actually been performed. Marked PARTIAL for that reason — what shipped is the
+structural layer, verified by reading the DOM contract rather than by testing with
+assistive technology.
 
 ---
 
