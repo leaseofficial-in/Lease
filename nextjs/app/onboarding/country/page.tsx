@@ -2,11 +2,12 @@
 
 export const dynamic = 'force-dynamic'
 
-import { Suspense, useState, useEffect, useCallback } from 'react'
+import { Suspense, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { REGIONS, COUNTRY_PICKER_ORDER, getRegion } from '@/lib/i18n/regions'
-import { setRegionCookie, getRegionFromCookie } from '@/lib/region'
+import { setRegionCookie } from '@/lib/region'
+import { useRegion } from '@/lib/hooks/useRegion'
 import type { CountryCode } from '@/lib/i18n/regions'
 
 function CountryOnboardingInner() {
@@ -14,14 +15,14 @@ function CountryOnboardingInner() {
   const searchParams = useSearchParams()
   const next = searchParams.get('next') || '/dashboard'
 
-  const [selected, setSelected] = useState<CountryCode>('IN')
+  // The cookie region is the default; the user's tap overrides it. Holding only
+  // the override means no effect is needed to seed state from the cookie — the
+  // hook already gives the right value on first render, SSR-safe.
+  const region = useRegion()
+  const [override, setSelected] = useState<CountryCode | null>(null)
+  const selected: CountryCode = override ?? region.countryCode
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
-
-  useEffect(() => {
-    const fromCookie = getRegionFromCookie()
-    setSelected(fromCookie.countryCode)
-  }, [])
 
   const filtered = COUNTRY_PICKER_ORDER.filter(code => {
     const r = REGIONS[code]

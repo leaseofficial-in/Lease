@@ -472,6 +472,20 @@ function Trust() {
 }
 
 /* ── Scores ────────────────────────────────────────────────── */
+// Module scope, not inside Scores(): a component declared during render gets a
+// new identity every pass, so React remounts it instead of updating - and the SVG
+// arc animation restarts. Dial closes over nothing.
+const Dial = ({ value, max = 900, color }: { value: number; max?: number; color: string }) => {
+  const pct = value / max, C = 2 * Math.PI * 78
+  return (
+    <svg viewBox="0 0 200 200" width="200" height="200">
+      <defs><linearGradient id={`g${color.replace('#', '')}`} x1="0" x2="1"><stop offset="0" stopColor={color} stopOpacity=".4" /><stop offset="1" stopColor={color} /></linearGradient></defs>
+      <circle cx="100" cy="100" r="78" fill="none" stroke="#E6E2D7" strokeWidth="10" />
+      <circle cx="100" cy="100" r="78" fill="none" stroke={`url(#g${color.replace('#', '')})`} strokeWidth="10" strokeDasharray={`${C * pct} ${C}`} strokeLinecap="round" transform="rotate(-90 100 100)" style={{ transition: 'stroke-dasharray 1.6s cubic-bezier(.22,1,.36,1)' }} />
+    </svg>
+  )
+}
+
 function Scores() {
   const ref = useRef<HTMLElement>(null)
   const [shown, setShown] = useState(false)
@@ -485,16 +499,6 @@ function Scores() {
   const tScore = useCount(842, shown, 1600)
   const lScore = useCount(786, shown, 1600)
 
-  const Dial = ({ value, max = 900, color }: { value: number; max?: number; color: string }) => {
-    const pct = value / max, C = 2 * Math.PI * 78
-    return (
-      <svg viewBox="0 0 200 200" width="200" height="200">
-        <defs><linearGradient id={`g${color.replace('#', '')}`} x1="0" x2="1"><stop offset="0" stopColor={color} stopOpacity=".4" /><stop offset="1" stopColor={color} /></linearGradient></defs>
-        <circle cx="100" cy="100" r="78" fill="none" stroke="#E6E2D7" strokeWidth="10" />
-        <circle cx="100" cy="100" r="78" fill="none" stroke={`url(#g${color.replace('#', '')})`} strokeWidth="10" strokeDasharray={`${C * pct} ${C}`} strokeLinecap="round" transform="rotate(-90 100 100)" style={{ transition: 'stroke-dasharray 1.6s cubic-bezier(.22,1,.36,1)' }} />
-      </svg>
-    )
-  }
 
   const tBreak = [{ k: 'On-time rent', v: '23/24 months', w: 0.92 }, { k: 'Move-in proof', v: 'Submitted', w: 1.0 }, { k: 'Repair reports', v: 'All resolved', w: 0.85 }, { k: 'Deposit history', v: '2 returned in full', w: 0.95 }]
   const lBreak = [{ k: 'Deposit returned', v: '100% on time', w: 1.0 }, { k: 'Repair response', v: 'Avg 1.2 days', w: 0.88 }, { k: 'Rent receipts', v: 'Issued every month', w: 0.95 }, { k: 'Lease compliance', v: '0 violations', w: 1.0 }]
@@ -919,7 +923,11 @@ function MMCinema() {
 function MMProof() {
   const ref = useRef<HTMLElement>(null)
   const p = useScrollProgress(ref, { start: 0.2, end: 0.7 })
-  const [flash, setFlash] = useState(false)
+  // The seal flash is a 600ms visual with no consequence for anything else, so
+  // it lives on the DOM node rather than in React state. The previous version
+  // called setFlash(true) synchronously from an effect (a cascading render) and
+  // then setFlash(false) from a timer that could fire after unmount.
+  const flashRef = useRef<HTMLDivElement>(null)
   const sealOn = p > 0.5
   const tilt = 22 - p * 30
   const yaw = -10 + p * 14
@@ -931,11 +939,13 @@ function MMProof() {
   }, [tilt, yaw])
 
   useEffect(() => {
-    if (sealOn && !flash) {
-      setFlash(true)
-      setTimeout(() => setFlash(false), 600)
-    }
-  }, [sealOn]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!sealOn) return
+    const el = flashRef.current
+    if (!el) return
+    el.classList.add('on')
+    const t = setTimeout(() => el.classList.remove('on'), 600)
+    return () => clearTimeout(t)
+  }, [sealOn])
 
   return (
     <section className="mm-proof" ref={ref}>
@@ -950,7 +960,7 @@ function MMProof() {
           <div className="cell"><span className="room">BEDROOM</span></div>
         </div>
         <span className="ts"><b>12 NOV 2025 · 11:42</b></span>
-        <div className={'mm-proof-flash' + (flash ? ' on' : '')}/>
+        <div ref={flashRef} className="mm-proof-flash" />
         <div className={'mm-proof-seal' + (sealOn ? ' on' : '')} style={{ '--seal-rot': sealOn ? '-14deg' : '-36deg' } as React.CSSProperties}>
           <MMSeal size={100}/>
         </div>

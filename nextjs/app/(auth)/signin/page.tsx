@@ -4,7 +4,8 @@ import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useCallback, useEffect } from 'react'
+import { Suspense, useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
 
@@ -126,17 +127,25 @@ function MobileSplash({ onGoogle, loading, error }: { onGoogle: () => void; load
   )
 }
 
-export default function SignInPage() {
+function SignInInner() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const sb = createClient()
 
+  // The OAuth callback reports failure through the URL. Read it as DERIVED state
+  // rather than copying it into React state from an effect: the value is already
+  // available on first render, and an effect that calls setState only to mirror
+  // it is a second render for nothing. `dismissed` lets a retry clear the message
+  // even though the URL still carries it.
+  const searchParams = useSearchParams()
+  const [dismissedUrlError, setDismissedUrlError] = useState(false)
+  const urlError =
+    !dismissedUrlError && searchParams.get('error') === 'auth_failed'
+      ? `Sign-in failed (${searchParams.get('reason') || 'unknown'}). Try again or contact support.`
+      : ''
+  const shownError = error || urlError
+
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('error') === 'auth_failed') {
-      const reason = params.get('reason') || 'unknown'
-      setError(`Sign-in failed (${reason}). Try again or contact support.`)
-    }
     sb.auth.getSession().then(({ data: { session } }) => {
       if (session) window.location.replace('/dashboard')
     })
@@ -146,6 +155,7 @@ export default function SignInPage() {
     if (loading) return
     setLoading(true)
     setError('')
+    setDismissedUrlError(true)
     try {
       if (isNativeApp()) {
         // Native Android: show Google account picker inside the app — no browser involved.
@@ -184,7 +194,7 @@ export default function SignInPage() {
     <>
       {/* Mobile layout (< 768px) */}
       <div className="m-auth-only">
-        <MobileSplash onGoogle={handleGoogle} loading={loading} error={error} />
+        <MobileSplash onGoogle={handleGoogle} loading={loading} error={shownError} />
       </div>
 
       {/* Desktop layout (≥ 768px) */}
@@ -262,12 +272,12 @@ export default function SignInPage() {
                 )}
               </button>
 
-              {error && (
+              {shownError && (
                 <div className="error-banner" style={{ marginTop: 16 }}>
                   <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ flexShrink: 0, marginTop: 1 }}>
                     <circle cx="10" cy="10" r="8"/><path d="M10 6v4M10 14h.01" strokeLinecap="round"/>
                   </svg>
-                  {error}
+                  {shownError}
                 </div>
               )}
 
@@ -296,5 +306,15 @@ export default function SignInPage() {
         </div>
       </div>
     </>
+  )
+}
+
+// useSearchParams() must sit under a Suspense boundary or the build fails at
+// prerender. Same shape as /onboarding/country.
+export default function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignInInner />
+    </Suspense>
   )
 }

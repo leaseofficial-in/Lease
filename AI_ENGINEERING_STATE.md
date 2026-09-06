@@ -91,7 +91,11 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   clamp, dedup key). The route now only dedups/renders/sends.
 - `useRegion` → `useSyncExternalStore` (no cascading render, no hydration mismatch).
 - `genToken()` 8 chars/~32 bits → 10 chars/~50 bits, confusable glyphs excluded.
-- Tests 65 → 83. Lint 10 → 8 (2 are in the owner's uncommitted geo file).
+- Tests 65 → 83. Lint 10 → **2**, both in the owner's uncommitted `app/rentals/[country]/page.tsx:233`
+  (an `<a href="/rentals/">`). Every file I own is lint-clean. signin derives the
+  auth-failed message from `useSearchParams` (Suspense-wrapped); country page and
+  footer selector read `useRegion()` instead of seeding state from an effect;
+  homepage `Dial` hoisted to module scope; seal flash is a ref-driven class toggle.
 
 ### P0 / P1 — open
 - **Acquisition**: 7 signups in ~2 months, 0 in last 4 days. Not a code problem.
@@ -104,8 +108,8 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
 - Dashboard decomposition (extracting terms found a live money bug; do more).
 - Verify analytics fires in a browser. Verify `client_errors` captures.
 - Cron monitoring: assert on outcome, not on queue success.
-- 8 lint errors: 4 setState-in-effect (signin:138, onboarding/country:23, page.tsx:935,
-  marketing-shell:67), 2 components-during-render (page.tsx:513,520), 2 in owner's WIP.
+- Lint: 2 errors, both in owner's WIP file. Put `lint` back into `verify` once the
+  owner commits that page (check whether HEAD also has the `<a>` — see next task).
 - Mobile: audited. Dashboard has a real phone shell; the three un-collapsed 3-col
   grids are fine on phones (More-sheet icons, 3 small stats, 3 tiny numeric inputs).
   No action needed. 33 two-col grids in modals are cramped-but-functional.
@@ -122,7 +126,7 @@ tracking, error boundaries, welcome email on all paths, country onboarding, next
 preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
 
 ## Test status
-83/83 tests · typecheck clean · build clean · security 34/34 · lint 8 errors.
+83/83 tests · typecheck clean · build clean · security 34/34 · lint 2 (owner WIP only).
 
 ## Next task
 Clear the 6 lint errors in owned files (then lint can rejoin `verify`, excluding the

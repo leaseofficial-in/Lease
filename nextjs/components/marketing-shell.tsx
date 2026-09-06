@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { LogoMark } from './brand'
 import { REGIONS, COUNTRY_PICKER_ORDER, type CountryCode } from '@/lib/i18n/regions'
-import { getRegionFromCookie, setRegionCookie } from '@/lib/region'
+import { setRegionCookie } from '@/lib/region'
+import { useRegion } from '@/lib/hooks/useRegion'
 
 export function MarketingNav() {
   const [open, setOpen] = useState(false)
@@ -61,11 +62,8 @@ export function MarketingNav() {
 }
 
 function FooterRegionSelector() {
-  const [code, setCode] = useState<CountryCode>('IN')
-
-  useEffect(() => {
-    setCode(getRegionFromCookie().countryCode)
-  }, [])
+  // Read through the store hook: correct on first client render, no effect.
+  const code = useRegion().countryCode
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -79,8 +77,9 @@ function FooterRegionSelector() {
         onChange={(e) => {
           const v = e.target.value as CountryCode
           setRegionCookie(v)
-          setCode(v)
-          if (typeof window !== 'undefined') window.location.reload()
+          // Marketing pages are statically rendered per region; a reload is the
+          // honest way to re-render them for the new one.
+          window.location.reload()
         }}
         style={{
           background: 'rgba(246,244,238,.06)',
