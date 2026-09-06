@@ -176,6 +176,76 @@ else
   bad "anon signed a proof photo URL" "storage SELECT policy is too broad"
 fi
 
+# ── 5. Authenticated cross-tenant ─────────────────────────────────────────────
+#
+# The anonymous checks above are the easy half. The harder and more realistic
+# attacker is someone who simply signs up — and that is where the worst hole in
+# this codebase was found: `rent_payments` policies checked `auth.uid() = tenant_id`
+# without checking the caller was the tenant OF THAT RENTAL, so any new account
+# could write payments onto a stranger's ledger. Reasoning about the policies did
+# not reveal it; signing in and trying it did.
+#
+# Needs SUPABASE_SERVICE_ROLE_KEY to mint and destroy a throwaway user. Skipped
+# rather than failed when absent, so a normal local run stays useful — but it is
+# a real gap in coverage when it skips, not a pass.
+
+echo
+echo "Authenticated cross-tenant:"
+
+if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
+  echo "  SKIP  set SUPABASE_SERVICE_ROLE_KEY to run these (they need a throwaway user)"
+else
+  PROBE_EMAIL="rls-probe-$RANDOM@rentybase-test.invalid"
+  PROBE_PASS="Probe!Test-$RANDOM-aA"
+
+  PROBE_ID=$(curl -s -X POST "$URL/auth/v1/admin/users" \
+    -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$PROBE_EMAIL\",\"password\":\"$PROBE_PASS\",\"email_confirm\":true}" \
+    | python -c 'import sys,json; print(json.load(sys.stdin).get("id",""))' 2>/dev/null)
+
+  if [[ -z "$PROBE_ID" ]]; then
+    bad "could not create probe user" "check SUPABASE_SERVICE_ROLE_KEY"
+  else
+    JWT=$(curl -s -X POST "$URL/auth/v1/token?grant_type=password" \
+      -H "apikey: $KEY" -H "Content-Type: application/json" \
+      -d "{\"email\":\"$PROBE_EMAIL\",\"password\":\"$PROBE_PASS\"}" \
+      | python -c 'import sys,json; print(json.load(sys.stdin).get("access_token",""))' 2>/dev/null)
+
+    AUTH="Authorization: Bearer $JWT"
+
+    # A signed-in stranger must see nothing but their own profile row.
+    for t in properties rentals rent_payments deposit_transactions repair_requests \
+             messages proofs proof_photos rental_events rental_activity_feed buildings; do
+      body=$(curl -s "$URL/rest/v1/$t?select=*&limit=3" -H "apikey: $KEY" -H "$AUTH")
+      if [[ "$body" == "[]" ]]; then
+        ok "signed-in stranger sees no $t"
+      else
+        bad "signed-in stranger READ $t" "${body:0:140}"
+      fi
+    done
+
+    # The hole itself: writing a payment onto a rental you have no part in.
+    # Export PROBE_TARGET_RENTAL to aim at a real id; the placeholder still
+    # exercises the same policy path, since membership fails either way and a 201
+    # would be a breach regardless of which rental was targeted.
+    TARGET_RENTAL="${PROBE_TARGET_RENTAL:-00000000-0000-0000-0000-000000000001}"
+    code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/rest/v1/rent_payments" \
+      -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+      -d "{\"rental_id\":\"$TARGET_RENTAL\",\"tenant_id\":\"$PROBE_ID\",\"amount\":1,\"month\":\"2026-01-01\"}")
+    if [[ "$code" == "403" || "$code" == "401" ]]; then
+      ok "signed-in stranger cannot write a payment onto another rental (HTTP $code)"
+    else
+      bad "STRANGER WROTE A PAYMENT" "expected 403, got $code"
+    fi
+
+    # Clean up regardless of outcome.
+    curl -s -o /dev/null -X DELETE "$URL/auth/v1/admin/users/$PROBE_ID" \
+      -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+    echo "  ....  probe user removed"
+  fi
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo
 echo "─────────────────────────────────────────"

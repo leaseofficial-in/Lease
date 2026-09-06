@@ -37,6 +37,50 @@ genuinely gone, verified in `information_schema.role_table_grants`.
 
 ---
 
+## P0 — Critical
+
+### P0-2 · A tenant could rewrite their own lease and forge payments · SHIPPED
+Found by signing in as a throwaway user and **actually exercising** the boundaries
+rather than reading the policies. Reasoning about them had not revealed it; the
+predicates look plausible.
+
+**Hole A — any authenticated user could write payments onto any rental.**
+`"Tenants create payment records"` was `with check (auth.uid() = tenant_id)`. That
+checks the caller stamped *themselves* as tenant; it never checks they are the
+tenant *of that rental*. Demonstrated live: a brand-new account with no
+relationship to anything inserted a `rent_payments` row against a real landlord's
+rental and got **201**. The row was deleted immediately. Because
+`"Landlords view payments for their rentals"` shows a landlord every payment on
+their rentals, forged rows land directly on their ledger, collection rate and
+month totals — and the identical predicate on UPDATE let the attacker then edit
+what they injected.
+
+**Hole B — a tenant could rewrite their own lease.** `"Tenants can update their
+rental (sign agreement)"` was `using (auth.uid() = tenant_id)`. The name says sign;
+the policy granted UPDATE on the whole row. Demonstrated live: the tenant changed
+`monthly_rent` 20000 → 1, `security_deposit` → 0, `late_fee_percent` → 0, then
+inserted a payment marked `paid` they never made.
+
+Every other table already gets this right — `proofs`, `proof_photos`,
+`repair_requests`, `rental_events`, `deposit_transactions` all test rental
+membership. `rent_payments` was the exception, and it is the money table.
+
+**Fix (`030`).** Payment policies now require membership of the rental and forbid
+a tenant writing `status = 'paid'` (the landlord confirms; otherwise that step is
+decorative). Lease terms are protected by a `before update` trigger, because RLS
+cannot express column scope and column grants cannot separate landlord from tenant
+— both are the `authenticated` role. The trigger explicitly permits the invite
+claim: `claim_rental_invite()` is SECURITY DEFINER, which bypasses RLS but **not**
+triggers, and `auth.uid()` inside it is still the tenant's, so a naive trigger
+would have broken joining.
+
+**Validation.** Re-exercised with a real signed-in user: all four attacks denied
+(23514 / 403), while signing the agreement, giving notice and declaring a payment
+all still succeed. All test data and the probe account removed — 22 profiles and
+52 rentals, unchanged.
+
+---
+
 ## P1 — Major
 
 ### P1-1 · Private photos served from public storage buckets · SHIPPED
