@@ -80,26 +80,35 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
 
 ## Backlog
 
+### Done this sprint (in order)
+- 034: monthly rent rows created in Postgres per tenant tz; `process-rent-daily` and
+  `rent-reminder-agent-daily` pg_cron jobs UNSCHEDULED (Edge Functions still deployed).
+- `lib/supabase/write.ts` `assertAffected()` on all 18 meaningful dashboard writes.
+- `lib/auth/authed-user.ts` shared; `/api/email/payment-submitted` emails the landlord
+  when a tenant records a payment (least privilege, runs as tenant under RLS).
+- `lib/rent/reminders.ts`: pure `planReminders()` extracted from the cron route and
+  pinned by 13 tests (one-email-per-tenant, oldest-month, tenant-tz "today", windows,
+  clamp, dedup key). The route now only dedups/renders/sends.
+- `useRegion` → `useSyncExternalStore` (no cascading render, no hydration mismatch).
+- `genToken()` 8 chars/~32 bits → 10 chars/~50 bits, confusable glyphs excluded.
+- Tests 65 → 83. Lint 10 → 8 (2 are in the owner's uncommitted geo file).
+
 ### P0 / P1 — open
 - **Acquisition**: 7 signups in ~2 months, 0 in last 4 days. Not a code problem.
   Technical SEO verified good. (Owner.)
 - **"Geotagged" claim** on 14 marketing surfaces is untrue. (Owner decision.)
-- **Silent-failure pattern**: ~40 `if (error) throw` sites never check rows affected.
-  Fix systemically with a helper. ← high value, mechanical.
 - **Reminder cron re-enable** after stale-data cleanup. (Owner.)
-- **`process-rent` Edge Function overlap**: also marks overdue (in UTC) and creates
-  monthly rent rows. May conflict with my tz-aware `mark_overdue_payments()`.
-  Investigate — this decides whether the ledger keeps working after month 1.
 
 ### P2 — open
-- Wire `paymentAwaitingConfirmationEmail` (exists, unused) when tenant submits payment.
 - Component primitives (Button/Badge/Card/EmptyState) — Modal and Field exist.
 - Dashboard decomposition (extracting terms found a live money bug; do more).
 - Verify analytics fires in a browser. Verify `client_errors` captures.
 - Cron monitoring: assert on outcome, not on queue success.
-- 10 remaining lint errors (setState-in-effect hydration patterns → useSyncExternalStore).
-- Mobile audit of dashboard tables/modals — not yet done.
-- Unschedule the dead `rent-reminder-agent-daily` pg_cron job (harmless noise).
+- 8 lint errors: 4 setState-in-effect (signin:138, onboarding/country:23, page.tsx:935,
+  marketing-shell:67), 2 components-during-render (page.tsx:513,520), 2 in owner's WIP.
+- Mobile: audited. Dashboard has a real phone shell; the three un-collapsed 3-col
+  grids are fine on phones (More-sheet icons, 3 small stats, 3 tiny numeric inputs).
+  No action needed. 33 two-col grids in modals are cramped-but-functional.
 
 ### Shipped (this and prior sessions) — do not redo
 021 invite leak/takeover · 022 view RLS · 003 applied · 023 FK indexes · 024 invite
@@ -113,8 +122,10 @@ tracking, error boundaries, welcome email on all paths, country onboarding, next
 preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
 
 ## Test status
-65/65 tests · typecheck clean · build clean · security 34/34 · lint 10 pre-existing errors.
+83/83 tests · typecheck clean · build clean · security 34/34 · lint 8 errors.
 
 ## Next task
-Investigate `process-rent` overlap (decides ledger continuity), then the
-silent-failure helper, then wire the landlord payment-received email.
+Clear the 6 lint errors in owned files (then lint can rejoin `verify`, excluding the
+owner's WIP path). Then: Button primitive (153 buttons; 30 on shared styles, 23
+one-off pills), locale-aware month labels (dashboard MONTHS array is English-only),
+and a `track()` unit test with a mocked client.

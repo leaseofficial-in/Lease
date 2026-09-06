@@ -75,10 +75,18 @@ function relDate(iso?: string, locale = 'en-IN') {
 }
 
 // ── Invite token helper ───────────────────────────────────────────────────
+// Invite code. rental_invite_preview() is callable by anon with any string, so the
+// code IS the credential and its entropy is what stands between a guess and a
+// stranger's rental terms. The previous version rendered 6 random bytes as base36
+// and kept 8 characters — about 32 bits, because each byte only spans "00".."73".
+// This draws from the full 32-symbol alphabet directly: 10 characters, ~50 bits.
+// Ambiguous glyphs (0/O, 1/I) are excluded because people read these aloud and
+// type them off WhatsApp.
+const TOKEN_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 function genToken() {
-  const buf = new Uint8Array(6)
+  const buf = new Uint8Array(10)
   crypto.getRandomValues(buf)
-  return Array.from(buf, b => b.toString(36).padStart(2, '0')).join('').toUpperCase().slice(0, 8)
+  return Array.from(buf, b => TOKEN_ALPHABET[b % TOKEN_ALPHABET.length]).join('')
 }
 // 7 days, matching the DB default set in 011_invite_token_7day_default.sql.
 // This value is always supplied by the client, so that migration's default never
