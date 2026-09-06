@@ -39,7 +39,7 @@ genuinely gone, verified in `information_schema.role_table_grants`.
 
 ## P1 — Major
 
-### P1-1 · Private photos served from public storage buckets · OPEN
+### P1-1 · Private photos served from public storage buckets · SHIPPED
 **Problem.** `proof-photos` and `repair-photos` are `public = true`, which bypasses
 their own "Authenticated read" RLS policies for the `/object/public/` path.
 **Verified live:** a tenant's move-in photo (380 KB JPEG) downloaded with no API
@@ -73,6 +73,20 @@ order or every stored photo stops rendering:
 3. Flip `proof-photos` and `repair-photos` to `public = false`.
 No data migration is needed — `proof_photos.storage_path` already holds the path,
 and the path is recoverable from the stored URL for the other two tables.
+
+**Done 2026-09-06**, in that order. A second hole surfaced while doing it: the
+policies read `auth.role() = 'authenticated'`, which is a login check, not tenant
+isolation — any signed-in user could read (and upload into) any other rental's
+photos, and once the bucket was private could still mint a signed URL for them,
+because signing is gated by that same policy. Flipping the bucket alone would have
+closed the anonymous door and left the cross-tenant one wide open. Both read and
+write are now scoped to the rental's landlord and tenant via
+`storage_rental_id()`, which handles all three historical path layouts.
+**Validation.** All 11 stored objects resolve to a real rental and pass the new
+predicate for both parties; the exact photo that downloaded unauthenticated during
+the audit now returns 400; anonymous signing returns not_found. One caveat recorded
+in the migration: Cloudflare caches the public path for an hour, so previously
+fetched URLs survive at the edge that long.
 
 ### P1-2 · Current month computed in UTC · SHIPPED
 **Problem.** `app/dashboard/page.tsx` computes `const now = new Date()` and
