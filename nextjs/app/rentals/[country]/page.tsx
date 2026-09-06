@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
@@ -226,7 +227,7 @@ export default async function CountryRentalsPage({
         </p>
         <a href="/signup" className="btn btn-primary" style={{ padding: '13px 28px', fontSize: 16 }}>Start free</a>
         <div style={{ marginTop: 28 }}>
-          <a href="/rentals" style={{ fontSize: 13, color: 'var(--rb-ink-3)', textDecoration: 'none' }}>← All countries &amp; cities</a>
+          <Link href="/rentals" style={{ fontSize: 13, color: 'var(--rb-ink-3)', textDecoration: 'none' }}>← All countries &amp; cities</Link>
         </div>
       </section>
 
