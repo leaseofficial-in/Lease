@@ -17,7 +17,7 @@
 // clients honour. A reminder should look like the welcome mail the user already
 // received, not like a different system.
 
-import { emailLayout, esc } from './resend'
+import { emailLayout, esc, escSubject } from './resend'
 
 const CTA = (href: string, label: string) => `
   <p style="margin:28px 0 0;">
@@ -71,7 +71,7 @@ export function rentDueSoonEmail(input: RentEmailInput) {
     daysUntilDue === 0 ? 'today' : daysUntilDue === 1 ? 'tomorrow' : `in ${daysUntilDue} days`
 
   return {
-    subject: `Rent for ${propertyName} is due ${when}`,
+    subject: escSubject(`Rent for ${propertyName} is due ${when}`),
     html: emailLayout(`
       ${H1(`Rent due ${when}.`, propertyName)}
       ${BODY(`
@@ -92,9 +92,11 @@ export function rentOverdueEmail(input: RentEmailInput) {
   const many = (input.outstandingMonths ?? 1) > 1
 
   return {
-    subject: many
-      ? `${input.outstandingMonths} unpaid months for ${propertyName}`
-      : `Rent for ${propertyName} is ${daysOverdue} ${dayWord} overdue`,
+    subject: escSubject(
+      many
+        ? `${input.outstandingMonths} unpaid months for ${propertyName}`
+        : `Rent for ${propertyName} is ${daysOverdue} ${dayWord} overdue`,
+    ),
     html: emailLayout(`
       ${H1('Rent is overdue.', propertyName)}
       ${BODY(`
@@ -123,7 +125,7 @@ export function paymentAwaitingConfirmationEmail(input: {
 }) {
   const { landlordName, tenantName, propertyName, amount, method } = input
   return {
-    subject: `${tenantName} recorded a rent payment for ${propertyName}`,
+    subject: escSubject(`${tenantName} recorded a rent payment for ${propertyName}`),
     html: emailLayout(`
       ${H1('A payment needs confirming.', propertyName)}
       ${BODY(`

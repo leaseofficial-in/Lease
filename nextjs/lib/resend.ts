@@ -63,7 +63,14 @@ export function esc(value: unknown): string {
  * Escapes a value for use as an email *subject*. Subjects are plain text, so the
  * risk is header injection via CR/LF rather than HTML.
  */
-function escSubject(value: unknown): string {
+/**
+ * Collapse CR/LF and cap length for anything going into a Subject header.
+ *
+ * A subject is a mail HEADER: an embedded newline can start a new header, which is
+ * how Bcc injection works. The values interpolated here (property names, tenant
+ * names) are user-supplied, so every subject in this codebase must go through this.
+ */
+export function escSubject(value: unknown): string {
   return String(value ?? '').replace(/[\r\n]+/g, ' ').trim().slice(0, 200)
 }
 
