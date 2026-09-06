@@ -251,10 +251,40 @@ than a designed system, and it makes both theming and i18n harder.
 Landlord and tenant products, ~20 views, all modals and all data fetching in one
 client component. Hurts reviewability, testability, and bundle splitting.
 
-### P2-3 · Lint gate is decorative · OPEN
-`npm run lint` fails with 88 errors / 91 warnings on a clean `main`, despite commit
-`8caed53` adding "CI quality gates". Either fix the violations or the gate is
-theatre. `typecheck`, `test` (9 tests) and `build` all pass.
+### P2-3 · Lint gate is decorative, and hides a latent crash · OPEN
+`npm run lint` fails with 89 errors / 86 warnings on a clean `main`, despite commit
+`8caed53` adding "CI quality gates". `npm run verify` chains lint, so the whole
+gate has presumably been ignored since the day it was added. `typecheck`, `test`
+(30 tests) and `build` all pass.
+
+Breakdown, because "89 lint errors" hides the one category that is not style:
+
+| Rule | Count | Verdict |
+|---|---|---|
+| `react-hooks/rules-of-hooks` | 23 | **Real. See below.** |
+| `@typescript-eslint/no-explicit-any` | 73 | Mostly warnings; type debt |
+| `react/no-unescaped-entities` | 19 | Cosmetic |
+| `@next/next/no-html-link-for-pages` | 15 | Real: full page reload instead of client nav |
+| `@typescript-eslint/no-unused-vars` | 14 | Dead code |
+
+**The hooks violations are a latent crash, not lint noise.** Nested components
+inside `DashboardPage` — `PropertyDetailModal` is the clearest — call `useState`
+*after* an early `if (!r) return null`. If such a component ever renders once with
+hooks and again without, React throws "Rendered fewer hooks than expected" and the
+dashboard white-screens.
+
+Checked for reachability rather than assumed: every `setSelectedRental(null)` in
+the file is batched with `setModal(null)`, and the render site is gated on
+`modal === 'property-detail'`, so the component unmounts rather than re-rendering
+with a null. **Latent today, live the moment anyone nulls the rental without also
+closing the modal** — an ordinary-looking change that would be very hard to connect
+to the resulting crash.
+
+Fix is mechanical but touches ~23 sites in a 4,559-line file: move every hook above
+the guard and make the pre-hook derivations null-safe. Deliberately not attempted at
+the end of a long session — a careless pass here would introduce exactly the class
+of bug it is meant to remove. Best done alongside P2-2 (splitting the file), where
+each extracted component can be fixed and reviewed in isolation.
 
 ### P2-4 · Marketing claims "geotagged" move-in photos · OPEN
 `/for/landlords` advertises "tamper-proof, geotagged move-in photos". The stored
