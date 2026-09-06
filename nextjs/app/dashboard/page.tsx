@@ -10,8 +10,10 @@ import { getRegion } from '@/lib/i18n/regions'
 import { SecureImage } from '@/components/secure-image'
 import { track } from '@/lib/analytics/track'
 import { assertAffected } from '@/lib/supabase/write'
+import { Button } from '@/components/ui/button'
 import { sha256Hex } from '@/lib/crypto/file-hash'
 import { localMonth, calendarDaysBetween } from '@/lib/date/calendar'
+import { monthLabel as monthLabelIntl, formatMonthYear } from '@/lib/date/month-label'
 import { leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge } from '@/lib/rentals/terms'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
@@ -33,7 +35,6 @@ type DepositTx = { id: string; rental_id: string; type: string; amount: number; 
 // "unused stub" hardcoded to INR, shadowed by a region-aware version inside the
 // component. Anything at module scope that called it would have silently rendered
 // every currency as rupees, so the stub is gone rather than merely unused.
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 // ── Dates are LOCAL-CALENDAR, never UTC ──────────────────────────────────────
 // This file previously held `const now = new Date()` at module scope and derived
@@ -51,11 +52,6 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 // The helpers themselves live in lib/date/calendar.ts, where they are unit-tested
 // against fixed instants including both UTC month boundaries.
 
-function monthLabel(s?: string) {
-  if (!s) return ''
-  const parts = s.split('-')
-  return `${MONTHS[parseInt(parts[1]) - 1]} ${parts[0]}`
-}
 // relDate uses 'en-IN' as a stable module-level default; shadowed inside the component via relDateFmt
 function relDate(iso?: string, locale = 'en-IN') {
   if (!iso) return ''
@@ -327,6 +323,8 @@ export default function DashboardPage() {
   const methodLabel = (m?: string) =>
     (PAYMENT_METHOD_DISPLAY as Record<string, { label: string }>)[m || '']?.label || m || '—'
   const relDateFmt = (iso?: string) => relDate(iso, region.locale)
+  // Month labels in the account's language. Replaces a hardcoded English array.
+  const monthLabel = (ym?: string | null) => monthLabelIntl(ym, region.locale)
 
   const [viewStack, setViewStack] = useState<string[]>(['home'])
 
@@ -1091,7 +1089,7 @@ export default function DashboardPage() {
       <>
         <div style={topStyle}>
           <div><div style={eyebrowStyle}>Landlord · Properties</div><h1 style={h1Style}>Portfolio.</h1></div>
-          <button onClick={() => setModal('add-property')} style={actBtnPrimary}>+ Add</button>
+          <Button variant="primary" onClick={() => setModal('add-property')}>+ Add</Button>
         </div>
         <section style={cardStyle}>
           {buildings.map((b: Building) => <BuildingCard key={b.id} building={b} rentals={buildingRentalsMap.get(b.id) || []} currentPayments={currentPayments} />)}
@@ -1336,7 +1334,7 @@ export default function DashboardPage() {
     const isPaid = currentPayment?.status === 'paid'
     const isPending = currentPayment?.status === 'pending_verification'
     const daysLeft = nextDueDate ? Math.ceil((nextDueDate.getTime() - now.getTime()) / 86400000) : null
-    const nextMonthStr = nextDueDate ? `${MONTHS[nextDueDate.getMonth()]} ${nextDueDate.getFullYear()}` : ''
+    const nextMonthStr = nextDueDate ? formatMonthYear(nextDueDate, region.locale) : ''
     const property = rental.property || {}
     const propLine = [property.name, property.city].filter(Boolean).join(' · ')
     return (
@@ -1460,7 +1458,7 @@ export default function DashboardPage() {
           <section style={{ ...cardStyle, gridColumn: 'span 2' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div><h3 style={cardH3Style}>Move-in proof</h3><span style={{ fontSize: 12, color: 'var(--rb-ink-3)', display: 'block', marginTop: 4 }}>{proofs ? `${proofs.proof_photos?.length || 0} photos · ${proofs.status}` : 'Not yet submitted'}</span></div>
-              {(!proofs || proofs.status === 'pending') && <button onClick={() => navigate('proof')} style={actBtnSm}>+ Add photos</button>}
+              {(!proofs || proofs.status === 'pending') && <Button variant="primary-sm" onClick={() => navigate('proof')}>+ Add photos</Button>}
             </div>
             {proofs && proofs.proof_photos && proofs.proof_photos.length > 0 ? <ProofGrid photos={proofs.proof_photos} /> : <div style={{ textAlign: 'center', padding: '20px 0' }}><p style={{ color: 'var(--rb-ink-3)', fontSize: 14 }}>Document your room condition at move-in.</p><button onClick={() => navigate('proof')} style={{ ...actBtnPrimary, marginTop: 12 }}>+ Add move-in photos</button></div>}
           </section>
@@ -1488,7 +1486,7 @@ export default function DashboardPage() {
           <section style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div><h3 style={cardH3Style}>Repairs</h3></div>
-              <button onClick={() => setModal('new-repair')} style={actBtnSm}>+ New</button>
+              <Button variant="primary-sm" onClick={() => setModal('new-repair')}>+ New</Button>
             </div>
             {openRepairs.length > 0 ? openRepairs.map((r: RepairRequest) => <RepairRow key={r.id} r={r} />) : <div style={emptyStyle}><div style={{ fontSize: 32, marginBottom: 12 }}>✓</div><p>No open repair requests.</p></div>}
           </section>
@@ -1611,7 +1609,7 @@ export default function DashboardPage() {
       <>
         <div style={topStyle}>
           <div><div style={eyebrowStyle}>Tenant · Repairs</div><h1 style={h1Style}>Repair requests.</h1></div>
-          <button onClick={() => setModal('new-repair')} style={actBtnPrimary}>+ New request</button>
+          <Button variant="primary" onClick={() => setModal('new-repair')}>+ New request</Button>
         </div>
         <section style={cardStyle}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', scrollbarWidth: 'none' }}>
@@ -1725,9 +1723,9 @@ export default function DashboardPage() {
                 </button>
               )}
               {notified && <span style={{ padding: '8px 14px', fontSize: 13, color: 'var(--rb-action)', fontWeight: 600 }}>✓ Landlord notified</span>}
-              <button onClick={() => fileRef.current?.click()} disabled={uploading} style={actBtnPrimary}>
+              <Button variant="primary" onClick={() => fileRef.current?.click()} disabled={uploading}>
                 {uploading ? 'Uploading…' : '+ Add photos'}
-              </button>
+              </Button>
               <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
             </div>
           )}
@@ -1741,7 +1739,7 @@ export default function DashboardPage() {
               <div style={{ marginBottom: 12, color: 'var(--rb-ink-3)' }}><Icon k="camera" size={36} stroke={1.4} /></div>
               <p style={{ fontWeight: 600, marginBottom: 6 }}>Document your room condition</p>
               <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 16, lineHeight: 1.55 }}>Upload photos of each room at move-in. This protects you against deposit disputes later.</p>
-              <button onClick={() => fileRef.current?.click()} style={actBtnPrimary}>+ Add first photos</button>
+              <Button variant="primary" onClick={() => fileRef.current?.click()}>+ Add first photos</Button>
             </div>
           </section>
         ) : (
@@ -1884,8 +1882,8 @@ export default function DashboardPage() {
         <div style={topStyle}>
           <div><div style={eyebrowStyle}>Tenant · Agreement</div><h1 style={h1Style}>Rental agreement.</h1></div>
           <div style={{ display: 'flex', gap: 10 }}>
-            {isExecuted && <button onClick={() => window.print()} style={actBtnSm}><Icon k="download" size={13} stroke={2} /> Print / PDF</button>}
-            {!tenantSigned && rental.agreement_status === 'pending_signature' && <button onClick={() => setModal('sign-agreement')} style={actBtnPrimary}><Icon k="pen" size={14} stroke={2} /> Sign agreement</button>}
+            {isExecuted && <Button variant="primary-sm" onClick={() => window.print()}><Icon k="download" size={13} stroke={2} /> Print / PDF</Button>}
+            {!tenantSigned && rental.agreement_status === 'pending_signature' && <Button variant="primary" onClick={() => setModal('sign-agreement')}><Icon k="pen" size={14} stroke={2} /> Sign agreement</Button>}
             {rental.status === 'active' && <button onClick={() => { setSelectedRental(rental); setModal('end-lease') }} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-danger)', fontWeight: 600 }}>Give notice</button>}
           </div>
         </div>
@@ -2023,7 +2021,7 @@ export default function DashboardPage() {
       <>
         <div style={topStyle}>
           <div><div style={eyebrowStyle}>Profile</div><h1 style={h1Style}>{firstName}.</h1></div>
-          <button onClick={() => setModal('edit-profile')} style={actBtnPrimary}>Edit profile</button>
+          <Button variant="primary" onClick={() => setModal('edit-profile')}>Edit profile</Button>
         </div>
         <div className="d-grid-inner" style={gridStyle}>
 
@@ -2077,7 +2075,7 @@ export default function DashboardPage() {
 
             {/* Actions */}
             <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid var(--rb-border-soft)', display: 'flex', gap: 10, alignItems: 'center' }}>
-              <button onClick={() => setModal('edit-profile')} style={actBtnPrimary}>Edit profile</button>
+              <Button variant="primary" onClick={() => setModal('edit-profile')}>Edit profile</Button>
               <button onClick={handleSignOut} style={{ padding: '7px 14px', borderRadius: 999, border: '1.5px solid var(--rb-danger)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--rb-danger)', fontFamily: 'inherit', fontWeight: 600 }}>Sign out</button>
             </div>
           </section>
@@ -2106,7 +2104,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', lineHeight: 1.55, marginBottom: 14 }}>Add your UPI ID so tenants know where to send rent. They&apos;ll see it on their pay screen.</p>
-                  <button onClick={() => setModal('edit-profile')} style={actBtnPrimary}>+ Add UPI ID</button>
+                  <Button variant="primary" onClick={() => setModal('edit-profile')}>+ Add UPI ID</Button>
                 </>
               )}
             </section>
@@ -2373,8 +2371,8 @@ export default function DashboardPage() {
         </details>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={saving} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Saving…' : 'Add property'}</button>
+          <Button variant="cancel" onClick={() => setModal(null)}>Cancel</Button>
+          <Button variant="submit" onClick={handleSubmit} busy={saving}>{'Add property'}</Button>
         </div>
       </Modal>
     )
@@ -2523,7 +2521,7 @@ export default function DashboardPage() {
           </div>
         </Field>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
+          <Button variant="cancel" onClick={() => setModal(null)}>Cancel</Button>
           <button onClick={handleSubmit} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>Record payment →</button>
         </div>
       </Modal>
@@ -2622,7 +2620,7 @@ export default function DashboardPage() {
           }
         </Field>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
+          <Button variant="cancel" onClick={() => setModal(null)}>Cancel</Button>
           <button onClick={handleSubmit} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: urgency === 'emergency' ? 'var(--rb-danger)' : 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Raising…' : 'Raise request'}</button>
         </div>
       </Modal>
@@ -2741,7 +2739,7 @@ export default function DashboardPage() {
           </div>
         )}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
+          <Button variant="cancel" onClick={() => setModal(null)}>Cancel</Button>
           <button onClick={handleSave} disabled={saving || (deductFromDeposit && status === 'resolved' && !deductConfirmed)} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: (deductFromDeposit && status === 'resolved' && !deductConfirmed) ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, opacity: (deductFromDeposit && status === 'resolved' && !deductConfirmed) ? 0.5 : 1 }}>{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </Modal>
@@ -3118,7 +3116,7 @@ export default function DashboardPage() {
                 <div style={{ marginBottom: 10, color: 'var(--rb-ink-3)' }}><Icon k="link" size={36} stroke={1.3} /></div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--rb-ink)', marginBottom: 6 }}>No invite link yet</div>
                 <div style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 18, lineHeight: 1.5 }}>Generate a link to invite your tenant via WhatsApp, SMS, or any messaging app</div>
-                <button onClick={handleRegenerateLink} disabled={saving} style={actBtnPrimary}>{saving ? 'Generating…' : <><Icon k="link" size={14} stroke={2} /> Generate invite link</>}</button>
+                <Button variant="primary" onClick={handleRegenerateLink} disabled={saving}>{saving ? 'Generating…' : <><Icon k="link" size={14} stroke={2} /> Generate invite link</>}</Button>
               </div>
             )}
           </div>
@@ -3190,8 +3188,8 @@ export default function DashboardPage() {
               <Field label="Annual increment (%)"><input style={inputStyle} type="number" value={form.rent_increment_percent} onChange={set('rent_increment_percent')} /></Field>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-              <button onClick={() => setEditMode(false)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
-              <button onClick={handleSave} disabled={saving} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Saving…' : 'Save changes'}</button>
+              <Button variant="cancel" onClick={() => setEditMode(false)}>Cancel</Button>
+              <Button variant="submit" onClick={handleSave} busy={saving}>{'Save changes'}</Button>
             </div>
           </>
         ) : (
@@ -3222,7 +3220,7 @@ export default function DashboardPage() {
               </div>
             ))}
             <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const }}>
-              <button onClick={() => setEditMode(true)} style={actBtnPrimary}>Edit details</button>
+              <Button variant="primary" onClick={() => setEditMode(true)}>Edit details</Button>
               {r.status === 'active' && (
                 <button onClick={() => setModal('end-lease')} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-danger)', fontWeight: 600 }}>End lease</button>
               )}
@@ -3261,7 +3259,7 @@ export default function DashboardPage() {
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon k="warning" size={13} stroke={2} /> This action cannot be undone. All data will be archived.</span>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => setModal(isLandlord ? 'property-detail' : null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
+          <Button variant="cancel" onClick={() => setModal(isLandlord ? 'property-detail' : null)}>Cancel</Button>
           <button onClick={handleEnd} disabled={saving} style={{ padding: '8px 18px', borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{saving ? 'Ending…' : 'Yes, end lease'}</button>
         </div>
       </Modal>
@@ -3383,7 +3381,7 @@ export default function DashboardPage() {
         </div>
         <Field label="Pincode *"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} placeholder="500001" /></Field>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
+          <Button variant="cancel" onClick={() => setModal(null)}>Cancel</Button>
           <button onClick={handleSubmit} disabled={saving} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Creating…' : 'Create building'}</button>
         </div>
       </Modal>
@@ -3760,8 +3758,8 @@ export default function DashboardPage() {
             </div>
             <Field label="Pincode"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} /></Field>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-              <button onClick={() => setEditMode(false)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
-              <button onClick={handleSave} disabled={saving} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Saving…' : 'Save changes'}</button>
+              <Button variant="cancel" onClick={() => setEditMode(false)}>Cancel</Button>
+              <Button variant="submit" onClick={handleSave} busy={saving}>{'Save changes'}</Button>
             </div>
           </>
         ) : (
@@ -3780,7 +3778,7 @@ export default function DashboardPage() {
               </div>
             ))}
             <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' as const }}>
-              <button onClick={() => setEditMode(true)} style={actBtnPrimary}>Edit details</button>
+              <Button variant="primary" onClick={() => setEditMode(true)}>Edit details</Button>
               <button onClick={() => { setModal('add-unit') }} style={{ ...actBtnPrimary, background: 'var(--rb-surface)', color: 'var(--rb-action)', border: '1.5px solid var(--rb-action)' }}>+ Add unit</button>
             </div>
           </>
@@ -3832,8 +3830,8 @@ export default function DashboardPage() {
           Your name and email come from Google and cannot be changed here.
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
-          <button onClick={handleSave} disabled={saving} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Saving…' : 'Save changes'}</button>
+          <Button variant="cancel" onClick={() => setModal(null)}>Cancel</Button>
+          <Button variant="submit" onClick={handleSave} busy={saving}>{'Save changes'}</Button>
         </div>
       </Modal>
     )
@@ -4069,7 +4067,7 @@ export default function DashboardPage() {
               {tenantSigned && !activeRental.landlord_signed_at && (
                 <button onClick={() => { setSelectedRental(activeRental); setModal('landlord-sign') }} style={{ ...actBtnPrimary, background: 'var(--rb-success)' }}><Icon k="pen" size={14} stroke={2} /> Countersign</button>
               )}
-              <button onClick={() => window.print()} style={actBtnSm}><Icon k="download" size={13} stroke={2} /> Print / PDF</button>
+              <Button variant="primary-sm" onClick={() => window.print()}><Icon k="download" size={13} stroke={2} /> Print / PDF</Button>
             </div>
           </div>
           <section style={{ ...cardStyle, padding: '0' }}>
@@ -4159,8 +4157,8 @@ export default function DashboardPage() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 14, borderTop: '1px solid var(--rb-border)' }}>
-          <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
-          <button onClick={handleSave} disabled={saving} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Saving…' : 'Save clauses'}</button>
+          <Button variant="cancel" onClick={() => setModal(null)}>Cancel</Button>
+          <Button variant="submit" onClick={handleSave} busy={saving}>{'Save clauses'}</Button>
         </div>
       </Modal>
     )
@@ -4200,7 +4198,7 @@ export default function DashboardPage() {
           <label style={{ fontSize: 13, color: 'var(--rb-ink-2)', cursor: 'pointer', lineHeight: 1.55 }} onClick={() => setConfirmed(c => !c)}>I have read the full agreement and confirm all terms are accurate.</label>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
+          <Button variant="cancel" onClick={() => setModal(null)}>Cancel</Button>
           <button onClick={handleSign} disabled={saving || !confirmed} style={{ padding: '8px 18px', borderRadius: 999, background: confirmed ? 'var(--rb-action)' : 'var(--rb-border)', color: '#fff', border: 0, cursor: confirmed ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'background .2s' }}>{saving ? 'Signing…' : <><Icon k="pen" size={13} stroke={2} /> Countersign</>}</button>
         </div>
       </Modal>
