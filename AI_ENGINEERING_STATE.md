@@ -351,6 +351,25 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   product. Harness gained six checks driving the whole state machine over REST.
   55 → 61.
 
+- **Batch 29 — either party could sign for the other (043).** The agreement is the
+  one document meant to bind two people, and the dashboard prints it with both
+  signature timestamps and an EXECUTED badge. Nothing enforced the flow. 030's
+  tenant scope trigger freezes the lease TERMS and its frozen list contains no
+  agreement column; the landlord's UPDATE policy checks ownership and no columns.
+  So a tenant could set `landlord_signed_at` and `agreement_status = 'executed'` and
+  hold a fully executed agreement the landlord never signed; a landlord could stamp
+  `agreement_signed_at` and produce one the tenant never signed; either could
+  back-date or clear a signature; and the landlord could rewrite
+  `agreement_custom_clauses` AFTER the tenant signed, with the tenant's timestamp
+  still on the document. 043 adds `enforce_agreement_signing`: each party takes one
+  step, in order, on their own line only (draft → pending_signature → tenant_signed
+  → executed); a signature can be set once and never cleared; both timestamps are
+  stamped `now()` by the trigger rather than trusted from the client; clauses freeze
+  the moment the tenant signs; an executed agreement is frozen entirely. Eleven
+  behaviours proven live and rolled back — including a back-dated signature being
+  stored as today — and the happy path end to end. Harness drives the full signing
+  sequence over REST. 61 → 67.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -386,6 +405,14 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   appears on `pending_verification`); 042 makes it true underneath. If an undo is
   wanted it should be a deliberate feature that writes a `rental_events` entry, not
   a loosened policy — say so and it can be built.
+
+- **The lease terms can still change under a signed agreement.** 043 freezes the
+  clauses and the signatures once signed, but `monthly_rent`, `security_deposit`,
+  `rent_due_day` and the dates remain landlord-editable after execution — and the
+  printed agreement renders the CURRENT values, so an executed document can quietly
+  say something different tomorrow. Rent increases are a real workflow, so the fix
+  is a product decision, not a lock: either snapshot the signed terms into the
+  agreement record, or make a change after execution start a new signing round.
 
 ### Verified clean this round (do not re-audit)
 - `agreements` bucket: no policy, no live reader. 15 HTML files from the old Expo
@@ -484,7 +511,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-202/202 tests · typecheck clean · build clean · security 61/61 · lint 0 (gates verify).
+202/202 tests · typecheck clean · build clean · security 67/67 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -496,14 +523,12 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-Every table a party can write is now column- and transition-scoped (038 messages,
-039 repairs/deposits, 040 deletes, 041 storage, 042 payments), and the harness
-drives each one over REST. Remaining, unexplored:
-1. The agreement/signature flow — `agreement_status`, `landlord_signed_at`,
-   `agreement_signed_at`, `agreement_custom_clauses`. Never audited. The tenant
-   scope trigger (030) lets a tenant move the signing columns; nothing checks the
-   ORDER (can a tenant mark it executed without the landlord signing?).
+Every party-writable table now has column and transition scope (038 messages, 039
+repairs/deposits, 040 deletes, 041 storage, 042 payments, 043 signing), each proven
+live and driven by the harness. Remaining:
+1. `proofs.status` — the landlord review path has a policy and no transition scope,
+   the same gap 042 and 043 just closed elsewhere. Can a landlord move a proof from
+   approved back to pending, or a tenant approve their own?
 2. `rentals.invite_token` is never cleared after a claim: a leaked code keeps
    resolving through `rental_invite_preview` for the life of the tenancy.
-3. `proofs.status` transitions — the landlord review path has a policy but no
-   transition scope, the same gap 042 just closed for payments.
+3. The lease-terms-after-signing question above needs the owner.

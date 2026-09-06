@@ -420,6 +420,56 @@ else
           bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
         fi
       fi
+      # ── Agreement signing (043) ──
+      # The agreement is the one document meant to bind two people, and the
+      # dashboard prints both signature timestamps on it. Nothing enforced the
+      # order or the ownership of either signature: a tenant could set
+      # landlord_signed_at and mark it executed, a landlord could stamp the
+      # tenant's signature, and either could back-date one.
+      body=$(retry_body -X PATCH "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+        -d '{"agreement_status":"pending_signature"}')
+      if [[ "$body" == "[{"* ]]; then
+        ok "landlord can send the agreement for signature (1 row)"
+      else
+        bad "landlord cannot send an agreement" "${body:0:140}"
+      fi
+
+      code=$(retry_code -X PATCH "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
+        -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" \
+        -d '{"landlord_signed_at":"2026-01-01T00:00:00Z","agreement_status":"executed"}')
+      expect_http "tenant cannot sign for the landlord" "400" "$code"
+
+      body=$(retry_body -X PATCH "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
+        -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+        -d '{"agreement_signed_at":"2020-01-01T00:00:00Z","agreement_status":"tenant_signed"}')
+      if [[ "$body" == *"2020-01-01"* ]]; then
+        bad "SIGNATURE CAN BE BACK-DATED" "stored the client's timestamp"
+      elif [[ "$body" == "[{"* ]]; then
+        ok "tenant signs, and the timestamp is stamped server-side"
+      else
+        bad "tenant cannot sign their own agreement" "${body:0:140}"
+      fi
+
+      code=$(retry_code -X PATCH "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+        -d '{"agreement_custom_clauses":"changed after the tenant signed"}')
+      expect_http "clauses cannot be edited after the tenant signed" "400" "$code"
+
+      body=$(retry_body -X PATCH "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+        -d '{"landlord_signed_at":"2026-01-01T00:00:00Z","agreement_status":"executed"}')
+      if [[ "$body" == "[{"* ]]; then
+        ok "landlord countersigns to execute (1 row)"
+      else
+        bad "landlord cannot countersign" "${body:0:140}"
+      fi
+
+      code=$(retry_code -X PATCH "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+        -d '{"agreement_status":"draft"}')
+      expect_http "an executed agreement cannot be reopened" "400" "$code"
+
       # ── Payment transitions (042) ──
       # The policies decide who may write a payment row; nothing decided what they
       # may write. A landlord could UPDATE a *paid* payment back to pending or
