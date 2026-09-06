@@ -299,6 +299,30 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   "could not reach the API" instead of crying breach at a dropped connection.
   52 → 54 checks.
 
+- **Batch 27 — a permanent check for the class of bug batch 26 was.** Nothing in
+  this repo asks the database what columns it has: TypeScript does not know it, the
+  tests mock it, the build never connects. `scripts/check-schema-drift.py` reads the
+  live column list from PostgREST's OpenAPI document (service key; the anon role
+  cannot introspect) and walks every `.select()`, `.insert()`, `.update()` and
+  `.upsert()` in `nextjs/app` and `nextjs/lib`, skipping embedded resources.
+  Verified three ways: passes clean on 26 tables, skips without the key, and catches
+  an injected bad column in both a select and an insert payload. Wired into
+  `verify-security.sh` as section 6, so `npm run verify` covers it. 54 → 55.
+- **Batch 27b — reconciled all 41 migration files against the live database.** Only
+  one file is genuinely unapplied: `002_deposit_enhancements.sql` (batch 26's root
+  cause), and its three columns are deliberately not being added since nothing
+  writes or renders them. Everything else flagged is a later migration superseding
+  an earlier one (021 replaced 001/004's invite policies, 026 the photo buckets, 030
+  the payment policies, 035 avatars, 038 messages, 040 rentals/properties) — the
+  expected shape of an evolving policy set, not drift. One real difference worth
+  recording: `018_buildings.sql` declares a `Tenants view building via rental`
+  SELECT policy that does not exist live, and the landlord policy was renamed on the
+  way in. No user-visible effect — property rows denormalise the building's name,
+  address and city ("PG Hostel TukkuGuda – Unit 210"), and no client query embeds
+  `buildings` on the tenant path — so the policy is deliberately NOT added rather
+  than widening the read surface for nothing. Recorded here so the next audit does
+  not re-derive it.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -425,7 +449,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-202/202 tests · typecheck clean · build clean · security 54/54 · lint 0 (gates verify).
+202/202 tests · typecheck clean · build clean · security 55/55 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -437,12 +461,14 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-The read-walk found one live bug (batch 26) and is only half done. Finish it: for
-every remaining client `.select()` string, check each column against
-`information_schema.columns` for that table — `rent_payments`, `repair_requests`,
-`proofs`, `rentals`, `properties`, `profiles` all have long explicit column lists
-and long histories of migrations that may or may not have been applied. The same
-question for `.insert()`/`.update()` payload keys, which fail the same way but
-louder. `002_deposit_enhancements.sql` being unapplied means OTHER numbered
-migrations may be too — reconcile every file in supabase/migrations against the
-live schema, not just the ones that looked interesting.
+Batches 21-27 are applied, pushed and live-proven; the read-walk, the write-walk and
+the migration reconciliation are all complete and now guarded by a check that runs
+in `npm run verify`. Unexplored angles, in order:
+1. The `rent_payments` state machine end to end: which transitions are reachable by
+   whom (pending → pending_verification → paid, reject back to pending, overdue),
+   and whether any of them can be driven backwards to erase a confirmed payment.
+2. `rentals.invite_token` is never cleared after a claim: a leaked code keeps
+   resolving through `rental_invite_preview` (rent, deposit, landlord name, city)
+   for the life of the tenancy even though it can no longer be claimed.
+3. The agreement/signature flow (`agreement_status`, `landlord_signed_at`,
+   `agreement_signed_at`) — never audited at all.

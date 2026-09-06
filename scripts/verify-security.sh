@@ -536,6 +536,26 @@ else
   fi
 fi
 
+# ── 6. Client queries against the live schema ─────────────────────────────────
+#
+# Not a permission check. The tenant's deposit screen was blank for months
+# because its select named three columns from a migration that was never applied
+# -- PostgREST 400s the whole request for one unknown column, and `data || []`
+# renders that as an empty list. Nothing else in this repo asks the database what
+# columns it actually has. Same key requirement as section 5, same skip behaviour.
+echo
+echo "Client queries against the live schema:"
+PY=$(command -v python3 || command -v python || true)
+if [[ -z "$PY" ]]; then
+  echo "  SKIP  no python on PATH"
+else
+  if "$PY" "$(dirname "$0")/check-schema-drift.py"; then
+    PASS=$((PASS + 1))
+  else
+    FAIL=$((FAIL + 1))
+  fi
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo
 echo "─────────────────────────────────────────"
