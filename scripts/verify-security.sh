@@ -390,12 +390,44 @@ else
           bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
         fi
       fi
+      # ── Delete scope (040) ──
+      # rentals and properties were each one FOR ALL policy, and everything hangs
+      # off rentals with ON DELETE CASCADE — so one REST call could erase a
+      # tenant's whole payment ledger. Worse for properties: RLS is not evaluated
+      # for cascaded deletes, so a property delete took its rentals with it
+      # whatever the rental policy said. A landlord may now delete only a rental
+      # nobody joined that has no money attached.
+      body=$(curl -s -X DELETE "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Prefer: return=representation")
+      if [[ "$body" == "[]" ]]; then
+        ok "landlord cannot delete a rental that has a tenant"
+      else
+        bad "LANDLORD DELETED A LIVE RENTAL" "${body:0:140}"
+      fi
+      body=$(curl -s -X DELETE "$URL/rest/v1/properties?id=eq.$PROBE_PROP" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Prefer: return=representation")
+      if [[ "$body" == "[]" ]]; then
+        ok "landlord cannot delete a property whose rental has a tenant (cascade guard)"
+      else
+        bad "PROPERTY DELETE CASCADED PAST THE RENTAL RULE" "${body:0:140}"
+      fi
+
       [[ -n "$REPAIR" ]] && curl -s -o /dev/null -X DELETE "$URL/rest/v1/repair_requests?id=eq.$REPAIR" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
-      # Detach the tenant before the rental goes (rentals.tenant_id has no cascade).
+      # Detach the tenant, then let the LANDLORD do the cleanup: an unclaimed
+      # rental must still be deletable, or 040 has broken the one real case.
       [[ -n "$T_ID" ]] && curl -s -o /dev/null -X PATCH "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
         -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" -d '{"tenant_id":null}'
+      curl -s -o /dev/null -X DELETE "$URL/rest/v1/messages?rental_id=eq.$PROBE_RENTAL" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
+      body=$(curl -s -X DELETE "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Prefer: return=representation")
+      if [[ "$body" == "[{"* ]]; then
+        ok "landlord can still delete an unclaimed rental with no money attached"
+      else
+        bad "UNCLAIMED RENTAL NOT DELETABLE" "${body:0:140}"
+      fi
 
-      # Seeded rows go before the user: rentals.landlord_id has no cascade.
+      # Safety net: if any check above bailed early, the seeded rows still go
+      # before the user (rentals.landlord_id has no cascade).
       curl -s -o /dev/null -X DELETE "$URL/rest/v1/messages?rental_id=eq.$PROBE_RENTAL" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
       curl -s -o /dev/null -X DELETE "$URL/rest/v1/rentals?id=eq.$PROBE_RENTAL" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
     fi

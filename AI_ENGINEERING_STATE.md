@@ -92,6 +92,11 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
     buttons faked success until assertAffected, then failed honestly. Walk every
     client write site against `pg_policies` by (table, cmd, role).
 
+16. RLS is NOT evaluated for cascaded deletes. A DELETE policy on a child table is
+    worthless if the parent can be deleted and the FK says CASCADE — the property
+    policy had to carry the rental rule itself (040). Check `confdeltype` on every
+    FK before trusting a child's policy.
+
 ## Incident log
 
 - **2026-09-07 — 23 unintended emails.** Fired `/api/cron/rent-reminders` at prod
@@ -210,6 +215,27 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   rental with a repair request: tenant confirm 1 row / cost 400, landlord note 1
   row / description 400. 42 → 46 checks.
 
+- **Batch 23 — the ledger was one REST call from gone (040).** `rentals` and
+  `properties` each had a single FOR ALL policy (`landlord_id = auth.uid()`), and
+  every child table cascades from rentals. A landlord could DELETE a rental over
+  PostgREST and erase the tenant's whole payment history, deposits, proofs and
+  messages; deleting the *property* was worse, since RLS is not evaluated for
+  cascaded deletes, so it bypassed any rental policy entirely. The client never
+  does either — the product's own "end tenancy" is `status='ended'` — so this was
+  an API-only path contradicting the product. FOR ALL also meant no WITH CHECK: a
+  landlord could reassign `landlord_id` or move a rental to a property they do not
+  own. 040 splits both into SELECT/INSERT/UPDATE/DELETE, binds the UPDATE, and
+  allows DELETE only for a rental with `tenant_id is null` and no payments or
+  deposit rows (43 of 52 rentals are unclaimed invites — the real cleanup case
+  survives); the property rule repeats the test over its rentals so the cascade
+  cannot outflank it. Also `proof_photos` had no DELETE policy: the tenant's
+  remove-photo control was the third dead write of the 039 class — added, scoped to
+  the uploader while the proof is `pending`, which is what the client's
+  `isApproved` guard was trying to say. Proven live both directions, rolled back.
+  Harness now does its own cleanup *through the policy* (landlord deletes the
+  unclaimed rental), so a regression that blocks legitimate deletes also fails.
+  46 → 49 checks.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -234,6 +260,10 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   `notify_*` triggers are the sole writers. Correct. (Tenant-facing gap covered by
   the payment-confirmed email, not by in-app rows they never open.)
 - `messages`: four bound policies as of 038; anon has no grant.
+- `profiles`: SELECT own + counterparty-scoped, UPDATE own. No DELETE, no INSERT
+  (the `on_auth_user_created` trigger is the only writer). Correct.
+- `buildings` FOR ALL (landlord_id = uid): properties FK is ON DELETE SET NULL, so
+  deleting a building strands nothing. Left as FOR ALL deliberately.
 - Every INSERT policy binds its author column (`created_by`, `submitted_by`,
   `uploaded_by`, `raised_by`, `actor_id`, `landlord_id`). `buildings` FOR ALL binds
   via USING fallback (landlord_id = uid) — fine for a single-owner table.
@@ -316,7 +346,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-202/202 tests · typecheck clean · build clean · security 46/46 · lint 0 (gates verify).
+202/202 tests · typecheck clean · build clean · security 49/49 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -328,9 +358,14 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-After the Vercel deploy of a48eb19+: `/api/email/payment-confirmed` unauthenticated
-→ 401; probe landlord JWT + bogus id → 202, no send. Then the next audit angle:
-DELETE — which roles can delete what (`messages` sender-only now; `properties`,
-`rentals`, `buildings` landlord FOR ALL — can a landlord delete a rental with a
-paid ledger, and what cascades?). Then storage: `proof-photos` object DELETE by the
-landlord after approval. Keep every finding live-proven and rolled back.
+Three migrations (038/039/040) are applied to prod and pushed. Still to verify on
+the deployed build: `/api/email/payment-confirmed` unauthenticated → 401, probe
+landlord JWT + bogus id → 202 with no send.
+
+Then the next angle, in order of what has never been looked at:
+1. Storage object policies for `proof-photos` and `rental-photos` — INSERT/DELETE
+   by path, the same author-binding question as 038-040 but in `storage.objects`.
+2. The three dead-write findings all came from walking client writes against
+   `pg_policies`. Do the same for client *reads*: a `.select()` that returns [] to
+   the party who should see it is the same bug wearing the other face.
+3. `rentals.invite_token` rotation — a claimed invite's token stays in the row.
