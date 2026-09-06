@@ -2,11 +2,5 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "outputDirectory": ".next",
-  "installCommand": "npm install",
-  "crons": [
-    {
-      "path": "/api/cron/rent-reminders",
-      "schedule": "0 4 * * *"
-    }
-  ]
+  "installCommand": "npm install"
 }

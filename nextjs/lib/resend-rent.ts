@@ -56,6 +56,12 @@ export interface RentEmailInput {
   daysUntilDue?: number
   daysOverdue?: number
   lateFee?: string | null
+  /**
+   * How many unpaid months this tenant has. When more than one, the email is
+   * about the total rather than a single month — a tenant with eight outstanding
+   * months must receive one message, not eight.
+   */
+  outstandingMonths?: number
 }
 
 /** Sent a few days before rent is due. */
@@ -83,14 +89,21 @@ export function rentDueSoonEmail(input: RentEmailInput) {
 export function rentOverdueEmail(input: RentEmailInput) {
   const { tenantName, propertyName, amount, dueDate, daysOverdue, lateFee } = input
   const dayWord = daysOverdue === 1 ? 'day' : 'days'
+  const many = (input.outstandingMonths ?? 1) > 1
 
   return {
-    subject: `Rent for ${propertyName} is ${daysOverdue} ${dayWord} overdue`,
+    subject: many
+      ? `${input.outstandingMonths} unpaid months for ${propertyName}`
+      : `Rent for ${propertyName} is ${daysOverdue} ${dayWord} overdue`,
     html: emailLayout(`
       ${H1('Rent is overdue.', propertyName)}
       ${BODY(`
         ${P(`Hi ${esc(tenantName)},`)}
-        ${P(`Rent of <strong>${esc(amount)}</strong> for <strong>${esc(propertyName)}</strong> was due on <strong>${esc(dueDate)}</strong>, ${esc(String(daysOverdue))} ${dayWord} ago.`)}
+        ${
+          (input.outstandingMonths ?? 1) > 1
+            ? P(`You have <strong>${esc(String(input.outstandingMonths))} unpaid months</strong> for <strong>${esc(propertyName)}</strong>, totalling <strong>${esc(amount)}</strong>. The oldest was due on <strong>${esc(dueDate)}</strong>.`)
+            : P(`Rent of <strong>${esc(amount)}</strong> for <strong>${esc(propertyName)}</strong> was due on <strong>${esc(dueDate)}</strong>, ${esc(String(daysOverdue))} ${dayWord} ago.`)
+        }
         ${lateFee ? P(`A late fee of <strong>${esc(lateFee)}</strong> has been applied under the terms of your agreement.`) : ''}
         ${P('If you have already paid, record it so your landlord can confirm — that clears the overdue flag and keeps your history intact.')}
         ${CTA('https://rentybase.com/dashboard', 'Record this payment')}
