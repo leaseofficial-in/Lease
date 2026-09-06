@@ -3,6 +3,7 @@ import { DM_Sans, Instrument_Serif, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { AuthLoader } from '@/components/auth-loader'
+import { ErrorReporter } from '@/components/error-reporter'
 import { RootStructuredData } from '@/components/structured-data'
 import './globals.css'
 
@@ -153,6 +154,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full">
         {children}
         <AuthLoader />
+        <ErrorReporter />
         <RootStructuredData />
         <Analytics />
         <SpeedInsights />

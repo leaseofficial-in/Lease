@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
 import { getRegion } from '@/lib/i18n/regions'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
+import { track } from '@/lib/analytics/track'
 
 // ── State machine ──────────────────────────────────────────────────────────
 type PageState =
@@ -97,14 +98,14 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
       const data = Array.isArray(rows) ? rows[0] : rows
 
       // 1. Token never existed
-      if (!data) { setState('notfound'); return }
+      if (!data) { track('invite_opened', { state: 'notfound' }); setState('notfound'); return }
 
       // 2. Rental has ended
-      if (data.status === 'ended') { setState('ended'); return }
+      if (data.status === 'ended') { track('invite_opened', { state: 'ended' }); setState('ended'); return }
 
       // 3. Invite link has expired
       const expiresAt = data.invite_expires_at ? new Date(data.invite_expires_at) : null
-      if (!expiresAt || expiresAt < new Date()) { setState('expired'); return }
+      if (!expiresAt || expiresAt < new Date()) { track('invite_opened', { state: 'expired' }); setState('expired'); return }
 
       // 4. Spot already taken by someone else (detected before session check,
       //    shown to unauthenticated users too so they don't waste time signing up)
@@ -113,11 +114,15 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
 
       if (data.is_taken) {
         // 5. Viewer is already the tenant, else 6. taken by a different account
+        track('invite_opened', { state: data.viewer_is_tenant ? 'already' : 'taken' })
         setState(data.viewer_is_tenant ? 'already' : 'taken')
         return
       }
 
-      // Rental is available — store it and show preview
+      // Rental is available — store it and show preview. This is the event that
+      // matters most: it is the only signal that a landlord's link was actually
+      // opened by a human, as opposed to never being sent at all.
+      track('invite_opened', { state: 'preview' })
       setRental(data)
       setState('preview')
 
@@ -184,6 +189,7 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
       if (result !== 'ok') { setState('error'); setJoining(false); return }
 
       try { sessionStorage.removeItem('rb-invite-token') } catch {}
+      track('invite_accepted')
       setState('joined')
     } catch {
       setState('error')

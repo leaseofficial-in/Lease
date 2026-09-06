@@ -6,6 +6,7 @@ import { LogoLockup } from '@/components/brand'
 import { useRegion } from '@/lib/hooks/useRegion'
 import { getRegion } from '@/lib/i18n/regions'
 import { SecureImage } from '@/components/secure-image'
+import { track } from '@/lib/analytics/track'
 import { localMonth, startOfLocalDay, calendarDaysBetween } from '@/lib/date/calendar'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
@@ -829,7 +830,7 @@ export default function DashboardPage() {
           <section style={{ ...cardStyle, gridColumn: 'span 2' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
               <div><h3 style={cardH3Style}>Portfolio</h3><span style={{ fontSize: 12, color: 'var(--rb-ink-3)', display: 'block', marginTop: 4 }}>{buildings.length} building{buildings.length!==1?'s':''} · {standaloneRentals.length} standalone · {activeRentals.length} active</span></div>
-              <button onClick={() => setModal('add-property')} style={actBtnPrimary}>+ Add</button>
+              <button onClick={() => { track('property_create_started', { from: 'properties_header' }); setModal('add-property') }} style={actBtnPrimary}>+ Add</button>
             </div>
             {allBuildings.map((b: Building) => (
               <BuildingCard key={b.id} building={b} rentals={buildingRentalsMap.get(b.id) || []} currentPayments={currentPayments} />
@@ -935,7 +936,7 @@ export default function DashboardPage() {
           <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-.02em', marginTop: 6 }}>Add your first property.</h2>
           <p style={{ fontSize: 14, color: 'rgba(246,244,238,.8)', marginTop: 8, lineHeight: 1.55 }}>Add a building with multiple units, or a single standalone property. Set rent terms and share the invite link.</p>
           <div style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
-            <button onClick={() => setModal('add-property')} style={{ ...actBtnPrimary, background: 'rgba(246,244,238,.15)', border: '1px solid rgba(246,244,238,.3)' }}>+ Add property →</button>
+            <button onClick={() => { track('property_create_started', { from: 'empty_hero' }); setModal('add-property') }} style={{ ...actBtnPrimary, background: 'rgba(246,244,238,.15)', border: '1px solid rgba(246,244,238,.3)' }}>+ Add property →</button>
           </div>
         </div>
       </>
@@ -999,7 +1000,7 @@ export default function DashboardPage() {
             {buildings.length > 0 && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', margin: '20px 0 12px' }}>Standalone</div>}
             <StandaloneList rentals={standaloneRentals} currentPayments={currentPayments} />
           </>}
-          {buildings.length === 0 && standaloneRentals.length === 0 && <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--rb-ink-3)' }}><p>No properties yet.</p><button onClick={() => setModal('add-property')} style={{ ...actBtnPrimary, marginTop: 16 }}>+ Add your first</button></div>}
+          {buildings.length === 0 && standaloneRentals.length === 0 && <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--rb-ink-3)' }}><p>No properties yet.</p><button onClick={() => { track('property_create_started', { from: 'empty_state' }); setModal('add-property') }} style={{ ...actBtnPrimary, marginTop: 16 }}>+ Add your first</button></div>}
         </section>
       </>
     )
@@ -2101,6 +2102,8 @@ export default function DashboardPage() {
           rent_increment_percent: Number(form.rent_increment_percent || 5),
         })
         if (rentalErr) throw rentalErr
+        track('property_created', { flow: 'standalone' })
+        track('rental_created', { flow: 'standalone' })
         toast('Property added! Share the invite link with your tenant.', 'success')
         setModal(null); refreshData()
       } catch (e: any) { console.error('[AddProperty]', e); toast(e?.message || 'Failed to add property', 'error'); setSaving(false) }
@@ -2728,6 +2731,7 @@ export default function DashboardPage() {
       try {
         const { error } = await sb.from('rentals').update({ invite_token: genToken(), invite_expires_at: tokenExpiry() }).eq('id', r.id)
         if (error) throw error
+        track('invite_regenerated')
         toast('New invite link generated!', 'success')
         setModal(null); setSelectedRental(null); refreshData()
       } catch (e: any) { toast(e?.message || 'Failed to generate link', 'error') } finally { setSaving(false) }
@@ -2876,7 +2880,7 @@ export default function DashboardPage() {
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: 'rgba(246,244,238,.3)', textTransform: 'uppercase' as const }}>Share via</div>
 
                   {/* WhatsApp — primary */}
-                  <a href={`https://wa.me/?text=${waMsg}`} target="_blank" rel="noreferrer"
+                  <a href={`https://wa.me/?text=${waMsg}`} target="_blank" rel="noreferrer" onClick={() => track('invite_sent', { channel: 'whatsapp' })}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '13px 20px', borderRadius: 12, background: '#25D366', color: '#fff', textDecoration: 'none', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, letterSpacing: '-.01em' }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.529 5.858L.057 23.999l6.304-1.654A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.798 9.798 0 01-4.964-1.348l-.356-.211-3.741.981.999-3.649-.232-.374A9.786 9.786 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182c5.43 0 9.818 4.388 9.818 9.818 0 5.43-4.388 9.818-9.818 9.818z"/></svg>
                     Send on WhatsApp
@@ -2884,17 +2888,17 @@ export default function DashboardPage() {
 
                   {/* Copy link + SMS row */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <button onClick={handleCopyLink} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: copied ? '#00C896' : 'rgba(246,244,238,.8)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'color .2s' }}>
+                    <button onClick={() => { track('invite_sent', { channel: 'copy' }); handleCopyLink() }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: copied ? '#00C896' : 'rgba(246,244,238,.8)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'color .2s' }}>
                       {copied ? '✓ Copied!' : <><Icon k="link" size={14} stroke={2} /> Copy link</>}
                     </button>
-                    <a href={`sms:?body=${smsMsg}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: 'rgba(246,244,238,.8)', textDecoration: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>
+                    <a href={`sms:?body=${smsMsg}`} onClick={() => track('invite_sent', { channel: 'sms' })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: 'rgba(246,244,238,.8)', textDecoration: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>
                       <Icon k="chat" size={14} stroke={1.8} /> Send SMS
                     </a>
                   </div>
 
                   {/* Native share (mobile only) */}
                   {canShare && (
-                    <button onClick={() => navigator.share({ title: 'Join your rental on RentyBase', text: `Your invite code: ${r.invite_token}`, url: inviteLink! })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(246,244,238,.1)', color: 'rgba(246,244,238,.45)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+                    <button onClick={() => { track('invite_sent', { channel: 'share' }); navigator.share({ title: 'Join your rental on RentyBase', text: `Your invite code: ${r.invite_token}`, url: inviteLink! }).catch(() => {}) }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(246,244,238,.1)', color: 'rgba(246,244,238,.45)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
                       ↗ More options
                     </button>
                   )}

@@ -127,17 +127,43 @@ content and are correct as they are.
 `region`; the repair-cost prefix, the WhatsApp invite line and the agreement clause
 suggestions follow suit. Typecheck, 22 tests, build all pass.
 
-### P1-4 · No product analytics · OPEN
+### P1-4 · No product analytics · SHIPPED
 **Problem.** Only `@vercel/analytics` (pageviews) and Speed Insights. No funnel, no
 activation events, no way to see where users drop off.
 **Impact.** The July–September funnel had to be reconstructed by querying Postgres
 by hand. 4 of 7 real signups never created a property and nobody knows why.
-**Fix.** A small, deliberate event taxonomy on the activation path
-(signup → property → invite sent → invite accepted → first payment), not blanket
-autocapture. PostHog connector needs OAuth authorization first.
+**Fix.** Built first-party rather than waiting on the blocked PostHog connector:
+`027_product_events.sql` plus `lib/analytics/track.ts`. A fixed 14-event taxonomy
+enforced by a CHECK constraint, covering one question — does a landlord reach an
+accepted invite, and where do they stop.
+The `*_started` events are the point. The database already records outcomes; a
+`properties` row proves someone succeeded and says nothing about the 4-in-7 who
+never created one. `property_create_started` vs `property_created` is the first
+number that has ever been able to distinguish "never tried" from "tried and gave
+up", and `invite_opened` is the only signal that a landlord's link was ever
+actually opened by a human.
+**Privacy.** No PII, no URLs, no user agents. Insert-only for users and
+**unreadable through the API by anyone** — no SELECT policy and no SELECT grant, so
+a table nobody can read cannot leak. Analysis runs as service_role.
+**Validation.** All five checks in the migration pass: valid event 201, unknown
+event name 400 (CHECK), forged `user_id` 401 (RLS), anon read 401, oversized props
+400. Test rows deleted afterwards.
+**Still worth doing:** PostHog when authorized, for session-level analysis this
+cannot do. This answers the funnel question, not every question.
 
-### P1-5 · No error tracking · OPEN
-Production exceptions are invisible. No Sentry or equivalent.
+### P1-5 · No error tracking · PARTIAL
+Production exceptions were invisible — no Sentry, and `console.error` in a user's
+browser reaches nobody. `client_errors` (027) plus `lib/analytics/report-error.ts`
+now records them: wired into the existing `app/error.tsx` and
+`app/global-error.tsx` boundaries (which already carried a "when Sentry lands,
+report here" note), plus window-level `error` and `unhandledrejection` handlers,
+since a React boundary catches neither an async rejection nor a throwing event
+handler. Deduped per page and capped at 10 rows to survive a render loop. Route
+patterns are recorded, never live URLs — `/join/ABC123` would otherwise log a live
+invite token.
+**Explicitly a stopgap.** No grouping, no release tracking, no source maps, so
+minified stacks are of limited use. Marked PARTIAL rather than SHIPPED for that
+reason; a real tracker is still worth adding once there is volume to justify it.
 
 ### P1-6 · 21 foreign keys without indexes · SHIPPED
 Includes hot paths: `rentals.property_id`, `rent_payments.tenant_id`,

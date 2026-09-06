@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { reportError } from '@/lib/analytics/report-error'
 
 /**
  * Route-level error boundary. Without this, an uncaught render error anywhere in the
@@ -18,8 +19,10 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    // Vercel captures this in runtime logs. When Sentry lands, report here instead.
+    // Vercel captures this in runtime logs, which nobody watches. reportError also
+    // records it to client_errors so it is queryable after the fact.
     console.error('[app/error]', error)
+    reportError(error, 'app/error')
   }, [error])
 
   return (

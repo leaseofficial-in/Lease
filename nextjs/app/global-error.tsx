@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { reportError } from '@/lib/analytics/report-error'
 
 /**
  * Last-resort boundary for errors thrown in the root layout itself. It replaces the
@@ -17,6 +18,9 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('[app/global-error]', error)
+    // Best-effort: the root layout has already failed, so the Supabase client may
+    // not initialise either. reportError swallows its own failures.
+    reportError(error, 'app/global-error')
   }, [error])
 
   return (

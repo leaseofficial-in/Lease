@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { track } from '@/lib/analytics/track'
 
 function isNativeApp(): boolean {
   if (typeof window === 'undefined') return false
@@ -525,6 +526,7 @@ export default function SignUpPage() {
       if (storedRole && ['landlord', 'tenant', 'pg'].includes(storedRole)) {
         await sb.from('profiles').update({ role: storedRole }).eq('id', session.user.id)
         sessionStorage.removeItem('rb-signup-role')
+        track('signup_completed', { role: storedRole, path: 'desktop_oauth' })
         sendWelcomeEmail(session.access_token, welcomeName(profile?.full_name, session), storedRole)
         const nextParam = new URLSearchParams(window.location.search).get('next')
         const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard'
@@ -574,6 +576,7 @@ export default function SignUpPage() {
     setLoading(true)
     setError('')
     try {
+      track('signup_started', { role })
       sessionStorage.setItem('rb-signup-role', role)
       if (isNativeApp()) {
         // Native Android: show Google account picker inside the app.
@@ -596,6 +599,7 @@ export default function SignUpPage() {
           if (storedRole) {
             await sb.from('profiles').update({ role: storedRole }).eq('id', session.user.id)
             sessionStorage.removeItem('rb-signup-role')
+            track('signup_completed', { role: storedRole, path: 'native' })
             sendWelcomeEmail(session.access_token, welcomeName(null, session), storedRole)
           }
           const nextParam = new URLSearchParams(window.location.search).get('next')
@@ -689,6 +693,7 @@ export default function SignUpPage() {
       const { data: { session } } = await sb.auth.getSession()
       if (!session) { setMobileStep('splash'); return }
       await sb.from('profiles').update({ full_name: displayName.trim() }).eq('id', session.user.id)
+      track('signup_completed', { role, path: 'mobile_stepthrough' })
       sendWelcomeEmail(session.access_token, displayName.trim(), role)
       setMobileStep('sealed')
     } finally {
