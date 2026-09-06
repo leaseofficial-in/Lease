@@ -2168,12 +2168,25 @@ export default function DashboardPage() {
       const active = (form as any)[k] === v
       return { padding: '7px 14px', borderRadius: 999, border: `1.5px solid ${active ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: active ? 'var(--rb-action)' : 'transparent', color: active ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all .15s' }
     }
+    // Only what is genuinely needed to get a landlord to their first invite link.
+    //
+    // This form used to demand 9 fields before it would do anything: a full street
+    // address, pincode, bedroom and bathroom counts, notice period, lock-in, late
+    // fee and annual increment. Of 11 landlords, 5 never created a property at all
+    // — the moment the product becomes useful sat behind a property dossier.
+    //
+    // A name and a rent are enough to create the rental and produce a link. The
+    // address is needed to generate an AGREEMENT, which happens later and asks for
+    // it then (see the prompt in the agreement flow). 032 dropped the NOT NULLs
+    // that made the old requirement structural.
+    //
+    // Pincode is still validated when supplied — an empty value is fine, a
+    // half-typed one is not. The 6-digit rule only applies where postcodes are
+    // 6 digits, so it is scoped to India rather than imposed on every country.
     const validateField = (k: string, val: string) => {
-      if (k === 'name' && !val.trim()) return 'Property name is required'
-      if (k === 'city' && !val.trim()) return 'City is required'
-      if (k === 'state' && !val.trim()) return 'State is required'
-      if (k === 'pincode' && !/^\d{6}$/.test(val.trim())) return 'Enter a valid 6-digit pincode'
-      if (k === 'monthly_rent' && (!val || Number(val) <= 0)) return 'Enter a valid monthly rent'
+      if (k === 'name' && !val.trim()) return 'Give this property a name'
+      if (k === 'monthly_rent' && (!val || Number(val) <= 0)) return 'Enter a monthly rent'
+      if (k === 'pincode' && isIndia && val.trim() && !/^\d{6}$/.test(val.trim())) return 'Enter a valid 6-digit pincode'
       return ''
     }
     const onBlur = (k: string) => (e: React.FocusEvent<HTMLInputElement>) => {
@@ -2186,14 +2199,18 @@ export default function DashboardPage() {
     )
 
     const handleSubmit = async () => {
-      if (!form.name || !form.address_line1 || !form.city || !form.state || !form.pincode || !form.monthly_rent) {
-        toast('Fill in all required fields', 'error'); return
+      if (!form.name || !form.monthly_rent) {
+        toast('A property name and monthly rent are all we need to start', 'error'); return
       }
       setSaving(true)
       try {
         const { data: prop, error: propErr } = await sb.from('properties').insert({
-          name: form.name, address_line1: form.address_line1, address_line2: form.address_line2 || null,
-          city: form.city, state: form.state, pincode: form.pincode, landlord_id: user.id,
+          name: form.name,
+          // Null rather than '' so "not filled in yet" is distinguishable from
+          // "deliberately blank" when the agreement flow later asks for it.
+          address_line1: form.address_line1 || null, address_line2: form.address_line2 || null,
+          city: form.city || null, state: form.state || null, pincode: form.pincode || null,
+          landlord_id: user.id,
           property_type: form.property_type,
           bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
           bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
@@ -2247,6 +2264,29 @@ export default function DashboardPage() {
 
     return (
       <Modal title="Add standalone property" onClose={() => setModal(null)}>
+        {/* ── The only two things needed to get an invite link out ──
+            Everything below this block is optional and can be filled in later.
+            It used to come first, so a landlord met six optional fields before
+            reaching the property name. */}
+        <div style={{ background: 'var(--rb-action-soft)', border: '1px solid var(--rb-border-soft)', borderRadius: 12, padding: 16, marginBottom: 4 }}>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-2)', marginBottom: 12, lineHeight: 1.5 }}>
+            Just a name and the rent gets you an invite link to send your tenant. Everything else can wait.
+          </div>
+          <Field label="Property name">
+            <input style={inputStyle} value={form.name} onChange={set('name')} onBlur={onBlur('name')} placeholder="e.g. 2BHK Bandra West" autoFocus />
+          </Field>
+          <ErrMsg field="name" />
+          <Field label={`Monthly rent (${region.currency.symbol})`}>
+            <input style={inputStyle} type="number" inputMode="decimal" value={form.monthly_rent} onChange={set('monthly_rent')} onBlur={onBlur('monthly_rent')} placeholder="0" />
+          </Field>
+          <ErrMsg field="monthly_rent" />
+        </div>
+
+        <details style={{ marginTop: 18 }}>
+          <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--rb-action)', padding: '8px 0' }}>
+            Add more details now (optional)
+          </summary>
+
         {/* ── Property type ── */}
         <SectionHead label="Property Type" />
         <Field label="Property type">
@@ -2284,23 +2324,19 @@ export default function DashboardPage() {
 
         {/* ── Location ── */}
         <SectionHead label="Location" />
-        <Field label="Property name / label *">
-          <input style={{ ...inputStyle, borderColor: fieldErrors.name ? 'var(--rb-danger)' : undefined }} value={form.name} onChange={set('name')} onBlur={onBlur('name')} placeholder="e.g. Sunrise Apt 4B" />
-          <ErrMsg field="name" />
-        </Field>
-        <Field label="Street address *"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} placeholder="Flat no., building, street" /></Field>
+        <Field label="Street address"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} placeholder="Flat no., building, street" /></Field>
         <Field label="Landmark / area (optional)"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} placeholder="Near Metro station" /></Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="City *">
+          <Field label="City">
             <input style={{ ...inputStyle, borderColor: fieldErrors.city ? 'var(--rb-danger)' : undefined }} value={form.city} onChange={set('city')} onBlur={onBlur('city')} placeholder="Hyderabad" />
             <ErrMsg field="city" />
           </Field>
-          <Field label="State *">
+          <Field label="State">
             <input style={{ ...inputStyle, borderColor: fieldErrors.state ? 'var(--rb-danger)' : undefined }} value={form.state} onChange={set('state')} onBlur={onBlur('state')} placeholder="Telangana" />
             <ErrMsg field="state" />
           </Field>
         </div>
-        <Field label="Pincode *">
+        <Field label="Pincode">
           <input style={{ ...inputStyle, borderColor: fieldErrors.pincode ? 'var(--rb-danger)' : undefined }} value={form.pincode} onChange={set('pincode')} onBlur={onBlur('pincode')} placeholder="500001" />
           <ErrMsg field="pincode" />
         </Field>
@@ -2313,13 +2349,7 @@ export default function DashboardPage() {
             ))}
           </div>
         </Field>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label={`Monthly rent (${region.currency.symbol}) *`}>
-            <input style={{ ...inputStyle, borderColor: fieldErrors.monthly_rent ? 'var(--rb-danger)' : undefined }} type="number" value={form.monthly_rent} onChange={set('monthly_rent')} onBlur={onBlur('monthly_rent')} placeholder="25000" />
-            <ErrMsg field="monthly_rent" />
-          </Field>
-          <Field label={`Security deposit (${region.currency.symbol})`}><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
-        </div>
+        <Field label={`Security deposit (${region.currency.symbol})`}><input style={inputStyle} type="number" value={form.security_deposit} onChange={set('security_deposit')} placeholder="50000" /></Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <Field label={`Maintenance / society (${region.currency.symbol}/mo)`}><input style={inputStyle} type="number" value={form.maintenance_charges} onChange={set('maintenance_charges')} placeholder="0" /></Field>
           <Field label="Rent due day"><select style={inputStyle} value={form.rent_due_day} onChange={set('rent_due_day')}>{Array.from({length:28},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}th</option>)}</select></Field>
@@ -2332,6 +2362,7 @@ export default function DashboardPage() {
           <Field label="Late fee (% of rent)"><input style={inputStyle} type="number" value={form.late_fee_percent} onChange={set('late_fee_percent')} placeholder="5" /></Field>
           <Field label="Annual rent increment (%)"><input style={inputStyle} type="number" value={form.rent_increment_percent} onChange={set('rent_increment_percent')} placeholder="5" /></Field>
         </div>
+        </details>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
           <button onClick={() => setModal(null)} style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>Cancel</button>
@@ -2910,8 +2941,21 @@ export default function DashboardPage() {
       if (!currentPmt) return
       setSaving(true)
       try {
-        const { error } = await sb.from('rent_payments').update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', currentPmt.id)
+        // `.select()` is what makes this honest. supabase-js returns error: null
+        // for an update that matched ZERO rows, so `if (error) throw` reported
+        // success while nothing happened — which is exactly how this button went
+        // unnoticed as broken (there was no landlord UPDATE policy at all until
+        // 033). Asking for the affected rows back turns a silently blocked write
+        // into a visible failure.
+        const { data: updated, error } = await sb
+          .from('rent_payments')
+          .update({ status: 'pending', updated_at: new Date().toISOString() })
+          .eq('id', currentPmt.id)
+          .select('id')
         if (error) throw error
+        if (!updated || updated.length === 0) {
+          throw new Error('That payment could not be updated. Please refresh and try again.')
+        }
         toast('Payment returned to pending.', 'info')
         setModal(null); setSelectedRental(null); refreshData()
       } catch (e: any) { toast(e?.message || 'Failed to reject payment', 'error') } finally { setSaving(false) }
@@ -3989,7 +4033,19 @@ export default function DashboardPage() {
               {!isExecuted && <button onClick={() => { setSelectedRental(activeRental); setModal('custom-clauses') }} style={actBtnSm}>Edit clauses</button>}
               {!isExecuted && activeRental.agreement_status !== 'pending_signature' && !activeRental.agreement_signed_at && (
                 <button onClick={async () => {
-                  await sb.from('rentals').update({ agreement_status: 'pending_signature' }).eq('id', activeRental.id)
+                  // The property address is optional when a landlord first adds a
+                  // property (032) so that nothing blocks them from getting an
+                  // invite link out. This is the moment it actually matters: a
+                  // rental agreement that does not identify the premises is worth
+                  // very little, so it is asked for here rather than up front.
+                  if (!activeRental.property?.address_line1 || !activeRental.property?.city) {
+                    toast('Add the property address before sending the agreement — an agreement needs to identify the premises.', 'error')
+                    setSelectedRental(activeRental)
+                    setModal('property-detail')
+                    return
+                  }
+                  const { error } = await sb.from('rentals').update({ agreement_status: 'pending_signature' }).eq('id', activeRental.id)
+                  if (error) { toast(error.message || 'Could not send the agreement', 'error'); return }
                   toast('Agreement sent to tenant for signature', 'success')
                   refreshData()
                 }} style={actBtnPrimary}>Send to tenant →</button>
