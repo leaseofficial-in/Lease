@@ -380,9 +380,26 @@ wrongly charged — it was armed for the first tenant on a waived rental to go
 overdue. Same shape as the invite-token leak: latent, and one ordinary event away
 from real.
 
-**Still untested:** the invite claim path, deposit ledger arithmetic, and every RLS
-boundary. RLS in particular is verified only by manual anonymous probes during
-audits; it deserves a real harness with two seeded users.
+**RLS now has a harness.** `scripts/verify-security.sh` re-checks 22 boundaries
+from the position an attacker occupies — holding the publishable anon key and
+nothing else — and every one of them was genuinely open in production at some
+point. Wired into `npm run verify`, which exits non-zero on the first failure.
+
+One check in the first draft was weaker than it looked: PostgREST answers `204`
+both when a PATCH updates rows and when it matches none, so a status-code check
+could not tell a blocked write from a successful one — precisely the kind of test
+that stays green while the hole is open. It now sends
+`Prefer: return=representation` and asserts the affected-rows array is empty.
+
+`lint` is deliberately **not** in the `verify` chain: it still fails on 10
+pre-existing violations, and a gate that is always red is a gate everyone ignores.
+Put it back once P2-3 is finished.
+
+**Still untested:** cross-tenant access between two signed-in users (needs two
+seeded sessions — the obvious next extension, since everything so far is verified
+against the anonymous case plus SQL-level simulation of the policy predicates,
+which is weaker than exercising it), the invite claim path end-to-end, and deposit
+ledger arithmetic.
 
 ### P2-7 · `/dashboard` redirect drops the destination · SHIPPED
 `proxy.ts` redirected unauthenticated dashboard hits to `/signin` with no `next`,
