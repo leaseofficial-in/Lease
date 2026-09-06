@@ -99,7 +99,11 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   array deleted. Parses 'YYYY-MM-01' by hand so it never drifts a month via UTC.
 - Last `<a href="/rentals">` (existed at HEAD) converted; staged as a blob so the
   owner's WIP on that file stayed untouched. **Lint = 0 and is back in `verify`.**
-- Tests 65 → 90. Lint 10 → **0**. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
+- TenantEmpty now offers "Have an invite code? Enter it →" (was a dead end).
+  `/join` normalises internal whitespace, phone-friendly input attrs, 10-char placeholder.
+- `track()` and `reportError()` pinned by mocked tests (insert shape, null user_id for
+  anonymous, PII-free route patterns, dedup, per-page cap, truncation).
+- Tests 65 → 101. Lint 10 → **0**. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
   (an `<a href="/rentals/">`). Every file I own is lint-clean. signin derives the
   auth-failed message from `useSearchParams` (Suspense-wrapped); country page and
   footer selector read `useRegion()` instead of seeding state from an effect;
@@ -114,8 +118,10 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
 ### P2 — open
 - Component primitives: Button DONE (31 sites). Badge/Card/EmptyState still open.
 - Dashboard decomposition (extracting terms found a live money bug; do more).
-- Verify analytics fires in a browser. Verify `client_errors` captures.
-- Cron monitoring: assert on outcome, not on queue success.
+- Analytics/error capture: insert shapes verified by mocked tests. Browser-level
+  observation still unverified (no browser here). Tables have 0 rows = 0 traffic.
+- Cron monitoring: both remaining jobs are plain SQL, so `cron.job_run_details.
+  return_message` will hold their row counts. Verify after first tick (00:30/01:00 UTC).
 - Mobile: audited. Dashboard has a real phone shell; the three un-collapsed 3-col
   grids are fine on phones (More-sheet icons, 3 small stats, 3 tiny numeric inputs).
   No action needed. 33 two-col grids in modals are cramped-but-functional.
@@ -132,9 +138,18 @@ tracking, error boundaries, welcome email on all paths, country onboarding, next
 preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
 
 ## Test status
-90/90 tests · typecheck clean · build clean · security 34/34 · lint 0 (gates verify).
+101/101 tests · typecheck clean · build clean · security 34/34 · lint 0 (gates verify).
+
+## Known bounds (documented, not fixing autonomously)
+- `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
+  the fix (Upstash/KV) before any per-call-cost endpoint. Mail routes are auth+RLS
+  bound or dual-keyed (IP + recipient). Acceptable at current scale.
+- UI strings are English (relDate "Today at", email templates, marketing). Real i18n
+  needs a translation source and a string-extraction pass — not safe to invent.
+- Badge: 11 status pills with heterogeneous padding/spacing; consolidating changes
+  pixels I cannot see. Left.
 
 ## Next task
-Second audit round: tenant empty state + loading/auth-error paths (never inspected),
-cron observability (does job_run_details capture return counts?), production health
-after today's deploys. Then a `track()` unit test with a mocked client.
+EmptyState primitive: 8 of 14 `emptyStyle` blocks share one verbatim shape
+(wrapper → 32px Icon → single <p>). Migrate those by regex; leave the other 6.
+Then a fresh full audit pass (Phase 12) assuming this one missed things.
