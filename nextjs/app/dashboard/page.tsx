@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { LogoLockup } from '@/components/brand'
 import { useRegion } from '@/lib/hooks/useRegion'
 import { getRegion } from '@/lib/i18n/regions'
+import { SecureImage } from '@/components/secure-image'
 import { localMonth, startOfLocalDay, calendarDaysBetween } from '@/lib/date/calendar'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
@@ -545,7 +546,7 @@ export default function DashboardPage() {
             )}
             <div onClick={() => setLightbox({ url: p.public_url || '', label: p.room_label || 'Room' })}
               style={{ aspectRatio: '1', borderRadius: 8, position: 'relative', overflow: 'hidden', cursor: 'pointer', background: p.public_url ? 'none' : `linear-gradient(135deg,${colors[i % colors.length]},#2c1c0e)` }}>
-              {p.public_url && <img src={p.public_url} alt={p.room_label || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+              {p.public_url && <SecureImage src={p.public_url} alt={p.room_label || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(transparent 50%,rgba(0,0,0,.55))' }} />
               <span style={{ position: 'absolute', bottom: 8, left: 10, color: '#fff', fontSize: 11, fontWeight: 600, zIndex: 1 }}>{p.room_label || 'Room'}</span>
             </div>
@@ -1440,7 +1441,7 @@ export default function DashboardPage() {
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{methodLabel(currentPayment.payment_method)}</div>
                 {currentPayment.utr_number && <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 13, color: 'rgba(246,244,238,.8)', marginTop: 4 }}>Ref: {currentPayment.utr_number}</div>}
                 {currentPayment.payment_note && <div style={{ fontSize: 12, color: 'rgba(246,244,238,.6)', marginTop: 4 }}>{currentPayment.payment_note}</div>}
-                {currentPayment.payment_proof_url && <img src={currentPayment.payment_proof_url} alt="Receipt" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, marginTop: 8, cursor: 'pointer' }} onClick={() => setLightbox({ url: currentPayment.payment_proof_url!, label: 'Payment receipt' })} />}
+                {currentPayment.payment_proof_url && <SecureImage src={currentPayment.payment_proof_url} alt="Receipt" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, marginTop: 8, cursor: 'pointer' }} onClick={() => setLightbox({ url: currentPayment.payment_proof_url!, label: 'Payment receipt' })} />}
               </div>}
             </div>
             : <div style={{ marginTop: 18, display: 'flex', gap: 10 }}><button onClick={() => setModal('pay-rent')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 999, background: '#fff', color: 'var(--rb-action)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 0 }}>Pay / record payment →</button></div>}
@@ -2505,7 +2506,7 @@ export default function DashboardPage() {
             {r.category && <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 9, color: 'var(--rb-ink-3)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--rb-border)' }}>{r.category}</span>}
           </div>
           {r.description && <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginTop: 6, lineHeight: 1.5 }}>{r.description}</div>}
-          {r.photo_url && <img src={r.photo_url} alt="Damage photo" style={{ marginTop: 10, width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8, display: 'block' }} />}
+          {r.photo_url && <SecureImage src={r.photo_url} alt="Damage photo" style={{ marginTop: 10, width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8, display: 'block' }} />}
         </div>
         <Field label="Status">
           <div style={{ display: 'flex', gap: 8 }}>
@@ -2623,7 +2624,7 @@ export default function DashboardPage() {
             {r.urgency === 'emergency' && <span style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(239,68,68,.12)', color: 'var(--rb-danger)', letterSpacing: '.06em' }}>EMERGENCY</span>}
           </div>
           {r.description && <div style={{ fontSize: 14, color: 'var(--rb-ink-2)', marginTop: 6, lineHeight: 1.55 }}>{r.description}</div>}
-          {r.photo_url && <img src={r.photo_url} alt="Damage photo" style={{ marginTop: 10, width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, display: 'block', cursor: 'pointer' }} onClick={() => setLightbox({ url: r.photo_url!, label: r.title })} />}
+          {r.photo_url && <SecureImage src={r.photo_url} alt="Damage photo" style={{ marginTop: 10, width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, display: 'block', cursor: 'pointer' }} onClick={() => setLightbox({ url: r.photo_url!, label: r.title })} />}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {rows.map(f => (
@@ -2795,7 +2796,7 @@ export default function DashboardPage() {
             {currentPmt.payment_method && <div style={{ fontSize: 12, color: 'var(--rb-ink-2)', marginTop: 4 }}>via {methodLabel(currentPmt.payment_method)}</div>}
             {currentPmt.utr_number && <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>Ref: {currentPmt.utr_number}</div>}
             {currentPmt.payment_note && <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{currentPmt.payment_note}</div>}
-            {currentPmt.payment_proof_url && <img src={currentPmt.payment_proof_url} alt="Receipt" onClick={() => { setLightbox({ url: currentPmt.payment_proof_url!, label: 'Payment receipt' }); setModal(null) }} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, marginTop: 8, cursor: 'pointer' }} />}
+            {currentPmt.payment_proof_url && <SecureImage src={currentPmt.payment_proof_url} alt="Receipt" onClick={() => { setLightbox({ url: currentPmt.payment_proof_url!, label: 'Payment receipt' }); setModal(null) }} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, marginTop: 8, cursor: 'pointer' }} />}
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <button onClick={handleAcceptPayment} style={{ ...actBtnPrimary, fontSize: 12, padding: '7px 16px', background: 'var(--rb-success)' }}>✓ Confirm & seal</button>
               <button onClick={handleRejectPayment} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--rb-danger)', background: 'transparent', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--rb-danger)', fontWeight: 600 }}>Reject</button>
@@ -4588,7 +4589,12 @@ export default function DashboardPage() {
       {/* Lightbox */}
       {lightbox && (
         <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(0,0,0,.88)', display: 'grid', placeItems: 'center', padding: 20 }}>
-          <img src={lightbox.url} alt={lightbox.label} style={{ maxWidth: '90vw', maxHeight: '85vh', borderRadius: 12, objectFit: 'contain' }} />
+          <SecureImage
+            src={lightbox.url}
+            alt={lightbox.label}
+            style={{ maxWidth: '90vw', maxHeight: '85vh', borderRadius: 12, objectFit: 'contain' }}
+            placeholder={<div style={{ color: 'rgba(255,255,255,.55)', fontSize: 13 }}>Loading…</div>}
+          />
           <div style={{ position: 'absolute', bottom: 32, color: '#fff', fontSize: 14, fontWeight: 600 }}>{lightbox.label}</div>
         </div>
       )}
