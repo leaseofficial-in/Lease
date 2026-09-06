@@ -151,6 +151,23 @@ else
   bad "unexpected claim response" "${body:0:160}"
 fi
 
+# ── 3b. Privileged functions ──────────────────────────────────────────────────
+#
+# Postgres grants EXECUTE to PUBLIC on every new function, and PostgREST exposes
+# every function at /rest/v1/rpc/. The cron jobs are SECURITY DEFINER, so until
+# 036 anyone with the anon key could run them on demand. Idempotent today; the
+# next one written in that style might not be.
+echo
+echo "Privileged functions must not be callable by anon:"
+for fn in mark_overdue_payments ensure_current_month_rent accept_rental_invite; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/rest/v1/rpc/$fn"     -H "apikey: $KEY" -H "Content-Type: application/json" -d '{"invite_token_input":"x"}')
+  if [[ "$code" == "401" || "$code" == "403" || "$code" == "404" ]]; then
+    ok "anon cannot execute $fn (HTTP $code)"
+  else
+    bad "ANON CAN EXECUTE $fn" "expected 401/403/404, got $code"
+  fi
+done
+
 # ── 4. Storage ────────────────────────────────────────────────────────────────
 echo
 echo "Storage:"

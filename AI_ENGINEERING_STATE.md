@@ -68,6 +68,10 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
 10. Check for an existing helper before writing one (`escSubject`, `confirm_rent_payment`).
 11. Postgres tokens: `invite_token`/`invite_expires_at` NOT NULL + UNIQUE. Rotate by
     replacing, never nulling.
+12. **Run a replacement job by hand before retiring the thing it replaces.** 034
+    unscheduled process-rent trusting mark_overdue_payments(), which had a 42703
+    and had never once succeeded. Postgres grants EXECUTE to PUBLIC on every new
+    function — always revoke, or rely on the schema default set in 036.
 
 ## Incident log
 
@@ -117,7 +121,19 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   phone, payment-method labels, currency formatting) + picker coverage + fallback.
   A broken region now fails the build instead of silently breaking a country.
   Note: ICU canonicalises `Asia/Kolkata`→`Asia/Calcutta`; the test compares offsets.
-- Tests 65 → 189. Lint 10 → **0**. Security 36/36. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
+- **036**: revoked EXECUTE from public/anon/authenticated on `mark_overdue_payments`,
+  `ensure_current_month_rent` (anon could run privileged cron jobs via /rpc — proven
+  live) and `accept_rental_invite` (second claim path, only the dead Expo app called
+  it). `alter default privileges ... revoke execute on functions from public` so new
+  functions are private unless granted. Harness 36 → 39.
+- **037 — found by 036's probe**: `rent_payments` had NO `updated_at` column, but
+  007's cron, my 029/031 function, and the dashboard reject handler all set it →
+  42703. **The SQL overdue job had never run successfully**; process-rent (Edge) was
+  what actually marked rent overdue, and 034 unscheduled it → overdue marking silently
+  broken since 034, one payment stuck pending. Column + set_updated_at trigger added;
+  job now runs; stuck payment marked. Lesson 12: after replacing a job, RUN the
+  replacement once by hand before retiring the old one.
+- Tests 65 → 189. Lint 10 → **0**. Security 39/39. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
   (an `<a href="/rentals/">`). Every file I own is lint-clean. signin derives the
   auth-failed message from `useSearchParams` (Suspense-wrapped); country page and
   footer selector read `useRegion()` instead of seeding state from an effect;
@@ -167,7 +183,7 @@ tracking, error boundaries, welcome email on all paths, country onboarding, next
 preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
 
 ## Test status
-189/189 tests · typecheck clean · build clean · security 36/36 · lint 0 (gates verify).
+189/189 tests · typecheck clean · build clean · security 39/39 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
