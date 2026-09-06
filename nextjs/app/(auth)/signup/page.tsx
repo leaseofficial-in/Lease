@@ -6,13 +6,10 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { isNativeApp } from '@/lib/native'
 import { track } from '@/lib/analytics/track'
 import { getRegionFromCookie } from '@/lib/region'
 
-function isNativeApp(): boolean {
-  if (typeof window === 'undefined') return false
-  return typeof (window as any).__RentyBase !== 'undefined'
-}
 import { LogoLockup } from '@/components/brand'
 
 const WaxSeal = ({ size = 96 }: { size?: number }) => (

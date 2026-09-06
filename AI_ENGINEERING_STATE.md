@@ -40,7 +40,7 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   memory `credentials.md`). service_role key: fetch from
   `GET /v1/projects/<ref>/api-keys`, use in-session, **never store**.
 - Verify: `cd nextjs && npm run verify` = typecheck + 65 tests + build +
-  `scripts/verify-security.sh` (22 anon checks; 34 with `SUPABASE_SERVICE_ROLE_KEY`
+  `scripts/verify-security.sh` (22 anon checks; 36 with `SUPABASE_SERVICE_ROLE_KEY`
   exported — creates and destroys its own probe user).
 - `npm run lint` fails on 10 pre-existing errors; deliberately NOT in `verify`.
 - Commit only my files; the owner has uncommitted geo work in `app/rentals/[country]`,
@@ -105,7 +105,15 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   anonymous, PII-free route patterns, dedup, per-page cap, truncation).
 - `components/ui/empty-state.tsx`: the 8 verbatim "icon + one line" empty states
   migrated by exact-match regex; the 6 variants left. `role="status"` added.
-- Tests 65 → 101. Lint 10 → **0**. Security 34/34 re-run after all DB changes. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
+- **`/join/*` and `/onboarding/*` were `index, follow`** (inherited from root). Invite
+  pages show rent/deposit/landlord name to link-holders; a crawled link would have
+  indexed it. Fixed with `robots: noindex` layouts. `/signin`,`/signup` left indexable
+  on purpose (entry points people search for).
+- 035: avatar bucket writes scoped to `<uid>/…` (were `auth.role()='authenticated'`
+  → any user could overwrite anyone's public profile picture). Dormant (no upload
+  feature, 0 objects) but reachable via API. Harness now checks it (36 checks).
+- `lib/native.ts`: `isNativeApp` was duplicated verbatim in signin + signup.
+- Tests 65 → 101. Lint 10 → **0**. Security 36/36. (Old note: lint 10 → 2, both in `app/rentals/[country]/page.tsx:233`
   (an `<a href="/rentals/">`). Every file I own is lint-clean. signin derives the
   auth-failed message from `useSearchParams` (Suspense-wrapped); country page and
   footer selector read `useRegion()` instead of seeding state from an effect;
@@ -140,7 +148,7 @@ tracking, error boundaries, welcome email on all paths, country onboarding, next
 preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
 
 ## Test status
-101/101 tests · typecheck clean · build clean · security 34/34 · lint 0 (gates verify).
+101/101 tests · typecheck clean · build clean · security 36/36 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -152,5 +160,10 @@ preservation, reminder emails. Tests 9 → 65. Security harness 34 checks.
   pixels I cannot see. Left.
 
 ## Next task
-Phase 12 fresh audit: sitemap/robots vs authenticated routes; native (Capacitor)
-path on /join; DB hygiene (updated_at triggers, any remaining auth.role() policies).
+Phase 12 continued. Verified clean: sitemap/robots, updated_at triggers, service-role
+policies. Next angles not yet examined this sprint: the tenant portal's "documents"
+surface (agreements bucket read path — is there a signed-URL flow for the HTML
+agreement?), the HRA receipt generator's Edge Function (generate-hra-receipt) and
+whether it still works against the tightened policies, and the Android app's
+assetlinks fingerprint placeholder (`app/.well-known/assetlinks.json/route.ts` has
+"Replace the placeholder" in a comment — is it real?).

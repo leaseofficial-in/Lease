@@ -7,14 +7,11 @@ export const dynamic = 'force-dynamic'
 import { Suspense, useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { isNativeApp } from '@/lib/native'
 import { LogoLockup } from '@/components/brand'
 
 // Reliable native detection: @JavascriptInterface injected in MainActivity
 // before any JS runs, unlike Capacitor bridge which may lag on remote server.url.
-function isNativeApp(): boolean {
-  if (typeof window === 'undefined') return false
-  return typeof (window as any).__RentyBase !== 'undefined'
-}
 
 function GoogleIcon() {
   return (

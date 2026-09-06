@@ -239,6 +239,24 @@ else
       bad "STRANGER WROTE A PAYMENT" "expected 403, got $code"
     fi
 
+    # Avatar writes must be scoped to the caller's own folder (035). Before that
+    # migration any signed-in user could overwrite any avatar path in a PUBLIC
+    # bucket -- i.e. replace someone else's profile picture.
+    OTHER="00000000-0000-0000-0000-000000000002"
+    code=$(curl -s -o /dev/null -w '%{http_code}' -X POST       "$URL/storage/v1/object/avatars/$OTHER/probe.png"       -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: image/png" --data-binary "x")
+    if [[ "$code" == "400" || "$code" == "403" ]]; then
+      ok "signed-in user cannot write into another user's avatar folder (HTTP $code)"
+    else
+      bad "AVATAR FOLDER WRITABLE BY OTHERS" "expected 400/403, got $code"
+    fi
+    code=$(curl -s -o /dev/null -w '%{http_code}' -X POST       "$URL/storage/v1/object/avatars/$PROBE_ID/probe.png"       -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: image/png" --data-binary "x")
+    if [[ "$code" == "200" ]]; then
+      ok "signed-in user can write their own avatar (HTTP $code)"
+      curl -s -o /dev/null -X DELETE "$URL/storage/v1/object/avatars/$PROBE_ID/probe.png"         -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+    else
+      bad "own avatar write blocked" "expected 200, got $code"
+    fi
+
     # Clean up regardless of outcome.
     curl -s -o /dev/null -X DELETE "$URL/auth/v1/admin/users/$PROBE_ID" \
       -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
