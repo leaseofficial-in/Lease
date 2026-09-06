@@ -36,7 +36,21 @@ function CountryOnboardingInner() {
       const sb = createClient()
       const { data: { user } } = await sb.auth.getUser()
       if (user) {
-        await sb.from('profiles').update({ country_code: selected }).eq('id', user.id)
+        // Write all four region fields together, not just the country. They are
+        // derived from one another, and leaving currency_code or timezone at their
+        // 'INR' / 'Asia/Kolkata' defaults while country_code says 'US' produces a
+        // profile that disagrees with itself — and those columns are what any
+        // server-side job (rent reminders, overdue marking) would have to trust.
+        const chosen = getRegion(selected)
+        await sb
+          .from('profiles')
+          .update({
+            country_code: chosen.countryCode,
+            currency_code: chosen.currency.code,
+            locale: chosen.locale,
+            timezone: chosen.primaryTimezone,
+          })
+          .eq('id', user.id)
       }
       router.replace(next.startsWith('/') ? next : '/dashboard')
     } catch {

@@ -64,7 +64,16 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user && isDashboard) {
-    return NextResponse.redirect(new URL('/signin', request.url))
+    // Preserve where they were heading. Signing in from a deep link previously
+    // dropped the destination and landed everyone on the dashboard root, which is
+    // worst for the case that matters most: a tenant following an invite, who is
+    // the one person least likely to find their way back unaided.
+    // Only the path is forwarded, and /auth/callback re-checks that `next` starts
+    // with '/', so this cannot be turned into an open redirect.
+    const signin = new URL('/signin', request.url)
+    const target = request.nextUrl.pathname + request.nextUrl.search
+    if (target && target !== '/dashboard') signin.searchParams.set('next', target)
+    return NextResponse.redirect(signin)
   }
 
   if (user && isAuthPage) {

@@ -250,21 +250,33 @@ breaks for any currency with subunits in normal use. `repair_requests.cost` and
 day early, one in UTC-11 a day late. Needs the tenant's timezone
 (`profiles.timezone`, which now finally exists) folded into the comparison.
 
-### P2-9 · New users are never asked for their country · OPEN
+### P2-9 · New users are never asked for their country · SHIPPED
 `003` defaults `country_code` to `'IN'`, and `auth/callback` only routes to
 `/onboarding/country` when the column is null — which it now never is. So a US or
 UK landlord is silently assigned India and sees rupees until they change it
-manually. The page exists and works; nothing reaches it. Correct fix is to ask
-during signup, seeded from the IP guess rather than defaulting silently.
+manually. The page existed and worked; nothing reached it — and there was no way to
+change country anywhere in the app, so a landlord outside India had no route out of
+rupees at all.
+**Fix.** Signup now stamps country/currency/locale/timezone from the detected
+region instead of leaning on the `'IN'` column default, and the profile screen
+shows Country with a Change link to the existing `/onboarding/country` page rather
+than duplicating a picker. That page now writes all four region fields together —
+it previously wrote only `country_code`, leaving a profile that disagreed with
+itself (`country_code: 'US'` alongside `currency_code: 'INR'`), which matters
+because those columns are what any server-side job would have to trust.
+Chose seeding-plus-correctable over adding a country step to signup: it adds no
+friction to the funnel, and the funnel is the thing that is already failing.
 
 ### P2-6 · Test coverage is one file · OPEN
 9 tests, all in `lib/format/amount-in-words.test.ts`. No tests for the invite flow,
 rent calculation, late fees, deposit ledger, or any RLS boundary.
 
-### P2-7 · `/dashboard` redirect drops the destination · OPEN
-`proxy.ts` redirects unauthenticated dashboard hits to `/signin` without a `next`
-param, so the user loses their destination after signing in. The OAuth callback
-already handles `next` correctly and safely.
+### P2-7 · `/dashboard` redirect drops the destination · SHIPPED
+`proxy.ts` redirected unauthenticated dashboard hits to `/signin` with no `next`,
+so a deep link was lost on sign-in — worst for the case that matters most, a tenant
+following an invite. Now forwards path + search. Only a path is forwarded and
+`/auth/callback` already re-checks that `next` starts with `/`, so it cannot become
+an open redirect.
 
 ---
 

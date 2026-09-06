@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { track } from '@/lib/analytics/track'
+import { getRegionFromCookie } from '@/lib/region'
 
 function isNativeApp(): boolean {
   if (typeof window === 'undefined') return false
@@ -456,6 +457,27 @@ function MA2Sealed({ firstName, role, next }: { firstName: string; role: string;
 }
 
 // ─── main component ───────────────────────────────────────────
+// ─── Region seeding ───────────────────────────────────────────────────────────
+// profiles.country_code defaults to 'IN' at the database level (003), and
+// auth/callback only routes to /onboarding/country when the column is NULL — which
+// it therefore never is. The effect was that every new user was silently recorded
+// as Indian regardless of where they signed up from, and since the dashboard
+// denominates money by the account's country, a landlord in Austin saw rupees.
+//
+// The IP-derived cookie is only a guess, but it is a far better one than "always
+// India", and it is now correctable from the profile screen. Stamping it here
+// rather than leaving the default is what makes the account's country mean
+// something.
+function detectedRegionFields() {
+  const region = getRegionFromCookie()
+  return {
+    country_code: region.countryCode,
+    currency_code: region.currency.code,
+    locale: region.locale,
+    timezone: region.primaryTimezone,
+  }
+}
+
 // ─── Welcome email ────────────────────────────────────────────────────────────
 // Fired once, by whichever signup path actually completes the account. It used to
 // be called only from the mobile step-through, so desktop-web and native Android
@@ -524,7 +546,7 @@ export default function SignUpPage() {
       // Desktop flow stores role in sessionStorage before triggering OAuth; read it back now.
       const storedRole = sessionStorage.getItem('rb-signup-role')
       if (storedRole && ['landlord', 'tenant', 'pg'].includes(storedRole)) {
-        await sb.from('profiles').update({ role: storedRole }).eq('id', session.user.id)
+        await sb.from('profiles').update({ role: storedRole, ...detectedRegionFields() }).eq('id', session.user.id)
         sessionStorage.removeItem('rb-signup-role')
         track('signup_completed', { role: storedRole, path: 'desktop_oauth' })
         sendWelcomeEmail(session.access_token, welcomeName(profile?.full_name, session), storedRole)
@@ -597,7 +619,7 @@ export default function SignUpPage() {
         if (session) {
           const storedRole = sessionStorage.getItem('rb-signup-role')
           if (storedRole) {
-            await sb.from('profiles').update({ role: storedRole }).eq('id', session.user.id)
+            await sb.from('profiles').update({ role: storedRole, ...detectedRegionFields() }).eq('id', session.user.id)
             sessionStorage.removeItem('rb-signup-role')
             track('signup_completed', { role: storedRole, path: 'native' })
             sendWelcomeEmail(session.access_token, welcomeName(null, session), storedRole)
@@ -692,7 +714,7 @@ export default function SignUpPage() {
     try {
       const { data: { session } } = await sb.auth.getSession()
       if (!session) { setMobileStep('splash'); return }
-      await sb.from('profiles').update({ full_name: displayName.trim() }).eq('id', session.user.id)
+      await sb.from('profiles').update({ full_name: displayName.trim(), ...detectedRegionFields() }).eq('id', session.user.id)
       track('signup_completed', { role, path: 'mobile_stepthrough' })
       sendWelcomeEmail(session.access_token, displayName.trim(), role)
       setMobileStep('sealed')

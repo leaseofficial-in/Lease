@@ -1937,18 +1937,37 @@ export default function DashboardPage() {
 
             {/* Account fields: 3-col strip */}
             <div className="inner-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderTop: '1px solid var(--rb-border-soft)', marginTop: 20 }}>
-              {[
-                { l: 'Phone', v: profile?.phone || '—', mono: false },
-                ...(isIndia ? [{ l: 'PAN number', v: profile?.pan_number || '—', mono: true }] : []),
-                ...(isIndia ? [{ l: isTenant ? 'UPI (refund)' : 'UPI ID', v: profile?.upi_id || '—', mono: true }] : []),
-              ].map((f, i) => (
-                <div key={f.l} style={{ padding: '14px 16px', borderRight: i < 2 ? '1px solid var(--rb-border-soft)' : undefined, ...(i === 0 ? { paddingLeft: 0 } : {}) }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>{f.l}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, marginTop: 5, color: f.v === '—' ? 'var(--rb-ink-3)' : 'var(--rb-ink)', fontFamily: f.mono ? 'var(--rb-font-mono)' : 'inherit' }}>
-                    {f.v === '—' ? <span style={{ color: 'var(--rb-ink-3)' }}>Not set · <button onClick={() => setModal('edit-profile')} style={{ color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 }}>Add →</button></span> : f.v}
+              {(() => {
+                // Country is always shown. It decides the currency every amount on
+                // this dashboard is drawn in, and until now there was no way to see
+                // or change it anywhere in the app — a landlord outside India was
+                // silently stamped 'IN' and had no route out of rupees.
+                // /onboarding/country already does exactly this job correctly, so
+                // it is linked rather than duplicated here.
+                const fields: { l: string; v: string; mono: boolean; href?: string }[] = [
+                  { l: 'Phone', v: profile?.phone || '—', mono: false },
+                  {
+                    l: 'Country',
+                    v: `${region.flag} ${region.name}`,
+                    mono: false,
+                    href: '/onboarding/country?next=/dashboard',
+                  },
+                  ...(isIndia ? [{ l: 'PAN number', v: profile?.pan_number || '—', mono: true }] : []),
+                  ...(isIndia ? [{ l: isTenant ? 'UPI (refund)' : 'UPI ID', v: profile?.upi_id || '—', mono: true }] : []),
+                ]
+                return fields.map((f, i) => (
+                  <div key={f.l} style={{ padding: '14px 16px', borderRight: i < fields.length - 1 ? '1px solid var(--rb-border-soft)' : undefined, ...(i === 0 ? { paddingLeft: 0 } : {}) }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>{f.l}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginTop: 5, color: f.v === '—' ? 'var(--rb-ink-3)' : 'var(--rb-ink)', fontFamily: f.mono ? 'var(--rb-font-mono)' : 'inherit' }}>
+                      {f.v === '—'
+                        ? <span style={{ color: 'var(--rb-ink-3)' }}>Not set · <button onClick={() => setModal('edit-profile')} style={{ color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 }}>Add →</button></span>
+                        : f.href
+                          ? <>{f.v} <a href={f.href} style={{ color: 'var(--rb-action)', fontSize: 12, textDecoration: 'none', fontWeight: 600 }}>Change →</a></>
+                          : f.v}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              })()}
             </div>
 
             {/* Actions */}
