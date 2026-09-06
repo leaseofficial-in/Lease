@@ -111,6 +111,11 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
     repair auto-deduction had a wrong column AND a missing `created_by` its own
     policy required, and reported success for months.
 
+20. Triggers on the same table and event fire in NAME order. `set_updated_at()` is
+    also a BEFORE UPDATE trigger, so any "nothing may change" comparison must
+    exclude `updated_at` or it fires on every write. Named 042's trigger
+    `rent_payments_transitions` to sort after the existing two.
+
 ## Incident log
 
 - **2026-09-07 — 23 unintended emails.** Fired `/api/cron/rent-reminders` at prod
@@ -323,6 +328,29 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   than widening the read surface for nothing. Recorded here so the next audit does
   not re-derive it.
 
+- **Batch 28 — a confirmed receipt was one API call from gone (042).** The
+  `rent_payments` policies are sound about *who* (a tenant genuinely cannot write a
+  row into `paid`) and say nothing about *what*. A landlord could UPDATE a **paid**
+  payment: back to `pending`, or a new amount. With `UNIQUE (rental_id, month)`
+  there is exactly one row per month and no correcting entry, so the tenant's
+  confirmed receipt — the artefact the whole product exists to produce — could be
+  erased or rewritten by the other party. The dashboard only offers Reject on
+  `pending_verification`, so this was reachable over the API alone. Two smaller
+  holes alongside: the landlord could rewrite `payment_method` / `utr_number` /
+  `payment_note` / `payment_proof_url` (the tenant's account of how they paid, and
+  the first thing looked at in a dispute), and the tenant could change `amount` on
+  their own pending row. 042 adds `enforce_payment_transitions`: rental_id, tenant_id,
+  month and created_at fixed for anyone holding a JWT; a `paid` row frozen entirely;
+  the tenant limited to pending|overdue|partial → pending_verification plus the four
+  evidence columns; the landlord limited to confirm-after-submit and reject, never
+  the tenant's columns; no-JWT callers (pg_cron, service_role) untouched. Ten
+  transitions proven live and rolled back, including the happy paths —
+  `confirm_rent_payment` still sets paid + paid_at, Reject still works,
+  `mark_overdue_payments()` and `ensure_current_month_rent()` still run. Freezing
+  `paid` removes nothing a user can do today: there is no un-confirm anywhere in the
+  product. Harness gained six checks driving the whole state machine over REST.
+  55 → 61.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -351,6 +379,13 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   active / pending_tenant / ended) and no CHECK constraint forbids. EXECUTE was
   revoked in 036 so it is unreachable from the API and nothing calls it; dropping it
   is safe but is a deletion, so it is recorded rather than done.
+
+- **There is no way to undo a confirmed payment, by design as of 042.** If a
+  landlord confirms the wrong month, nothing in the product can reverse it and the
+  row is now frozen at the database. That was already true in the UI (Reject only
+  appears on `pending_verification`); 042 makes it true underneath. If an undo is
+  wanted it should be a deliberate feature that writes a `rental_events` entry, not
+  a loosened policy — say so and it can be built.
 
 ### Verified clean this round (do not re-audit)
 - `agreements` bucket: no policy, no live reader. 15 HTML files from the old Expo
@@ -449,7 +484,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-202/202 tests · typecheck clean · build clean · security 55/55 · lint 0 (gates verify).
+202/202 tests · typecheck clean · build clean · security 61/61 · lint 0 (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -461,14 +496,14 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-Batches 21-27 are applied, pushed and live-proven; the read-walk, the write-walk and
-the migration reconciliation are all complete and now guarded by a check that runs
-in `npm run verify`. Unexplored angles, in order:
-1. The `rent_payments` state machine end to end: which transitions are reachable by
-   whom (pending → pending_verification → paid, reject back to pending, overdue),
-   and whether any of them can be driven backwards to erase a confirmed payment.
+Every table a party can write is now column- and transition-scoped (038 messages,
+039 repairs/deposits, 040 deletes, 041 storage, 042 payments), and the harness
+drives each one over REST. Remaining, unexplored:
+1. The agreement/signature flow — `agreement_status`, `landlord_signed_at`,
+   `agreement_signed_at`, `agreement_custom_clauses`. Never audited. The tenant
+   scope trigger (030) lets a tenant move the signing columns; nothing checks the
+   ORDER (can a tenant mark it executed without the landlord signing?).
 2. `rentals.invite_token` is never cleared after a claim: a leaked code keeps
-   resolving through `rental_invite_preview` (rent, deposit, landlord name, city)
-   for the life of the tenancy even though it can no longer be claimed.
-3. The agreement/signature flow (`agreement_status`, `landlord_signed_at`,
-   `agreement_signed_at`) — never audited at all.
+   resolving through `rental_invite_preview` for the life of the tenancy.
+3. `proofs.status` transitions — the landlord review path has a policy but no
+   transition scope, the same gap 042 just closed for payments.

@@ -420,6 +420,55 @@ else
           bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
         fi
       fi
+      # ── Payment transitions (042) ──
+      # The policies decide who may write a payment row; nothing decided what they
+      # may write. A landlord could UPDATE a *paid* payment back to pending or
+      # change its amount, and with UNIQUE (rental_id, month) there is exactly one
+      # row per month and no way to record a correction -- the tenant's confirmed
+      # receipt was one API call from gone. Seeded far in the future so it cannot
+      # collide with a real month.
+      PMT=$(curl -s -X POST "$URL/rest/v1/rent_payments" \
+        -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" \
+        -H "Prefer: return=representation" \
+        -d "{\"rental_id\":\"$PROBE_RENTAL\",\"tenant_id\":\"$T_ID\",\"month\":\"2099-01-01\",\"amount\":1000,\"status\":\"pending\"}" \
+        | python -c 'import sys,json; d=json.load(sys.stdin); print(d[0]["id"] if isinstance(d,list) and d else "")' 2>/dev/null)
+      if [[ -z "$PMT" ]]; then
+        bad "could not seed a probe payment" "skipping the transition checks"
+      else
+        code=$(retry_code -X PATCH "$URL/rest/v1/rent_payments?id=eq.$PMT" \
+          -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" -d '{"amount":1}')
+        expect_http "tenant cannot change the rent amount on their payment" "400" "$code"
+
+        body=$(retry_body -X PATCH "$URL/rest/v1/rent_payments?id=eq.$PMT" \
+          -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+          -d '{"status":"pending_verification","payment_method":"upi","utr_number":"PROBE1"}')
+        if [[ "$body" == "[{"* ]]; then
+          ok "tenant can submit their payment for confirmation (1 row)"
+        else
+          bad "TENANT CANNOT SUBMIT A PAYMENT" "${body:0:140}"
+        fi
+
+        code=$(retry_code -X PATCH "$URL/rest/v1/rent_payments?id=eq.$PMT" \
+          -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" -d '{"utr_number":"REWRITTEN"}')
+        expect_http "landlord cannot rewrite the tenant's payment details" "400" "$code"
+
+        code=$(retry_code -X POST "$URL/rest/v1/rpc/confirm_rent_payment" \
+          -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" -d "{\"payment_id\":\"$PMT\"}")
+        expect_http "landlord can confirm a submitted payment" "200" "$code"
+
+        code=$(retry_code -X PATCH "$URL/rest/v1/rent_payments?id=eq.$PMT" \
+          -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" -d '{"status":"pending"}')
+        expect_http "a confirmed payment cannot be walked back" "400" "$code"
+
+        code=$(retry_code -X PATCH "$URL/rest/v1/rent_payments?id=eq.$PMT" \
+          -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" -d '{"amount":1}')
+        expect_http "a confirmed payment's amount cannot be changed" "400" "$code"
+
+        # Must go before the delete-scope checks: an unclaimed rental is only
+        # deletable while no payment rows hang off it.
+        curl -s -o /dev/null -X DELETE "$URL/rest/v1/rent_payments?id=eq.$PMT" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
+      fi
+
       # ── The client's queries match the schema ──
       # Not a permission check: a correctness one, in the only place that can
       # catch it. The tenant's deposit screen asked PostgREST for
