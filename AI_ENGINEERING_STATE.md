@@ -549,6 +549,23 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   hours earlier. Scratch files are now removed before a verification run rather than
   overwritten, and a run is trusted only when its own output says so.
 
+- **Batch 40 — nothing was checking what ships to browsers, and the cron follow-up
+  closed.** Every server secret in this app is one `NEXT_PUBLIC_` prefix or one
+  misplaced import away from being compiled into a downloadable chunk, and the
+  service role key would undo every policy in `supabase/migrations` at once —
+  silently, with a green build. `scripts/check-bundle-secrets.py` scans
+  `.next/static` for the service key itself, the sbp_/vcp_/ghp_/Resend prefixes, and
+  the *names* of server-only env vars (their presence means server code reached the
+  client graph, worth knowing before a value does). Verified three ways: clean on
+  the real build (35 files), catches an injected copy of the live key, and recovers.
+  Wired in as harness section 7; the anon key is deliberately not flagged, since it
+  is designed to ship and RLS is what stands behind it.
+  **Cron follow-up closed:** both replacement jobs have now run for the first time
+  since 034 retired the Edge Function — `ensure-current-month-rent` succeeded at
+  00:30 UTC and `mark-overdue-payments` at 01:00 UTC on 2026-09-07. The ledger
+  agrees: 8 active tenancies, 8 rows for this month, 0 missing, 0 pending rows past
+  their due date. This is the item that was assumed last time and was not true.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -687,7 +704,6 @@ verified by execution, and committed as a migration.
 - Dashboard split (4,800 lines); `AgreementDocument` is the safe first extraction.
 - Vercel KV for the rate limiter before any per-call-cost endpoint.
 - String extraction for real i18n once a translation source exists.
-- Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
 216/216 tests · typecheck clean · build clean · security 83/83 · lint 0 errors (gates verify).

@@ -852,6 +852,24 @@ else
   fi
 fi
 
+# ── 7. Secrets in the client bundle ───────────────────────────────────────────
+#
+# Every server secret here is one NEXT_PUBLIC_ prefix or one misplaced import away
+# from being compiled into a chunk anyone can download, and the service role key
+# would undo every policy in supabase/migrations at once. The build succeeds either
+# way and nothing else looks at the output. Skips cleanly when there is no build.
+echo
+echo "Secrets in the client bundle:"
+if [[ -z "$PY" ]]; then
+  echo "  SKIP  no python on PATH"
+else
+  if "$PY" "$(dirname "$0")/check-bundle-secrets.py"; then
+    PASS=$((PASS + 1))
+  else
+    FAIL=$((FAIL + 1))
+  fi
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo
 echo "─────────────────────────────────────────"
