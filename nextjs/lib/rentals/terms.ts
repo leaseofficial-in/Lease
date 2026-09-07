@@ -85,6 +85,48 @@ export type ScoreBandLabel = 'EXCELLENT' | 'TRUSTED' | 'GOOD' | 'FAIR' | 'BUILDI
 /** Roughly what one on-time payment is worth, used for the "how far away" copy. */
 export const POINTS_PER_ON_TIME_PAYMENT = 12
 
+/**
+ * The renter score, as the tenant is told it works.
+ *
+ * The screen has always listed five rules -- base, on-time rent, move-in proof,
+ * no open repairs, late payments -- and the code implemented exactly one of them
+ * (base plus 12 a month). So a tenant who submitted their move-in photos expecting
+ * the promised 50 points watched the number not move, and a tenant carrying an
+ * overdue month was never penalised. A score is worth nothing if it does not
+ * follow its own published rule, so this is that rule, in one place, tested.
+ *
+ * The cap on on-time payments (150) was already in the old expression but had
+ * never been disclosed; it is now stated on the screen.
+ *
+ * Bounds: 300-900. The floor keeps a run of overdue months from producing a
+ * number that reads as broken rather than bad.
+ */
+export const SCORE_BASE = 700
+export const SCORE_MAX_ON_TIME = 150
+export const POINTS_FOR_MOVE_IN_PROOF = 50
+export const POINTS_FOR_NO_OPEN_REPAIRS = 20
+export const PENALTY_PER_OVERDUE_MONTH = 30
+
+export interface RenterScoreInput {
+  /** Confirmed payments on this tenancy. */
+  paidMonths: number
+  /** Months currently sitting overdue. */
+  overdueMonths: number
+  /** Whether the tenant has submitted move-in photos at all. */
+  hasMoveInProof: boolean
+  openRepairs: number
+}
+
+export function renterScore(input: RenterScoreInput): number {
+  const { paidMonths, overdueMonths, hasMoveInProof, openRepairs } = input
+  const onTime = Math.min(SCORE_MAX_ON_TIME, Math.max(0, paidMonths) * POINTS_PER_ON_TIME_PAYMENT)
+  const proof = hasMoveInProof ? POINTS_FOR_MOVE_IN_PROOF : 0
+  const repairs = openRepairs === 0 ? POINTS_FOR_NO_OPEN_REPAIRS : 0
+  const penalty = Math.max(0, overdueMonths) * PENALTY_PER_OVERDUE_MONTH
+  const raw = SCORE_BASE + onTime + proof + repairs - penalty
+  return Math.max(300, Math.min(900, Math.round(raw)))
+}
+
 export function scoreBand(score: number): { label: ScoreBandLabel; color: string } {
   if (score >= 850) return { label: 'EXCELLENT', color: 'var(--rb-action)' }
   if (score >= 750) return { label: 'TRUSTED', color: 'var(--rb-action)' }

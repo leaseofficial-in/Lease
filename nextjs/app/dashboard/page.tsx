@@ -16,7 +16,7 @@ import { sha256Hex } from '@/lib/crypto/file-hash'
 import { localMonth } from '@/lib/date/calendar'
 import { relativeDateTime } from '@/lib/date/relative'
 import { monthLabel as monthLabelIntl, formatMonthYear } from '@/lib/date/month-label'
-import { leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge } from '@/lib/rentals/terms'
+import { leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge, renterScore } from '@/lib/rentals/terms'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 
@@ -487,30 +487,44 @@ export default function DashboardPage() {
           setLandlordData({ rentals, buildings, currentPayments, allLedgerPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs, ytdPayments })
         } else if (role === 'tenant') {
           const { data: rental } = await sb.from('rentals').select('*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(id, full_name, avatar_url, phone, pan_number)').eq('tenant_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
-          let currentPayment: RentPayment | null = null, recentPayments: RentPayment[] = [], openRepairs: RepairRequest[] = [], proofs: Proof | null = null, depositTransactions: DepositTx[] = []
+          let currentPayment: RentPayment | null = null, recentPayments: RentPayment[] = [], openRepairs: RepairRequest[] = [], proofs: Proof | null = null, depositTransactions: DepositTx[] = [], overdueMonths = 0
           if (rental) {
-            const [pmtRes, histRes, repRes, proofRes, depRes] = await Promise.all([
+            const [pmtRes, histRes, repRes, proofRes, depRes, overdueRes] = await Promise.all([
               sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('month', currentMonthDate).maybeSingle(),
               sb.from('rent_payments').select('*').eq('rental_id', rental.id).eq('status', 'paid').order('month', { ascending: false }).limit(12),
               sb.from('repair_requests').select('*').eq('rental_id', rental.id).in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(10),
               sb.from('proofs').select('*, proof_photos(id, room_label, public_url, annotation, created_at)').eq('rental_id', rental.id).eq('type', 'move_in').maybeSingle(),
               sb.from('deposit_transactions').select('id,rental_id,type,amount,note,tenant_dispute_note,dispute_status,created_at').eq('rental_id', rental.id).order('created_at', { ascending: false }),
+              // Needed for the score's late-payment penalty, which the screen has
+              // always promised and the arithmetic never applied. head:true so this
+              // costs a count and no rows.
+              sb.from('rent_payments').select('id', { count: 'exact', head: true }).eq('rental_id', rental.id).eq('status', 'overdue'),
             ])
             currentPayment = pmtRes.data
             recentPayments = histRes.data || []
             openRepairs = repRes.data || []
             proofs = proofRes.data
             depositTransactions = depRes.data || []
+            overdueMonths = overdueRes.count || 0
           }
           const ytdTotal = recentPayments.reduce((s, p) => s + Number(p.amount), 0)
-          const score = Math.min(900, Math.round(700 + (recentPayments.length > 0 ? Math.min(150, recentPayments.length * 12) : 0)))
+          // The screen lists five rules; this used to implement one of them (base
+          // plus 12 a month). A tenant who submitted their move-in photos for the
+          // promised 50 points saw nothing happen, and an overdue month cost
+          // nothing. lib/rentals/terms now holds the published rule, with tests.
+          const score = renterScore({
+            paidMonths: recentPayments.length,
+            overdueMonths,
+            hasMoveInProof: !!proofs,
+            openRepairs: openRepairs.length,
+          })
           let nextDueDate: Date | null = null
           if (rental?.rent_due_day) {
             const d = new Date(now); d.setDate(rental.rent_due_day)
             if (d <= now) d.setMonth(d.getMonth() + 1)
             nextDueDate = d
           }
-          setTenantData({ rental, currentPayment, recentPayments, openRepairs, proofs, depositTransactions, ytdTotal, score, nextDueDate })
+          setTenantData({ rental, currentPayment, recentPayments, openRepairs, proofs, depositTransactions, ytdTotal, score, overdueMonths, nextDueDate })
         }
       } catch (e) {
         console.error(e)
@@ -1444,7 +1458,7 @@ export default function DashboardPage() {
                 <div key={b.l}><span style={{ fontSize: 12, color: 'var(--rb-ink-2)' }}>{b.l}</span><div style={{ height: 4, background: 'var(--rb-fill-2)', borderRadius: 4, marginTop: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: `${b.w}%`, background: 'var(--rb-action)', borderRadius: 4 }} /></div></div>
               ))}
             </div>
-            <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px dashed var(--rb-border)', fontSize: 12, color: 'var(--rb-ink-3)' }}>Score carries to your next rental →</div>
+            <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px dashed var(--rb-border)', fontSize: 12, color: 'var(--rb-ink-3)' }}>How your score is worked out →</div>
           </section>
 
           <section style={{ ...cardStyle, gridColumn: 'span 2' }}>
@@ -2068,17 +2082,17 @@ export default function DashboardPage() {
             <div style={{ marginTop: 4, padding: '14px 16px', background: 'var(--rb-fill-2)', borderRadius: 12, fontSize: 12, color: 'var(--rb-ink-2)', lineHeight: 1.7 }}>
               <div style={{ fontWeight: 700, marginBottom: 8 }}>Score formula (max 900)</div>
               <div>• <strong>Base score:</strong> 700 points on join</div>
-              <div>• <strong>On-time rent:</strong> +12 pts per month paid on time</div>
+              <div>• <strong>On-time rent:</strong> +12 pts per month paid on time, up to +150</div>
               <div>• <strong>Move-in proof:</strong> +50 pts when submitted</div>
               <div>• <strong>No open repairs:</strong> +20 pts when all resolved</div>
               <div>• <strong>Late payment:</strong> −30 pts per overdue month</div>
-              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--rb-ink-3)' }}>Score is recalculated after each payment event and carries to your next rental.</div>
+              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--rb-ink-3)' }}>Recalculated from your record on this tenancy every time you open this screen. Range 300–900.</div>
             </div>
           )}
           <div style={{ marginTop: 20, padding: 16, background: 'var(--rb-action-soft)', borderRadius: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-action)', marginBottom: 6 }}>Next step</div>
             <div style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.55 }}>{scoreNudge(score)}</div>
-            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 8 }}>Score carries to your next rental. Landlords see this.</div>
+            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 8 }}>Yours to see. It is not stored or shared with your landlord.</div>
           </div>
         </section>
       </>

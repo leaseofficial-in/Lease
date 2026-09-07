@@ -6,6 +6,7 @@ import {
   scoreBand,
   monthsToReach,
   scoreNudge,
+  renterScore,
 } from './terms'
 
 describe('computeLateFee', () => {
@@ -124,5 +125,36 @@ describe('monthsToReach / scoreNudge', () => {
 
   it('congratulates at the top band rather than nudging', () => {
     expect(scoreNudge(880)).toContain('Excellent!')
+  })
+})
+
+describe('renterScore', () => {
+  const base = { paidMonths: 0, overdueMonths: 0, hasMoveInProof: false, openRepairs: 1 }
+
+  it('starts at the base the screen promises', () => {
+    expect(renterScore(base)).toBe(700)
+  })
+
+  it('adds the points the screen says each thing is worth', () => {
+    expect(renterScore({ ...base, paidMonths: 3 })).toBe(700 + 36)
+    expect(renterScore({ ...base, hasMoveInProof: true })).toBe(750)
+    expect(renterScore({ ...base, openRepairs: 0 })).toBe(720)
+    expect(renterScore({ ...base, overdueMonths: 2 })).toBe(640)
+  })
+
+  it('caps the on-time contribution, as the screen now states', () => {
+    // 13 months would be 156 without the cap.
+    expect(renterScore({ ...base, paidMonths: 13 })).toBe(700 + 150)
+    expect(renterScore({ ...base, paidMonths: 100 })).toBe(700 + 150)
+  })
+
+  it('never leaves the 300-900 range', () => {
+    expect(renterScore({ paidMonths: 60, overdueMonths: 0, hasMoveInProof: true, openRepairs: 0 })).toBe(900)
+    expect(renterScore({ ...base, overdueMonths: 40 })).toBe(300)
+  })
+
+  it('treats nonsense input as zero rather than reversing the sign', () => {
+    expect(renterScore({ ...base, paidMonths: -5 })).toBe(700)
+    expect(renterScore({ ...base, overdueMonths: -5 })).toBe(700)
   })
 })

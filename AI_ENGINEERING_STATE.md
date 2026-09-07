@@ -481,6 +481,21 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   `#2026-08-001` beside a label reading "Sep 2026". Same class of bug
   `lib/date/month-label.ts` exists to prevent; now parsed from the string.
 
+- **Batch 36 — the renter score did not follow its own published rule.** The screen
+  lists five rules under "How is this calculated?" — base 700, +12 per on-time
+  month, +50 for move-in proof, +20 for no open repairs, −30 per overdue month —
+  and the code was `700 + min(150, paidMonths * 12)`. Three of the five were never
+  implemented: a tenant who submitted their move-in photos for the promised 50
+  points watched the number not move, and an overdue month cost nothing. The score
+  screen also told them "Score carries to your next rental. Landlords see this."
+  Nothing stores it (it is computed in the browser on each load) and no landlord
+  surface displays a tenant's score. Moved the rule into `lib/rentals/terms.ts` as
+  `renterScore()` with 5 tests (216 total), wired the tenant load to count overdue
+  months (`head:true`, a count and no rows), disclosed the +150 cap that was always
+  in the arithmetic but never stated, and replaced both carry-over claims with what
+  is actually true. Existing tenants will see their score rise — by the points they
+  were already told they had earned.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -622,7 +637,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-211/211 tests · typecheck clean · build clean · security 77/77 · lint 0 errors (gates verify).
+216/216 tests · typecheck clean · build clean · security 77/77 · lint 0 errors (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
