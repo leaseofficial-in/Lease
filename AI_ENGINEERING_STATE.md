@@ -622,6 +622,14 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   on the first pointerdown/keydown/touchstart: in cache long before any share
   click, still off the critical path, and never fetched for a visitor who only
   scrolls and leaves.
+  **Confirmed in production** after the deploy: the live homepage went from 15
+  chunks / 281 KB transferred / Supabase present to **14 chunks / 219 KB / absent**.
+  HTML is served brotli at 17 KB from edge cache, so the JS was the whole story.
+  What remains (~70 KB react-dom, ~75 KB framework, ~65 KB app) has no product
+  strings in the large chunks and is not reducible without changing the framework.
+  Measurement method, for next time: read `.next/server/app/<route>.html`, pull its
+  `/_next/static/chunks/*.js` script tags, and gzip each one — it reproduced the
+  deployed numbers exactly, so a change can be proven locally before it ships.
 
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
