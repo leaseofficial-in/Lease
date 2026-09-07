@@ -596,6 +596,14 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   recorded rather than done. `region` was checked while measuring: it derives from
   `profiles.country_code`, not the viewer's cookie, which is correct for money.
 
+- **Batch 43 — the harness now checks the app, not just the database.** Everything
+  it did talked to Supabase; nothing checked RentyBase's own routes as deployed,
+  and four of them send mail on one party's behalf to another. Section 8 asserts
+  each email route refuses an unauthenticated caller, the reminder job refuses a
+  caller with no secret, and `/dashboard` redirects a signed-out visitor. Pure
+  rejection checks — no session, no recipient, no mail sent. `RENTYBASE_URL`
+  retargets it and `SKIP_DEPLOYED=1` leaves production alone. 84 → 90 checks.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -736,7 +744,7 @@ verified by execution, and committed as a migration.
 - String extraction for real i18n once a translation source exists.
 
 ## Test status
-219/219 tests · typecheck clean · build clean · security 84/84 · lint 0 errors (gates verify).
+219/219 tests · typecheck clean · build clean · security 90/90 · lint 0 errors (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -748,15 +756,29 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-Everything mechanical is done and green: 038-047 applied and live-proven, 77
-harness checks, schema-drift clean, 205 tests. What remains cannot be checked from
-here:
-1. A browser and an inbox pass — the landlord proof review card, the expired-invite
-   copy, and the three new emails (payment-confirmed, proof-submitted, and whether
-   Resend actually delivered them).
-2. Owner decisions, listed below: the 7-day invite window (the biggest funnel drop
-   in the product), lease terms editable after signing, deposit dispute
-   resolution, no undo on a confirmed payment, assetlinks fingerprints, the
-   reminder cron, the "geotagged" claim.
-3. Engineering left over: Badge/Card primitives, the 4,800-line dashboard split
-   (`AgreementDocument` first), Vercel KV for the rate limiter, string extraction.
+The mechanical surface is finished and guarded. Every table a party can write now
+has column and transition scope (038-049), every client query is checked against the
+live schema on each verify, the client bundle is checked for secrets, and 90 harness
+checks drive each state machine over real HTTP — including, as of 043, the deployed
+app's own routes. 219 tests, lint clean, production data at baseline with no probe
+residue, both cron jobs confirmed running.
+
+What is left is not code:
+1. **Eyes.** The landlord proof-review card, the expired-invite card and copy, the
+   tenant "sent back" banner, the HRA receipt link, and the three new emails have
+   been type-checked, built and their code paths proven — but nobody has looked at
+   them in a browser or an inbox. That is the one class of verification unavailable
+   from here.
+2. **Owner decisions**, listed above: the 7-day invite window (the largest funnel
+   drop — 43 dead invites against 9 tenancies), lease terms editable after signing,
+   deposit dispute resolution, no undo on a confirmed payment, assetlinks
+   fingerprints, the reminder cron, the "geotagged" claim.
+3. **Deliberately declined**, with reasons recorded above: extracting
+   `AgreementDocument` (3.5% of a file, non-zero risk to the printed lease),
+   Badge/Card primitives (pixels I cannot see), a landlord SELECT policy on
+   `buildings` (nothing reads it), the three phantom deposit columns (nothing
+   writes them).
+
+If a further pass is wanted, the honest next targets are performance (never
+measured here: no Lighthouse, no query timings under load) and the Vercel KV rate
+limiter, which needs infrastructure only the owner can provision.

@@ -870,6 +870,39 @@ else
   fi
 fi
 
+# ── 8. The deployed API surface ───────────────────────────────────────────────
+#
+# Everything above talks to Supabase. Nothing checked the app's own routes as they
+# are actually deployed, and four of them send mail on behalf of one party to
+# another: each is supposed to resolve the caller from their session and read the
+# recipient under that caller's RLS, never from the request body.
+#
+# These are rejection checks -- no session, no recipient, no mail. Set
+# RENTYBASE_URL to point elsewhere, or SKIP_DEPLOYED=1 to leave production alone.
+echo
+echo "Deployed API surface:"
+APP_URL="${RENTYBASE_URL:-https://rentybase.com}"
+if [[ -n "${SKIP_DEPLOYED:-}" ]]; then
+  echo "  SKIP  SKIP_DEPLOYED set"
+else
+  for route in welcome payment-submitted payment-confirmed proof-submitted; do
+    code=$(retry_code -X POST "$APP_URL/api/email/$route" -H 'Content-Type: application/json' -d '{}')
+    expect_http "api/email/$route refuses an unauthenticated caller" "401" "$code"
+  done
+
+  # The reminder job is gated on a shared secret, not a session.
+  code=$(retry_code "$APP_URL/api/cron/rent-reminders")
+  expect_http "api/cron/rent-reminders refuses a caller with no secret" "401" "$code"
+
+  # And the dashboard itself must not render to someone with no session.
+  code=$(retry_code "$APP_URL/dashboard")
+  if [[ "$code" == "307" || "$code" == "302" ]]; then
+    ok "/dashboard redirects a signed-out visitor (HTTP $code)"
+  else
+    bad "/dashboard served without a session" "expected a redirect, got $code"
+  fi
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo
 echo "─────────────────────────────────────────"
