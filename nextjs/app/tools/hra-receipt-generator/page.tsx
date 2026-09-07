@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { MarketingNav, MarketingFooter } from '@/components/marketing-shell'
 import { FAQStructuredData, BreadcrumbStructuredData } from '@/components/structured-data'
+import { Suspense } from 'react'
 import { HraReceiptGenerator } from '@/components/tools/hra-receipt-generator'
 
 const BASE = 'https://rentybase.com'
@@ -222,7 +223,13 @@ export default function HraReceiptGeneratorPage() {
       {/* The tool */}
       <section id="generator" style={{ padding: '48px 0 72px', background: 'var(--rb-canvas)' }}>
         <div className="container" style={{ maxWidth: 1100 }}>
-          <HraReceiptGenerator />
+          {/* The generator reads a prefill from the query string, and useSearchParams
+              forces this subtree to render on the client. Without the boundary the
+              whole page fails to prerender -- this page is static and indexed, so
+              that would take it out of search results, not just break the tool. */}
+          <Suspense fallback={<div style={{ minHeight: 420 }} />}>
+            <HraReceiptGenerator />
+          </Suspense>
         </div>
       </section>
 

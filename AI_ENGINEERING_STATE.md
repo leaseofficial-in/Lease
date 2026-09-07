@@ -463,6 +463,24 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   been asked for anything. Added the warning banner, next to the existing
   "Approved by your landlord" one.
 
+- **Batch 35 — the tenant's HRA receipts: a dead button and a wrong date.** Every
+  confirmed payment on the tenant's HRA screen showed "PDF →" and did nothing —
+  there has never been a receipt document in the dashboard — while a complete,
+  tested generator sits at `/tools/hra-receipt-generator`. The rows now link to it
+  with what this side already knows (tenant and landlord names and PANs, the
+  property address, month, year, amount, method, UTR), so a receipt is one tap
+  instead of ten fields typed from memory. India's most-wanted tenant document,
+  and the product had the pieces on both sides without a wire between them.
+  The generator reads the prefill through `useSearchParams`, which forces a
+  client boundary — wrapped in `<Suspense>`, and the page still prerenders static
+  (`○`), so the indexed tool page is unaffected. `prefillFrom` whitelists the month
+  and payment method, keeps digits only in the amount, demands a four-digit year and
+  caps every free-text field; 6 tests cover it (211 total).
+  Also fixed alongside: the receipt number was built with `new Date(p.month)` —
+  UTC midnight, so west of Greenwich it reported the PREVIOUS month, printing
+  `#2026-08-001` beside a label reading "Sep 2026". Same class of bug
+  `lib/date/month-label.ts` exists to prevent; now parsed from the string.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -604,7 +622,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-205/205 tests · typecheck clean · build clean · security 77/77 · lint 0 errors (gates verify).
+211/211 tests · typecheck clean · build clean · security 77/77 · lint 0 errors (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names

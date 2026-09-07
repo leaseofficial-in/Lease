@@ -1562,6 +1562,53 @@ export default function DashboardPage() {
   function TenantHRA() {
     const d = tenantData
     const paidPayments: RentPayment[] = ((d?.recentPayments || []) as RentPayment[]).filter((p: RentPayment) => p.status === 'paid')
+
+    // Each row said "PDF" and did nothing -- there has never been a receipt
+    // document in the dashboard. There IS a working generator at
+    // /tools/hra-receipt-generator, so the row now links to it with everything
+    // this side already knows filled in. The generator caps and validates every
+    // field it is handed; nothing here is trusted on arrival.
+    const RECEIPT_METHOD: Record<string, string> = {
+      upi: 'UPI Transfer',
+      bank_transfer: 'Bank Transfer (NEFT/IMPS)',
+      cash: 'Cash',
+      cheque: 'Cheque',
+    }
+    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December']
+    // `p.month` is a DATE string; `new Date('2026-09-01')` is UTC midnight, which
+    // west of Greenwich is the previous day and therefore the previous MONTH. That
+    // is why lib/date/month-label parses by hand, and why the receipt number below
+    // used to disagree with the month label printed beside it.
+    const monthParts = (ym?: string | null) => {
+      const m = /^(\d{4})-(\d{2})/.exec(ym || '')
+      return m ? { year: m[1], monthIndex: Number(m[2]) - 1 } : null
+    }
+    const receiptHref = (pmt: RentPayment, seq: number) => {
+      const parts = monthParts(pmt.month)
+      const prop = d?.rental?.property
+      const address = [prop?.address_line1, prop?.address_line2, prop?.city, prop?.state, prop?.pincode]
+        .filter(Boolean).join(', ')
+      const q = new URLSearchParams({
+        tenantName: profile?.full_name || '',
+        tenantPan: profile?.pan_number || '',
+        landlordName: d?.rental?.landlord?.full_name || '',
+        landlordPan: d?.rental?.landlord?.pan_number || '',
+        address,
+        month: parts ? MONTH_NAMES[parts.monthIndex] : '',
+        year: parts?.year || '',
+        amount: String(Math.round(Number(pmt.amount) || 0)),
+        method: RECEIPT_METHOD[pmt.payment_method || ''] || '',
+        utr: pmt.utr_number || '',
+      })
+      void seq
+      return `/tools/hra-receipt-generator?${q.toString()}`
+    }
+    const receiptNumber = (pmt: RentPayment, i: number) => {
+      const parts = monthParts(pmt.month)
+      const ym = parts ? `${parts.year}-${String(parts.monthIndex + 1).padStart(2, '0')}` : '—'
+      return `#${ym}-${String(i + 1).padStart(3, '0')}`
+    }
     return (
       <>
         <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · HRA</div><h1 style={h1Style}>HRA receipts.</h1><p style={subStyle}>Section 10(13A) · FY {now.getFullYear()-1}–{String(now.getFullYear()).slice(2)}</p></div></div>
@@ -1582,11 +1629,11 @@ export default function DashboardPage() {
                     <span style={{ fontSize: 11, letterSpacing: '.1em', fontWeight: 700, color: 'var(--rb-ink-3)', textTransform: 'uppercase' as const }}>{monthLabel(p.month)}</span>
                     {i === 0 && <span style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', letterSpacing: '.06em' }}>NEW</span>}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', fontFamily: 'var(--rb-font-mono)', marginTop: 2 }}>#{new Date(p.month).getFullYear()}-{String(new Date(p.month).getMonth() + 1).padStart(2, '0')}-{String(i + 1).padStart(3, '0')}</div>
+                  <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', fontFamily: 'var(--rb-font-mono)', marginTop: 2 }}>{receiptNumber(p, i)}</div>
                 </div>
                 <div style={{ textAlign: 'right' as const }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{inr(p.amount)}</div>
-                  <div style={{ fontSize: 11, color: 'var(--rb-action)', fontWeight: 600, marginTop: 2 }}>PDF →</div>
+                  <Link href={receiptHref(p, i)} style={{ fontSize: 11, color: 'var(--rb-action)', fontWeight: 600, marginTop: 2, display: 'inline-block', textDecoration: 'none' }}>PDF →</Link>
                 </div>
               </div>
             ))}

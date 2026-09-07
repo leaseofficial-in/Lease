@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useId } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { amountInWords } from '@/lib/format/amount-in-words'
 
 /**
@@ -39,8 +40,44 @@ const EMPTY = {
   utr: '',
 }
 
+/**
+ * The signed-in half of the product knows most of this already -- who the landlord
+ * is, what was paid, when, and how. The tenant's HRA screen listed confirmed
+ * payments with a "PDF" affordance that did nothing at all; it now links here with
+ * those details attached, so a receipt is one tap rather than ten fields typed from
+ * memory. Anonymous visitors are unaffected: with no query string this is the same
+ * empty form it has always been.
+ *
+ * Everything is treated as untrusted text -- it renders into a document the reader
+ * may believe -- so each field is length-capped, the amount is digits only, and the
+ * month and method must match a known value or fall back to the default.
+ */
+export function prefillFrom(params: URLSearchParams | null): typeof EMPTY {
+  if (!params) return EMPTY
+  const text = (key: string, max: number) => (params.get(key) || '').slice(0, max)
+  const month = params.get('month') || ''
+  const year = (params.get('year') || '').replace(/[^0-9]/g, '').slice(0, 4)
+  const method = params.get('method') || ''
+  return {
+    ...EMPTY,
+    tenantName: text('tenantName', 80),
+    tenantPan: text('tenantPan', 10).toUpperCase(),
+    landlordName: text('landlordName', 80),
+    landlordPan: text('landlordPan', 10).toUpperCase(),
+    address: text('address', 200),
+    month: MONTHS.includes(month) ? month : EMPTY.month,
+    year: year.length === 4 ? year : EMPTY.year,
+    amount: (params.get('amount') || '').replace(/[^0-9]/g, '').slice(0, 9),
+    method: PAYMENT_METHODS.includes(method) ? method : EMPTY.method,
+    utr: text('utr', 40),
+  }
+}
+
 export function HraReceiptGenerator() {
-  const [form, setForm] = useState(EMPTY)
+  // Read once, as the initial value: after that the form belongs to whoever is
+  // typing in it, and a re-render must not pull their edits back to the link.
+  const params = useSearchParams()
+  const [form, setForm] = useState(() => prefillFrom(params))
   const uid = useId()
 
   const set = <K extends keyof typeof EMPTY>(key: K, value: string) =>
