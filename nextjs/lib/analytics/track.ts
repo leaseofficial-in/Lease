@@ -21,7 +21,16 @@
 //   - Never block a user action on a track call, and never let one throw.
 //   - If an event cannot be acted on, it should not exist.
 
-import { createClient } from '@/lib/supabase/client'
+// The Supabase client is imported dynamically, inside the async body below, and
+// deliberately not at the top of this file.
+//
+// This module is reached from the ROOT LAYOUT (track() is called from shared components), so a static import put the entire Supabase SDK -- including the realtime
+// websocket client -- into the first load of every marketing and SEO page. That
+// measured at 60 KB gzipped, roughly a fifth of the homepage's whole JavaScript
+// payload, on the acquisition path, for code that runs only after someone interacts.
+//
+// Both functions here are already async and fire-and-forget, so awaiting the
+// import costs nothing anyone can perceive.
 
 export type ProductEvent =
   // acquisition
@@ -64,6 +73,7 @@ export function track(event: ProductEvent, props: Props = {}): void {
 
   void (async () => {
     try {
+      const { createClient } = await import('@/lib/supabase/client')
       const sb = createClient()
       // RLS requires user_id to be either null or the caller's own id, so this is
       // read from the session rather than accepted from anywhere else.

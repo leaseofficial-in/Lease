@@ -11,7 +11,18 @@
 // visibility and some, and it is enough to notice that something started throwing.
 // Swap it for a real tracker once there is volume to justify one.
 
-import { createClient } from '@/lib/supabase/client'
+// The Supabase client is imported dynamically, inside the async body below, and
+// deliberately not at the top of this file.
+//
+// This module is reached from the ROOT LAYOUT (ErrorReporter mounts on every
+// page), so a static import put the entire Supabase SDK -- including the realtime
+// websocket client -- into the first load of every marketing and SEO page. That
+// measured at 60 KB gzipped, roughly a fifth of the homepage's whole JavaScript
+// payload, on the acquisition path, for code that runs only when something has
+// already gone wrong.
+//
+// Both functions here are already async and fire-and-forget, so awaiting the
+// import costs nothing anyone can perceive.
 
 // A page's route PATTERN, never its live URL. `/join/ABC123` would put a live
 // invite token in the log and `/dashboard?rental=<uuid>` would turn this into a
@@ -44,6 +55,7 @@ export function reportError(error: unknown, context?: string): void {
 
   void (async () => {
     try {
+      const { createClient } = await import('@/lib/supabase/client')
       const sb = createClient()
       const { data } = await sb.auth.getSession()
       await sb.from('client_errors').insert({

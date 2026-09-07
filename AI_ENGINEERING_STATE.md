@@ -604,6 +604,25 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   rejection checks — no session, no recipient, no mail sent. `RENTYBASE_URL`
   retargets it and `SKIP_DEPLOYED=1` leaves production alone. 84 → 90 checks.
 
+- **Batch 44 — every marketing page was shipping the Supabase SDK (−22%).** First
+  performance measurement taken here at all. The deployed homepage transfers 87 KB
+  of HTML and **276 KB of gzipped JavaScript** across 15 chunks; one of those chunks
+  is 61 KB and is `@supabase` plus `phoenix`, its realtime websocket client. Cause:
+  `ErrorReporter` mounts from the ROOT layout and imports
+  `lib/analytics/report-error.ts`, which imported `@/lib/supabase/client`
+  statically — so every marketing and SEO page carried the whole SDK, on the
+  acquisition path, for code that runs only when something has already gone wrong.
+  `track.ts` had the same import. Both are async and fire-and-forget already, so the
+  import moved inside the async body. Measured on a local build reproducing the
+  deployed numbers exactly: homepage **273 → 212 KB gzip, 959 → 726 KB raw**, 15 → 14
+  chunks, and no marketing page (`/`, `/pricing`, `/blog`, `/tools/*`, `/join`) now
+  carries Supabase at all, while `/signin` still does — which is correct, it needs
+  it. The one cost is an event fired as the page navigates away (the WhatsApp and
+  SMS share links are `<a>` elements), so `ErrorReporter` now warms that chunk once
+  on the first pointerdown/keydown/touchstart: in cache long before any share
+  click, still off the critical path, and never fetched for a visitor who only
+  scrolls and leaves.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
