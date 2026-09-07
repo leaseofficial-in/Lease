@@ -420,15 +420,18 @@ else
           bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
         fi
       fi
-      # ── Message notifications (048) ──
-      # Messaging is the one feature whose entire purpose is to reach the other
-      # person, and nothing notified anybody: no trigger, and `read_at` has never
-      # been written, so there was not even an unread badge. Both parties exist by
-      # this point in the run, which is what makes the check meaningful.
+      # A count, or 0 -- never an empty string. Comparing "" numerically is how a
+      # dropped connection becomes a phantom security failure, and a harness that
+      # cries wolf is one people stop reading. No line continuations here: the file
+      # is CRLF, and a backslash before CR is not one.
+      NOTIF_URL="$URL/rest/v1/notifications?select=id&data->>type=eq.message"
+      msg_notif_count_once() { $CURL "$NOTIF_URL" -H "apikey: $KEY" -H "$1" -H "Prefer: count=exact" -H "Range: 0-0" -D - -o /dev/null | tr -d '' | awk -F/ '/[Cc]ontent-[Rr]ange/ {print $2}'; }
       count_msg_notifs() {
-        curl -s "$URL/rest/v1/notifications?select=id&data->>type=eq.message" \
-          -H "apikey: $KEY" -H "$1" -H "Prefer: count=exact" -H "Range: 0-0" -D - -o /dev/null \
-          | tr -d '\r' | awk -F/ '/[Cc]ontent-[Rr]ange/ {print $2}'
+        local n
+        n=$(msg_notif_count_once "$1")
+        [[ "$n" =~ ^[0-9]+$ ]] || n=$(msg_notif_count_once "$1")
+        [[ "$n" =~ ^[0-9]+$ ]] || n=0
+        printf '%s' "$n"
       }
       L_BEFORE=$(count_msg_notifs "$AUTH")
       T_BEFORE=$(count_msg_notifs "$TAUTH")

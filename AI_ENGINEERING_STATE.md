@@ -513,6 +513,21 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   the sender, collapses a burst, and starts a fresh entry once read. Client routes
   it to the messages screen. 77 → 80 checks.
 
+- **Batch 38 — the dedup guard could fail silently, and a harness check could cry
+  wolf.** In `/api/cron/rent-reminders`, the `email_logs` row IS the dedup guard —
+  the query at the top of the loop skips anyone who already has one. Both inserts
+  were unchecked. They use service_role so RLS cannot refuse them, but a constraint
+  or a dropped connection still can, and a send that is not logged is a send that
+  happens again next run: precisely the shape of the incident this job caused the
+  first time it ran. Now checked, logged loudly, and reported as `unlogged` in the
+  response so it is visible on the run rather than discovered by a tenant.
+  (The job remains disabled in `vercel.json` — this changes nothing about that.)
+  Also hardened the new message-notification count helper: it compared a possibly
+  empty curl result numerically, which is how one transient failure produced a
+  phantom "1 failed" on an otherwise clean run. Retries once, falls back to 0, and
+  is written without line continuations — the file is CRLF, and a backslash before
+  CR is not one.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /

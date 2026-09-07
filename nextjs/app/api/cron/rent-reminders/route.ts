@@ -74,6 +74,9 @@ export async function GET(req: Request) {
   const skip = (why: string) => { skipped[why] = (skipped[why] ?? 0) + 1 }
 
   let sent = 0
+  // Dedup keys that were mailed but whose log row did not land. Reported in the
+  // response so a run that would resend next time is visible now, not after.
+  const unlogged: string[] = []
   const preview: { to: string; kind: string; month: string; others: number }[] = []
 
   for (const p of planned) {
@@ -108,18 +111,29 @@ export async function GET(req: Request) {
 
     try {
       await sendEmail({ to: p.email, subject, html })
-      await sb.from('email_logs').insert({
+      // This row IS the dedup guard: the query at the top of the loop skips
+      // anyone who already has one. If the send succeeds and the log does not,
+      // the next run has no memory of it and mails them again -- which is the
+      // shape of the incident this job caused the first time it ran. It is
+      // written with service_role so RLS cannot refuse it, but a constraint or a
+      // dropped connection still can, and an unchecked insert would hide that.
+      const { error: logErr } = await sb.from('email_logs').insert({
         recipient_id: p.tenantId, recipient_email: p.email,
         email_type: p.kind, reference_id: p.dedupKey, subject, status: 'sent',
       })
+      if (logErr) {
+        console.error('[cron/rent-reminders] SENT BUT NOT LOGGED', p.dedupKey, logErr.message)
+        unlogged.push(p.dedupKey)
+      }
       sent++
     } catch (err) {
       // One bad address must not stop the run for everyone else.
-      await sb.from('email_logs').insert({
+      const { error: logErr } = await sb.from('email_logs').insert({
         recipient_id: p.tenantId, recipient_email: p.email,
         email_type: p.kind, reference_id: p.dedupKey, subject, status: 'failed',
         error: err instanceof Error ? err.message.slice(0, 500) : 'unknown',
       })
+      if (logErr) console.error('[cron/rent-reminders] failure not logged', p.dedupKey, logErr.message)
       skip('send_failed')
     }
   }
@@ -131,6 +145,7 @@ export async function GET(req: Request) {
     planned: planned.length,
     sent,
     skipped,
+    ...(unlogged.length ? { unlogged } : {}),
     ...(dryRun ? { preview } : {}),
   })
 }
