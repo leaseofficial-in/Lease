@@ -528,6 +528,27 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   is written without line continuations — the file is CRLF, and a backslash before
   CR is not one.
 
+- **Batch 39 — your email address was a field you could type over (049).** "Users
+  can update their own profile" is USING-only with no column scope, so every column
+  belonged to its owner — including two that are not really theirs. `email` is where
+  every message this product sends goes (welcome, reminders, payment-confirmed,
+  proof-submitted); it is written once by `handle_new_user()` from the verified auth
+  identity and nothing else maintained it, so a signed-in user could point it at
+  somebody else's inbox and have RentyBase deliver there, from our domain, carrying
+  their own chosen display name. And `role` — "permanent, set once during
+  onboarding" in the project's own docs — was enforced nowhere. 049 adds
+  `enforce_profile_identity`: with a JWT, `id` and `email` are immutable and `role`
+  may be set only from null. It also adds an `on_auth_user_email_changed` trigger,
+  because `handle_new_user()` fires on INSERT only — Supabase's email-change flow
+  updated auth and never reached `profiles`, so freezing the column without the sync
+  would have stranded mail at the old address. All 22 profiles still match auth.
+  Proven live in both directions, rolled back. 80 → 83 checks.
+- **A note on process:** a stale `h3.txt` from an earlier batch was briefly read as
+  evidence that the harness had lost 30 checks. It had not — the `&&` chain that
+  would have rewritten the file stopped at a failed assert, so the file was from
+  hours earlier. Scratch files are now removed before a verification run rather than
+  overwritten, and a run is trusted only when its own output says so.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -669,7 +690,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-216/216 tests · typecheck clean · build clean · security 77/77 · lint 0 errors (gates verify).
+216/216 tests · typecheck clean · build clean · security 83/83 · lint 0 errors (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names

@@ -420,6 +420,47 @@ else
           bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
         fi
       fi
+      # ── Profile identity (049) ──
+      # "Users can update their own profile" is USING-only, so every column was
+      # editable by its owner -- including `email`, which is where every message
+      # this product sends goes, and `role`, which the project's own docs call
+      # permanent. Rewriting the address would have had RentyBase deliver mail to
+      # somebody else's inbox, from our domain.
+      code=$(retry_code -X PATCH "$URL/rest/v1/profiles?id=eq.$PROBE_ID" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+        -d '{"email":"somebody-else@rentybase-test.invalid"}')
+      expect_http "a user cannot rewrite their own email address" "400" "$code"
+
+      code=$(retry_code -X PATCH "$URL/rest/v1/profiles?id=eq.$PROBE_ID" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+        -d '{"role":"landlord"}')
+      # The probe never completed onboarding, so its role is still null and setting
+      # it once is allowed. Either answer is correct; changing an existing one is
+      # what must fail, and the SQL proof covers that case directly.
+      if [[ "$code" == "204" || "$code" == "400" ]]; then
+        code=$(retry_code -X PATCH "$URL/rest/v1/profiles?id=eq.$PROBE_ID" \
+          -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" \
+          -d '{"role":"tenant"}')
+        expect_http "a role cannot be changed once it is set" "400" "$code"
+      else
+        bad "unexpected answer setting a role" "got $code"
+      fi
+
+      body=$(retry_body -X PATCH "$URL/rest/v1/profiles?id=eq.$PROBE_ID" \
+        -H "apikey: $KEY" -H "$AUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+        -d '{"full_name":"Probe User"}')
+      if [[ "$body" == "[{"* ]]; then
+        ok "a user can still edit their own name"
+      else
+        bad "profile edits blocked entirely" "${body:0:140}"
+      fi
+
+      # ── Message notifications (048) ──
+      # Messaging is the one feature whose entire purpose is to reach the other
+      # person, and nothing notified anybody: no trigger, and `read_at` has never
+      # been written, so there was not even an unread badge. Both parties exist by
+      # this point in the run, which is what makes the check meaningful.
+      #
       # A count, or 0 -- never an empty string. Comparing "" numerically is how a
       # dropped connection becomes a phantom security failure, and a harness that
       # cries wolf is one people stop reading. No line continuations here: the file
