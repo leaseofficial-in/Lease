@@ -403,6 +403,27 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   landlord→tenant notification in the product. Everything proven live and rolled
   back. 67 → 74 checks, 202 → 205 tests.
 
+- **Batch 31 — swept for the dead-write shape, found the last two (046).** Wrote a
+  scanner for every `.insert()/.update()/.upsert()/.delete()` in `nextjs/` that is
+  neither `.select()`-chained nor destructured for `error`. 21 hits, 19 benign
+  (destructured, or deliberately fire-and-forget analytics). The two real ones were
+  both the remaining `notifications` INSERTs:
+  * **Rent revision.** The escalation modal wrote a "Rent revised" notification for
+    the tenant inside a try/catch marked "non-fatal" — a catch that never ran,
+    because supabase-js returns errors. RLS refused it (no INSERT policy) and
+    `type: 'info'` is not even a value of the `notification_type` enum, so it would
+    have failed twice over. The landlord was told "tenant notified"; the tenant
+    found out from a bigger number on their ledger. 046 adds a `rent_revised` kind
+    to `notify_rental_counterparty` that reads the stored amount server-side,
+    refuses any caller who is not the landlord, and computes the effective date in
+    the TENANT's timezone. The toast now only claims notification when it happened,
+    and tapping it opens the ledger.
+  * **New repair request.** Same dead INSERT, but harmless: the
+    `notify_landlord_repair_created` trigger already sends that one. Deleted, with
+    a comment saying where it really comes from.
+  Two remaining unchecked writes are `notifications.update({read:true})`, which has
+  a policy and works. Proven live and rolled back; harness 74/74, drift clean.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -556,14 +577,16 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-The move-in proof loop is closed end to end (044/045) but only the database half
-is machine-verified. The review card and the two new emails have not been seen in a
-browser or an inbox — worth a manual pass: landlord opens a unit with photos,
-Approve, tenant sees the approved state and gets the notification.
+Four dead client writes and one dead read have now been found and fixed, all by
+mechanical sweeps rather than reading code: writes against `pg_policies`, reads
+against `information_schema`, and writes with no error check. The scanners live in
+the scratchpad; `check-schema-drift.py` is the one worth keeping and it runs in
+`npm run verify`.
 
-Then, unexplored:
-1. Grep every `.insert(`/`.update(` in the client that is NOT followed by
-   `.select(` — that shape is what hid all four dead writes. `markNotifRead` is one
-   (`notifications.update({read:true})`, unchecked); there may be more.
+Still open, in order:
+1. Manual pass on what machines cannot check: the landlord proof review card, the
+   three new emails (payment-confirmed, proof-submitted, and the reminder
+   templates), and the expired-invite copy.
 2. `rentals.invite_token` is never cleared after a claim.
-3. The lease-terms-after-signing question (owner).
+3. Owner decisions recorded below: the 7-day invite window, lease terms editable
+   after signing, deposit dispute resolution, no undo on a confirmed payment.

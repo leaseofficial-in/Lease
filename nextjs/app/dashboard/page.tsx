@@ -2587,17 +2587,10 @@ export default function DashboardPage() {
           category: category || null, urgency, photo_url: photo_url || null,
         })
         if (repErr) throw repErr
-        // Notify landlord
-        const landlordId = tenantData?.rental?.landlord_id
-        if (landlordId) {
-          await sb.from('notifications').insert({
-            user_id: landlordId,
-            title: urgency === 'emergency' ? '🚨 Emergency repair request' : 'New repair request',
-            body: `${profile?.full_name || 'Your tenant'} raised a${urgency === 'emergency' ? 'n emergency' : ''} repair request: "${title}"`,
-            type: 'general',
-            data: { rental_id: rentalId, urgency, category, type: 'repair_request' },
-          }).then(() => {})  // fire-and-forget
-        }
+        // The landlord's notification is written by the notify_landlord_repair_created
+        // trigger the moment the row above lands. A client INSERT used to sit here
+        // as well; `notifications` has no INSERT policy, so RLS refused it every
+        // time -- harmless only because the trigger was already doing the work.
         toast('Repair request raised!', 'success')
         setModal(null)
         refreshData()
@@ -4507,17 +4500,24 @@ export default function DashboardPage() {
           monthly_rent: newRent,
           escalation_applied_at: new Date().toISOString().split('T')[0],
         }).eq('id', rental.id).select('id'), 'rent escalation')
+        // This used to INSERT the notification directly, inside a try/catch marked
+        // non-fatal. `notifications` has no INSERT policy so RLS refused it, and
+        // `type: 'info'` is not even a value of the notification_type enum -- it
+        // would have failed twice over. supabase-js returns errors rather than
+        // throwing, so the catch never ran and the landlord was told their tenant
+        // had been notified. The tenant only ever found out from a bigger number
+        // on their ledger. 046 says it properly: the amount is read from the row
+        // server-side and the effective date is computed in the TENANT's timezone.
+        let notified = false
         if (rental.tenant_id) {
-          try {
-            await sb.from('notifications').insert({
-              user_id: rental.tenant_id,
-              title: 'Rent revised',
-              body: `Your monthly rent has been revised from ${inr(currentRent)} to ${inr(newRent)}, effective ${effectiveDateStr}.`,
-              type: 'info',
-            })
-          } catch { /* non-fatal */ }
+          const { error: notifyErr } = await sb.rpc('notify_rental_counterparty', {
+            rental_id_input: rental.id,
+            kind: 'rent_revised',
+          })
+          if (notifyErr) console.error('[Escalation notify]', notifyErr)
+          else notified = true
         }
-        toast('Escalation applied — tenant notified', 'success')
+        toast(notified ? 'Escalation applied — tenant notified' : 'Escalation applied', 'success')
         setModal(null)
         refreshData()
       } catch (e: any) { console.error('[Escalation]', e); toast(e?.message || 'Failed', 'error'); setSaving(false) }
@@ -4725,6 +4725,8 @@ export default function DashboardPage() {
       const r = landlordData?.rentals?.find((r: Rental) => r.id === d.rental_id)
       if (r) { setSelectedRental(r); setModal('property-detail') }
       else navigate('props')
+    } else if (d.type === 'rent_revised') {
+      navigate('led')
     } else if (d.type === 'repair_request' || d.urgency !== undefined || d.category !== undefined) {
       navigate('rep')
     } else if (n.type === 'info') {
