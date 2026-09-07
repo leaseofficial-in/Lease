@@ -445,6 +445,18 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   client is untouched. Proven live against real claimed and expired tokens (nulls)
   and a claimable one (full details, to anon as intended). 74 → 77 checks.
 
+- **Batch 33 — tenants could not read a notification even after one arrived.** The
+  bell sits in the shared header and its badge counts `notifications`, but
+  `renderView()` had an `inbox` case only in the landlord branch: a tenant tapping
+  a badged bell landed back on their own home screen. It went unnoticed because
+  nothing had ever sent a tenant a notification — until 044 and 046 did. The
+  component was never landlord-specific (it renders `notifications`, which RLS
+  already scopes to the caller), only its name was: renamed `LandlordInbox` →
+  `Inbox`, given to both roles, added to the tenant nav as "Activity", and
+  `handleNotifTap` now routes by role — for a tenant `navigate('props')` renders
+  TenantHome, so the old path would have sent them nowhere. Labels, icons and
+  colours added for the two new kinds.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /

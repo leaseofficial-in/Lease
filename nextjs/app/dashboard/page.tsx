@@ -570,6 +570,7 @@ export default function DashboardPage() {
   ]
   const tNavItems = [
     { k: 'home', label: 'My place', short: 'Home' },
+    { k: 'inbox', label: 'Activity', short: 'Activity' },
     { k: 'pay', label: 'Pay rent', short: 'Pay' },
     { k: 'rep', label: 'Repairs', short: 'Repairs' },
     { k: 'msg', label: 'Messages', short: 'Msgs' },
@@ -4588,18 +4589,24 @@ export default function DashboardPage() {
     )
   }
 
-  function LandlordInbox() {
+  // Not landlord-specific: it renders `notifications`, which RLS already scopes to
+  // whoever is signed in. It was only ever reachable by landlords because the
+  // tenant branch of renderView had no 'inbox' case -- so a tenant tapping the
+  // bell, badge and all, landed back on their home screen. Nothing had ever sent
+  // a tenant a notification, so nobody noticed until 044/046 started.
+  function Inbox() {
     const notifIcon = (n: any) => {
       if (n.type === 'payment_received' || n.type === 'pending_verification') return 'led'
       const d = n.data || {}
-      if (d.type === 'move_in_proof') return 'proof'
+      if (d.type === 'move_in_proof' || d.type === 'proof_approved') return 'proof'
+      if (d.type === 'rent_revised') return 'led'
       if (d.urgency !== undefined || d.category !== undefined) return 'rep'
       return 'inbox'
     }
     const notifColor = (n: any) => {
       if (n.type === 'payment_received' || n.type === 'pending_verification') return { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }
       const d = n.data || {}
-      if (d.type === 'move_in_proof') return { bg: 'var(--rb-success-soft, #e6faf5)', c: 'var(--rb-success)' }
+      if (d.type === 'move_in_proof' || d.type === 'proof_approved') return { bg: 'var(--rb-success-soft, #e6faf5)', c: 'var(--rb-success)' }
       if (d.urgency === 'emergency') return { bg: 'var(--rb-danger-soft, #fef2f2)', c: 'var(--rb-danger)' }
       if (d.urgency !== undefined || d.category !== undefined) return { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' }
       return { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
@@ -4607,7 +4614,8 @@ export default function DashboardPage() {
     const notifAction = (n: any) => {
       if (n.type === 'payment_received' || n.type === 'pending_verification') return 'Review payment →'
       const d = n.data || {}
-      if (d.type === 'move_in_proof') return 'View photos →'
+      if (d.type === 'move_in_proof' || d.type === 'proof_approved') return 'View photos →'
+      if (d.type === 'rent_revised') return 'View ledger →'
       if (d.urgency !== undefined || d.category !== undefined) return 'View repair →'
       return null
     }
@@ -4672,7 +4680,7 @@ export default function DashboardPage() {
 
     if (role === 'landlord') {
       switch (activeView) {
-        case 'inbox': return <LandlordInbox />
+        case 'inbox': return <Inbox />
         case 'props': return <LandlordProperties />
         case 'led': return <LandlordLedger />
         case 'hra': return <LandlordHRA />
@@ -4683,6 +4691,7 @@ export default function DashboardPage() {
       }
     } else if (role === 'tenant') {
       switch (activeView) {
+        case 'inbox': return <Inbox />
         case 'pay': return <TenantPay />
         case 'hra': return <TenantHRA />
         case 'rep': return <TenantRepairs />
@@ -4719,12 +4728,18 @@ export default function DashboardPage() {
       const r = landlordData?.rentals?.find((r: Rental) => r.id === d.rental_id)
       if (r) { setSelectedRental(r); setModal('property-detail') }
       else navigate('led')
-    } else if (d.type === 'move_in_proof') {
-      // The notification says "View photos"; take them to the photos. Before the
-      // review card existed this went to the properties list, which showed none.
-      const r = landlordData?.rentals?.find((r: Rental) => r.id === d.rental_id)
-      if (r) { setSelectedRental(r); setModal('property-detail') }
-      else navigate('props')
+    } else if (d.type === 'move_in_proof' || d.type === 'proof_approved') {
+      // The notification says "View photos"; take them to the photos. For the
+      // landlord that is the rental's own modal (before the review card existed
+      // this went to the properties list, which showed none); for the tenant it is
+      // their proof screen. Routing by role matters here -- 'props' renders
+      // TenantHome for a tenant, so they would have been sent nowhere.
+      if (role === 'tenant') { navigate('proof') }
+      else {
+        const r = landlordData?.rentals?.find((r: Rental) => r.id === d.rental_id)
+        if (r) { setSelectedRental(r); setModal('property-detail') }
+        else navigate('props')
+      }
     } else if (d.type === 'rent_revised') {
       navigate('led')
     } else if (d.type === 'repair_request' || d.urgency !== undefined || d.category !== undefined) {
