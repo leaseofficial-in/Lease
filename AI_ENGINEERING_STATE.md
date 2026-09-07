@@ -566,6 +566,21 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   agrees: 8 active tenancies, 8 rows for this month, 0 missing, 0 pending rows past
   their due date. This is the item that was assumed last time and was not true.
 
+- **Batch 41 — five of the fourteen tracked events had no call site.** `product_events`
+  holds zero rows. Checked before concluding anything: the insert path works (a real
+  anon insert returns 201, probe row removed), and the table was created after the
+  last real user activity on 09-02 — so it is untested in production, not broken.
+  What IS broken is the taxonomy's coverage: `rental_create_started`,
+  `payment_recorded`, `payment_confirmed`, `repair_raised` and `agreement_signed`
+  were declared and fired nowhere. That is the missing half of a `*_started` pair at
+  the step where landlords stall, plus the ENTIRE retention half — so even once
+  traffic returns, the funnel would have shown acquisition and activation and
+  nothing about whether the product is used. All five wired at their natural sites
+  (agreement_signed carries `by: tenant|landlord`, so the two halves of an execution
+  are distinguishable). Three tests now read the source tree and fail if a declared
+  event has no caller or a fired event is not declared — the CHECK constraint would
+  reject the latter at runtime. 216 → 219 tests.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -706,7 +721,7 @@ verified by execution, and committed as a migration.
 - String extraction for real i18n once a translation source exists.
 
 ## Test status
-216/216 tests · typecheck clean · build clean · security 84/84 · lint 0 errors (gates verify).
+219/219 tests · typecheck clean · build clean · security 84/84 · lint 0 errors (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names

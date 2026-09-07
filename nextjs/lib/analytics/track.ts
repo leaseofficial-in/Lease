@@ -43,6 +43,11 @@ export type ProductEvent =
   | 'repair_raised'
   | 'agreement_signed'
 
+// Every name above has at least one call site, and lib/analytics/track.test.ts
+// fails if that stops being true. A declared event nobody fires is a funnel step
+// the owner believes is measured and is not -- five of these were in that state
+// until the retention half was wired up.
+
 type Props = Record<string, string | number | boolean | null>
 
 /**

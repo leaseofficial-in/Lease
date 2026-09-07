@@ -848,7 +848,7 @@ export default function DashboardPage() {
                   <button onClick={e => { e.stopPropagation(); setView('map') }} style={{ padding: '8px 12px', border: 0, borderLeft: '1px solid var(--rb-border)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, background: view === 'map' ? 'var(--rb-ink-1)' : 'transparent', color: view === 'map' ? '#fff' : 'var(--rb-ink-3)', transition: 'background .15s' }}>⊞<span className="d-toggle-label"> Map</span></button>
                 </div>
               )}
-              <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('add-unit') }} style={{ padding: '8px 14px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>+ Add</button>
+              <button onClick={e => { e.stopPropagation(); track('rental_create_started', { from: 'building_card' }); setSelectedBuilding(building); setModal('add-unit') }} style={{ padding: '8px 14px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>+ Add</button>
               <button onClick={e => { e.stopPropagation(); setSelectedBuilding(building); setModal('building-detail') }} style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid var(--rb-border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--rb-ink-3)' }}>Edit</button>
               <span style={{ fontSize: 18, color: 'var(--rb-ink-3)', lineHeight: 1 }}>{expanded ? '▾' : '▸'}</span>
             </div>
@@ -2518,6 +2518,7 @@ export default function DashboardPage() {
           paymentId = row.id
         }
         setStep(3)
+        track('payment_recorded', { method, has_proof: !!proofUrl, first: !currentPayment })
         // Tell the landlord there is something to confirm. Fire-and-forget: the
         // payment is already sealed, and a failed notification must never read as
         // a failed payment. keepalive so the request survives the modal closing.
@@ -2660,6 +2661,7 @@ export default function DashboardPage() {
           category: category || null, urgency, photo_url: photo_url || null,
         })
         if (repErr) throw repErr
+        track('repair_raised', { urgency, has_photo: !!photo_url })
         // The landlord's notification is written by the notify_landlord_repair_created
         // trigger the moment the row above lands. A client INSERT used to sit here
         // as well; `notifications` has no INSERT policy, so RLS refused it every
@@ -3101,6 +3103,7 @@ export default function DashboardPage() {
         const rn = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${currentPmt.id.slice(-4).toUpperCase()}`
         setReceiptNum(rn)
         setConfirmStep(2)
+        track('payment_confirmed', { month: currentPmt.month?.slice(0, 7) ?? null })
         // Tell the tenant. This is the receipt moment and, until now, nothing told
         // them it had happened: every notification trigger is landlord-directed.
         // Same shape as the tenant->landlord mail: fire-and-forget, keepalive, only
@@ -3499,6 +3502,7 @@ export default function DashboardPage() {
           agreement_signed_at: new Date().toISOString(),
           agreement_status: 'tenant_signed',
         }).eq('id', rental.id).select('id'), 'agreement')
+        track('agreement_signed', { by: 'tenant' })
         toast('Agreement signed ✓ Landlord will countersign.', 'success')
         setModal(null); refreshData()
       } catch (e: any) { console.error('[SignAgreement]', e); toast(e?.message || 'Failed to sign agreement', 'error') } finally { setSaving(false) }
@@ -3987,7 +3991,7 @@ export default function DashboardPage() {
             ))}
             <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' as const }}>
               <Button variant="primary" onClick={() => setEditMode(true)}>Edit details</Button>
-              <button onClick={() => { setModal('add-unit') }} style={{ ...actBtnPrimary, background: 'var(--rb-surface)', color: 'var(--rb-action)', border: '1.5px solid var(--rb-action)' }}>+ Add unit</button>
+              <button onClick={() => { track('rental_create_started', { from: 'building_detail' }); setModal('add-unit') }} style={{ ...actBtnPrimary, background: 'var(--rb-surface)', color: 'var(--rb-action)', border: '1.5px solid var(--rb-action)' }}>+ Add unit</button>
             </div>
           </>
         )}
@@ -4387,6 +4391,7 @@ export default function DashboardPage() {
           landlord_signed_at: new Date().toISOString(),
           agreement_status: 'executed',
         }).eq('id', r.id).select('id'), 'agreement')
+        track('agreement_signed', { by: 'landlord' })
         toast('Agreement fully executed ✓', 'success')
         setModal(null); refreshData()
       } catch (e: any) { console.error('[LandlordSign]', e); toast(e?.message || 'Failed to sign', 'error'); setSaving(false) }

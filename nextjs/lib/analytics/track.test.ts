@@ -70,3 +70,53 @@ describe('track', () => {
     expect(from).not.toHaveBeenCalled()
   })
 })
+
+// ─── The taxonomy has to match the product ────────────────────────────────────
+//
+// Five of the fourteen declared events had no call site anywhere: the whole
+// retention half (payment_recorded, payment_confirmed, repair_raised,
+// agreement_signed) plus rental_create_started -- the missing half of a
+// *_started pair, at the step where landlords actually stall. A declared event
+// with no caller is not a small tidiness problem: it is a funnel step the owner
+// believes is being measured and is not.
+
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const APP_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+
+function sourceFiles(dir: string): string[] {
+  const out: string[] = []
+  for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules' || entry === '.next') continue
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) out.push(...sourceFiles(full))
+    else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) out.push(full)
+  }
+  return out
+}
+
+describe('event taxonomy', () => {
+  const trackSource = readFileSync(join(APP_ROOT, 'lib', 'analytics', 'track.ts'), 'utf8')
+  const declared = [...trackSource.matchAll(/^\s+\|\s+'([a-z_]+)'/gm)].map(m => m[1])
+
+  const fired = new Set<string>()
+  for (const dir of ['app', 'lib', 'components']) {
+    for (const file of sourceFiles(join(APP_ROOT, dir))) {
+      for (const m of readFileSync(file, 'utf8').matchAll(/\btrack\('([a-z_]+)'/g)) fired.add(m[1])
+    }
+  }
+
+  it('declares the events it is supposed to', () => {
+    expect(declared.length).toBe(14)
+  })
+
+  it('fires every event it declares', () => {
+    expect(declared.filter(e => !fired.has(e))).toEqual([])
+  })
+
+  it('fires nothing it has not declared -- the CHECK constraint would reject it', () => {
+    expect([...fired].filter(e => !declared.includes(e))).toEqual([])
+  })
+})
