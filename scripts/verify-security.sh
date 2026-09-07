@@ -420,6 +420,44 @@ else
           bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
         fi
       fi
+      # ── Message notifications (048) ──
+      # Messaging is the one feature whose entire purpose is to reach the other
+      # person, and nothing notified anybody: no trigger, and `read_at` has never
+      # been written, so there was not even an unread badge. Both parties exist by
+      # this point in the run, which is what makes the check meaningful.
+      count_msg_notifs() {
+        curl -s "$URL/rest/v1/notifications?select=id&data->>type=eq.message" \
+          -H "apikey: $KEY" -H "$1" -H "Prefer: count=exact" -H "Range: 0-0" -D - -o /dev/null \
+          | tr -d '\r' | awk -F/ '/[Cc]ontent-[Rr]ange/ {print $2}'
+      }
+      L_BEFORE=$(count_msg_notifs "$AUTH")
+      T_BEFORE=$(count_msg_notifs "$TAUTH")
+      curl -s -o /dev/null -X POST "$URL/rest/v1/messages" \
+        -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" \
+        -d "{\"rental_id\":\"$PROBE_RENTAL\",\"sender_id\":\"$T_ID\",\"body\":\"probe message\"}"
+      L_AFTER=$(count_msg_notifs "$AUTH")
+      T_AFTER=$(count_msg_notifs "$TAUTH")
+      if [[ "$L_AFTER" -gt "$L_BEFORE" ]]; then
+        ok "a message notifies the other party ($L_BEFORE -> $L_AFTER)"
+      else
+        bad "A MESSAGE NOTIFIES NOBODY" "landlord notifications stayed at $L_AFTER"
+      fi
+      if [[ "$T_AFTER" == "$T_BEFORE" ]]; then
+        ok "the sender is not notified of their own message"
+      else
+        bad "sender notified of their own message" "$T_BEFORE -> $T_AFTER"
+      fi
+      # A burst collapses into the one unread entry rather than stacking.
+      curl -s -o /dev/null -X POST "$URL/rest/v1/messages" \
+        -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" \
+        -d "{\"rental_id\":\"$PROBE_RENTAL\",\"sender_id\":\"$T_ID\",\"body\":\"and another\"}"
+      L_BURST=$(count_msg_notifs "$AUTH")
+      if [[ "$L_BURST" == "$L_AFTER" ]]; then
+        ok "a burst of messages stays one unread notification"
+      else
+        bad "message notifications stack up" "$L_AFTER -> $L_BURST"
+      fi
+
       # ── Invite preview scope (047) ──
       # rental_invite_preview is anon-callable by design -- someone has to see what
       # they are joining before they sign up -- and it used to return the rent, the

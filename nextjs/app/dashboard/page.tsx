@@ -4672,6 +4672,7 @@ export default function DashboardPage() {
       const d = n.data || {}
       if (d.type === 'move_in_proof' || d.type === 'proof_approved') return 'proof'
       if (d.type === 'rent_revised') return 'led'
+      if (d.type === 'message') return 'msg'
       if (d.urgency !== undefined || d.category !== undefined) return 'rep'
       return 'inbox'
     }
@@ -4688,6 +4689,7 @@ export default function DashboardPage() {
       const d = n.data || {}
       if (d.type === 'move_in_proof' || d.type === 'proof_approved') return 'View photos →'
       if (d.type === 'rent_revised') return 'View ledger →'
+      if (d.type === 'message') return 'Open messages →'
       if (d.urgency !== undefined || d.category !== undefined) return 'View repair →'
       return null
     }
@@ -4814,6 +4816,8 @@ export default function DashboardPage() {
       }
     } else if (d.type === 'rent_revised') {
       navigate('led')
+    } else if (d.type === 'message') {
+      navigate('msg')
     } else if (d.type === 'repair_request' || d.urgency !== undefined || d.category !== undefined) {
       navigate('rep')
     } else if (n.type === 'info') {

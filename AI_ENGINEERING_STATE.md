@@ -496,6 +496,23 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   is actually true. Existing tenants will see their score rise — by the points they
   were already told they had earned.
 
+- **Batch 37 — messaging notified nobody (048).** Four events in this product notify
+  someone (agreement signed, payment received, proof submitted, repair raised) and
+  the one feature whose entire purpose is to reach the other person had no trigger
+  at all. A landlord writes "the plumber comes Tuesday" and the tenant finds out
+  whenever they next happen to open the app. `read_at` has never been written by
+  anything either, so there was not even an unread badge to notice. 048 adds
+  `notify_message_recipient` in the shape of the existing four: AFTER INSERT,
+  SECURITY DEFINER (notifications has no INSERT policy by design — 044), text owned
+  by the migration, a 90-character preview rather than the message. A burst
+  collapses: if the recipient already has an unread message notification for that
+  rental, the body is refreshed instead of a second row appearing, so ten messages
+  leave one entry. Deliberately not an email — a conversation arrives in bursts, and
+  a mail per line would train people to filter the sender, which would cost the
+  reminders and receipts that matter. Proven live: notifies the other party, never
+  the sender, collapses a burst, and starts a fresh entry once read. Client routes
+  it to the messages screen. 77 → 80 checks.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
