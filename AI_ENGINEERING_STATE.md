@@ -581,6 +581,21 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   event has no caller or a fired event is not declared — the CHECK constraint would
   reject the latter at runtime. 216 → 219 tests.
 
+- **Batch 42 — the landlord overview now says when invites died.** Batch 25 fixed
+  the copy inside the invite modal, but a landlord has no reason to reopen that
+  modal: they sent a code by WhatsApp, it stopped working after seven days, and
+  nothing on any screen they actually look at said so. The overview now carries a
+  warning card when a rental has an unclaimed, expired invite — what happened, that
+  the tenant is being told it expired, and a chip per unit that opens the modal
+  where "Generate a new link" lives. 43 rentals are in that state today against 9
+  that ever got a tenant. In-app only; nothing is emailed to anyone.
+- **Deliberately not done: extracting `AgreementDocument`.** It is a clean 176-line
+  move touching only `region` and `inr`, and it would take 3.5% off a 5,082-line
+  file with no user-visible benefit — against a non-zero risk to the printed lease,
+  which is the one document here with legal weight and the one I cannot see. Left
+  recorded rather than done. `region` was checked while measuring: it derives from
+  `profiles.country_code`, not the viewer's cookie, which is correct for money.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /

@@ -882,6 +882,14 @@ export default function DashboardPage() {
     const band = scoreBand(score)
     const pct = totalMonthlyRent > 0 ? Math.min(100, Math.round(paidThisMonth / totalMonthlyRent * 100)) : 0
     const openRepairs = recentRepairs.filter((r: RepairRequest) => r.status === 'open' || r.status === 'in_progress')
+    // Invites that lapsed before anyone joined. Nothing has ever told a landlord
+    // this happens: they send a code by WhatsApp, it stops working after seven
+    // days, and the only screen that says so is the invite modal for that one unit
+    // -- which they have no reason to reopen. Across this database that is 43
+    // rentals waiting on a dead code against 9 that ever got a tenant, which makes
+    // it the largest single drop in the product.
+    const expiredInvites = rentals.filter((r: Rental) =>
+      !r.tenant_id && r.status !== 'ended' && r.invite_expires_at && new Date(r.invite_expires_at) < new Date())
 
     // Group rentals by building
     const buildingRentalsMap = new Map<string, Rental[]>()
@@ -907,6 +915,37 @@ export default function DashboardPage() {
             <p style={subStyle}>You have <strong>{activeRentals.length} active unit{activeRentals.length === 1 ? '' : 's'}</strong>{dueThisMonth > 0 ? <>: <strong>{inr(dueThisMonth)} pending</strong> this month</> : ', all collections up to date'}. Score <strong>{score}/900</strong>.</p>
           </div>
         </div>
+        {expiredInvites.length > 0 && (
+          <section style={{ ...cardStyle, marginBottom: 16, background: 'var(--rb-warning-soft)', border: '1px solid rgba(184,116,15,.3)' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ color: 'var(--rb-warning)', flexShrink: 0, marginTop: 2 }}><Icon k="clock" size={20} stroke={1.8} /></div>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--rb-ink)' }}>
+                  {expiredInvites.length === 1
+                    ? 'An invite expired before your tenant joined'
+                    : `${expiredInvites.length} invites expired before anyone joined`}
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginTop: 6, lineHeight: 1.55 }}>
+                  Invite codes stop working after 7 days. The code you sent no longer lets anyone in, and
+                  your tenant is told it has expired. Generate a new one and send it again.
+                </p>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                  {expiredInvites.slice(0, 4).map((r: Rental) => (
+                    <button key={r.id} onClick={() => { setSelectedRental(r); setModal('property-detail') }}
+                      style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(184,116,15,.4)', background: 'transparent', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--rb-ink-2)' }}>
+                      {r.property?.name || 'Unit'} →
+                    </button>
+                  ))}
+                  {expiredInvites.length > 4 && (
+                    <span style={{ fontSize: 12, color: 'var(--rb-ink-3)', alignSelf: 'center' }}>
+                      and {expiredInvites.length - 4} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
         <div className="d-grid-inner" style={gridStyle}>
           <section style={{ ...cardStyle, gridColumn: 'span 2', background: 'linear-gradient(135deg,#0F4C5C,#163A47)', color: '#F6F4EE', border: 0 }}>
             <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, letterSpacing: '.14em', color: 'rgba(246,244,238,.6)' }}>COLLECTED · {monthLabel(currentMonth).toUpperCase()}</div>
