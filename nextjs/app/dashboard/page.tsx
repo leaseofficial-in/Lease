@@ -1635,6 +1635,10 @@ export default function DashboardPage() {
     const [notified, setNotified] = useState(false)
     const fileRef = useRef<HTMLInputElement>(null)
     const isApproved = proofs?.status === 'approved'
+    // The landlord can send this back asking for more (044). Without saying so
+    // here, the tenant sees an unchanged screen and never learns they were asked
+    // for anything -- and the whole review round is invisible to them.
+    const wasSentBack = proofs?.status === 'rejected'
 
     const roomPhotos = photos.filter(p => p.room_label === activeRoom)
     const totalCount = photos.length
@@ -1758,6 +1762,13 @@ export default function DashboardPage() {
         </div>
 
         {isApproved && <div style={{ marginBottom: 16, padding: '12px 18px', borderRadius: 12, background: 'var(--rb-action-soft)', border: '1px solid rgba(15,76,92,.2)', color: 'var(--rb-action)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}><Icon k="check" size={16} stroke={2} /> Approved by your landlord</div>}
+
+        {wasSentBack && (
+          <div style={{ marginBottom: 16, padding: '12px 18px', borderRadius: 12, background: 'var(--rb-warning-soft)', border: '1px solid rgba(184,116,15,.3)', color: 'var(--rb-warning)', fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <Icon k="clock" size={16} stroke={2} />
+            <span><strong>Your landlord asked for more photos.</strong> Add what is missing, then tell them again — nothing is locked until they approve.</span>
+          </div>
+        )}
 
         {totalCount === 0 ? (
           <section style={cardStyle}>

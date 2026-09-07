@@ -457,6 +457,12 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   TenantHome, so the old path would have sent them nowhere. Labels, icons and
   colours added for the two new kinds.
 
+- **Batch 34 — the tenant now sees when their proof is sent back.** 044 gave the
+  landlord "Ask for more", and 045 kept the proof editable in that state, but the
+  tenant's screen rendered identically to pending: they would never learn they had
+  been asked for anything. Added the warning banner, next to the existing
+  "Approved by your landlord" one.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
