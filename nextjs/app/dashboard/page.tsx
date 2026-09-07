@@ -4706,7 +4706,7 @@ export default function DashboardPage() {
       <>
         <div style={topStyle}>
           <div>
-            <div style={eyebrowStyle}>Landlord · Activity</div>
+            <div style={eyebrowStyle}>{role === 'tenant' ? 'Tenant' : 'Landlord'} · Activity</div>
             <h1 style={h1Style}>Activity.</h1>
             <p style={subStyle}>{notifications.length} unread notification{notifications.length !== 1 ? 's' : ''}</p>
           </div>

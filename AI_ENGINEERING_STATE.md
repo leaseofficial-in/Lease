@@ -706,7 +706,7 @@ verified by execution, and committed as a migration.
 - String extraction for real i18n once a translation source exists.
 
 ## Test status
-216/216 tests · typecheck clean · build clean · security 83/83 · lint 0 errors (gates verify).
+216/216 tests · typecheck clean · build clean · security 84/84 · lint 0 errors (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
