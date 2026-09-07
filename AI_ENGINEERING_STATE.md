@@ -122,6 +122,12 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
     than throwing, so `try/catch` around it catches nothing and the success toast
     fires regardless. Grep for `.insert(`/`.update(` not followed by `.select(`.
 
+22. Harness checks must not mutate the shared probe fixture. Borrowing the probe
+    rental for the invite test meant detaching its tenant, and 13 later checks
+    failed as a result — including one that "passed" a deletion it should have
+    refused, because the rental really was unclaimed by then. A check that needs a
+    different fixture creates its own and deletes it.
+
 ## Incident log
 
 - **2026-09-07 — 23 unintended emails.** Fired `/api/cron/rent-reminders` at prod
@@ -424,6 +430,21 @@ Sprint started 2026-09-07. Owner: akhilchintu93@gmail.com. Repo: leaseofficial-i
   Two remaining unchecked writes are `notifications.update({read:true})`, which has
   a policy and works. Proven live and rolled back; harness 74/74, drift clean.
 
+- **Batch 32 — a shared invite code kept talking forever (047).**
+  `rental_invite_preview` is anon-callable by design, and returned the rent, the
+  deposit, the due day, the property name and city, and the landlord's full name
+  for ANY token — after it was claimed, after it expired, after the tenancy ended.
+  The client withholds all of that (those fields only render in the `preview`
+  state) but the client is not the boundary: PostgREST exposes the function
+  directly. These codes travel by WhatsApp and get forwarded and screenshotted, and
+  every unclaimed invite in this database is expired — so every code ever shared
+  was still disclosing a landlord's name and what they charge. 047 returns the
+  descriptive columns only when the invite is still usable (unclaimed, unexpired,
+  not ended) or the caller is already a party; the identifying columns still come
+  back so /join can tell expired from taken from unknown. Same signature, so the
+  client is untouched. Proven live against real claimed and expired tokens (nulls)
+  and a claimable one (full details, to anon as intended). 74 → 77 checks.
+
 ### P1 — needs the owner (found this sprint)
 - **Android App Links are unverified in production.** `/.well-known/assetlinks.json`
   serves the literal placeholders `REPLACE_WITH_RELEASE_KEYSTORE_SHA256` /
@@ -565,7 +586,7 @@ verified by execution, and committed as a migration.
 - Verify tomorrow: `cron.job_run_details` shows both jobs succeeded at 00:30/01:00 UTC.
 
 ## Test status
-205/205 tests · typecheck clean · build clean · security 74/74 · lint 0 errors (gates verify).
+205/205 tests · typecheck clean · build clean · security 77/77 · lint 0 errors (gates verify).
 
 ## Known bounds (documented, not fixing autonomously)
 - `lib/rate-limit.ts` is per-serverless-instance memory; header says so and names
@@ -577,16 +598,15 @@ verified by execution, and committed as a migration.
   pixels I cannot see. Left.
 
 ## Next task
-Four dead client writes and one dead read have now been found and fixed, all by
-mechanical sweeps rather than reading code: writes against `pg_policies`, reads
-against `information_schema`, and writes with no error check. The scanners live in
-the scratchpad; `check-schema-drift.py` is the one worth keeping and it runs in
-`npm run verify`.
-
-Still open, in order:
-1. Manual pass on what machines cannot check: the landlord proof review card, the
-   three new emails (payment-confirmed, proof-submitted, and the reminder
-   templates), and the expired-invite copy.
-2. `rentals.invite_token` is never cleared after a claim.
-3. Owner decisions recorded below: the 7-day invite window, lease terms editable
-   after signing, deposit dispute resolution, no undo on a confirmed payment.
+Everything mechanical is done and green: 038-047 applied and live-proven, 77
+harness checks, schema-drift clean, 205 tests. What remains cannot be checked from
+here:
+1. A browser and an inbox pass — the landlord proof review card, the expired-invite
+   copy, and the three new emails (payment-confirmed, proof-submitted, and whether
+   Resend actually delivered them).
+2. Owner decisions, listed below: the 7-day invite window (the biggest funnel drop
+   in the product), lease terms editable after signing, deposit dispute
+   resolution, no undo on a confirmed payment, assetlinks fingerprints, the
+   reminder cron, the "geotagged" claim.
+3. Engineering left over: Badge/Card primitives, the 4,800-line dashboard split
+   (`AgreementDocument` first), Vercel KV for the rate limiter, string extraction.

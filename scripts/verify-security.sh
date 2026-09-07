@@ -420,6 +420,57 @@ else
           bad "LANDLORD REWROTE TENANT DESCRIPTION" "expected 400, got $code"
         fi
       fi
+      # ── Invite preview scope (047) ──
+      # rental_invite_preview is anon-callable by design -- someone has to see what
+      # they are joining before they sign up -- and it used to return the rent, the
+      # deposit, the property and the landlord's name for ANY token, forever:
+      # after the invite was claimed, after it expired, after the tenancy ended.
+      # These codes travel by WhatsApp. Every unclaimed invite in production is
+      # expired, so every code ever shared was still disclosing all of that.
+      #
+      # This runs on a rental of its own. An invite is only "claimable" while
+      # tenant_id is null, and borrowing the main probe rental for that would mean
+      # detaching its tenant -- which quietly breaks every check after this one.
+      INV_TOKEN="PROBEINV$RANDOM"
+      INV_RENTAL=$(curl -s -X POST "$URL/rest/v1/rentals" \
+        -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" \
+        -H "Prefer: return=representation" \
+        -d "{\"property_id\":\"$PROBE_PROP\",\"landlord_id\":\"$PROBE_ID\",\"monthly_rent\":4321,\"start_date\":\"2026-01-01\",\"status\":\"pending_tenant\",\"invite_token\":\"$INV_TOKEN\",\"invite_expires_at\":\"2099-01-01T00:00:00Z\"}" \
+        | python -c 'import sys,json; d=json.load(sys.stdin); print(d[0]["id"] if isinstance(d,list) and d else "")' 2>/dev/null)
+      if [[ -z "$INV_RENTAL" ]]; then
+        bad "could not seed a probe invite" "skipping the preview checks"
+      else
+        body=$(retry_body -X POST "$URL/rest/v1/rpc/rental_invite_preview" \
+          -H "apikey: $KEY" -H "Content-Type: application/json" \
+          -d "{\"invite_token_input\":\"$INV_TOKEN\"}")
+        if [[ "$body" == *'"monthly_rent":4321'* ]]; then
+          ok "a live invite still shows the deal to whoever holds the code"
+        else
+          bad "A LIVE INVITE SHOWS NOTHING" "the join screen would be blank: ${body:0:160}"
+        fi
+
+        curl -s -o /dev/null -X PATCH "$URL/rest/v1/rentals?id=eq.$INV_RENTAL" \
+          -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR" -H "Content-Type: application/json" \
+          -d '{"invite_expires_at":"2020-01-01T00:00:00Z"}'
+        body=$(retry_body -X POST "$URL/rest/v1/rpc/rental_invite_preview" \
+          -H "apikey: $KEY" -H "Content-Type: application/json" \
+          -d "{\"invite_token_input\":\"$INV_TOKEN\"}")
+        if [[ "$body" == *'"monthly_rent":null'* && "$body" == *'"landlord_name":null'* ]]; then
+          ok "an expired code discloses nothing to whoever still has it"
+        else
+          bad "EXPIRED INVITE STILL LEAKS THE DEAL" "${body:0:160}"
+        fi
+        # Still enough left to tell the join screen's states apart.
+        if [[ "$body" == *'"is_taken"'* && "$body" == *'"invite_expires_at"'* ]]; then
+          ok "an expired code still identifies itself as expired"
+        else
+          bad "join screen cannot tell expired from unknown" "${body:0:160}"
+        fi
+
+        curl -s -o /dev/null -X DELETE "$URL/rest/v1/rentals?id=eq.$INV_RENTAL" \
+          -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "$SR"
+      fi
+
       # ── Proof review and counterparty notifications (044) ──
       # `notifications` has no INSERT policy, so the tenant's "Notify landlord"
       # button was refused every time while reporting success. The replacement is
@@ -508,7 +559,7 @@ else
         -H "apikey: $KEY" -H "$TAUTH" -H "Content-Type: application/json" -H "Prefer: return=representation" \
         -d '{"agreement_signed_at":"2020-01-01T00:00:00Z","agreement_status":"tenant_signed"}')
       if [[ "$body" == *"2020-01-01"* ]]; then
-        bad "SIGNATURE CAN BE BACK-DATED" "stored the client's timestamp"
+        bad "SIGNATURE CAN BE BACK-DATED" "stored the client's timestamp: ${body:0:200}"
       elif [[ "$body" == "[{"* ]]; then
         ok "tenant signs, and the timestamp is stamped server-side"
       else
