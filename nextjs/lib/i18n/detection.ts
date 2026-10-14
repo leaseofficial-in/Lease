@@ -2,7 +2,7 @@
 // Uses Intl APIs (always available in React Native / web) to infer country.
 // No network call needed — timezone alone covers >95% of cases accurately.
 
-import { CountryCode, REGIONS } from './regions';
+import { CountryCode, isSupportedCountry } from './regions';
 
 // IANA timezone → CountryCode mapping for common timezones
 const TIMEZONE_MAP: Record<string, CountryCode> = {
@@ -72,10 +72,10 @@ const LOCALE_MAP: Record<string, CountryCode> = {
 
 /**
  * Detect the user's country from system timezone and locale.
- * Returns a CountryCode — always succeeds (falls back to 'IN' for existing users).
+ * Returns an ISO country code — always succeeds (falls back to 'IN' for existing users).
  * Call this once on first launch; afterward use the stored value.
  */
-export const detectCountry = (): CountryCode => {
+export const detectCountry = (): string => {
   // 1. Timezone — most reliable signal
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -94,8 +94,8 @@ export const detectCountry = (): CountryCode => {
       // Try region subtag (e.g. 'en-US-u-ca-gregory' → 'US')
       const match = systemLocale.match(/[a-z]{2}-([A-Z]{2})/);
       if (match?.[1]) {
-        const code = match[1] as CountryCode;
-        if (code in REGIONS) return code;
+        // Any real country, not only the curated ones: a pt-BR browser is Brazil.
+        if (isSupportedCountry(match[1])) return match[1];
       }
     }
   } catch {

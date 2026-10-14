@@ -5,10 +5,10 @@ export const dynamic = 'force-dynamic'
 import { Suspense, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { REGIONS, COUNTRY_PICKER_ORDER, getRegion } from '@/lib/i18n/regions'
-import { setRegionCookie } from '@/lib/region'
+import { worldPickerOrder, getRegion } from '@/lib/i18n/regions'
+import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
+import { setRegionCookie, browserTimezone } from '@/lib/region'
 import { useRegion } from '@/lib/hooks/useRegion'
-import type { CountryCode } from '@/lib/i18n/regions'
 
 function CountryOnboardingInner() {
   const router = useRouter()
@@ -19,15 +19,21 @@ function CountryOnboardingInner() {
   // the override means no effect is needed to seed state from the cookie — the
   // hook already gives the right value on first render, SSR-safe.
   const region = useRegion()
-  const [override, setSelected] = useState<CountryCode | null>(null)
-  const selected: CountryCode = override ?? region.countryCode
+  const [override, setSelected] = useState<string | null>(null)
+  const selected: string = override ?? region.countryCode
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
 
-  const filtered = COUNTRY_PICKER_ORDER.filter(code => {
-    const r = REGIONS[code]
-    return r.name.toLowerCase().includes(search.toLowerCase()) ||
-      code.toLowerCase().includes(search.toLowerCase())
+  // Every country in the world, curated markets first. The 12 curated ones
+  // carry researched payment rails; the rest get their own currency and
+  // formatting from Intl rather than being treated as Indian.
+  const q = search.trim().toLowerCase()
+  const filtered = worldPickerOrder().filter(code => {
+    if (!q) return true
+    const r = getRegion(code)
+    return r.name.toLowerCase().includes(q) ||
+      code.toLowerCase() === q ||
+      r.currency.code.toLowerCase() === q
   })
 
   const handleConfirm = useCallback(async () => {
@@ -49,7 +55,7 @@ function CountryOnboardingInner() {
             country_code: chosen.countryCode,
             currency_code: chosen.currency.code,
             locale: chosen.locale,
-            timezone: chosen.primaryTimezone,
+            timezone: browserTimezone(chosen.primaryTimezone),
           })
           .eq('id', user.id)
       }
@@ -97,9 +103,9 @@ function CountryOnboardingInner() {
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--rb-ink-3)', fontSize: 14 }}>🔍</span>
         </div>
 
-        <div style={{ border: '1.5px solid var(--rb-border)', borderRadius: 14, overflow: 'hidden', marginBottom: 24 }}>
+        <div style={{ border: '1.5px solid var(--rb-border)', borderRadius: 14, overflowY: 'auto', maxHeight: 'min(420px, 50vh)', marginBottom: 24 }}>
           {filtered.map((code, i) => {
-            const r = REGIONS[code]
+            const r = getRegion(code)
             const isSelected = selected === code
             return (
               <button
@@ -146,7 +152,7 @@ function CountryOnboardingInner() {
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{selectedRegion.name}</div>
               <div style={{ fontSize: 12, color: 'var(--rb-ink-3)' }}>
-                {selectedRegion.currency.symbol} {selectedRegion.currency.name} · {selectedRegion.paymentMethods.slice(0, 3).join(', ')}
+                {selectedRegion.currency.symbol} {selectedRegion.currency.name} · {selectedRegion.paymentMethods.slice(0, 3).map(m => PAYMENT_METHOD_DISPLAY[m]?.label ?? m).join(', ')}
               </div>
             </div>
           </div>

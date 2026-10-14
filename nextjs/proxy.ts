@@ -1,16 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { REGION_COOKIE } from '@/lib/region'
-import { REGIONS } from '@/lib/i18n/regions'
-
-const SUPPORTED = new Set(Object.keys(REGIONS))
+import { isSupportedCountry } from '@/lib/i18n/regions'
 
 function detectCountry(req: NextRequest): string {
   const vercelCountry = req.headers.get('x-vercel-ip-country')
-  if (vercelCountry && SUPPORTED.has(vercelCountry)) return vercelCountry
+  if (isSupportedCountry(vercelCountry)) return vercelCountry
   const acceptLang = req.headers.get('accept-language') ?? ''
   const match = acceptLang.match(/[a-z]{2}-([A-Z]{2})/)
-  if (match?.[1] && SUPPORTED.has(match[1])) return match[1]
+  if (isSupportedCountry(match?.[1])) return match![1]
   return 'IN'
 }
 

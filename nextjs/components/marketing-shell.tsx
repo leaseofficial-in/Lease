@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { LogoMark } from './brand'
-import { REGIONS, COUNTRY_PICKER_ORDER, type CountryCode } from '@/lib/i18n/regions'
+import { getRegion, worldPickerOrder } from '@/lib/i18n/regions'
 import { setRegionCookie } from '@/lib/region'
 import { useRegion } from '@/lib/hooks/useRegion'
 
@@ -75,7 +75,7 @@ function FooterRegionSelector() {
         aria-label="Choose your region"
         value={code}
         onChange={(e) => {
-          const v = e.target.value as CountryCode
+          const v = e.target.value
           setRegionCookie(v)
           // Marketing pages are statically rendered per region; a reload is the
           // honest way to re-render them for the new one.
@@ -93,11 +93,14 @@ function FooterRegionSelector() {
           maxWidth: 220,
         }}
       >
-        {COUNTRY_PICKER_ORDER.map((c) => (
-          <option key={c} value={c} style={{ color: '#0E1413' }}>
-            {REGIONS[c].flag} {REGIONS[c].name} ({REGIONS[c].currency.code})
-          </option>
-        ))}
+        {worldPickerOrder().map((c) => {
+          const r = getRegion(c)
+          return (
+            <option key={c} value={c} style={{ color: '#0E1413' }}>
+              {r.flag} {r.name} ({r.currency.code})
+            </option>
+          )
+        })}
       </select>
     </div>
   )

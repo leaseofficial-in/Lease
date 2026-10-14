@@ -105,7 +105,7 @@ export function emailLayout(content: string) {
         <!-- Footer -->
         <tr><td style="padding:24px 0 8px;text-align:center;">
           <p style="font-size:12px;color:#8E948D;margin:0 0 6px;">
-            © ${new Date().getFullYear()} RentyBase · Built for India
+            © ${new Date().getFullYear()} RentyBase · For landlords and tenants everywhere
           </p>
           <p style="font-size:12px;color:#8E948D;margin:0;">
             <a href="https://rentybase.com/privacy" style="color:#8E948D;">Privacy</a> ·
@@ -123,7 +123,7 @@ export function emailLayout(content: string) {
 
 // ── Email templates ──────────────────────────────────────────────
 
-export function welcomeEmail({ name, role, email }: { name: string; role: string; email: string }) {
+export function welcomeEmail({ name, role, email, country = null }: { name: string; role: string; email: string; country?: string | null }) {
   const isLandlord = role === 'landlord' || role === 'pg'
   const roleLabel = role === 'pg' ? 'PG / Hostel Manager' : isLandlord ? 'Landlord' : 'Tenant'
   const nextStep = isLandlord
@@ -154,9 +154,11 @@ export function welcomeEmail({ name, role, email }: { name: string; role: string
           <p style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#5C645F;margin:0 0 14px;">WHAT'S READY FOR YOU</p>
         </td></tr>
         ${[
-          ['HRA Rent Receipts', 'Section 10(13A)-valid, auto-generated'],
+          country === 'IN'
+            ? ['HRA Rent Receipts', 'Section 10(13A)-valid, auto-generated']
+            : ['Rent Receipts', 'Generated for every confirmed payment'],
           ['Shared Payment Ledger', 'Both sides see the same record'],
-          ['Move-in Photo Proof', 'Timestamped, geotagged, sealed'],
+          ['Move-in Photo Proof', 'Timestamped and sealed'],
           ['Deposit Ledger', 'Full lifecycle with deduction reasons'],
         ].map(([t, d]) => `
         <tr><td style="padding:0 24px 14px;">

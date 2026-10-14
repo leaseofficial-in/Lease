@@ -2,10 +2,10 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "RentyBase — India's Rental OS",
+    name: 'RentyBase — Rent, receipts and records',
     short_name: 'RentyBase',
     description:
-      'Free rental management for Indian landlords and tenants. HRA receipts, rent tracking, deposits, repairs, and move-in proof.',
+      'Free rental management for landlords and tenants anywhere. Rent tracking, receipts, deposits, repairs, and move-in proof.',
     start_url: '/dashboard',
     scope: '/',
     display: 'standalone',
@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: '#0E1413',
     theme_color: '#0E1413',
     orientation: 'portrait-primary',
-    lang: 'en-IN',
+    lang: 'en',
     dir: 'ltr',
     categories: ['business', 'finance', 'productivity'],
     icons: [

@@ -40,7 +40,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing name' }, { status: 400 })
     }
 
-    const { subject, html } = welcomeEmail({ name, role, email: user.email })
+    // Same signal signup stamps onto the profile: the region cookie. It only
+    // decides whether the India-specific HRA line appears, so a guess is fine.
+    const country = /(?:^|;\s*)rb_country=([A-Z]{2})/.exec(req.headers.get('cookie') || '')?.[1] ?? null
+    const { subject, html } = welcomeEmail({ name, role, email: user.email, country })
     await sendEmail({ to: user.email, subject, html })
 
     return NextResponse.json({ ok: true })

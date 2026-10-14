@@ -21,7 +21,7 @@ import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string; pan_number?: string; email?: string; country_code?: string; currency_code?: string; timezone?: string; locale?: string }
+type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string; payout_details?: string | null; pan_number?: string; email?: string; country_code?: string; currency_code?: string; timezone?: string; locale?: string }
 type Building = { id: string; name: string; address_line1: string; address_line2?: string; city: string; state: string; pincode: string; property_type?: string; total_units?: number; created_at: string }
 type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; landlord_signed_at?: string; agreement_status?: string; agreement_custom_clauses?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; start_date?: string; end_date?: string; notice_given_at?: string; move_out_date?: string; escalation_applied_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
 type Message = { id: string; rental_id: string; sender_id: string; body: string; read_at?: string; created_at: string; sender?: { full_name?: string; avatar_url?: string } }
@@ -308,6 +308,21 @@ export default function DashboardPage() {
   // loaded, or for a profile predating the country column.
   const region = profile?.country_code ? getRegion(profile.country_code) : cookieRegion
   const isIndia = region.countryCode === 'IN'
+  // Address wording follows the account's country. "Pincode" / "State" with a
+  // Hyderabad placeholder read as a form for someone else to a landlord in
+  // Lagos or Leeds, and many countries have no state or no postcode at all.
+  const addr = {
+    state: region.stateLabel,
+    postal: region.postalCodeLabel,
+    cityPh: isIndia ? 'Hyderabad' : 'City',
+    statePh: isIndia ? 'Telangana' : '',
+    postalPh: region.postalCodePlaceholder,
+    areaPh: isIndia ? 'Near Metro station' : 'Apartment, suite, neighbourhood',
+  }
+  // profiles is loaded with select('*'), so this key exists exactly when
+  // migration 051 has run. Until then the field stays hidden rather than
+  // offering a save that would fail.
+  const payoutSupported = !!profile && 'payout_details' in profile
   // Shadow module-level stubs with region-aware versions
   const inr = (n: number | undefined | null) =>
     formatCurrencyLocale(Number(n || 0), region.currency, region.locale)
@@ -486,7 +501,7 @@ export default function DashboardPage() {
           setNotifications(notifData || [])
           setLandlordData({ rentals, buildings, currentPayments, allLedgerPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs, ytdPayments })
         } else if (role === 'tenant') {
-          const { data: rental } = await sb.from('rentals').select('*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(id, full_name, avatar_url, phone, pan_number)').eq('tenant_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
+          const { data: rental } = await sb.from('rentals').select('*, property:properties(*), landlord:profiles!rentals_landlord_id_fkey(*)').eq('tenant_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
           let currentPayment: RentPayment | null = null, recentPayments: RentPayment[] = [], openRepairs: RepairRequest[] = [], proofs: Proof | null = null, depositTransactions: DepositTx[] = [], overdueMonths = 0
           if (rental) {
             const [pmtRes, histRes, repRes, proofRes, depRes, overdueRes] = await Promise.all([
@@ -579,7 +594,7 @@ export default function DashboardPage() {
     { k: 'rep', label: 'Repairs', short: 'Repairs' },
     { k: 'msg', label: 'Messages', short: 'Msgs' },
     { k: 'agree', label: 'Agreements', short: 'Agree' },
-    { k: 'hra', label: 'Receipts', short: 'HRA' },
+    { k: 'hra', label: 'Receipts', short: isIndia ? 'HRA' : 'Receipts' },
     { k: 'profile', label: 'Profile', short: 'Profile' },
   ]
   const tNavItems = [
@@ -589,7 +604,7 @@ export default function DashboardPage() {
     { k: 'rep', label: 'Repairs', short: 'Repairs' },
     { k: 'msg', label: 'Messages', short: 'Msgs' },
     { k: 'proof', label: 'Move-in proof', short: 'Proof' },
-    { k: 'hra', label: 'HRA receipts', short: 'HRA' },
+    { k: 'hra', label: isIndia ? 'HRA receipts' : 'Rent receipts', short: isIndia ? 'HRA' : 'Receipts' },
     { k: 'profile', label: 'Profile', short: 'Profile' },
     { k: 'agree', label: 'Agreement', short: 'Agree' },
     { k: 'dep', label: 'Deposit', short: 'Deposit' },
@@ -1192,7 +1207,7 @@ export default function DashboardPage() {
     const payments: RentPayment[] = landlordData?.ytdPayments || []
     return (
       <>
-        <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Receipts</div><h1 style={h1Style}>HRA receipts.</h1></div></div>
+        <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Receipts</div><h1 style={h1Style}>{isIndia ? 'HRA receipts.' : 'Rent receipts.'}</h1></div></div>
         <section style={cardStyle}>
           {payments.length > 0 ? <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1510,7 +1525,7 @@ export default function DashboardPage() {
 
           <section style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <div><h3 style={cardH3Style}>HRA receipts</h3><span style={{ fontSize: 12, color: 'var(--rb-ink-3)', display: 'block', marginTop: 4 }}>Section 10(13A)</span></div>
+              <div><h3 style={cardH3Style}>{isIndia ? 'HRA receipts' : 'Rent receipts'}</h3>{isIndia && <span style={{ fontSize: 12, color: 'var(--rb-ink-3)', display: 'block', marginTop: 4 }}>Section 10(13A)</span>}</div>
             </div>
             {recentPayments.length > 0 ? <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1523,7 +1538,7 @@ export default function DashboardPage() {
                 ))}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--rb-border)', fontSize: 13, color: 'var(--rb-ink-2)', alignItems: 'center' }}>
-                <span>YTD HRA eligible</span><strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: 'var(--rb-action)', letterSpacing: '-.015em' }}>{inr(ytdTotal)}</strong>
+                <span>{isIndia ? 'YTD HRA eligible' : 'Paid this year'}</span><strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: 'var(--rb-action)', letterSpacing: '-.015em' }}>{inr(ytdTotal)}</strong>
               </div>
             </> : <EmptyState icon={<Icon k="file" size={32} stroke={1.5} />}>Receipts appear after confirmed payments.</EmptyState>}
           </section>
@@ -1642,6 +1657,23 @@ export default function DashboardPage() {
       const prop = d?.rental?.property
       const address = [prop?.address_line1, prop?.address_line2, prop?.city, prop?.state, prop?.pincode]
         .filter(Boolean).join(', ')
+      if (!isIndia) {
+        // Outside India: a plain receipt in this rental's currency, no PAN, no
+        // Section 10(13A). Method labels must match the generator's list, which
+        // is built from the same PAYMENT_METHOD_DISPLAY registry.
+        const g = new URLSearchParams({
+          country: region.countryCode,
+          tenantName: profile?.full_name || '',
+          landlordName: d?.rental?.landlord?.full_name || '',
+          address,
+          month: parts ? MONTH_NAMES[parts.monthIndex] : '',
+          year: parts?.year || '',
+          amount: String(Math.round(Number(pmt.amount) || 0)),
+          method: methodLabel(pmt.payment_method),
+          utr: pmt.utr_number || '',
+        })
+        return `/tools/rent-receipt-generator?${g.toString()}`
+      }
       const q = new URLSearchParams({
         tenantName: profile?.full_name || '',
         tenantPan: profile?.pan_number || '',
@@ -1664,12 +1696,12 @@ export default function DashboardPage() {
     }
     return (
       <>
-        <div style={topStyle}><div><div style={eyebrowStyle}>Tenant · HRA</div><h1 style={h1Style}>HRA receipts.</h1><p style={subStyle}>Section 10(13A) · FY {now.getFullYear()-1}–{String(now.getFullYear()).slice(2)}</p></div></div>
+        <div style={topStyle}><div><div style={eyebrowStyle}>{isIndia ? 'Tenant · HRA' : 'Tenant · Receipts'}</div><h1 style={h1Style}>{isIndia ? 'HRA receipts.' : 'Rent receipts.'}</h1>{isIndia && <p style={subStyle}>Section 10(13A) · FY {now.getFullYear()-1}–{String(now.getFullYear()).slice(2)}</p>}</div></div>
         <section style={cardStyle}>
           {paidPayments.length > 0 ? <>
             {/* Hero summary */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 14, borderBottom: '1px dashed var(--rb-border)', fontSize: 13, alignItems: 'center' }}>
-              <span style={{ color: 'var(--rb-ink-2)' }}>YTD HRA eligible</span><strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: 'var(--rb-action)' }}>{inr(d?.ytdTotal)}</strong>
+              <span style={{ color: 'var(--rb-ink-2)' }}>{isIndia ? 'YTD HRA eligible' : 'Paid this year'}</span><strong style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, color: 'var(--rb-action)' }}>{inr(d?.ytdTotal)}</strong>
             </div>
             {/* Monthly receipts list */}
             {paidPayments.map((p: RentPayment, i: number) => (
@@ -2247,6 +2279,25 @@ export default function DashboardPage() {
             </section>
           )}
 
+          {/* ── Landlord: payout card (outside India) ── */}
+          {!isTenant && !isIndia && payoutSupported && (
+            <section style={{ ...cardStyle, background: profile?.payout_details ? 'var(--rb-surface)' : 'var(--rb-fill)', border: profile?.payout_details ? '1px solid var(--rb-border-soft)' : '1.5px dashed var(--rb-border)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 12 }}>Collect rent</div>
+              {profile?.payout_details ? (
+                <>
+                  <div style={{ fontSize: 13.5, padding: '10px 14px', background: 'var(--rb-fill)', borderRadius: 10, marginBottom: 12, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, lineHeight: 1.5 }}>{profile.payout_details}</div>
+                  <Button variant="primary-sm" onClick={() => setModal('edit-profile')}>Edit</Button>
+                  <div style={{ fontSize: 11, color: 'var(--rb-ink-3)', marginTop: 8, lineHeight: 1.5 }}>Your tenants see this when they record a payment.</div>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', lineHeight: 1.55, marginBottom: 14 }}>Tell tenants how to pay you: bank details, mobile money, or any app you use. They&apos;ll see it when they record a payment.</p>
+                  <Button variant="primary" onClick={() => setModal('edit-profile')}>+ Add payment details</Button>
+                </>
+              )}
+            </section>
+          )}
+
           {/* ── Tenant: Current rental card ── */}
           {isTenant && rental && (
             <section style={{ ...cardStyle, gridColumn: 'span 1' }}>
@@ -2354,6 +2405,10 @@ export default function DashboardPage() {
           address_line1: form.address_line1 || null, address_line2: form.address_line2 || null,
           city: form.city || null, state: form.state || null, pincode: form.pincode || null,
           landlord_id: user.id,
+          // Without this the column default ('IN') applied to every property, so a
+          // US landlord's tenant opened their invite and saw the rent in rupees.
+          // The invite page formats money in the PROPERTY's country, not the viewer's.
+          country_code: region.countryCode,
           property_type: form.property_type,
           bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
           bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
@@ -2468,19 +2523,19 @@ export default function DashboardPage() {
         {/* ── Location ── */}
         <SectionHead label="Location" />
         <Field label="Street address"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} placeholder="Flat no., building, street" /></Field>
-        <Field label="Landmark / area (optional)"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} placeholder="Near Metro station" /></Field>
+        <Field label="Landmark / area (optional)"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} placeholder={addr.areaPh} /></Field>
         <div className="grid-2" style={{ gap: 12 }}>
           <Field label="City">
-            <input style={{ ...inputStyle, borderColor: fieldErrors.city ? 'var(--rb-danger)' : undefined }} value={form.city} onChange={set('city')} onBlur={onBlur('city')} placeholder="Hyderabad" />
+            <input style={{ ...inputStyle, borderColor: fieldErrors.city ? 'var(--rb-danger)' : undefined }} value={form.city} onChange={set('city')} onBlur={onBlur('city')} placeholder={addr.cityPh} />
             <ErrMsg field="city" />
           </Field>
-          <Field label="State">
-            <input style={{ ...inputStyle, borderColor: fieldErrors.state ? 'var(--rb-danger)' : undefined }} value={form.state} onChange={set('state')} onBlur={onBlur('state')} placeholder="Telangana" />
+          <Field label={addr.state}>
+            <input style={{ ...inputStyle, borderColor: fieldErrors.state ? 'var(--rb-danger)' : undefined }} value={form.state} onChange={set('state')} onBlur={onBlur('state')} placeholder={addr.statePh} />
             <ErrMsg field="state" />
           </Field>
         </div>
-        <Field label="Pincode">
-          <input style={{ ...inputStyle, borderColor: fieldErrors.pincode ? 'var(--rb-danger)' : undefined }} value={form.pincode} onChange={set('pincode')} onBlur={onBlur('pincode')} placeholder="500001" />
+        <Field label={addr.postal}>
+          <input style={{ ...inputStyle, borderColor: fieldErrors.pincode ? 'var(--rb-danger)' : undefined }} value={form.pincode} onChange={set('pincode')} onBlur={onBlur('pincode')} placeholder={addr.postalPh} />
           <ErrMsg field="pincode" />
         </Field>
 
@@ -2635,6 +2690,21 @@ export default function DashboardPage() {
           <div style={{ fontSize: 13, color: 'var(--rb-ink-2)' }}>Total due · {monthLabel(currentMonth)}</div>
           <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, letterSpacing: '-.015em', color: 'var(--rb-ink)' }}>{inr(rental?.monthly_rent)}</div>
         </div>
+        {/* Where to send it. The landlord's UPI card always promised tenants
+            would see it here; nothing rendered it until now. */}
+        {(() => {
+          const ll = rental?.landlord
+          const upi = isIndia ? ll?.upi_id : null
+          const details = ll?.payout_details
+          if (!upi && !details) return null
+          return (
+            <div style={{ padding: '12px 14px', border: '1px solid var(--rb-border-soft)', borderRadius: 12, marginBottom: 18, fontSize: 13, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', marginBottom: 6 }}>Pay {ll?.full_name || 'your landlord'}</div>
+              {upi && <div>UPI: <span style={{ fontFamily: 'var(--rb-font-mono)', fontWeight: 600 }}>{upi}</span></div>}
+              {details && <div style={{ whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, marginTop: upi ? 6 : 0 }}>{details}</div>}
+            </div>
+          )
+        })()}
         <Field label="Payment method">
           <select style={inputStyle} value={method} onChange={e => setMethod(e.target.value)}>
             {region.paymentMethods.map(id => {
@@ -3410,9 +3480,9 @@ export default function DashboardPage() {
             <Field label="Landmark / area"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} /></Field>
             <div className="grid-2" style={{ gap: 12 }}>
               <Field label="City"><input style={inputStyle} value={form.city} onChange={set('city')} /></Field>
-              <Field label="State"><input style={inputStyle} value={form.state} onChange={set('state')} /></Field>
+              <Field label={addr.state}><input style={inputStyle} value={form.state} onChange={set('state')} /></Field>
             </div>
-            <Field label="Pincode"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} /></Field>
+            <Field label={addr.postal}><input style={inputStyle} value={form.pincode} onChange={set('pincode')} /></Field>
             <SectionHead label="Rental terms" />
             <Field label="Furnishing">
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -3595,8 +3665,11 @@ export default function DashboardPage() {
       return { padding: '7px 14px', borderRadius: 999, border: `1.5px solid ${active ? 'var(--rb-action)' : 'var(--rb-border)'}`, background: active ? 'var(--rb-action)' : 'transparent', color: active ? '#fff' : 'var(--rb-ink-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all .15s' }
     }
     const handleSubmit = async () => {
-      if (!form.name || !form.address_line1 || !form.city || !form.state || !form.pincode) {
-        toast('Fill in all required fields', 'error'); return
+      // State and postcode are optional: plenty of countries have neither
+      // (the UAE, Hong Kong, much of Africa). The columns are still NOT NULL
+      // until 050 runs, so blanks are sent as '' rather than null.
+      if (!form.name || !form.address_line1 || !form.city) {
+        toast('Add a building name, street address and city', 'error'); return
       }
       setSaving(true)
       try {
@@ -3625,12 +3698,12 @@ export default function DashboardPage() {
           <Field label="Total units"><input style={inputStyle} type="number" value={form.total_units} onChange={set('total_units')} placeholder="12" /></Field>
         </div>
         <Field label="Street address *"><input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} placeholder="Building no., street name" /></Field>
-        <Field label="Landmark / area"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} placeholder="Near Metro station" /></Field>
+        <Field label="Landmark / area"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} placeholder={addr.areaPh} /></Field>
         <div className="grid-2" style={{ gap: 12 }}>
-          <Field label="City *"><input style={inputStyle} value={form.city} onChange={set('city')} placeholder="Hyderabad" /></Field>
-          <Field label="State *"><input style={inputStyle} value={form.state} onChange={set('state')} placeholder="Telangana" /></Field>
+          <Field label="City *"><input style={inputStyle} value={form.city} onChange={set('city')} placeholder={addr.cityPh} /></Field>
+          <Field label={addr.state}><input style={inputStyle} value={form.state} onChange={set('state')} placeholder={addr.statePh} /></Field>
         </div>
-        <Field label="Pincode *"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} placeholder="500001" /></Field>
+        <Field label={addr.postal}><input style={inputStyle} value={form.pincode} onChange={set('pincode')} placeholder={addr.postalPh} /></Field>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
           <Button variant="cancel" onClick={() => setModal(null)}>Cancel</Button>
           <button onClick={handleSubmit} disabled={saving} style={{ padding: '10px 22px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}>{saving ? 'Creating…' : 'Create building'}</button>
@@ -3689,6 +3762,7 @@ export default function DashboardPage() {
           unit_number: form.unit_number, building_id: building.id, landlord_id: user.id,
           address_line1: building.address_line1, address_line2: building.address_line2 || null,
           city: building.city, state: building.state, pincode: building.pincode,
+          country_code: region.countryCode,
           property_type: building.property_type || 'apartment',
           bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
           bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
@@ -3759,6 +3833,7 @@ export default function DashboardPage() {
           unit_number: u.unitNum, building_id: building.id, landlord_id: user.id,
           address_line1: building.address_line1, address_line2: building.address_line2 || null,
           city: building.city, state: building.state, pincode: building.pincode,
+          country_code: region.countryCode,
           property_type: building.property_type || 'apartment',
           bedrooms: bulk.bedrooms ? Number(bulk.bedrooms) : null,
           floor_number: u.floor,
@@ -4005,9 +4080,9 @@ export default function DashboardPage() {
             <Field label="Landmark / area"><input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} /></Field>
             <div className="grid-2" style={{ gap: 12 }}>
               <Field label="City"><input style={inputStyle} value={form.city} onChange={set('city')} /></Field>
-              <Field label="State"><input style={inputStyle} value={form.state} onChange={set('state')} /></Field>
+              <Field label={addr.state}><input style={inputStyle} value={form.state} onChange={set('state')} /></Field>
             </div>
-            <Field label="Pincode"><input style={inputStyle} value={form.pincode} onChange={set('pincode')} /></Field>
+            <Field label={addr.postal}><input style={inputStyle} value={form.pincode} onChange={set('pincode')} /></Field>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
               <Button variant="cancel" onClick={() => setEditMode(false)}>Cancel</Button>
               <Button variant="submit" onClick={handleSave} busy={saving}>{'Save changes'}</Button>
@@ -4018,7 +4093,7 @@ export default function DashboardPage() {
             {[
               { l: 'Type', v: form.property_type.charAt(0).toUpperCase() + form.property_type.slice(1) },
               { l: 'Address', v: [building.address_line1, building.address_line2, building.city, building.state].filter(Boolean).join(', ') },
-              { l: 'Pincode', v: building.pincode },
+              { l: addr.postal, v: building.pincode },
               { l: 'Total units', v: building.total_units ? String(building.total_units) : 'Not set' },
               { l: 'Units added', v: String(rentalsForBuilding.length) },
               { l: 'Occupied', v: String(rentalsForBuilding.filter((r: Rental) => r.tenant_id && r.status === 'active').length) },
@@ -4045,9 +4120,11 @@ export default function DashboardPage() {
       phone:       profile?.phone       || '',
       upi_id:      profile?.upi_id      || '',
       pan_number:  profile?.pan_number  || '',
+      payout_details: profile?.payout_details || '',
     })
     const [saving, setSaving] = useState(false)
-    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+    const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+    const showPayout = role === 'landlord' && payoutSupported
 
     const handleSave = async () => {
       setSaving(true)
@@ -4057,6 +4134,7 @@ export default function DashboardPage() {
           phone:      form.phone      || null,
           upi_id:     form.upi_id     || null,
           pan_number: form.pan_number ? form.pan_number.toUpperCase() : null,
+          ...(showPayout ? { payout_details: form.payout_details.trim().slice(0, 500) || null } : {}),
         }).eq('id', user.id).select('id'), 'profile')
         toast('Profile updated!', 'success')
         setModal(null); refreshData()
@@ -4066,10 +4144,23 @@ export default function DashboardPage() {
     return (
       <Modal title="Edit profile" onClose={() => setModal(null)}>
         <Field label="Full name"><input style={inputStyle} value={form.full_name} onChange={set('full_name')} placeholder="Your full name" /></Field>
-        <Field label="Phone number"><input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder={region.phoneDialCode + ' ...'} /></Field>
+        <Field label="Phone number"><input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder={region.phoneDialCode ? region.phoneDialCode + ' ...' : 'Include your country code, e.g. +44 ...'} /></Field>
         {isIndia && (
           <Field label={role === 'landlord' ? 'UPI ID (tenants pay you here)' : 'UPI ID (for deposit refunds)'}>
             <input style={{ ...inputStyle, fontFamily: 'var(--rb-font-mono)' }} value={form.upi_id} onChange={set('upi_id')} placeholder="yourname@upi" />
+          </Field>
+        )}
+        {showPayout && (
+          <Field label={isIndia ? 'Other ways to pay you (optional)' : 'How tenants pay you'}>
+            <textarea
+              style={{ ...inputStyle, minHeight: 88, resize: 'vertical' as const, lineHeight: 1.5 }}
+              value={form.payout_details}
+              onChange={set('payout_details')}
+              maxLength={500}
+              placeholder={isIndia
+                ? 'Bank: HDFC · A/c 1234567890 · IFSC HDFC0001234'
+                : 'e.g. Bank transfer to Jordan Lee · IBAN / account and sort code · or M-Pesa till 123456 · or Zelle jordan@email.com'}
+            />
           </Field>
         )}
         {isIndia && (

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { REGIONS, COUNTRY_PICKER_ORDER, getRegion, type CountryCode } from './regions'
+import { REGIONS, COUNTRY_PICKER_ORDER, getRegion, worldPickerOrder, isSupportedCountry, type CountryCode } from './regions'
+import { COUNTRY_CURRENCY } from './world'
 import { PAYMENT_METHOD_DISPLAY } from './payments'
 import { formatCurrencyLocale } from './formatters'
 
@@ -94,5 +95,54 @@ describe('getRegion', () => {
 
   it('returns the exact region for a known code', () => {
     expect(getRegion('GB').currency.code).toBe('GBP')
+  })
+})
+
+// Every other country used to fall back to India: a landlord in São Paulo saw
+// rupees, UPI and a PAN field. Now every ISO country resolves to itself.
+const world = Object.keys(COUNTRY_CURRENCY)
+
+describe('every country in the world', () => {
+  it('resolves non-curated countries to themselves, not India', () => {
+    expect(getRegion('BR').currency.code).toBe('BRL')
+    expect(getRegion('NG').currency.code).toBe('NGN')
+    expect(getRegion('JP').currency.code).toBe('JPY')
+    expect(getRegion('br').countryCode).toBe('BR') // case-insensitive
+    expect(getRegion('BR').paymentMethods).not.toContain('upi')
+    expect(getRegion('BR').taxIdLabel).toBeNull()
+    expect(getRegion('BR').receiptFootnote).toBeNull()
+  })
+
+  it('offers mobile money where rent is paid that way', () => {
+    expect(getRegion('KE').paymentMethods[0]).toBe('mobile_money')
+  })
+
+  it('uses the currency’s real minor units', () => {
+    expect(getRegion('JP').currency.decimals).toBe(0)
+    expect(getRegion('KW').currency.decimals).toBe(3)
+  })
+
+  it.each(world)('%s: a complete, formattable config', code => {
+    const r = getRegion(code)
+    expect(r.countryCode).toBe(code)
+    expect(r.name).toBeTruthy()
+    expect(r.flag.length).toBeGreaterThan(0)
+    expect(() => formatCurrencyLocale(1234.5, r.currency, r.locale)).not.toThrow()
+    expect(() => new Intl.DateTimeFormat('en', { timeZone: r.primaryTimezone })).not.toThrow()
+    for (const id of r.paymentMethods) expect(PAYMENT_METHOD_DISPLAY[id]?.label).toBeTruthy()
+  })
+
+  it('the picker lists every country once, curated first', () => {
+    const order = worldPickerOrder()
+    expect(new Set(order).size).toBe(order.length)
+    expect(order.slice(0, COUNTRY_PICKER_ORDER.length)).toEqual(COUNTRY_PICKER_ORDER)
+    expect([...order].sort()).toEqual([...new Set([...world, ...COUNTRY_PICKER_ORDER])].sort())
+  })
+
+  it('rejects things that are not countries', () => {
+    expect(isSupportedCountry('XX')).toBe(false)
+    expect(isSupportedCountry('usa')).toBe(false)
+    expect(isSupportedCountry(null)).toBe(false)
+    expect(isSupportedCountry('KE')).toBe(true)
   })
 })

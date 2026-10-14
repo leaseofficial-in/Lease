@@ -136,6 +136,16 @@ export const PAYMENT_METHOD_DISPLAY: Record<PaymentMethodId, PaymentMethodDispla
     referencePlaceholder: 'DD mandate reference',
     settlementTime: '3 – 5 business days',
   },
+  mobile_money: {
+    id: 'mobile_money',
+    label: 'Mobile Money',
+    description: 'M-Pesa, MTN MoMo, Airtel Money, Orange Money',
+    icon: 'phone-portrait-outline',
+    supportsInstantApp: false,
+    referenceLabel: 'Transaction ID',
+    referencePlaceholder: 'e.g. QJK7XYZ12A',
+    settlementTime: 'Instant',
+  },
 };
 
 // UPI apps shown for India's instant-app payment flow

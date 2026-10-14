@@ -2,10 +2,18 @@
 
 import { useState, useMemo, useId } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { amountInWords } from '@/lib/format/amount-in-words'
+import { amountInWords, amountInWordsInternational } from '@/lib/format/amount-in-words'
+import { getRegion, isSupportedCountry } from '@/lib/i18n/regions'
+import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
+import { formatCurrencyLocale } from '@/lib/i18n/formatters'
+import { useRegion } from '@/lib/hooks/useRegion'
 
 /**
- * Free, client-side HRA rent receipt generator.
+ * Free, client-side rent receipt generator.
+ *
+ * India gets the HRA format (PAN, Section 10(13A), amount in lakh/crore words),
+ * which is what Indian employers ask for. Every other country gets a plain rent
+ * receipt in its own currency and its own payment methods.
  *
  * Deliberately requires no account and sends nothing to a server: the whole point of
  * the page is that a searcher looking for "rent receipt generator" gets a working
@@ -18,7 +26,7 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-const PAYMENT_METHODS = [
+const INDIA_METHODS = [
   'UPI Transfer',
   'Bank Transfer (NEFT/IMPS)',
   'Cash',
@@ -36,7 +44,7 @@ const EMPTY = {
   month: MONTHS[new Date().getMonth()],
   year: String(new Date().getFullYear()),
   amount: '',
-  method: PAYMENT_METHODS[0],
+  method: INDIA_METHODS[0],
   utr: '',
 }
 
@@ -52,14 +60,18 @@ const EMPTY = {
  * may believe -- so each field is length-capped, the amount is digits only, and the
  * month and method must match a known value or fall back to the default.
  */
-export function prefillFrom(params: URLSearchParams | null): typeof EMPTY {
-  if (!params) return EMPTY
+export function prefillFrom(
+  params: URLSearchParams | null,
+  methods: readonly string[] = INDIA_METHODS,
+): typeof EMPTY {
+  const base = { ...EMPTY, method: methods[0] }
+  if (!params) return base
   const text = (key: string, max: number) => (params.get(key) || '').slice(0, max)
   const month = params.get('month') || ''
   const year = (params.get('year') || '').replace(/[^0-9]/g, '').slice(0, 4)
   const method = params.get('method') || ''
   return {
-    ...EMPTY,
+    ...base,
     tenantName: text('tenantName', 80),
     tenantPan: text('tenantPan', 10).toUpperCase(),
     landlordName: text('landlordName', 80),
@@ -68,16 +80,31 @@ export function prefillFrom(params: URLSearchParams | null): typeof EMPTY {
     month: MONTHS.includes(month) ? month : EMPTY.month,
     year: year.length === 4 ? year : EMPTY.year,
     amount: (params.get('amount') || '').replace(/[^0-9]/g, '').slice(0, 9),
-    method: PAYMENT_METHODS.includes(method) ? method : EMPTY.method,
+    method: methods.includes(method) ? method : base.method,
     utr: text('utr', 40),
   }
 }
 
-export function HraReceiptGenerator() {
+function methodsFor(country: string): string[] {
+  if (country === 'IN') return INDIA_METHODS
+  return getRegion(country).paymentMethods.map(id => PAYMENT_METHOD_DISPLAY[id]?.label ?? id)
+}
+
+/**
+ * `country` pins the format (the HRA page passes 'IN'). Without it the
+ * `?country=` the dashboard sends wins, then the visitor's region.
+ */
+export function HraReceiptGenerator({ country: pinned }: { country?: string } = {}) {
   // Read once, as the initial value: after that the form belongs to whoever is
   // typing in it, and a re-render must not pull their edits back to the link.
   const params = useSearchParams()
-  const [form, setForm] = useState(() => prefillFrom(params))
+  const visitor = useRegion()
+  const fromLink = params?.get('country')?.toUpperCase()
+  const country = pinned ?? (isSupportedCountry(fromLink) ? fromLink : visitor.countryCode)
+  const india = country === 'IN'
+  const region = getRegion(country)
+  const methods = methodsFor(country)
+  const [form, setForm] = useState(() => prefillFrom(params, methods))
   const uid = useId()
 
   const set = <K extends keyof typeof EMPTY>(key: K, value: string) =>
@@ -85,13 +112,14 @@ export function HraReceiptGenerator() {
 
   const amount = Number.parseInt(form.amount, 10) || 0
   const annualRent = amount * 12
-  const panRequired = annualRent > 100_000
+  const panRequired = india && annualRent > 100_000
   const landlordPan = form.landlordPan.toUpperCase()
   const tenantPan = form.tenantPan.toUpperCase()
 
-  const panInvalid = landlordPan.length > 0 && !PAN_RE.test(landlordPan)
+  const panInvalid = india && landlordPan.length > 0 && !PAN_RE.test(landlordPan)
 
-  const words = useMemo(() => amountInWords(amount), [amount])
+  const words = useMemo(() => (india ? amountInWords(amount) : amountInWordsInternational(amount)), [amount, india])
+  const wordsLine = india ? `Rupees ${words} Only` : `${words} only (${region.currency.code})`
 
   // Stable within a render pass — a receipt number is only a human reference, but it
   // must not change on every keystroke, and must not differ between server and client.
@@ -102,15 +130,20 @@ export function HraReceiptGenerator() {
 
   const issuedOn = useMemo(
     () =>
-      new Date().toLocaleDateString('en-IN', {
+      new Date().toLocaleDateString(region.locale, {
         day: '2-digit',
         month: 'long',
         year: 'numeric',
       }),
-    [],
+    [region.locale],
   )
 
-  const fmt = (n: number) => '₹' + n.toLocaleString('en-IN')
+  const fmt = (n: number) =>
+    india ? '₹' + n.toLocaleString('en-IN') : formatCurrencyLocale(n, { ...region.currency, decimals: 0 }, region.locale)
+  const sym = region.currency.symbol
+  // The region can resolve after the first render (the cookie is read on the
+  // client), so a method chosen for one country must not leak into another's.
+  const method = methods.includes(form.method) ? form.method : methods[0]
   const dash = (v: string) => v.trim() || '—'
 
   const years = useMemo(() => {
@@ -137,10 +170,10 @@ export function HraReceiptGenerator() {
             required
             value={form.tenantName}
             onChange={v => set('tenantName', v)}
-            placeholder="Rahul Sharma"
+            placeholder={india ? 'Rahul Sharma' : 'Alex Morgan'}
             autoComplete="name"
           />
-          <Field
+          {india && <Field
             id={`${uid}-tenant-pan`}
             label="Tenant PAN"
             hint="Optional"
@@ -149,7 +182,7 @@ export function HraReceiptGenerator() {
             placeholder="ABCDE1234F"
             maxLength={10}
             uppercase
-          />
+          />}
         </Fieldset>
 
         <Fieldset legend="Landlord">
@@ -159,9 +192,9 @@ export function HraReceiptGenerator() {
             required
             value={form.landlordName}
             onChange={v => set('landlordName', v)}
-            placeholder="Suresh Kumar"
+            placeholder={india ? 'Suresh Kumar' : 'Jordan Lee'}
           />
-          <Field
+          {india && <Field
             id={`${uid}-landlord-pan`}
             label="Landlord PAN"
             hint={panRequired ? 'Required — annual rent is over ₹1 lakh' : 'Recommended'}
@@ -172,7 +205,7 @@ export function HraReceiptGenerator() {
             uppercase
             invalid={panInvalid}
             error={panInvalid ? 'A PAN looks like ABCDE1234F — five letters, four digits, one letter.' : undefined}
-          />
+          />}
         </Fieldset>
 
         <Fieldset legend="Property and payment">
@@ -182,7 +215,7 @@ export function HraReceiptGenerator() {
             required
             value={form.address}
             onChange={v => set('address', v)}
-            placeholder="Flat 4B, Prestige Tower, Koramangala, Bangalore 560034"
+            placeholder={india ? 'Flat 4B, Prestige Tower, Koramangala, Bangalore 560034' : 'Apartment 4B, 12 Main Street, City, Postal code'}
             full
           />
 
@@ -210,7 +243,7 @@ export function HraReceiptGenerator() {
 
           <div className="rb-field">
             <label htmlFor={`${uid}-amount`}>
-              Monthly rent (₹) <span aria-hidden="true" style={{ color: 'var(--rb-danger)' }}>*</span>
+              Monthly rent ({sym}) <span aria-hidden="true" style={{ color: 'var(--rb-danger)' }}>*</span>
             </label>
             <input
               id={`${uid}-amount`}
@@ -219,15 +252,15 @@ export function HraReceiptGenerator() {
               min={0}
               value={form.amount}
               onChange={e => set('amount', e.target.value)}
-              placeholder="18000"
+              placeholder={india ? '18000' : '1500'}
               required
             />
             {amount > 0 && (
               <span className="rb-field-hint">
                 {fmt(annualRent)} a year.{' '}
-                {panRequired
+                {india && (panRequired
                   ? "Landlord PAN is mandatory above ₹1 lakh."
-                  : 'Below the ₹1 lakh PAN threshold.'}
+                  : 'Below the ₹1 lakh PAN threshold.')}
               </span>
             )}
           </div>
@@ -236,20 +269,20 @@ export function HraReceiptGenerator() {
             <label htmlFor={`${uid}-method`}>Payment method</label>
             <select
               id={`${uid}-method`}
-              value={form.method}
+              value={method}
               onChange={e => set('method', e.target.value)}
             >
-              {PAYMENT_METHODS.map(m => <option key={m}>{m}</option>)}
+              {methods.map(m => <option key={m}>{m}</option>)}
             </select>
           </div>
 
           <Field
             id={`${uid}-utr`}
-            label="UTR / reference number"
+            label={india ? 'UTR / reference number' : 'Payment reference'}
             hint="Optional — strongly recommended for digital payments"
             value={form.utr}
             onChange={v => set('utr', v)}
-            placeholder="UTR123456789012"
+            placeholder={india ? 'UTR123456789012' : 'Transaction or cheque number'}
             full
           />
         </Fieldset>
@@ -266,7 +299,7 @@ export function HraReceiptGenerator() {
           <button
             type="button"
             className="btn"
-            onClick={() => setForm(EMPTY)}
+            onClick={() => setForm(prefillFrom(null, methods))}
             style={{
               padding: '11px 22px',
               fontSize: 14.5,
@@ -290,24 +323,24 @@ export function HraReceiptGenerator() {
           <div className="rb-receipt-head">
             <div>
               <div className="rb-receipt-title">Rent Receipt</div>
-              <div className="rb-receipt-sub">House Rent Allowance — Section 10(13A)</div>
+              {india && <div className="rb-receipt-sub">House Rent Allowance — Section 10(13A)</div>}
             </div>
             <div className="rb-receipt-brand">Renty<em>Base</em></div>
           </div>
 
           <div className="rb-receipt-amount">
             <div className="rb-receipt-amount-label">Amount received</div>
-            <div className="rb-receipt-amount-value">{amount ? fmt(amount) : '₹ —'}</div>
+            <div className="rb-receipt-amount-value">{amount ? fmt(amount) : `${sym} —`}</div>
             <div className="rb-receipt-amount-words">
-              {words ? `Rupees ${words} Only` : 'Enter the rent amount'}
+              {words ? wordsLine : 'Enter the rent amount'}
             </div>
           </div>
 
           <Row k="Receipt no." v={receiptNo} />
           <Row k="Period" v={`${form.month} ${form.year}`} />
           <Row k="Date of receipt" v={issuedOn} />
-          <Row k="Payment method" v={form.method} />
-          {form.utr.trim() && <Row k="UTR / reference" v={form.utr.trim()} />}
+          <Row k="Payment method" v={method} />
+          {form.utr.trim() && <Row k={india ? 'UTR / reference' : 'Reference'} v={form.utr.trim()} />}
 
           <div className="rb-receipt-divider" />
           <Row k="Received from" v={dash(form.tenantName)} />
@@ -316,11 +349,11 @@ export function HraReceiptGenerator() {
 
           <div className="rb-receipt-divider" />
           <Row k="Landlord name" v={dash(form.landlordName)} />
-          <Row k="Landlord PAN" v={landlordPan || (panRequired ? 'Required' : '—')} />
+          {india && <Row k="Landlord PAN" v={landlordPan || (panRequired ? 'Required' : '—')} />}
 
           <div className="rb-receipt-decl">
             I, <strong>{dash(form.landlordName)}</strong>, certify that I have received{' '}
-            <strong>{amount ? fmt(amount) : '₹___'}</strong> from{' '}
+            <strong>{amount ? fmt(amount) : `${sym}___`}</strong> from{' '}
             <strong>{dash(form.tenantName)}</strong> as rent for the property at{' '}
             <strong>{dash(form.address)}</strong> for the period{' '}
             <strong>{form.month} {form.year}</strong>.
@@ -338,9 +371,9 @@ export function HraReceiptGenerator() {
         <aside className="rb-tool-upsell no-print">
           <h3>Doing this twelve times a year?</h3>
           <p>
-            On RentyBase, receipts generate themselves the moment rent is marked paid — with
-            the landlord&apos;s PAN already filled in. Your tenant downloads any month without
-            asking. Free for both sides.
+            On RentyBase, receipts generate themselves the moment rent is marked paid
+            {india ? <>, with the landlord&apos;s PAN already filled in</> : null}. Your tenant
+            downloads any month without asking. Free for both sides.
           </p>
           <a href="/signup" className="btn">Create a free rental record</a>
         </aside>

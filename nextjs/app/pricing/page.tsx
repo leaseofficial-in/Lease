@@ -90,7 +90,7 @@ const offerSchema = {
   offers: {
     '@type': 'Offer',
     price: '0',
-    priceCurrency: 'INR',
+    priceCurrency: 'USD',
     availability: 'https://schema.org/InStock',
     url: URL,
     description: 'Free for both landlords and tenants. No subscription, no credit card.',
@@ -189,10 +189,10 @@ export default function PricingPage() {
                   marginBottom: 8,
                 }}
               >
-                ₹0
+                Free
               </div>
               <p style={{ fontSize: 15, color: 'var(--rb-ink-3)' }}>
-                per month, per landlord, per tenant, per property
+                in every country. No fee per month, per landlord, per tenant, or per property.
               </p>
             </div>
 

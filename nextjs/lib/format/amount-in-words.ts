@@ -45,3 +45,34 @@ export function amountInWords(n: number): string {
 
   return build(num)
 }
+
+/**
+ * The same, in the international short scale (thousand → million → billion),
+ * e.g. 1250000 → "One Million Two Hundred Fifty Thousand". Used on rent receipts
+ * outside India, where lakh and crore would be wrong.
+ */
+export function amountInWordsInternational(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return ''
+  const num = Math.floor(n)
+
+  const below100 = (v: number): string =>
+    v < 20 ? ONES[v] : TENS[Math.floor(v / 10)] + (v % 10 ? ' ' + ONES[v % 10] : '')
+
+  const below1000 = (v: number): string =>
+    v > 99
+      ? ONES[Math.floor(v / 100)] + ' Hundred' + (v % 100 ? ' ' + below100(v % 100) : '')
+      : below100(v)
+
+  const SCALES: [number, string][] = [[1e12, 'Trillion'], [1e9, 'Billion'], [1e6, 'Million'], [1e3, 'Thousand']]
+  const build = (v: number): string => {
+    for (const [size, word] of SCALES) {
+      if (v >= size) {
+        const rest = v % size
+        return build(Math.floor(v / size)) + ' ' + word + (rest ? ' ' + build(rest) : '')
+      }
+    }
+    return below1000(v)
+  }
+
+  return build(num)
+}

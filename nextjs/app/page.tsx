@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import React, { useState, useEffect, useRef } from 'react'
 import { LogoMark } from '@/components/brand'
+import { useDemo } from '@/lib/hooks/useDemo'
 
 /* ── helpers ───────────────────────────────────────────────── */
 const useCount = (target: number, active: boolean, duration = 1200) => {
@@ -22,7 +23,6 @@ const useCount = (target: number, active: boolean, duration = 1200) => {
   return v
 }
 
-const fmtINR = (n: number) => '₹' + n.toLocaleString('en-IN')
 
 /* ── Icon ──────────────────────────────────────────────────── */
 function Icon({ name, size = 20, sw = 1.75, color = 'currentColor' }: { name: string; size?: number; sw?: number; color?: string }) {
@@ -43,17 +43,18 @@ function Icon({ name, size = 20, sw = 1.75, color = 'currentColor' }: { name: st
 
 /* ── PhoneScreens ──────────────────────────────────────────── */
 function PhoneScreens({ idx }: { idx: number }) {
+  const demo = useDemo()
   return (
     <>
       <div className={'screen' + (idx === 0 ? ' active' : '')}>
         <div className="s-eyebrow">Good morning, Alex</div>
         <div className="s-hero-amount">
           <div className="label">Collected this month</div>
-          <div className="amt mono">₹1,24,000</div>
+          <div className="amt mono">{demo.m(124000)}</div>
           <div className="row">
             <div><div className="k">PROPS</div><div className="v">3</div></div>
             <div><div className="k">ON TIME</div><div className="v mono">2 / 3</div></div>
-            <div><div className="k">PENDING</div><div className="v" style={{ color: '#F6E6CA' }}>₹18,500</div></div>
+            <div><div className="k">PENDING</div><div className="v" style={{ color: '#F6E6CA' }}>{demo.m(18500)}</div></div>
           </div>
         </div>
         <div className="s-card">
@@ -74,15 +75,15 @@ function PhoneScreens({ idx }: { idx: number }) {
         <div className="s-eyebrow">Pay rent</div>
         <div className="s-card">
           <div style={{ fontSize: 11, color: '#5C645F' }}>To · Alex Sharma</div>
-          <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 36, marginTop: 6, letterSpacing: '-.02em' }}>₹28,500</div>
+          <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 36, marginTop: 6, letterSpacing: '-.02em' }}>{demo.m(28500)}</div>
           <div style={{ fontSize: 10, color: '#5C645F', marginTop: 2 }}>Oak Ave 1BR · Nov 2025</div>
         </div>
         <div className="s-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><div style={{ fontSize: 11, fontWeight: 600 }}>UPI</div><div style={{ fontSize: 10, color: '#5C645F' }}>alex@okbank</div></div>
+          <div><div style={{ fontSize: 11, fontWeight: 600 }}>{demo.method}</div><div style={{ fontSize: 10, color: '#5C645F' }}>{demo.account}</div></div>
           <div className="mono" style={{ fontSize: 10, color: '#5C645F' }}>‹ select ›</div>
         </div>
         <div style={{ flex: 1 }} />
-        <div style={{ background: 'var(--rb-action)', color: '#fff', borderRadius: 12, padding: '12px', textAlign: 'center', fontWeight: 600, fontSize: 13 }}>Pay ₹28,500</div>
+        <div style={{ background: 'var(--rb-action)', color: '#fff', borderRadius: 12, padding: '12px', textAlign: 'center', fontWeight: 600, fontSize: 13 }}>Pay {demo.m(28500)}</div>
       </div>
 
       <div className={'screen' + (idx === 2 ? ' active' : '')}>
@@ -93,15 +94,15 @@ function PhoneScreens({ idx }: { idx: number }) {
             <div className="seal">VERIFIED<br />RECORD</div>
           </div>
           <div style={{ marginTop: 14 }}>
-            <div className="row"><span>Rent</span><span className="v">₹28,500</span></div>
+            <div className="row"><span>Rent</span><span className="v">{demo.m(28500)}</span></div>
             <div className="row"><span>Property</span><span className="v">Oak Ave 1BR</span></div>
             <div className="row"><span>Period</span><span className="v">1 – 30 Nov &apos;25</span></div>
-            <div className="row"><span>UTR</span><span className="v">4581 2210</span></div>
-            <div className="row"><span>PAN</span><span className="v">AKWPS****K</span></div>
+            <div className="row"><span>{demo.ref}</span><span className="v">4581 2210</span></div>
+            {demo.india && <div className="row"><span>PAN</span><span className="v">AKWPS****K</span></div>}
           </div>
           <div className="total">
-            <div style={{ fontSize: 10, color: '#5C645F', letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 600 }}>Tax eligible</div>
-            <div className="v mono">₹28,500</div>
+            <div style={{ fontSize: 10, color: '#5C645F', letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 600 }}>{demo.india ? 'Tax eligible' : 'Total paid'}</div>
+            <div className="v mono">{demo.m(28500)}</div>
           </div>
         </div>
       </div>
@@ -125,6 +126,7 @@ function PhoneScreens({ idx }: { idx: number }) {
 
 /* ── Hero ──────────────────────────────────────────────────── */
 function Hero() {
+  const demo = useDemo()
   const phoneRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const [heroScreen, setHeroScreen] = useState(0)
@@ -162,10 +164,10 @@ function Hero() {
         <div className="hero-side">
           <span className="eyebrow"><span className="pip" />For landlords</span>
           <div className="hero-stat">
-            <div className="num">{fmtINR(collected)}</div>
+            <div className="num">{demo.m(collected)}</div>
             <div className="label">COLLECTED THIS MONTH · 3 PROPERTIES</div>
           </div>
-          <p className="hero-tag">Rent in. Receipts out. Disputes never. One quiet ledger that handles every signature, photo, and rupee.</p>
+          <p className="hero-tag">Rent in. Receipts out. Disputes never. One quiet ledger that handles every signature, photo, and {demo.unit}.</p>
           <div className="hero-cta"><a className="btn btn-primary" href="/signup">Add a property <Icon name="arrow-right" size={16} /></a></div>
         </div>
         <div className="hero-center" ref={stageRef}>
@@ -173,7 +175,7 @@ function Hero() {
           <div className="float-receipt" data-px="-1.4" data-base="rotate3d(0,1,0,18deg) rotate(-6deg)" style={{ width: 180, top: 120, left: 0, padding: 12, transform: 'rotate3d(0,1,0,18deg) rotate(-6deg)' }}>
             <div className="eyebrow" style={{ fontSize: 9 }}>Receipt · Nov</div>
             <div className="strip" /><div className="strip short" /><div className="strip tiny" />
-            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, marginTop: 6, color: 'var(--rb-action)' }}>₹28,500</div>
+            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 18, marginTop: 6, color: 'var(--rb-action)' }}>{demo.m(28500)}</div>
           </div>
           <div className="float-receipt" data-px="-1.0" data-base="rotate3d(0,1,0,-22deg) rotate(7deg)" style={{ width: 160, top: 80, right: 0, padding: 12, transform: 'rotate3d(0,1,0,-22deg) rotate(7deg)' }}>
             <div className="eyebrow" style={{ fontSize: 9 }}>Move-in proof</div>
@@ -185,7 +187,7 @@ function Hero() {
             <div className="strip" /><div className="strip short" />
           </div>
           <div className="float-receipt" data-px="-1.2" data-base="rotate3d(0,1,0,-14deg) rotate(-4deg)" style={{ width: 150, bottom: 60, right: -20, padding: 10, transform: 'rotate3d(0,1,0,-14deg) rotate(-4deg)' }}>
-            <div className="eyebrow" style={{ fontSize: 9 }}>UTR sealed</div>
+            <div className="eyebrow" style={{ fontSize: 9 }}>{demo.ref} sealed</div>
             <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>4581 2210 9914</div>
           </div>
           <div className="phone-stage">
@@ -198,10 +200,10 @@ function Hero() {
         <div className="hero-side right">
           <span className="eyebrow"><span className="pip" />For tenants</span>
           <div className="hero-stat">
-            <div className="num"><span className="accent">₹{(0.62 * 12).toFixed(2)}L</span></div>
-            <div className="label">TAX SAVED · ANNUAL · ON ₹62K RENT</div>
+            <div className="num"><span className="accent">{demo.m(62000 * 12, true)}</span></div>
+            <div className="label">IN RENT RECEIPTS · 12 MONTHS</div>
           </div>
-          <p className="hero-tag">One tap and the receipt is in your inbox. Fields filled, PAN attached, year-on-year stored. Tax season, sorted.</p>
+          <p className="hero-tag">One tap and the receipt is in your inbox. Fields filled{demo.india ? ', PAN attached' : ''}, year-on-year stored. Tax season, sorted.</p>
           <div className="hero-cta"><a className="btn btn-ghost" href="#proof">See rent receipt <Icon name="arrow-right" size={16} /></a></div>
         </div>
       </div>
@@ -211,6 +213,7 @@ function Hero() {
 
 /* ── Cinema ────────────────────────────────────────────────── */
 function Cinema() {
+  const demo = useDemo()
   const ref = useRef<HTMLElement>(null)
   const phoneRef = useRef<HTMLDivElement>(null)
   const floatRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)]
@@ -242,17 +245,17 @@ function Cinema() {
 
   const steps = [
     { n: '01', t: 'Add the property. Invite your tenant.', d: 'Property in 30 seconds. Send a link. Your tenant signs in with Google. No app install required, no phone numbers exchanged.', meta: [['Setup', '30 sec'], ['Install', 'Not required']] },
-    { n: '02', t: ['Rent', 'in one tap.'], d: '₹28,500 lands. UPI, NEFT, or cash with a UTR. The amount, date, and method get stamped into the shared record automatically.', meta: [['Methods', 'UPI · NEFT · Cash'], ['Settles in', 'Instant']] },
+    { n: '02', t: ['Rent', 'in one tap.'], d: `${demo.m(28500)} lands. ${demo.methodsSentence}. The amount, date, and method get stamped into the shared record automatically.`, meta: [['Methods', demo.methods], ['Settles in', 'Instant']] },
     { n: '03', t: ['Receipt', 'drops itself.'], d: 'A valid rent receipt generates automatically the moment payment clears. Period, address: every field already filled.', meta: [['Format', 'PDF'], ['Delivery', 'Email + dashboard']] },
     { n: '04', t: ['Proof, sealed', 'for years.'], d: 'Move-in photos, repair logs, deposit history. All timestamped, locked, and visible to both sides. The same record. Always.', meta: [['Photos', 'Locked at submit'], ['Retention', 'Permanent']] },
   ]
 
   const floatData = [
     { base: 'translate3d(-220px,-180px,60px) rotate(-4deg)', k: 'Property added', v: 'Main St 2BR', show: step >= 0 },
-    { base: 'translate3d(240px,-150px,80px) rotate(5deg)', k: 'Rent received', v: '₹28,500', amt: true, show: step >= 1 },
+    { base: 'translate3d(240px,-150px,80px) rotate(5deg)', k: 'Rent received', v: demo.m(28500), amt: true, show: step >= 1 },
     { base: 'translate3d(-260px,140px,70px) rotate(3deg)', k: 'Receipt no.', v: 'RB-2511-04', show: step >= 2 },
     { base: 'translate3d(220px,180px,50px) rotate(-3deg)', k: 'Move-in proof', v: '12 photos · sealed', show: step >= 3 },
-    { base: 'translate3d(0,-260px,120px) rotate(0deg)', k: 'UTR', v: '4581 2210 9914', show: step >= 1 },
+    { base: 'translate3d(0,-260px,120px) rotate(0deg)', k: demo.ref, v: '4581 2210 9914', show: step >= 1 },
   ]
 
   return (
@@ -363,6 +366,7 @@ function ProofFilm() {
 
 /* ── Features ──────────────────────────────────────────────── */
 function Features() {
+  const demo = useDemo()
   return (
     <section className="features" id="features">
       <div className="container">
@@ -376,7 +380,7 @@ function Features() {
             <div className="ico"><Icon name="receipt" size={20} /></div>
             <h3>Rent receipts in one tap.</h3>
             <p>A tax-ready PDF with address, payment period, and reference number. Year-on-year archived. Export the whole financial year as a single bundle.</p>
-            <div className="stat"><div><div className="l">SAVED PER YEAR</div><div className="n">₹62,400</div></div><div><div className="l">FORMAT</div><div className="n" style={{ fontSize: 18 }}>PDF · tax-ready</div></div></div>
+            <div className="stat"><div><div className="l">RECEIPTED · YEAR</div><div className="n">{demo.m(28500 * 12, true)}</div></div><div><div className="l">FORMAT</div><div className="n" style={{ fontSize: 18 }}>PDF · tax-ready</div></div></div>
           </div>
           <div className="feat-card accent">
             <div className="ico"><Icon name="vault" size={20} /></div>
@@ -407,6 +411,7 @@ function Features() {
 
 /* ── Trust ─────────────────────────────────────────────────── */
 function Trust() {
+  const demo = useDemo()
   const ref = useRef<HTMLElement>(null)
   const stackRef = useRef<HTMLDivElement>(null)
   const [shown, setShown] = useState(false)
@@ -429,9 +434,9 @@ function Trust() {
   }, [])
 
   const records = [
-    { t: 'Nov 2025 · Rent', v: '₹28,500' }, { t: 'Oct 2025 · Rent', v: '₹28,500' },
-    { t: 'Move-in · 12 photos', v: 'Sealed' }, { t: 'Deposit · 3-month', v: '₹85,500' },
-    { t: 'Repair · plumbing', v: '₹1,200' }, { t: 'Sep 2025 · Rent', v: '₹28,500' },
+    { t: 'Nov 2025 · Rent', v: demo.m(28500) }, { t: 'Oct 2025 · Rent', v: demo.m(28500) },
+    { t: 'Move-in · 12 photos', v: 'Sealed' }, { t: 'Deposit · 3-month', v: demo.m(85500) },
+    { t: 'Repair · plumbing', v: demo.m(1200) }, { t: 'Sep 2025 · Rent', v: demo.m(28500) },
   ]
   const onTime = useCount(94, shown)
   const sealed = useCount(12, shown)
@@ -696,6 +701,7 @@ const MMSealCTA = ({ size = 170 }: { size?: number }) => (
 
 /* ── MMHero ─────────────────────────────────────────────────── */
 function MMHero() {
+  const demo = useDemo()
   const stageRef = useRef<HTMLElement>(null)
   const p = useScrollProgress(stageRef, { start: 0.1, end: 0.7 })
   const yaw = -10 + p * 25
@@ -723,7 +729,7 @@ function MMHero() {
       <div className="mm-stage" ref={stageRef as React.RefObject<HTMLDivElement>}>
         <div className="mm-float r1" data-px="-1.4">
           <div className="lbl">Receipt · Nov</div>
-          <div className="val">₹28,500</div>
+          <div className="val">{demo.m(28500)}</div>
           <div className="strip"/><div className="strip s"/>
         </div>
         <div className="mm-float r2" data-px="-1.0">
@@ -732,13 +738,13 @@ function MMHero() {
           <div className="mono">12 · sealed</div>
         </div>
         <div className="mm-float r3" data-px="-1.6">
-          <div className="lbl">UTR sealed</div>
+          <div className="lbl">{demo.ref} sealed</div>
           <div className="mono">4581 2210 9914</div>
           <div className="strip"/>
         </div>
         <div className="mm-float r4" data-px="-1.2">
           <div className="lbl">Receipts · year</div>
-          <div className="val">₹7.44L</div>
+          <div className="val">{demo.m(744000, true)}</div>
           <div className="strip s"/>
         </div>
         <div className="mm-phone">
@@ -747,8 +753,8 @@ function MMHero() {
             <div className="scr-inner">
               <span className="scr-pill">RENT RECEIVED</span>
               <span className="scr-eyebrow">NOV 2025 · NORTH DISTRICT</span>
-              <span className="scr-amt">₹28,500</span>
-              <div className="scr-card"><span>UPI · auto-pay</span><span className="v">SETTLED</span></div>
+              <span className="scr-amt">{demo.m(28500)}</span>
+              <div className="scr-card"><span>{demo.method}</span><span className="v">SETTLED</span></div>
               <div className="scr-card"><span>Rent receipt</span><span className="v vw">ISSUED ↗</span></div>
               <div className="scr-card"><span>Move-in proof</span><span className="v">12 SEALED</span></div>
               <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--rb-font-mono)', fontSize: 7, color: 'var(--rb-ink-3)', letterSpacing: '.14em', fontWeight: 700 }}>
@@ -760,7 +766,7 @@ function MMHero() {
       </div>
       <div className="stat-row">
         <div>
-          <div className="n">₹1.24<span className="ochre">L</span></div>
+          <div className="n">{demo.m(124000, true)}</div>
           <div className="l">COLLECTED · MONTH<br/>3 PROPERTIES</div>
         </div>
         <div className="div"/>
@@ -775,6 +781,7 @@ function MMHero() {
 
 /* ── MMCinema ───────────────────────────────────────────────── */
 function MMCinema() {
+  const demo = useDemo()
   const ref = useRef<HTMLElement>(null)
   const p = useScrollProgress(ref, { start: 0.15, end: 0.85 })
   const step = Math.min(3, Math.floor(p * 4.0))
@@ -791,11 +798,11 @@ function MMCinema() {
     { num: '01', a: 'Add the property.', b: 'Invite your tenant.', em: true,
       d: 'Property in 30 seconds. Send a link. Your tenant signs in with Google. No app install required.',
       meta: [['Setup', '30 sec'], ['Install', 'Not required']],
-      phone: { eb: 'STEP 1 · SETUP', h: 'North District', sub: '2BR · ₹62,000/mo' } },
+      phone: { eb: 'STEP 1 · SETUP', h: 'North District', sub: `2BR · ${demo.m(62000)}/mo` } },
     { num: '02', a: 'Rent in', b: 'one tap.', em: true,
-      d: '₹28,500 lands. UPI, NEFT, or cash with a UTR. The amount and date stamp into the ledger automatically.',
-      meta: [['Methods', 'UPI · NEFT'], ['Settles', 'Instant']],
-      phone: { eb: 'RENT RECEIVED', h: '₹28,500', sub: 'UTR · 4581 2210' } },
+      d: `${demo.m(28500)} lands. ${demo.methodsSentence}. The amount and date stamp into the ledger automatically.`,
+      meta: [['Methods', demo.methods], ['Settles', 'Instant']],
+      phone: { eb: 'RENT RECEIVED', h: demo.m(28500), sub: `${demo.ref} · 4581 2210` } },
     { num: '03', a: 'Receipt', b: 'drops itself.', em: true,
       d: 'A valid rent receipt generates automatically the moment payment clears. Period, address: all filled.',
       meta: [['Format', 'PDF'], ['Sent to', 'Both inboxes']],
@@ -810,7 +817,7 @@ function MMCinema() {
     /* Step 0 — Dashboard: add property, see tenants */
     <div key={0} className="scr">
       <span className="lbl">GOOD MORNING, ALEX</span>
-      <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, letterSpacing: '-.02em', marginTop: 4, lineHeight: 1 }}>₹1,24,000</div>
+      <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 20, letterSpacing: '-.02em', marginTop: 4, lineHeight: 1 }}>{demo.m(124000)}</div>
       <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 5.5, color: 'var(--rb-ink-3)', letterSpacing: '.1em', marginTop: 2 }}>COLLECTED · 3 PROPERTIES</div>
       <div className="card" style={{ marginTop: 8 }}>
         <span style={{ fontSize: 8 }}>Main St 2BR</span>
@@ -825,13 +832,13 @@ function MMCinema() {
     <div key={1} className="scr">
       <span className="lbl">PAY RENT</span>
       <div style={{ fontSize: 8, color: 'var(--rb-ink-3)', marginTop: 4 }}>To · Alex Sharma</div>
-      <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24, letterSpacing: '-.025em', marginTop: 2, lineHeight: 1 }}>₹28,500</div>
+      <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24, letterSpacing: '-.025em', marginTop: 2, lineHeight: 1 }}>{demo.m(28500)}</div>
       <div className="card" style={{ marginTop: 8 }}>
-        <span style={{ fontSize: 8 }}>UPI · alex@okbank</span>
+        <span style={{ fontSize: 8 }}>{demo.method} · {demo.account}</span>
         <span className="v" style={{ fontSize: 8 }}>›</span>
       </div>
       <div style={{ background: 'var(--rb-action)', color: '#fff', borderRadius: 7, padding: '7px', textAlign: 'center' as const, fontWeight: 600, fontSize: 9, marginTop: 6 }}>
-        Pay ₹28,500
+        Pay {demo.m(28500)}
       </div>
     </div>,
     /* Step 2 — HRA receipt: rows + verified seal */
@@ -840,14 +847,14 @@ function MMCinema() {
       <div style={{ fontSize: 7, color: 'var(--rb-ink-3)', marginTop: 4 }}>November 2025</div>
       <div className="card" style={{ flexDirection: 'column' as const, alignItems: 'stretch', gap: 5, marginTop: 6, padding: '6px 7px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7 }}>
-          <span>Rent</span><span style={{ fontFamily: 'var(--rb-font-mono)', fontWeight: 700, color: 'var(--rb-action)' }}>₹28,500</span>
+          <span>Rent</span><span style={{ fontFamily: 'var(--rb-font-mono)', fontWeight: 700, color: 'var(--rb-action)' }}>{demo.m(28500)}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7 }}>
-          <span>UTR</span><span style={{ fontFamily: 'var(--rb-font-mono)', fontWeight: 700 }}>4581 2210</span>
+          <span>{demo.ref}</span><span style={{ fontFamily: 'var(--rb-font-mono)', fontWeight: 700 }}>4581 2210</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7 }}>
+        {demo.india && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7 }}>
           <span>PAN</span><span style={{ fontFamily: 'var(--rb-font-mono)', fontWeight: 700 }}>AKWPS****K</span>
-        </div>
+        </div>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7 }}>
         <svg viewBox="0 0 16 16" width="13" height="13">
@@ -895,7 +902,7 @@ function MMCinema() {
           </div>
           <div className="mm-cinema-orbit">
             <div className={'item i0' + (step >= 0 ? ' on' : '')}><div className="k">Property</div><div className="v">Main St 2BR</div></div>
-            <div className={'item i1' + (step >= 1 ? ' on' : '')}><div className="k">Rent received</div><div className="v amt">₹28,500</div></div>
+            <div className={'item i1' + (step >= 1 ? ' on' : '')}><div className="k">Rent received</div><div className="v amt">{demo.m(28500)}</div></div>
             <div className={'item i2' + (step >= 2 ? ' on' : '')}><div className="k">Receipt</div><div className="v">RB-2511-04</div></div>
             <div className={'item i3' + (step >= 3 ? ' on' : '')}><div className="k">Move-in proof</div><div className="v">12 · sealed</div></div>
           </div>
@@ -1000,6 +1007,7 @@ function MMProof() {
 
 /* ── MMVault ────────────────────────────────────────────────── */
 function MMVault() {
+  const demo = useDemo()
   const ref = useRef<HTMLElement>(null)
   const inView = useInView(ref, 0.35)
   const p = useScrollProgress(ref, { start: 0.1, end: 0.8 })
@@ -1013,12 +1021,12 @@ function MMVault() {
   }, [yaw, pitch])
 
   const records = [
-    { t: 'Nov 2025 · Rent',      s: 'RB·024·M11',   v: '₹28,500' },
-    { t: 'Oct 2025 · Rent',      s: 'RB·024·M10',   v: '₹28,500' },
+    { t: 'Nov 2025 · Rent',      s: 'RB·024·M11',   v: demo.m(28500) },
+    { t: 'Oct 2025 · Rent',      s: 'RB·024·M10',   v: demo.m(28500) },
     { t: 'Move-in · 12 photos',  s: 'Sealed 12 Nov', v: '12 · ✓' },
-    { t: 'Deposit · 3 months',   s: 'Held in escrow', v: '₹85,500' },
-    { t: 'Repair · plumbing',    s: 'Closed by both', v: '₹1,200' },
-    { t: 'Sep 2025 · Rent',      s: 'RB·024·M09',   v: '₹28,500' },
+    { t: 'Deposit · 3 months',   s: 'Held in escrow', v: demo.m(85500) },
+    { t: 'Repair · plumbing',    s: 'Closed by both', v: demo.m(1200) },
+    { t: 'Sep 2025 · Rent',      s: 'RB·024·M09',   v: demo.m(28500) },
   ]
 
   return (
@@ -1055,6 +1063,7 @@ function MMVault() {
 
 /* ── MMFeatures ─────────────────────────────────────────────── */
 function MMFeatures() {
+  const demo = useDemo()
   return (
     <section className="mm-features">
       <span className="mm-eyebrow">EVERYTHING ELSE, INCLUDED</span>
@@ -1065,7 +1074,7 @@ function MMFeatures() {
           <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 4 L19 4 L19 21 L16 19 L13 21 L10 19 L7 21 L5 19 Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M9 9 L15 9 M9 13 L15 13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg></div>
           <div className="t">Rent receipts<br/>in <em>one tap.</em></div>
           <div className="d">A tax-ready PDF with address, payment period, and reference number. Year-on-year archived.</div>
-          <div className="stat"><div><div className="l">SAVED · YEAR</div><div className="n amt">₹62,400</div></div><div><div className="l">FORMAT</div><div className="n">Tax-ready</div></div></div>
+          <div className="stat"><div><div className="l">RECEIPTED · YEAR</div><div className="n amt">{demo.m(28500 * 12, true)}</div></div><div><div className="l">FORMAT</div><div className="n">Tax-ready</div></div></div>
         </div>
         <div className="mm-feat">
           <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="14" r="2" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M9 4 L15 4 L15 8 L9 8 Z" fill="none" stroke="currentColor" strokeWidth="1.7"/></svg></div>
@@ -1090,7 +1099,7 @@ function MMFeatures() {
         <div className="mm-feat wide">
           <div className="ic"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="6" width="16" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M4 10 H20" stroke="currentColor" strokeWidth="1.7"/><circle cx="9" cy="15" r="1.4" fill="currentColor"/><circle cx="13" cy="15" r="1.4" fill="currentColor"/><circle cx="17" cy="15" r="1.4" fill="currentColor"/></svg></div>
           <div className="t">PG floor plan, per-bed billing</div>
-          <div className="d">For PGs and hostels: bed-level rent, vacancy heatmaps, auto-collect via UPI 2.0.</div>
+          <div className="d">{demo.india ? 'For PGs and hostels: bed-level rent, vacancy heatmaps, auto-collect via UPI 2.0.' : 'For shared houses and hostels: bed-level rent and vacancy heatmaps.'}</div>
           <div className="stat"><div><div className="l">PROPERTIES</div><div className="n amt">120+</div></div><div><div className="l">UTILIZATION</div><div className="n">96%</div></div></div>
         </div>
       </div>
@@ -1251,6 +1260,7 @@ function Nav() {
 
 /* ── Page ──────────────────────────────────────────────────── */
 export default function Page() {
+  const demo = useDemo()
   return (
     <div className="lp-page">
       {/* Desktop marketing — hidden on mobile via CSS */}
@@ -1277,7 +1287,7 @@ export default function Page() {
             </div>
             <div className="foot-col">
               <div className="foot-h">Coming soon</div>
-              <a href="#">Rent listings</a><a href="#">Sale listings</a><a href="#">UPI auto-collect</a><a href="#">Tax export · 26AS</a>
+              <a href="#">Rent listings</a><a href="#">Sale listings</a><a href="#">{demo.india ? 'UPI auto-collect' : 'Online rent collection'}</a><a href="#">{demo.india ? 'Tax export · 26AS' : 'Tax export'}</a>
             </div>
             <div className="foot-col">
               <div className="foot-h">Company</div>

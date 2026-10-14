@@ -228,7 +228,7 @@ export default function HraReceiptGeneratorPage() {
               whole page fails to prerender -- this page is static and indexed, so
               that would take it out of search results, not just break the tool. */}
           <Suspense fallback={<div style={{ minHeight: 420 }} />}>
-            <HraReceiptGenerator />
+            <HraReceiptGenerator country="IN" />
           </Suspense>
         </div>
       </section>

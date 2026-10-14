@@ -18,7 +18,7 @@
 // comparison is stable. The RegionConfig object is derived from it afterwards.
 
 import { useSyncExternalStore, useCallback } from 'react'
-import { getRegion, type RegionConfig, type CountryCode } from '@/lib/i18n/regions'
+import { getRegion, type RegionConfig } from '@/lib/i18n/regions'
 import { getCountryFromCookie, setRegionCookie } from '@/lib/region'
 
 // Cookies emit no change event, so in-app changes are broadcast here. Only
@@ -46,9 +46,9 @@ export function useRegion(): RegionConfig {
 }
 
 /** Hook that also exposes a setter — used on the country-select page. */
-export function useRegionControl(): [RegionConfig, (code: CountryCode) => void] {
+export function useRegionControl(): [RegionConfig, (code: string) => void] {
   const region = useRegion()
-  const setRegion = useCallback((next: CountryCode) => {
+  const setRegion = useCallback((next: string) => {
     setRegionCookie(next)
     for (const l of listeners) l()
   }, [])

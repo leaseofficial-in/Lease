@@ -1,6 +1,9 @@
 // ─── Region Registry ──────────────────────────────────────────────────────────
-// Single source of truth for all country/region configuration.
-// Add new countries here — nothing else needs to change.
+// Hand-tuned configuration for the markets we have researched. Every other
+// ISO country still gets a correct baseline from ./world (its own currency,
+// name, flag, number format); add a country here only to refine it.
+
+import { genericRegion, isCountryCode, countryName, COUNTRY_CURRENCY } from './world';
 
 export type CountryCode = 'IN' | 'US' | 'GB' | 'CA' | 'AU' | 'AE' | 'SG' | 'DE' | 'FR' | 'NZ' | 'ZA' | 'MY';
 
@@ -16,7 +19,8 @@ export type PaymentMethodId =
   | 'cash'
   | 'credit_card'
   | 'direct_debit' // GB/AU: direct debit
-  | 'faster_payments'; // GB: Faster Payments
+  | 'faster_payments' // GB: Faster Payments
+  | 'mobile_money';  // M-Pesa, MTN MoMo, Airtel Money, Orange Money
 
 export interface CurrencyConfig {
   code: string;       // ISO 4217
@@ -29,7 +33,8 @@ export interface CurrencyConfig {
 }
 
 export interface RegionConfig {
-  countryCode: CountryCode;
+  // Any ISO 3166-1 alpha-2 code. Curated ones are also a CountryCode.
+  countryCode: string;
   name: string;
   flag: string;          // emoji flag
   currency: CurrencyConfig;
@@ -348,14 +353,36 @@ export const REGIONS: Record<CountryCode, RegionConfig> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+export const isCuratedCountry = (code: string | null | undefined): code is CountryCode =>
+  !!code && code in REGIONS;
+
+/** True for any assigned ISO country code, curated or not. */
+export const isSupportedCountry = (code: string | null | undefined): code is string =>
+  isCuratedCountry(code) || isCountryCode(code);
+
 export const getRegion = (code: CountryCode | string | null | undefined): RegionConfig => {
-  if (code && code in REGIONS) return REGIONS[code as CountryCode];
-  return REGIONS['IN']; // backward-compatible default
+  const upper = code ? code.toUpperCase() : code;
+  if (isCuratedCountry(upper)) return REGIONS[upper];
+  if (isCountryCode(upper)) return genericRegion(upper);
+  // null / '' / garbage: matches the profiles.country_code column default.
+  return REGIONS['IN'];
 };
 
 export const ALL_COUNTRIES = Object.values(REGIONS);
 
-// Sorted for the picker: US first (new primary), then India (legacy), rest alphabetically
+// Curated markets first (US as the new primary, then India), then every other
+// country alphabetically by English name.
 export const COUNTRY_PICKER_ORDER: CountryCode[] = [
   'US', 'IN', 'GB', 'CA', 'AU', 'AE', 'SG', 'DE', 'FR', 'NZ', 'ZA', 'MY',
 ];
+
+let worldOrder: string[] | null = null;
+export function worldPickerOrder(): string[] {
+  if (worldOrder) return worldOrder;
+  const curated = new Set<string>(COUNTRY_PICKER_ORDER);
+  const rest = Object.keys(COUNTRY_CURRENCY)
+    .filter(c => !curated.has(c))
+    .sort((a, b) => countryName(a).localeCompare(countryName(b)));
+  worldOrder = [...COUNTRY_PICKER_ORDER, ...rest];
+  return worldOrder;
+}

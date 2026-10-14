@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { amountInWords } from './amount-in-words'
+import { amountInWords, amountInWordsInternational } from './amount-in-words'
 
 describe('amountInWords', () => {
   it('returns an empty string for non-positive or invalid input', () => {
@@ -65,5 +65,20 @@ describe('amountInWords', () => {
       expect(words).not.toMatch(/\s{2,}/)
       expect(words.trim()).toBe(words)
     }
+  })
+})
+
+describe('amountInWordsInternational', () => {
+  it('uses thousand / million, never lakh / crore', () => {
+    expect(amountInWordsInternational(1850)).toBe('One Thousand Eight Hundred Fifty')
+    expect(amountInWordsInternational(112500)).toBe('One Hundred Twelve Thousand Five Hundred')
+    expect(amountInWordsInternational(1250000)).toBe('One Million Two Hundred Fifty Thousand')
+    expect(amountInWordsInternational(2000000000)).toBe('Two Billion')
+  })
+
+  it('returns empty for nothing to say', () => {
+    expect(amountInWordsInternational(0)).toBe('')
+    expect(amountInWordsInternational(-5)).toBe('')
+    expect(amountInWordsInternational(NaN)).toBe('')
   })
 })

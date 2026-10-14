@@ -8,7 +8,8 @@ import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { isNativeApp } from '@/lib/native'
 import { track } from '@/lib/analytics/track'
-import { getRegionFromCookie } from '@/lib/region'
+import { getRegionFromCookie, browserTimezone } from '@/lib/region'
+import { useDemo } from '@/lib/hooks/useDemo'
 
 import { LogoLockup } from '@/components/brand'
 
@@ -100,6 +101,7 @@ function GoogleIcon() {
 
 // ─── mobile screen 1: splash (unified entry) ─────────────────
 function MA2Splash({ onGoogle, loading, error }: { onGoogle: () => void; loading: boolean; error: string }) {
+  const demo = useDemo()
   return (
     <div className="m-screen">
       <div className="a2-splash">
@@ -116,15 +118,15 @@ function MA2Splash({ onGoogle, loading, error }: { onGoogle: () => void; loading
             <span className="t">Receipt · Nov</span>
             <span className="n">RB·024·M11</span>
           </div>
-          <div className="rr"><span className="k">Tenant</span><span className="v">Aarav Mehta</span></div>
-          <div className="rr"><span className="k">Property</span><span className="v">2BHK · Bandra W</span></div>
+          <div className="rr"><span className="k">Tenant</span><span className="v">{demo.india ? 'Aarav Mehta' : 'Sam Carter'}</span></div>
+          <div className="rr"><span className="k">Property</span><span className="v">{demo.india ? '2BHK · Bandra W' : '2BR · Main St'}</span></div>
           <div className="rr"><span className="k">Period</span><span className="v">1–30 Nov &rsquo;25</span></div>
           <div className="rtot">
-            <span className="l">PAID · UPI 2.0</span>
-            <span className="v">₹62,000</span>
+            <span className="l">PAID · {demo.india ? 'UPI 2.0' : demo.method.toUpperCase()}</span>
+            <span className="v">{demo.m(62000)}</span>
           </div>
           <div className="rfoot">
-            <span>10(13A) READY</span>
+            <span>{demo.india ? '10(13A) READY' : 'RECEIPT READY'}</span>
             <span className="stamp">SEALED</span>
           </div>
         </div>
@@ -473,7 +475,7 @@ function detectedRegionFields() {
     country_code: region.countryCode,
     currency_code: region.currency.code,
     locale: region.locale,
-    timezone: region.primaryTimezone,
+    timezone: browserTimezone(region.primaryTimezone),
   }
 }
 
