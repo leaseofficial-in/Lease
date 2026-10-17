@@ -12,7 +12,8 @@ import { track } from '@/lib/analytics/track'
 import { assertAffected } from '@/lib/supabase/write'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ManagedTenantPanel } from '@/components/dashboard/managed-tenant-panel'
+import { ManagedTenantPanel, RentShareButtons } from '@/components/dashboard/managed-tenant-panel'
+import { phoneForStorage, phoneForWhatsApp } from '@/lib/rent/share'
 import { sha256Hex } from '@/lib/crypto/file-hash'
 import { localMonth } from '@/lib/date/calendar'
 import { relativeDateTime } from '@/lib/date/relative'
@@ -27,7 +28,7 @@ type Building = { id: string; name: string; address_line1: string; address_line2
 type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; landlord_signed_at?: string; agreement_status?: string; agreement_custom_clauses?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; start_date?: string; end_date?: string; notice_given_at?: string; move_out_date?: string; escalation_applied_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string; tenant_name?: string | null; tenant_phone?: string | null }
 type Message = { id: string; rental_id: string; sender_id: string; body: string; read_at?: string; created_at: string; sender?: { full_name?: string; avatar_url?: string } }
 type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string; bedrooms?: number; bathrooms?: number; area_sqft?: number; floor_number?: number; parking?: boolean; building_id?: string; unit_number?: string; building?: Building }
-type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; late_fee?: number; created_at: string; updated_at?: string }
+type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; late_fee?: number; created_at: string; updated_at?: string; share_token?: string }
 type RepairRequest = { id: string; rental_id: string; title: string; description?: string; status: string; cost?: number; category?: string; urgency?: string; photo_url?: string; landlord_note?: string; scheduled_date?: string; deduct_from_deposit?: boolean; vendor_name?: string; vendor_phone?: string; resolved_confirmed_at?: string; created_at: string; rental?: { property?: Property } }
 type Proof = { id: string; rental_id: string; type: string; status: string; proof_photos?: ProofPhoto[] }
 type ProofPhoto = { id: string; room_label?: string; public_url?: string; annotation?: string; created_at: string }
@@ -2358,6 +2359,7 @@ export default function DashboardPage() {
       monthly_rent: '', security_deposit: '', maintenance_charges: '0', rent_due_day: '5',
       furnished_status: 'unfurnished', notice_period_days: '30', lock_in_period_months: '11',
       late_fee_percent: '5', rent_increment_percent: '5',
+      tenant_name: '', tenant_phone: '',
     })
     const [saving, setSaving] = useState(false)
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -2401,6 +2403,12 @@ export default function DashboardPage() {
       if (!form.name || !form.monthly_rent) {
         toast('A property name and monthly rent are all we need to start', 'error'); return
       }
+      // A tenant named here is tracked straight away, no invite needed (052).
+      const tenantName = form.tenant_name.trim()
+      const tenantPhone = form.tenant_phone.trim() ? phoneForStorage(form.tenant_phone, region.phoneDialCode, region.phoneLocalLength) : null
+      if (form.tenant_phone.trim() && !tenantPhone) {
+        setFieldErrors(fe => ({ ...fe, tenant_phone: 'That phone number doesn’t look right' })); return
+      }
       setSaving(true)
       try {
         const { data: prop, error: propErr } = await sb.from('properties').insert({
@@ -2424,7 +2432,8 @@ export default function DashboardPage() {
         if (propErr) throw propErr
         if (!prop) throw new Error('Property insert returned no data')
         const { error: rentalErr } = await sb.from('rentals').insert({
-          property_id: prop.id, landlord_id: user.id, status: 'pending_tenant',
+          property_id: prop.id, landlord_id: user.id, status: tenantName ? 'active' : 'pending_tenant',
+          tenant_name: tenantName || null, tenant_phone: tenantName ? tenantPhone : null,
           start_date: new Date().toISOString().slice(0, 10),
           invite_token: genToken(), invite_expires_at: tokenExpiry(),
           monthly_rent: Number(form.monthly_rent),
@@ -2440,7 +2449,10 @@ export default function DashboardPage() {
         if (rentalErr) throw rentalErr
         track('property_created', { flow: 'standalone' })
         track('rental_created', { flow: 'standalone' })
-        toast('Property added! Share the invite link with your tenant.', 'success')
+        if (tenantName) track('tenant_tracked', { with_phone: !!tenantPhone, from: 'add_property' })
+        toast(tenantName
+          ? `Property added. Open it to mark ${tenantName.split(' ')[0]}’s rent received or send a reminder.`
+          : 'Property added! Share the invite link with your tenant.', 'success')
         setModal(null); refreshData()
       } catch (e: any) { console.error('[AddProperty]', e); toast(e?.message || 'Failed to add property', 'error'); setSaving(false) }
     }
@@ -2473,7 +2485,7 @@ export default function DashboardPage() {
             reaching the property name. */}
         <div style={{ background: 'var(--rb-action-soft)', border: '1px solid var(--rb-border-soft)', borderRadius: 12, padding: 16, marginBottom: 4 }}>
           <div style={{ fontSize: 12, color: 'var(--rb-ink-2)', marginBottom: 12, lineHeight: 1.5 }}>
-            Just a name and the rent gets you an invite link to send your tenant. Everything else can wait.
+            A name and the rent are all you need. Everything else can wait.
           </div>
           <Field label="Property name">
             <input style={inputStyle} value={form.name} onChange={set('name')} onBlur={onBlur('name')} placeholder="e.g. 2BHK Bandra West" autoFocus />
@@ -2483,6 +2495,17 @@ export default function DashboardPage() {
             <input style={inputStyle} type="number" inputMode="decimal" value={form.monthly_rent} onChange={set('monthly_rent')} onBlur={onBlur('monthly_rent')} placeholder="0" />
           </Field>
           <ErrMsg field="monthly_rent" />
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--rb-ink)', margin: '16px 0 4px' }}>Already have a tenant? <span style={{ fontWeight: 400, color: 'var(--rb-ink-3)' }}>(optional)</span></div>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginBottom: 10, lineHeight: 1.5 }}>Add them and start tracking rent today. They don&rsquo;t need to sign up.</div>
+          <div className="grid-2" style={{ gap: 12 }}>
+            <Field label="Tenant's name">
+              <input style={inputStyle} value={form.tenant_name} onChange={set('tenant_name')} placeholder="e.g. Ravi Kumar" maxLength={120} />
+            </Field>
+            <Field label="WhatsApp number">
+              <input style={inputStyle} value={form.tenant_phone} onChange={set('tenant_phone')} placeholder={`${region.phoneDialCode} …`} inputMode="tel" autoComplete="off" />
+              <ErrMsg field="tenant_phone" />
+            </Field>
+          </div>
         </div>
 
         <details style={{ marginTop: 18 }}>
@@ -3442,6 +3465,20 @@ export default function DashboardPage() {
                 Receipt sent to tenant · ledger updated
               </div>
               <button onClick={() => { setModal(null); setSelectedRental(null); refreshData() }} style={{ ...actBtnPrimary, marginTop: 16, width: '100%', justifyContent: 'center' }}>Close</button>
+            </div>
+          </div>
+        )}
+
+        {/* This month's reminder / receipt link for a tenant with an account.
+            Email reminders exist, but WhatsApp is where landlords and tenants
+            actually talk. The link opens without signing in. */}
+        {r.tenant_id && currentPmt?.share_token && !hasPending && (
+          <div style={{ marginBottom: 18, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--rb-border-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 13, color: 'var(--rb-ink-2)' }}>
+              <strong style={{ color: 'var(--rb-ink)' }}>{monthLabel(currentPmt.month)}</strong> · {currentPmt.status === 'paid' ? 'Received' : currentPmt.status === 'overdue' ? 'Overdue' : 'Due'}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <RentShareButtons row={{ ...currentPmt, share_token: currentPmt.share_token, late_fee: currentPmt.late_fee ?? null }} tenantName={tenantNameOf(r)} waPhone={phoneForWhatsApp(r.tenant?.phone, region.phoneDialCode, region.phoneLocalLength)} propertyName={r.property?.name} money={inr} monthLabel={monthLabel} toast={toast} />
             </div>
           </div>
         )}

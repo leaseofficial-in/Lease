@@ -138,24 +138,6 @@ export function ManagedTenantPanel({ rental, sb, region, money, monthLabel, toas
     } finally { setBusyRow(null) }
   }
 
-  const message = (row: Row) => {
-    const paid = row.status === 'paid'
-    const input = {
-      tenantName,
-      propertyName: rental.property?.name,
-      amount: money(Number(row.amount) + (paid ? 0 : Number(row.late_fee || 0))),
-      month: monthLabel(row.month),
-      url: rentShareUrl(row.share_token, window.location.origin),
-    }
-    return paid ? receiptMessage(input) : reminderMessage(input)
-  }
-
-  const copyLink = (row: Row) => {
-    navigator.clipboard.writeText(rentShareUrl(row.share_token, window.location.origin))
-      .then(() => { track('rent_link_sent', { channel: 'copy', kind: row.status === 'paid' ? 'receipt' : 'reminder' }); toast('Link copied', 'success') })
-      .catch(() => toast('Could not copy the link', 'error'))
-  }
-
   // ── Not tracking yet ─────────────────────────────────────────────────────────
   if (!managed) {
     return (
@@ -235,11 +217,7 @@ export function ManagedTenantPanel({ rental, sb, region, money, monthLabel, toas
                   {!paid && row.status !== 'pending_verification' && (
                     <button style={{ ...smallBtn, background: 'var(--rb-action)', borderColor: 'var(--rb-action)', color: '#fff' }} onClick={() => setRecording(row.id)}>✓ Mark received</button>
                   )}
-                  <a href={whatsAppUrl(message(row), waPhone)} target="_blank" rel="noreferrer" style={waBtn}
-                    onClick={() => track('rent_link_sent', { channel: 'whatsapp', kind: paid ? 'receipt' : 'reminder' })}>
-                    {paid ? 'Send receipt' : 'Remind'} on WhatsApp
-                  </a>
-                  <button style={smallBtn} onClick={() => copyLink(row)}>Copy link</button>
+                  <RentShareButtons row={row} tenantName={tenantName} waPhone={waPhone} propertyName={rental.property?.name} money={money} monthLabel={monthLabel} toast={toast} />
                 </div>
               )}
             </div>
@@ -247,5 +225,49 @@ export function ManagedTenantPanel({ rental, sb, region, money, monthLabel, toas
         })}
       </div>
     </div>
+  )
+}
+
+// ─── WhatsApp reminder / receipt + copy link for one rent row ─────────────────
+// Used for managed tenants above, and for tenants with an account in the
+// property modal: either way the link opens without signing in.
+
+type ShareRow = Pick<Row, 'month' | 'amount' | 'late_fee' | 'status' | 'share_token'>
+
+export function RentShareButtons({ row, tenantName, waPhone, propertyName, money, monthLabel, toast }: {
+  row: ShareRow
+  tenantName?: string | null
+  waPhone?: string | null
+  propertyName?: string | null
+  money: (n: number) => string
+  monthLabel: (ym?: string | null) => string
+  toast: (msg: string, type?: 'success' | 'error' | 'info') => void
+}) {
+  const paid = row.status === 'paid'
+  const kind = paid ? 'receipt' : 'reminder'
+  const url = () => rentShareUrl(row.share_token, window.location.origin)
+  const message = () => {
+    const input = {
+      tenantName,
+      propertyName,
+      amount: money(Number(row.amount) + (paid ? 0 : Number(row.late_fee || 0))),
+      month: monthLabel(row.month),
+      url: url(),
+    }
+    return paid ? receiptMessage(input) : reminderMessage(input)
+  }
+  const copy = () => {
+    navigator.clipboard.writeText(url())
+      .then(() => { track('rent_link_sent', { channel: 'copy', kind }); toast('Link copied', 'success') })
+      .catch(() => toast('Could not copy the link', 'error'))
+  }
+  return (
+    <>
+      <a href={whatsAppUrl(message(), waPhone)} target="_blank" rel="noreferrer" style={waBtn}
+        onClick={() => track('rent_link_sent', { channel: 'whatsapp', kind })}>
+        {paid ? 'Send receipt' : 'Remind'} on WhatsApp
+      </a>
+      <button style={smallBtn} onClick={copy}>Copy link</button>
+    </>
   )
 }
