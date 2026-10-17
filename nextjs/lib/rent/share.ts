@@ -62,6 +62,11 @@ export function receiptMessage(m: RentMessageInput): string {
   )
 }
 
+/** A UPI ID ("VPA"): name@handle. */
+export function isValidVpa(vpa: string | null | undefined): boolean {
+  return /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z][a-zA-Z0-9]{1,64}$/.test((vpa || '').trim())
+}
+
 /**
  * upi://pay deep link. Opens the tenant's UPI app with the payee, amount and note
  * filled in. Only meaningful in India and only with a plausible VPA; null
@@ -69,7 +74,7 @@ export function receiptMessage(m: RentMessageInput): string {
  */
 export function upiPayUrl(opts: { vpa?: string | null; payeeName?: string | null; amount: number; note: string }): string | null {
   const vpa = (opts.vpa || '').trim()
-  if (!/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z][a-zA-Z0-9]{1,64}$/.test(vpa)) return null
+  if (!isValidVpa(vpa)) return null
   if (!(opts.amount > 0)) return null
   const q = new URLSearchParams({
     pa: vpa,

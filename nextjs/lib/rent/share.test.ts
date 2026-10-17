@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { phoneForStorage, phoneForWhatsApp, receiptMessage, reminderMessage, rentShareUrl, upiPayUrl, whatsAppUrl } from './share'
+import { isValidVpa, phoneForStorage, phoneForWhatsApp, receiptMessage, reminderMessage, rentShareUrl, upiPayUrl, whatsAppUrl } from './share'
 
 describe('phoneForWhatsApp', () => {
   it('adds the dial code to a local Indian number', () => {
@@ -53,5 +53,15 @@ describe('upiPayUrl', () => {
     expect(upiPayUrl({ vpa: '', amount: 100, note: 'x' })).toBeNull()
     expect(upiPayUrl({ vpa: 'not a vpa', amount: 100, note: 'x' })).toBeNull()
     expect(upiPayUrl({ vpa: 'a@ok', amount: 0, note: 'x' })).toBeNull()
+  })
+})
+
+describe('isValidVpa', () => {
+  it('accepts name@handle and rejects the rest', () => {
+    expect(isValidVpa('ravi.k@okicici')).toBe(true)
+    expect(isValidVpa(' 9876543210@paytm ')).toBe(true)
+    expect(isValidVpa('ravi')).toBe(false)
+    expect(isValidVpa('ravi@')).toBe(false)
+    expect(isValidVpa(null)).toBe(false)
   })
 })

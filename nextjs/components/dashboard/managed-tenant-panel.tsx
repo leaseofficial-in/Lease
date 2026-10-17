@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 import type { RegionConfig } from '@/lib/i18n/regions'
 import { track } from '@/lib/analytics/track'
-import { phoneForStorage, phoneForWhatsApp, receiptMessage, reminderMessage, rentShareUrl, whatsAppUrl } from '@/lib/rent/share'
+import { isValidVpa, phoneForStorage, phoneForWhatsApp, receiptMessage, reminderMessage, rentShareUrl, whatsAppUrl } from '@/lib/rent/share'
 
 type ManagedRental = {
   id: string
@@ -51,6 +51,9 @@ type Props = {
   monthLabel: (ym?: string | null) => string
   toast: (msg: string, type?: 'success' | 'error' | 'info') => void
   onChanged: () => void
+  /** The landlord's own profile: where the UPI ID lives. */
+  landlordId: string
+  landlordUpi?: string | null
 }
 
 const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', border: '1.5px solid var(--rb-border)', borderRadius: 10, fontFamily: 'inherit', fontSize: 14, color: 'var(--rb-ink)', background: 'var(--rb-surface)', outline: 'none' }
@@ -66,7 +69,7 @@ const STATUS: Record<string, { t: string; bg: string; c: string }> = {
   pending_verification: { t: 'To review', bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' },
 }
 
-export function ManagedTenantPanel({ rental, sb, region, money, monthLabel, toast, onChanged }: Props) {
+export function ManagedTenantPanel({ rental, sb, region, money, monthLabel, toast, onChanged, landlordId, landlordUpi }: Props) {
   // Local, because the modal's rental object is a snapshot taken when it opened
   // and does not change when the dashboard refreshes underneath it.
   const [managed, setManaged] = useState(!rental.tenant_id && !!rental.tenant_name)
@@ -79,6 +82,27 @@ export function ManagedTenantPanel({ rental, sb, region, money, monthLabel, toas
   const [rows, setRows] = useState<Row[] | null>(null)
   const [recording, setRecording] = useState<string | null>(null) // row id choosing a method
   const [busyRow, setBusyRow] = useState<string | null>(null)
+  const [upi, setUpi] = useState(landlordUpi || '')
+  const [upiSaved, setUpiSaved] = useState(!!landlordUpi)
+  const [upiBusy, setUpiBusy] = useState(false)
+
+  // The reminder page offers "Pay with UPI" only when the landlord has a UPI ID,
+  // and on 2026-10-17 none of 14 landlords had saved one. Asked for here, next to
+  // the reminder it powers, rather than on a profile screen nobody visits.
+  const saveUpi = async () => {
+    if (!isValidVpa(upi)) { toast('Enter a UPI ID like name@okhdfcbank', 'error'); return }
+    setUpiBusy(true)
+    try {
+      const { data, error } = await sb.from('profiles').update({ upi_id: upi.trim() }).eq('id', landlordId).select('id')
+      if (error) throw error
+      if (!data?.length) throw new Error('Could not save your UPI ID. Please refresh and try again.')
+      setUpiSaved(true)
+      toast('UPI ID saved. Reminders now include a Pay button', 'success')
+      onChanged()
+    } catch (e) {
+      toast((e as { message?: string })?.message || 'Could not save your UPI ID', 'error')
+    } finally { setUpiBusy(false) }
+  }
 
   const methods = Array.from(new Set(['cash', ...region.paymentMethods])).slice(0, 4)
   const methodLabel = (m: string) => (PAYMENT_METHOD_DISPLAY as Record<string, { label: string }>)[m]?.label || m
@@ -178,6 +202,17 @@ export function ManagedTenantPanel({ rental, sb, region, money, monthLabel, toas
         </div>
         <div style={{ fontSize: 12, color: 'var(--rb-ink-3)' }}>{tenantPhone || 'No phone saved'} · not on RentyBase</div>
       </div>
+
+      {region.countryCode === 'IN' && !upiSaved && rows?.some(r => r.status !== 'paid') && (
+        <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: 'var(--rb-action-soft)' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>Get paid in one tap</div>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-2)', marginTop: 2, marginBottom: 8, lineHeight: 1.5 }}>Add your UPI ID and every reminder gets a &ldquo;Pay with UPI&rdquo; button that opens GPay, PhonePe or Paytm with the amount filled in.</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input style={{ ...inputStyle, fontFamily: 'var(--rb-font-mono)', fontSize: 13, padding: '8px 10px' }} value={upi} onChange={e => setUpi(e.target.value)} placeholder="yourname@okhdfcbank" autoCapitalize="none" autoComplete="off" />
+            <Button variant="primary-sm" onClick={saveUpi} busy={upiBusy}>Save</Button>
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: 14 }}>
         {rows === null && <div style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>Loading…</div>}

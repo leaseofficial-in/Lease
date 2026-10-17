@@ -3525,7 +3525,7 @@ export default function DashboardPage() {
 
         {/* Track rent without the tenant signing up (052) */}
         {!r.tenant_id && r.status !== 'ended' && (
-          <ManagedTenantPanel rental={r} sb={sb} region={region} money={inr} monthLabel={monthLabel} toast={toast} onChanged={refreshData} />
+          <ManagedTenantPanel rental={r} sb={sb} region={region} money={inr} monthLabel={monthLabel} toast={toast} onChanged={refreshData} landlordId={user.id} landlordUpi={profile?.upi_id} />
         )}
 
         {/* Invite card. Optional once the landlord is tracking the tenant
