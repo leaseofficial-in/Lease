@@ -12,6 +12,7 @@ import { track } from '@/lib/analytics/track'
 import { assertAffected } from '@/lib/supabase/write'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ManagedTenantPanel } from '@/components/dashboard/managed-tenant-panel'
 import { sha256Hex } from '@/lib/crypto/file-hash'
 import { localMonth } from '@/lib/date/calendar'
 import { relativeDateTime } from '@/lib/date/relative'
@@ -23,7 +24,7 @@ import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 // ── Types ─────────────────────────────────────────────────────────────────
 type Profile = { id: string; full_name?: string; avatar_url?: string; role?: string; phone?: string; upi_id?: string; payout_details?: string | null; pan_number?: string; email?: string; country_code?: string; currency_code?: string; timezone?: string; locale?: string }
 type Building = { id: string; name: string; address_line1: string; address_line2?: string; city: string; state: string; pincode: string; property_type?: string; total_units?: number; created_at: string }
-type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; landlord_signed_at?: string; agreement_status?: string; agreement_custom_clauses?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; start_date?: string; end_date?: string; notice_given_at?: string; move_out_date?: string; escalation_applied_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string }
+type Rental = { id: string; monthly_rent: number; security_deposit: number; rent_due_day?: number; status: string; invite_token?: string; invite_expires_at?: string; agreement_signed_at?: string; landlord_signed_at?: string; agreement_status?: string; agreement_custom_clauses?: string; notice_period_days?: number; furnished_status?: string; late_fee_percent?: number; maintenance_charges?: number; lock_in_period_months?: number; rent_increment_percent?: number; start_date?: string; end_date?: string; notice_given_at?: string; move_out_date?: string; escalation_applied_at?: string; property?: Property; landlord?: Profile; tenant?: Profile; landlord_id?: string; tenant_id?: string; tenant_name?: string | null; tenant_phone?: string | null }
 type Message = { id: string; rental_id: string; sender_id: string; body: string; read_at?: string; created_at: string; sender?: { full_name?: string; avatar_url?: string } }
 type Property = { id: string; name: string; address_line1?: string; address_line2?: string; city?: string; state?: string; pincode?: string; property_type?: string; bedrooms?: number; bathrooms?: number; area_sqft?: number; floor_number?: number; parking?: boolean; building_id?: string; unit_number?: string; building?: Building }
 type RentPayment = { id: string; rental_id: string; month: string; amount: number; status: string; payment_method?: string; utr_number?: string; payment_note?: string; payment_proof_url?: string; late_fee?: number; created_at: string; updated_at?: string }
@@ -326,6 +327,10 @@ export default function DashboardPage() {
   // Shadow module-level stubs with region-aware versions
   const inr = (n: number | undefined | null) =>
     formatCurrencyLocale(Number(n || 0), region.currency, region.locale)
+  // A rental has a tenant if someone joined OR the landlord is tracking one
+  // without an account (052). Only the first has a profile to read a name from.
+  const hasTenant = (r: Rental) => !!r.tenant_id || !!r.tenant_name
+  const tenantNameOf = (r: Rental) => r.tenant?.full_name || r.tenant_name || ''
   const methodLabel = (m?: string) =>
     (PAYMENT_METHOD_DISPLAY as Record<string, { label: string }>)[m || '']?.label || m || '—'
   const relDateFmt = (iso?: string) => relDate(iso, region.locale)
@@ -677,16 +682,16 @@ export default function DashboardPage() {
   function UnitRow({ r, currentPayments }: { r: Rental; currentPayments: RentPayment[] }) {
     const pmt = currentPayments.find(p => p.rental_id === r.id)
     const pillMap = { paid: { t: 'Paid', bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }, pending_verification: { t: 'Review', bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)' }, pending: { t: 'Due', bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' }, overdue: { t: 'Overdue', bg: 'rgba(239,68,68,.1)', c: 'var(--rb-danger)' } }
-    const pill = (pmt && (pillMap as any)[pmt.status]) || (!r.tenant_id ? { t: 'Vacant', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' } : { t: 'Pending', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' })
+    const pill = (pmt && (pillMap as any)[pmt.status]) || (!hasTenant(r) ? { t: 'Vacant', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' } : { t: 'Pending', bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' })
     return (
       <div onClick={() => { setSelectedRental(r); setModal('property-detail') }} {...clickableProps(() => { setSelectedRental(r); setModal('property-detail') }, `Property: ${r.property?.name || 'Unit'}`)} style={{ display: 'grid', gridTemplateColumns: '48px 1fr auto', gap: 12, alignItems: 'center', padding: '10px 12px', background: 'var(--rb-surface)', borderRadius: 10, cursor: 'pointer', border: '1px solid var(--rb-border-soft)' }}>
-        <div style={{ width: 48, height: 48, borderRadius: 8, background: r.tenant_id ? 'linear-gradient(135deg,#2a5298,#1e3c72)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', color: r.tenant_id ? '#fff' : 'var(--rb-ink-3)' }}>{r.tenant_id ? <Icon k="key" size={20} stroke={1.8} /> : <Icon k="unlock" size={20} stroke={1.8} />}</div>
+        <div style={{ width: 48, height: 48, borderRadius: 8, background: hasTenant(r) ? 'linear-gradient(135deg,#2a5298,#1e3c72)' : 'var(--rb-fill-2)', display: 'grid', placeItems: 'center', color: hasTenant(r) ? '#fff' : 'var(--rb-ink-3)' }}>{hasTenant(r) ? <Icon k="key" size={20} stroke={1.8} /> : <Icon k="unlock" size={20} stroke={1.8} />}</div>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--rb-ink)' }}>
             {r.property?.unit_number ? `Unit ${r.property.unit_number}` : r.property?.name || 'Unit'}
             {r.property?.bedrooms && <span style={{ fontSize: 11, color: 'var(--rb-ink-3)', fontWeight: 400, marginLeft: 6 }}>{r.property.bedrooms} BHK{r.property.area_sqft ? ` · ${r.property.area_sqft} sqft` : ''}</span>}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || 'Vacant'}</div>
+          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{tenantNameOf(r) || 'Vacant'}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 14, fontWeight: 700 }}>{inr(r.monthly_rent)}<span style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>/mo</span></div>
@@ -698,7 +703,7 @@ export default function DashboardPage() {
 
   // ── Floor-map tile ──────────────────────────────────────────
   function UnitTile({ r, pmt }: { r: Rental; pmt?: RentPayment }) {
-    const isVacant = !r.tenant_id
+    const isVacant = !hasTenant(r)
     const rawStatus = isVacant ? 'vacant' : (pmt?.status ?? 'pending')
     const st = {
       vacant:             { bg: 'var(--rb-fill)',        bd: '1.5px dashed var(--rb-border-strong)', lbl: 'VACANT', lc: 'var(--rb-ink-3)' },
@@ -709,11 +714,11 @@ export default function DashboardPage() {
       partial:            { bg: 'var(--rb-warning-soft)',bd: '1.5px solid var(--rb-warning)',         lbl: 'PART',   lc: 'var(--rb-warning)' },
     }[rawStatus] ?? { bg: 'var(--rb-fill)', bd: '1.5px solid var(--rb-border)', lbl: '—', lc: 'var(--rb-ink-3)' }
     const unitId = r.property?.unit_number || r.property?.name?.split(' ').pop() || '?'
-    const initials = r.tenant?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'
+    const initials = tenantNameOf(r).split(' ').filter(Boolean).map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'
     return (
       <div
         onClick={() => { setSelectedRental(r); setModal('property-detail') }}
-        title={r.tenant?.full_name ? `${r.property?.unit_number || r.property?.name} · ${r.tenant.full_name}` : `Unit ${unitId} · Vacant`}
+        title={tenantNameOf(r) ? `${r.property?.unit_number || r.property?.name} · ${tenantNameOf(r)}` : `Unit ${unitId} · Vacant`}
         style={{ background: st.bg, border: st.bd, borderRadius: 12, padding: '10px 6px 8px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minHeight: 96, transition: 'transform .12s, box-shadow .12s' }}
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(14,20,19,.1)' }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = '' }}
@@ -734,7 +739,7 @@ export default function DashboardPage() {
 
     const pmtOf = (r: Rental) => currentPayments.find(p => p.rental_id === r.id)
     const statusOf = (r: Rental) => {
-      if (!r.tenant_id) return 'vacant'
+      if (!hasTenant(r)) return 'vacant'
       const p = pmtOf(r)
       return p ? p.status : 'pending'
     }
@@ -747,7 +752,7 @@ export default function DashboardPage() {
     }
 
     const visible = filter === 'all'     ? rentals
-                  : filter === 'vacant'  ? rentals.filter(r => !r.tenant_id)
+                  : filter === 'vacant'  ? rentals.filter(r => !hasTenant(r))
                   : filter === 'overdue' ? rentals.filter(r => statusOf(r) === 'overdue')
                   : filter === 'due'     ? rentals.filter(r => statusOf(r) === 'pending')
                   : rentals.filter(r => statusOf(r) === 'paid')
@@ -831,7 +836,7 @@ export default function DashboardPage() {
   function BuildingCard({ building, rentals, currentPayments }: { building: Building; rentals: Rental[]; currentPayments: RentPayment[] }) {
     const [expanded, setExpanded] = useState(true)
     const [view, setView] = useState<'list' | 'map'>('list')
-    const occupied = rentals.filter(r => r.tenant_id && r.status === 'active').length
+    const occupied = rentals.filter(r => hasTenant(r) && r.status === 'active').length
     const totalRent = rentals.reduce((s, r) => s + Number(r.monthly_rent), 0)
     const collected = currentPayments.filter(p => p.status === 'paid' && rentals.some(r => r.id === p.rental_id)).reduce((s, p) => s + Number(p.amount), 0)
     const pct = totalRent > 0 ? Math.round(collected / totalRent * 100) : 0
@@ -904,7 +909,7 @@ export default function DashboardPage() {
     // rentals waiting on a dead code against 9 that ever got a tenant, which makes
     // it the largest single drop in the product.
     const expiredInvites = rentals.filter((r: Rental) =>
-      !r.tenant_id && r.status !== 'ended' && r.invite_expires_at && new Date(r.invite_expires_at) < new Date())
+      !hasTenant(r) && r.status !== 'ended' && r.invite_expires_at && new Date(r.invite_expires_at) < new Date())
 
     // Group rentals by building
     const buildingRentalsMap = new Map<string, Rental[]>()
@@ -1107,7 +1112,7 @@ export default function DashboardPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {rentals.map((r, i) => {
           const pmt = currentPayments.find(p => p.rental_id === r.id)
-          const pill = !r.tenant_id ? { t: 'No tenant', cls: 'none' } : pmt?.status === 'paid' ? { t: 'Paid', cls: 'paid' } : pmt?.status === 'pending_verification' ? { t: 'Pending review', cls: 'pending' } : { t: 'Due', cls: 'due' }
+          const pill = !hasTenant(r) ? { t: 'No tenant', cls: 'none' } : pmt?.status === 'paid' ? { t: 'Paid', cls: 'paid' } : pmt?.status === 'pending_verification' ? { t: 'Pending review', cls: 'pending' } : { t: 'Due', cls: 'due' }
           const pillColor = { paid: { bg: 'var(--rb-action-soft)', c: 'var(--rb-action)' }, due: { bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' }, pending: { bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent)' }, none: { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' } }[pill.cls] || { bg: 'var(--rb-fill-2)', c: 'var(--rb-ink-3)' }
           return (
             <div key={r.id} onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ display: 'grid', gridTemplateColumns: '56px 1fr auto', gap: 16, alignItems: 'center', padding: 12, background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 12, cursor: 'pointer' }}>
@@ -1119,7 +1124,7 @@ export default function DashboardPage() {
                   {r.property?.bedrooms && <span>{r.property.bedrooms} BHK</span>}
                   {r.property?.area_sqft && <span>{r.property.area_sqft} sq ft</span>}
                   {r.furnished_status && <span style={{ textTransform: 'capitalize' }}>{r.furnished_status.replace('_', ' ')}</span>}
-                  {!r.property?.bedrooms && <span>{r.tenant?.full_name || 'No tenant yet'}</span>}
+                  {!r.property?.bedrooms && <span>{tenantNameOf(r) || 'No tenant yet'}</span>}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -3253,6 +3258,105 @@ export default function DashboardPage() {
       } catch (e: any) { toast(e?.message || 'Failed to reject payment', 'error') } finally { setSaving(false) }
     }
 
+    const inviteCard = (
+      <div style={{ marginBottom: 22 }}>
+        {inviteLink && !inviteExpired ? (
+          <div style={{ borderRadius: 18, overflow: 'hidden', border: '1px solid rgba(14,20,19,.12)' }}>
+
+            {/* Dark header — code + property */}
+            <div style={{ background: 'linear-gradient(135deg,#0E1413 0%,#163A47 100%)', padding: '18px 18px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.16em', color: 'rgba(246,244,238,.45)', textTransform: 'uppercase' as const }}>INVITE TENANT</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#F6F4EE', marginTop: 3 }}>{r.property?.name || 'Your unit'}</div>
+                </div>
+                <div style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(246,244,238,.1)', fontSize: 10, color: 'rgba(246,244,238,.5)', fontFamily: 'var(--rb-font-mono)', flexShrink: 0 }}>
+                  Expires {relDateFmt(r.invite_expires_at)}
+                </div>
+              </div>
+
+              {/* Token code — prominent */}
+              <div style={{ marginTop: 18, marginBottom: 18 }}>
+                <div style={{ fontSize: 10, color: 'rgba(246,244,238,.4)', letterSpacing: '.1em', marginBottom: 8, textTransform: 'uppercase' as const }}>INVITE CODE</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span onClick={handleCopyCode} title="Tap to copy" style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 32, fontWeight: 700, letterSpacing: '.18em', color: '#F6F4EE', lineHeight: 1, cursor: 'pointer' }}>{r.invite_token}</span>
+                  <button onClick={handleCopyCode} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(246,244,238,.2)', background: copiedCode ? 'rgba(0,200,150,.2)' : 'rgba(246,244,238,.08)', color: copiedCode ? '#00C896' : 'rgba(246,244,238,.65)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, transition: 'all .2s' }}>
+                    {copiedCode ? '✓ Copied' : 'Copy code'}
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(246,244,238,.35)', marginTop: 6 }}>Tenant enters this at the app or website · <span style={{ color: 'rgba(246,244,238,.5)', cursor: 'pointer' }} onClick={handleCopyCode}>Tap code to copy</span></div>
+              </div>
+            </div>
+
+            {/* Share actions */}
+            <div style={{ background: '#0a1110', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: 'rgba(246,244,238,.3)', textTransform: 'uppercase' as const }}>Share via</div>
+
+              {/* WhatsApp — primary */}
+              <a href={`https://wa.me/?text=${waMsg}`} target="_blank" rel="noreferrer" onClick={() => track('invite_sent', { channel: 'whatsapp' })}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '13px 20px', borderRadius: 12, background: '#25D366', color: '#fff', textDecoration: 'none', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, letterSpacing: '-.01em' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.529 5.858L.057 23.999l6.304-1.654A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.798 9.798 0 01-4.964-1.348l-.356-.211-3.741.981.999-3.649-.232-.374A9.786 9.786 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182c5.43 0 9.818 4.388 9.818 9.818 0 5.43-4.388 9.818-9.818 9.818z"/></svg>
+                Send on WhatsApp
+              </a>
+
+              {/* Copy link + SMS row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <button onClick={() => { track('invite_sent', { channel: 'copy' }); handleCopyLink() }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: copied ? '#00C896' : 'rgba(246,244,238,.8)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'color .2s' }}>
+                  {copied ? '✓ Copied!' : <><Icon k="link" size={14} stroke={2} /> Copy link</>}
+                </button>
+                <a href={`sms:?body=${smsMsg}`} onClick={() => track('invite_sent', { channel: 'sms' })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: 'rgba(246,244,238,.8)', textDecoration: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>
+                  <Icon k="chat" size={14} stroke={1.8} /> Send SMS
+                </a>
+              </div>
+
+              {/* Native share (mobile only) */}
+              {canShare && (
+                <button onClick={() => { track('invite_sent', { channel: 'share' }); navigator.share({ title: 'Join your rental on RentyBase', text: `Your invite code: ${r.invite_token}`, url: inviteLink! }).catch(() => {}) }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(246,244,238,.1)', color: 'rgba(246,244,238,.45)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+                  ↗ More options
+                </button>
+              )}
+            </div>
+
+            {/* Footer — regenerate */}
+            <div style={{ background: '#080e0d', padding: '10px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontSize: 11, color: 'rgba(246,244,238,.25)' }}>Code and link expire together</div>
+              {confirmRegen ? (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: 'var(--rb-warning)' }}>Old link will stop working. Continue?</span>
+                  <button onClick={() => { setConfirmRegen(false); handleRegenerateLink() }} disabled={saving} style={{ fontSize: 12, color: 'var(--rb-danger)', background: 'none', border: 0, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>Yes, regenerate</button>
+                  <button onClick={() => setConfirmRegen(false)} style={{ fontSize: 12, color: 'rgba(246,244,238,.45)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmRegen(true)} disabled={saving} style={{ padding: '5px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(246,244,238,.15)', color: 'rgba(246,244,238,.45)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600 }}>
+                  {saving ? '…' : '↺ New link'}
+                </button>
+              )}
+            </div>
+
+          </div>
+        ) : (
+          /* No usable link: either none was ever made, or the one the landlord
+             already sent has lapsed. Those are different situations and saying
+             "No invite link yet" for both hides the second one entirely -- the
+             landlord believes the code they shared still works while the tenant
+             is being told it has expired. Every unclaimed invite in production
+             is in exactly this state. */
+          <div style={{ padding: '24px 20px', borderRadius: 16, border: '2px dashed var(--rb-border)', textAlign: 'center' }}>
+            <div style={{ marginBottom: 10, color: r.invite_token ? 'var(--rb-warning)' : 'var(--rb-ink-3)' }}><Icon k="link" size={36} stroke={1.3} /></div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--rb-ink)', marginBottom: 6 }}>
+              {r.invite_token ? 'This invite has expired' : 'No invite link yet'}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 18, lineHeight: 1.5 }}>
+              {r.invite_token
+                ? <>The code <strong style={{ fontFamily: 'var(--rb-font-mono)', color: 'var(--rb-ink-2)' }}>{r.invite_token}</strong> stopped working {relDateFmt(r.invite_expires_at)}. Generate a new one and send it again — your tenant cannot join with the old code.</>
+                : 'Generate a link to invite your tenant via WhatsApp, SMS, or any messaging app'}
+            </div>
+            <Button variant="primary" onClick={handleRegenerateLink} disabled={saving}>{saving ? 'Generating…' : <><Icon k="link" size={14} stroke={2} /> {r.invite_token ? 'Generate a new link' : 'Generate invite link'}</>}</Button>
+          </div>
+        )}
+      </div>
+    )
+
     return (
       <Modal title={editMode ? 'Edit property' : (r.property?.name || 'Property')} onClose={() => { setModal(null); setSelectedRental(null) }}>
         {/* Move-in proof review */}
@@ -3342,105 +3446,21 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Invite card */}
-        {!r.tenant_id && (
-          <div style={{ marginBottom: 22 }}>
-            {inviteLink && !inviteExpired ? (
-              <div style={{ borderRadius: 18, overflow: 'hidden', border: '1px solid rgba(14,20,19,.12)' }}>
-
-                {/* Dark header — code + property */}
-                <div style={{ background: 'linear-gradient(135deg,#0E1413 0%,#163A47 100%)', padding: '18px 18px 0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.16em', color: 'rgba(246,244,238,.45)', textTransform: 'uppercase' as const }}>INVITE TENANT</div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#F6F4EE', marginTop: 3 }}>{r.property?.name || 'Your unit'}</div>
-                    </div>
-                    <div style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(246,244,238,.1)', fontSize: 10, color: 'rgba(246,244,238,.5)', fontFamily: 'var(--rb-font-mono)', flexShrink: 0 }}>
-                      Expires {relDateFmt(r.invite_expires_at)}
-                    </div>
-                  </div>
-
-                  {/* Token code — prominent */}
-                  <div style={{ marginTop: 18, marginBottom: 18 }}>
-                    <div style={{ fontSize: 10, color: 'rgba(246,244,238,.4)', letterSpacing: '.1em', marginBottom: 8, textTransform: 'uppercase' as const }}>INVITE CODE</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span onClick={handleCopyCode} title="Tap to copy" style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 32, fontWeight: 700, letterSpacing: '.18em', color: '#F6F4EE', lineHeight: 1, cursor: 'pointer' }}>{r.invite_token}</span>
-                      <button onClick={handleCopyCode} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(246,244,238,.2)', background: copiedCode ? 'rgba(0,200,150,.2)' : 'rgba(246,244,238,.08)', color: copiedCode ? '#00C896' : 'rgba(246,244,238,.65)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, transition: 'all .2s' }}>
-                        {copiedCode ? '✓ Copied' : 'Copy code'}
-                      </button>
-                    </div>
-                    <div style={{ fontSize: 11, color: 'rgba(246,244,238,.35)', marginTop: 6 }}>Tenant enters this at the app or website · <span style={{ color: 'rgba(246,244,238,.5)', cursor: 'pointer' }} onClick={handleCopyCode}>Tap code to copy</span></div>
-                  </div>
-                </div>
-
-                {/* Share actions */}
-                <div style={{ background: '#0a1110', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: 'rgba(246,244,238,.3)', textTransform: 'uppercase' as const }}>Share via</div>
-
-                  {/* WhatsApp — primary */}
-                  <a href={`https://wa.me/?text=${waMsg}`} target="_blank" rel="noreferrer" onClick={() => track('invite_sent', { channel: 'whatsapp' })}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '13px 20px', borderRadius: 12, background: '#25D366', color: '#fff', textDecoration: 'none', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, letterSpacing: '-.01em' }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.529 5.858L.057 23.999l6.304-1.654A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.798 9.798 0 01-4.964-1.348l-.356-.211-3.741.981.999-3.649-.232-.374A9.786 9.786 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182c5.43 0 9.818 4.388 9.818 9.818 0 5.43-4.388 9.818-9.818 9.818z"/></svg>
-                    Send on WhatsApp
-                  </a>
-
-                  {/* Copy link + SMS row */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <button onClick={() => { track('invite_sent', { channel: 'copy' }); handleCopyLink() }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: copied ? '#00C896' : 'rgba(246,244,238,.8)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'color .2s' }}>
-                      {copied ? '✓ Copied!' : <><Icon k="link" size={14} stroke={2} /> Copy link</>}
-                    </button>
-                    <a href={`sms:?body=${smsMsg}`} onClick={() => track('invite_sent', { channel: 'sms' })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 12px', borderRadius: 10, background: 'rgba(246,244,238,.08)', border: '1px solid rgba(246,244,238,.12)', color: 'rgba(246,244,238,.8)', textDecoration: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>
-                      <Icon k="chat" size={14} stroke={1.8} /> Send SMS
-                    </a>
-                  </div>
-
-                  {/* Native share (mobile only) */}
-                  {canShare && (
-                    <button onClick={() => { track('invite_sent', { channel: 'share' }); navigator.share({ title: 'Join your rental on RentyBase', text: `Your invite code: ${r.invite_token}`, url: inviteLink! }).catch(() => {}) }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(246,244,238,.1)', color: 'rgba(246,244,238,.45)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
-                      ↗ More options
-                    </button>
-                  )}
-                </div>
-
-                {/* Footer — regenerate */}
-                <div style={{ background: '#080e0d', padding: '10px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                  <div style={{ fontSize: 11, color: 'rgba(246,244,238,.25)' }}>Code and link expire together</div>
-                  {confirmRegen ? (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: 'var(--rb-warning)' }}>Old link will stop working. Continue?</span>
-                      <button onClick={() => { setConfirmRegen(false); handleRegenerateLink() }} disabled={saving} style={{ fontSize: 12, color: 'var(--rb-danger)', background: 'none', border: 0, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>Yes, regenerate</button>
-                      <button onClick={() => setConfirmRegen(false)} style={{ fontSize: 12, color: 'rgba(246,244,238,.45)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setConfirmRegen(true)} disabled={saving} style={{ padding: '5px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(246,244,238,.15)', color: 'rgba(246,244,238,.45)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600 }}>
-                      {saving ? '…' : '↺ New link'}
-                    </button>
-                  )}
-                </div>
-
-              </div>
-            ) : (
-              /* No usable link: either none was ever made, or the one the landlord
-                 already sent has lapsed. Those are different situations and saying
-                 "No invite link yet" for both hides the second one entirely -- the
-                 landlord believes the code they shared still works while the tenant
-                 is being told it has expired. Every unclaimed invite in production
-                 is in exactly this state. */
-              <div style={{ padding: '24px 20px', borderRadius: 16, border: '2px dashed var(--rb-border)', textAlign: 'center' }}>
-                <div style={{ marginBottom: 10, color: r.invite_token ? 'var(--rb-warning)' : 'var(--rb-ink-3)' }}><Icon k="link" size={36} stroke={1.3} /></div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--rb-ink)', marginBottom: 6 }}>
-                  {r.invite_token ? 'This invite has expired' : 'No invite link yet'}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--rb-ink-3)', marginBottom: 18, lineHeight: 1.5 }}>
-                  {r.invite_token
-                    ? <>The code <strong style={{ fontFamily: 'var(--rb-font-mono)', color: 'var(--rb-ink-2)' }}>{r.invite_token}</strong> stopped working {relDateFmt(r.invite_expires_at)}. Generate a new one and send it again — your tenant cannot join with the old code.</>
-                    : 'Generate a link to invite your tenant via WhatsApp, SMS, or any messaging app'}
-                </div>
-                <Button variant="primary" onClick={handleRegenerateLink} disabled={saving}>{saving ? 'Generating…' : <><Icon k="link" size={14} stroke={2} /> {r.invite_token ? 'Generate a new link' : 'Generate invite link'}</>}</Button>
-              </div>
-            )}
-          </div>
+        {/* Track rent without the tenant signing up (052) */}
+        {!r.tenant_id && r.status !== 'ended' && (
+          <ManagedTenantPanel rental={r} sb={sb} region={region} money={inr} monthLabel={monthLabel} toast={toast} onChanged={refreshData} />
         )}
+
+        {/* Invite card. Optional once the landlord is tracking the tenant
+            themselves, so it folds away rather than leading the modal. */}
+        {!r.tenant_id && (r.tenant_name ? (
+          <details style={{ marginBottom: 22 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--rb-action)', padding: '6px 0 12px' }}>
+              Invite {r.tenant_name.split(' ')[0]} to RentyBase (optional): they keep every receipt recorded here
+            </summary>
+            {inviteCard}
+          </details>
+        ) : inviteCard)}
 
         {/* Details or edit form */}
         {editMode ? (
@@ -4096,7 +4116,7 @@ export default function DashboardPage() {
               { l: addr.postal, v: building.pincode },
               { l: 'Total units', v: building.total_units ? String(building.total_units) : 'Not set' },
               { l: 'Units added', v: String(rentalsForBuilding.length) },
-              { l: 'Occupied', v: String(rentalsForBuilding.filter((r: Rental) => r.tenant_id && r.status === 'active').length) },
+              { l: 'Occupied', v: String(rentalsForBuilding.filter((r: Rental) => hasTenant(r) && r.status === 'active').length) },
             ].map(f => (
               <div key={f.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--rb-border-soft)' }}>
                 <span style={{ fontSize: 13, color: 'var(--rb-ink-3)' }}>{f.l}</span>

@@ -51,6 +51,9 @@ export type ProductEvent =
   | 'payment_confirmed'
   | 'repair_raised'
   | 'agreement_signed'
+  // landlord value without a tenant account (052)
+  | 'tenant_tracked'
+  | 'rent_link_sent'
 
 // Every name above has at least one call site, and lib/analytics/track.test.ts
 // fails if that stops being true. A declared event nobody fires is a funnel step

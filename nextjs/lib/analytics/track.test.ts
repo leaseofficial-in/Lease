@@ -109,7 +109,7 @@ describe('event taxonomy', () => {
   }
 
   it('declares the events it is supposed to', () => {
-    expect(declared.length).toBe(14)
+    expect(declared.length).toBe(16)
   })
 
   it('fires every event it declares', () => {
