@@ -1096,10 +1096,14 @@ export default function DashboardPage() {
         <div style={topStyle}><div><div style={eyebrowStyle}>Landlord · Overview</div><h1 style={h1Style}>Good to see you, {firstName}.</h1></div></div>
         <div style={{ background: 'linear-gradient(135deg,var(--rb-action),var(--rb-action-hover))', borderRadius: 16, padding: '28px 32px', color: '#F6F4EE', marginBottom: 18 }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: 'rgba(246,244,238,.6)' }}>Get started</div>
-          <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-.02em', marginTop: 6 }}>Add your first property.</h2>
-          <p style={{ fontSize: 14, color: 'rgba(246,244,238,.8)', marginTop: 8, lineHeight: 1.55 }}>Add a building with multiple units, or a single standalone property. Set rent terms and share the invite link.</p>
-          <div style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
-            <button onClick={() => { track('property_create_started', { from: 'empty_hero' }); setModal('add-property') }} style={{ ...actBtnPrimary, background: 'rgba(246,244,238,.15)', border: '1px solid rgba(246,244,238,.3)' }}>+ Add property →</button>
+          <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28, fontWeight: 400, letterSpacing: '-.02em', marginTop: 6 }}>Track this month&rsquo;s rent in a minute.</h2>
+          <p style={{ fontSize: 14, color: 'rgba(246,244,238,.8)', marginTop: 8, lineHeight: 1.55 }}>Add a property, its rent and your tenant&rsquo;s name. Mark rent received, and send reminders and receipts on WhatsApp. Your tenant doesn&rsquo;t need to sign up.</p>
+          {/* Straight to the short form. The Building/Standalone picker sat in
+              front of it, and 6 of the 10 landlords who signed up since July
+              never created a property at all. */}
+          <div style={{ marginTop: 18, display: 'flex', gap: 14, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+            <button onClick={() => { track('property_create_started', { from: 'empty_hero' }); setModal('add-standalone') }} style={{ ...actBtnPrimary, background: '#F6F4EE', color: 'var(--rb-action)' }}>+ Add a property →</button>
+            <button onClick={() => { track('property_create_started', { from: 'empty_hero_building' }); setModal('add-building') }} style={{ background: 'none', border: 0, color: 'rgba(246,244,238,.85)', fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Have a building with many units?</button>
           </div>
         </div>
       </>
@@ -2351,8 +2355,8 @@ export default function DashboardPage() {
   }
 
   // ── Modal actions ────────────────────────────────────────────────────────
-  function AddPropertyModal() {
-    const [mode, setMode] = useState<'pick' | 'standalone'>('pick')
+  function AddPropertyModal({ initialMode = 'pick' }: { initialMode?: 'pick' | 'standalone' }) {
+    const [mode, setMode] = useState<'pick' | 'standalone'>(initialMode)
     const [form, setForm] = useState({
       property_type: 'apartment', bedrooms: '2', bathrooms: '1', area_sqft: '', floor_number: '', parking: false,
       name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '',
@@ -5216,6 +5220,7 @@ export default function DashboardPage() {
       {/* Modals */}
       {modal === 'edit-profile' && <EditProfileModal />}
       {modal === 'add-property' && <AddPropertyModal />}
+      {modal === 'add-standalone' && <AddPropertyModal initialMode="standalone" />}
       {modal === 'add-building' && <AddBuildingModal />}
       {modal === 'add-unit' && <AddUnitModal />}
       {modal === 'building-detail' && <BuildingDetailModal />}
