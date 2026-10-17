@@ -937,23 +937,25 @@ export default function DashboardPage() {
           </div>
         </div>
         {expiredInvites.length > 0 && (
-          <section style={{ ...cardStyle, marginBottom: 16, background: 'var(--rb-warning-soft)', border: '1px solid rgba(184,116,15,.3)' }}>
+          <section style={{ ...cardStyle, marginBottom: 16, background: 'var(--rb-action-soft)', border: '1px solid var(--rb-border-soft)' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <div style={{ color: 'var(--rb-warning)', flexShrink: 0, marginTop: 2 }}><Icon k="clock" size={20} stroke={1.8} /></div>
+              <div style={{ color: 'var(--rb-action)', flexShrink: 0, marginTop: 2 }}><Icon k="key" size={20} stroke={1.8} /></div>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--rb-ink)' }}>
                   {expiredInvites.length === 1
-                    ? 'An invite expired before your tenant joined'
-                    : `${expiredInvites.length} invites expired before anyone joined`}
+                    ? 'Your tenant hasn’t joined yet. Track their rent anyway'
+                    : `${expiredInvites.length} properties without a tenant joined. Track their rent anyway`}
                 </div>
+                {/* Was "generate a new invite and send it again", the one step no
+                    real tenant has ever completed. Tracking needs only a name. */}
                 <p style={{ fontSize: 13, color: 'var(--rb-ink-2)', marginTop: 6, lineHeight: 1.55 }}>
-                  Invite codes stop working after 7 days. The code you sent no longer lets anyone in, and
-                  your tenant is told it has expired. Generate a new one and send it again.
+                  Add your tenant&rsquo;s name and you can mark rent received and send reminders and receipts on
+                  WhatsApp today. They don&rsquo;t need to sign up. The old invite code has expired; you can send a new one from the same screen.
                 </p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
                   {expiredInvites.slice(0, 4).map((r: Rental) => (
                     <button key={r.id} onClick={() => { setSelectedRental(r); setModal('property-detail') }}
-                      style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(184,116,15,.4)', background: 'transparent', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--rb-ink-2)' }}>
+                      style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid var(--rb-action)', background: 'transparent', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--rb-ink-2)' }}>
                       {r.property?.name || 'Unit'} →
                     </button>
                   ))}
