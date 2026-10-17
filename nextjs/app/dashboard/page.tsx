@@ -477,7 +477,7 @@ export default function DashboardPage() {
         if (role === 'landlord') {
           const [rentalsRes, ytdRes, buildingsRes] = await Promise.all([
             sb.from('rentals').select('*, property:properties(*, building:buildings(*)), tenant:profiles!rentals_tenant_id_fkey(id, full_name, phone, avatar_url, pan_number)').eq('landlord_id', u.id).neq('status', 'ended').order('created_at', { ascending: false }),
-            sb.from('rent_payments').select('id, amount, month, status, rental_id, late_fee, created_at, rental:rentals!inner(landlord_id, tenant:profiles!rentals_tenant_id_fkey(full_name), property:properties(name, city))').eq('rental.landlord_id', u.id).gte('month', `${now.getFullYear()}-01-01`).order('month', { ascending: false }),
+            sb.from('rent_payments').select('id, amount, month, status, rental_id, late_fee, created_at, rental:rentals!inner(landlord_id, tenant_name, tenant:profiles!rentals_tenant_id_fkey(full_name), property:properties(name, city))').eq('rental.landlord_id', u.id).gte('month', `${now.getFullYear()}-01-01`).order('month', { ascending: false }),
             sb.from('buildings').select('*').eq('landlord_id', u.id).order('created_at', { ascending: false }),
           ])
           const rentals: Rental[] = rentalsRes.data || []
@@ -969,6 +969,40 @@ export default function DashboardPage() {
             </div>
           </section>
         )}
+        {/* Rent still to collect this month, each with a one-tap WhatsApp
+            reminder. The landlord's monthly job, put on the first screen. */}
+        {(() => {
+          const outstanding = currentPayments
+            .filter((p: RentPayment) => p.status === 'pending' || p.status === 'overdue' || p.status === 'partial')
+            .map((p: RentPayment) => ({ p, r: rentals.find((x: Rental) => x.id === p.rental_id) }))
+            .filter((x: { r?: Rental }) => !!x.r) as { p: RentPayment; r: Rental }[]
+          if (outstanding.length === 0) return null
+          return (
+            <section style={{ ...cardStyle, marginBottom: 16 }}>
+              <h3 style={{ ...cardH3Style, fontSize: 18, marginBottom: 6 }}>Rent to collect · {monthLabel(currentMonth)}</h3>
+              {outstanding.map(({ p, r }) => (
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '12px 0', borderTop: '1px solid var(--rb-border-soft)' }}>
+                  <button onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ background: 'none', border: 0, padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--rb-ink)' }}>{tenantNameOf(r) || 'Tenant'} <span style={{ fontWeight: 400, color: 'var(--rb-ink-3)' }}>· {r.property?.name || 'Unit'}</span></div>
+                    <div style={{ fontSize: 12, marginTop: 2, color: p.status === 'overdue' ? 'var(--rb-danger)' : 'var(--rb-ink-3)' }}>
+                      {inr(Number(p.amount) + Number(p.late_fee || 0))} · {p.status === 'overdue' ? 'Overdue' : `Due ${new Date(Number(currentMonth.slice(0, 4)), Number(currentMonth.slice(5, 7)) - 1, r.rent_due_day || 1).toLocaleDateString(region.locale, { day: 'numeric', month: 'short' })}`}
+                    </div>
+                  </button>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {!r.tenant_id && (
+                      <button onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid var(--rb-action)', background: 'var(--rb-action)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Mark received</button>
+                    )}
+                    {p.share_token && (
+                      <RentShareButtons row={{ ...p, share_token: p.share_token, late_fee: p.late_fee ?? null }} tenantName={tenantNameOf(r)}
+                        waPhone={phoneForWhatsApp(r.tenant?.phone || r.tenant_phone, region.phoneDialCode, region.phoneLocalLength)}
+                        propertyName={r.property?.name} money={inr} monthLabel={monthLabel} toast={toast} />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </section>
+          )
+        })()}
         <div className="d-grid-inner" style={gridStyle}>
           <section style={{ ...cardStyle, gridColumn: 'span 2', background: 'linear-gradient(135deg,#0F4C5C,#163A47)', color: '#F6F4EE', border: 0 }}>
             <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, letterSpacing: '.14em', color: 'rgba(246,244,238,.6)' }}>COLLECTED · {monthLabel(currentMonth).toUpperCase()}</div>
@@ -1027,7 +1061,7 @@ export default function DashboardPage() {
                           <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', flexShrink: 0, color: 'var(--rb-action)' }}><Icon k="trending" size={17} stroke={2} /></div>
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 13 }}>{r.property?.name || '—'}</div>
-                            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || '—'} · {inr(r.monthly_rent)} → {inr(newRent)} · in {days} day{days !== 1 ? 's' : ''}</div>
+                            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{tenantNameOf(r) || '—'} · {inr(r.monthly_rent)} → {inr(newRent)} · in {days} day{days !== 1 ? 's' : ''}</div>
                           </div>
                         </div>
                         <button onClick={() => setConfirmEscalationId(r.id)} style={{ padding: '8px 16px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>Apply now</button>
@@ -1357,7 +1391,7 @@ export default function DashboardPage() {
                         const payDate = new Date(p.created_at)
                         const dateStr = payDate.toLocaleDateString(region.locale, { day: 'numeric', month: 'short' })
                         const propName   = p.rental?.property?.name || '—'
-                        const tenantName = p.rental?.tenant?.full_name || '—'
+                        const tenantName = p.rental?.tenant?.full_name || p.rental?.tenant_name || '—'
                         const amtColor   = p.status === 'paid' ? 'var(--rb-action)' : p.status === 'overdue' ? 'var(--rb-danger)' : 'var(--rb-ink-2)'
                         const bal = runningBal[p.id]
                         return (
@@ -3593,7 +3627,7 @@ export default function DashboardPage() {
               { l: 'Lock-in period', v: `${r.lock_in_period_months ?? 11} months` },
               { l: 'Late fee', v: `${r.late_fee_percent ?? 5}% of rent` },
               { l: 'Annual increment', v: `${r.rent_increment_percent ?? 5}%` },
-              { l: 'Tenant', v: r.tenant?.full_name || 'No tenant yet' },
+              { l: 'Tenant', v: tenantNameOf(r) || 'No tenant yet' },
               { l: 'Status', v: r.status },
               { l: 'Agreement', v: r.agreement_signed_at ? `Signed ${relDateFmt(r.agreement_signed_at)}` : 'Not signed' },
             ].map(f => (
@@ -4500,7 +4534,7 @@ export default function DashboardPage() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--rb-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.property?.name || '—'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{r.tenant?.full_name || 'No tenant yet'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{tenantNameOf(r) || 'No tenant yet'}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       {needsAction && <span style={{ fontSize: 12, color: 'var(--rb-warning)', fontWeight: 600 }}>Needs your signature</span>}
