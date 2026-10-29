@@ -8,6 +8,7 @@ import { LogoLockup } from '@/components/brand'
 import { getRegion } from '@/lib/i18n/regions'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { track } from '@/lib/analytics/track'
+import { sendWelcomeEmail, welcomeName } from '@/lib/welcome'
 
 // ── State machine ──────────────────────────────────────────────────────────
 type PageState =
@@ -24,7 +25,7 @@ type PageState =
   | 'claimed'          // race: someone else claimed the spot between load and confirm
   | 'error'            // unexpected network / DB error
 
-type AuthState = 'noauth' | 'norole' | 'ready'
+type AuthState = 'noauth' | 'ready'
 
 // ── Icon atoms ─────────────────────────────────────────────────────────────
 function IconCircle({ color, paths, size = 56 }: { color: string; paths: string; size?: number }) {
@@ -149,25 +150,23 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
       // 7. Viewer is the landlord — can't join their own property
       if (data.viewer_is_landlord) { setState('is-landlord'); return }
 
-      const { data: prof } = await sb.from('profiles').select('role').eq('id', uid!).maybeSingle()
+      // 8. No role is fine: opening an invite says which side they are on, and
+      //    joining sets the tenant view (055). This used to send them back to
+      //    sign-up to "complete setup" first, and several never came back.
 
-      // 8. No role yet — needs to complete signup first
-      if (!prof?.role) { setAuthState('norole'); return }
-
-      // 9. Tenant already has an active rental elsewhere
-      if (prof.role === 'tenant') {
-        const { data: existing } = await sb
-          .from('rentals')
-          .select('id, property:properties(name, city)')
-          .eq('tenant_id', uid!)
-          .neq('status', 'ended')
-          .maybeSingle()
-        if (existing) {
-          const prop = (existing as any).property
-          setExistingProp(prop?.name || prop?.city || 'another property')
-          setState('active-rental')
-          return
-        }
+      // 9. Already a tenant on a live rental elsewhere. Checked by tenancy, not
+      //    role: an owner can rent too, and their role says nothing about it.
+      const { data: existing } = await sb
+        .from('rentals')
+        .select('id, property:properties(name, city)')
+        .eq('tenant_id', uid!)
+        .neq('status', 'ended')
+        .maybeSingle()
+      if (existing) {
+        const prop = (existing as any).property
+        setExistingProp(prop?.name || prop?.city || 'another property')
+        setState('active-rental')
+        return
       }
 
       setAuthState('ready')
@@ -207,6 +206,16 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
       if (result !== 'ok') { setState('error'); setJoining(false); return }
 
       try { sessionStorage.removeItem('rb-invite-token') } catch {}
+      // Open the dashboard on the rental they just joined, whatever view they
+      // were in before. A first-time account also gets its welcome email here,
+      // since joining is where its sign-up finishes.
+      const { data: prof } = await sb.from('profiles').select('role, full_name').eq('id', user.id).maybeSingle()
+      await sb.from('profiles').update({ role: 'tenant' }).eq('id', user.id)
+      if (!prof?.role) {
+        const { data: { session } } = await sb.auth.getSession()
+        if (session) sendWelcomeEmail(session.access_token, welcomeName(prof?.full_name, session), 'tenant')
+        track('signup_completed', { role: 'tenant', path: 'invite' })
+      }
       track('invite_accepted')
       setState('joined')
     } catch {
@@ -287,19 +296,6 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
                   <p style={{ marginTop: 16, fontSize: 12, color: 'var(--rb-ink-3)', lineHeight: 1.55, textAlign: 'center' }}>
                     Free to join · No credit card needed · Link expires 7 days after it was sent.
                   </p>
-                </div>
-              )}
-
-              {/* CTA: signed in, no role */}
-              {authState === 'norole' && (
-                <div style={{ marginTop: 24, background: 'var(--rb-accent-soft)', border: '1px solid rgba(201,122,58,.25)', borderRadius: 14, padding: 20 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)', marginBottom: 6 }}>One last step</p>
-                  <p style={{ fontSize: 13, color: 'var(--rb-ink-2)', lineHeight: 1.55, marginBottom: 14 }}>
-                    Complete your account setup to accept this invite.
-                  </p>
-                  <a href={signUpUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-                    Complete setup →
-                  </a>
                 </div>
               )}
 

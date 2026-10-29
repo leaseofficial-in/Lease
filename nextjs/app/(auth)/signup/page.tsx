@@ -10,32 +10,11 @@ import { isNativeApp } from '@/lib/native'
 import { track } from '@/lib/analytics/track'
 import { getRegionFromCookie, browserTimezone } from '@/lib/region'
 import { useDemo } from '@/lib/hooks/useDemo'
+import { normalizeRole, type ViewRole } from '@/lib/rentals/role'
+import { sendWelcomeEmail, welcomeName } from '@/lib/welcome'
+import type { Session } from '@supabase/supabase-js'
 
 import { LogoLockup } from '@/components/brand'
-
-const WaxSeal = ({ size = 96 }: { size?: number }) => (
-  <svg viewBox="0 0 200 200" width={size} height={size} aria-hidden
-       style={{ filter: 'drop-shadow(0 16px 32px rgba(201,122,58,.42))', transform: 'rotate(-6deg)' }}>
-    <defs>
-      <radialGradient id="waxFill" cx="38%" cy="32%" r="75%">
-        <stop offset="0%" stopColor="#E29457"/>
-        <stop offset="55%" stopColor="#C97A3A"/>
-        <stop offset="100%" stopColor="#8E4C1B"/>
-      </radialGradient>
-      <radialGradient id="waxHi" cx="35%" cy="28%" r="35%">
-        <stop offset="0%" stopColor="rgba(255,255,255,.45)"/>
-        <stop offset="100%" stopColor="rgba(255,255,255,0)"/>
-      </radialGradient>
-    </defs>
-    <path d="M100 8 C140 8, 188 36, 192 86 C196 134, 168 184, 116 192 C68 199, 22 168, 10 124 C-2 76, 30 22, 78 12 C84 11, 92 8, 100 8 Z" fill="url(#waxFill)"/>
-    <path d="M100 8 C140 8, 188 36, 192 86 C196 134, 168 184, 116 192 C68 199, 22 168, 10 124 C-2 76, 30 22, 78 12 C84 11, 92 8, 100 8 Z" fill="url(#waxHi)"/>
-    <circle cx="100" cy="100" r="78" fill="none" stroke="rgba(244,229,212,.5)" strokeWidth="1.4" strokeDasharray="2 3"/>
-    <text x="100" y="44" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="10" letterSpacing="3.4" fill="#F4E5D4" fontWeight="700">RENTYBASE</text>
-    <text x="100" y="58" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="7" letterSpacing="2" fill="rgba(244,229,212,.65)" fontWeight="700">• SEALED •</text>
-    <path d="M68 102 l22 22 l44 -44" fill="none" stroke="#F6F4EE" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round"/>
-    <text x="100" y="170" textAnchor="middle" fontFamily="Instrument Serif, serif" fontSize="13" fill="#F4E5D4" fontStyle="italic">est. 2026</text>
-  </svg>
-)
 
 // ─── desktop role data ────────────────────────────────────────
 const ROLES = [
@@ -187,276 +166,6 @@ function MA2Splash({ onGoogle, loading, error }: { onGoogle: () => void; loading
   )
 }
 
-// ─── mobile screen 2: role selection ─────────────────────────
-function MA2Role({
-  selectedRole, onSelect, onContinue, saving,
-}: {
-  selectedRole: string
-  onSelect: (r: string) => void
-  onContinue: () => void
-  saving: boolean
-}) {
-  const roleLabel = selectedRole === 'landlord' ? 'landlord' : selectedRole === 'tenant' ? 'tenant' : 'PG manager'
-  return (
-    <div className="m-screen">
-      <div className="a2-top">
-        <div style={{ width: 36 }} />
-        <div className="crumbs">
-          <span className="on">WELCOME</span>
-          <span className="sep">›</span>
-          <span className="on">ROLE</span>
-          <span className="sep">›</span>
-          <span>DETAILS</span>
-        </div>
-        <div style={{ width: 36 }} />
-      </div>
-
-      <div className="a2-body">
-        <div className="a2-h-block">
-          <div className="a2-eyebrow">WELCOME · NEW ACCOUNT</div>
-          <h2 className="a2-h">
-            Which side of<br />
-            the <em>lease</em>?
-          </h2>
-          <p className="a2-sub">
-            Both sides see the same record. Pick where you stand today.
-          </p>
-        </div>
-
-        <div className="a2-roles">
-          <button className={`a2-role${selectedRole === 'landlord' ? ' active' : ''}`} type="button" onClick={() => onSelect('landlord')}>
-            <div className="ic">
-              <svg viewBox="0 0 32 32" width="22" height="22">
-                <path d="M6 14 L16 6 L26 14 V25 a2 2 0 0 1 -2 2 H8 a2 2 0 0 1 -2 -2 Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
-                <rect x="13" y="18" width="6" height="9" fill="currentColor" opacity=".25"/>
-                <rect x="13" y="18" width="6" height="9" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-              </svg>
-            </div>
-            <div>
-              <div className="head">I&apos;m a landlord</div>
-              <div className="desc">List property · collect rent · issue rent receipts</div>
-            </div>
-            <div className="rad" />
-          </button>
-
-          <button className={`a2-role ochre${selectedRole === 'tenant' ? ' active' : ''}`} type="button" onClick={() => onSelect('tenant')}>
-            <div className="ic">
-              <svg viewBox="0 0 32 32" width="22" height="22">
-                <circle cx="16" cy="12" r="5" fill="none" stroke="currentColor" strokeWidth="1.7"/>
-                <path d="M6 27 a10 10 0 0 1 20 0" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <div>
-              <div className="head">I&apos;m a tenant</div>
-              <div className="desc">Pay rent · keep receipts · keep move-in proof</div>
-            </div>
-            <div className="rad" />
-          </button>
-
-          <button className={`a2-role${selectedRole === 'pg' ? ' active' : ''}`} type="button" onClick={() => onSelect('pg')}>
-            <div className="ic">
-              <svg viewBox="0 0 32 32" width="22" height="22">
-                <rect x="4" y="9" width="24" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7"/>
-                <path d="M4 14 h24" stroke="currentColor" strokeWidth="1.4"/>
-                <circle cx="10" cy="19" r="1.6" fill="currentColor"/>
-                <circle cx="16" cy="19" r="1.6" fill="currentColor"/>
-                <circle cx="22" cy="19" r="1.6" fill="currentColor"/>
-              </svg>
-            </div>
-            <div>
-              <div className="head">I run a PG / hostel</div>
-              <div className="desc">Per-bed billing · auto-vacancy · floor-plan view</div>
-            </div>
-            <div className="rad" />
-          </button>
-        </div>
-
-        <div className="a2-foot">
-          <button className="a2-cta ochre" type="button" onClick={onContinue} disabled={saving}>
-            {saving ? 'Saving…' : `Continue as ${roleLabel}`} <span className="arr">→</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── mobile screen 3: about you ─────────────────────────────
-function MA2About({
-  googleEmail, displayName, onNameChange, onSubmit, saving,
-}: {
-  googleEmail: string
-  displayName: string
-  onNameChange: (v: string) => void
-  onSubmit: () => void
-  saving: boolean
-}) {
-  return (
-    <div className="m-screen">
-      <div className="a2-top">
-        <div style={{ width: 36 }} />
-        <div className="crumbs">
-          <span className="on">ROLE</span>
-          <span className="sep">›</span>
-          <span className="on">DETAILS</span>
-        </div>
-        <div style={{ width: 36 }} />
-      </div>
-
-      <div className="a2-body">
-        <div className="a2-h-block">
-          <div className="a2-eyebrow">NEARLY THERE</div>
-          <h2 className="a2-h small">
-            Two things and<br />
-            you&apos;re <em>in.</em>
-          </h2>
-          <p className="a2-sub">
-            Your email is already verified. Just confirm your name and you&apos;re done.
-          </p>
-        </div>
-
-        <div className="a2-fields">
-          <div className="a2-field">
-            <span className="lbl">SIGNED IN AS</span>
-            <div className="ctrl" style={{ background: 'var(--rb-action-soft)', borderColor: 'var(--rb-action-soft)' }}>
-              <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#4285F4,#34A853)', color: '#fff', display: 'grid', placeItems: 'center', fontFamily: 'var(--rb-font-display)', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
-                {(googleEmail[0] || 'G').toUpperCase()}
-              </span>
-              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, minWidth: 0, flex: 1 }}>
-                <span style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{googleEmail}</span>
-                <span style={{ fontSize: 10.5, color: 'var(--rb-ink-3)', fontFamily: 'var(--rb-font-mono)', letterSpacing: '.1em', fontWeight: 700, marginTop: 1 }}>✓ VERIFIED VIA GOOGLE</span>
-              </span>
-            </div>
-          </div>
-
-          <div className="a2-field">
-            <span className="lbl">YOUR NAME</span>
-            <div className="ctrl">
-              <input
-                type="text"
-                value={displayName}
-                onChange={e => onNameChange(e.target.value)}
-                placeholder="As it appears on your PAN"
-                autoFocus
-              />
-              {displayName.length > 1 && <span className="right">✓</span>}
-            </div>
-          </div>
-        </div>
-
-        <div className="a2-note">
-          <div className="ic">●</div>
-          <div>
-            <b>We never call, spam, or share.</b> Receipts go to your Google email. You can add a phone number later.
-          </div>
-        </div>
-
-        <div className="a2-foot">
-          <button className="a2-cta ochre" type="button" onClick={onSubmit} disabled={saving || displayName.trim().length < 2}>
-            {saving ? 'Opening ledger…' : 'Open my ledger'} <span className="arr">→</span>
-          </button>
-          <div className="row" style={{ justifyContent: 'center' }}>
-            <span style={{ color: 'var(--rb-ink-3)' }}>
-              By continuing, you accept our <a href="/legal/terms" style={{ color: 'var(--rb-action)' }}>Terms</a> &amp; <a href="/legal/privacy" style={{ color: 'var(--rb-action)' }}>Privacy</a>.
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── mobile screen 4: sealed (welcome) ───────────────────────
-function MA2Sealed({ firstName, role, next }: { firstName: string; role: string; next?: string }) {
-  const isLandlord = role === 'landlord' || role === 'pg'
-  const nextStep = isLandlord
-    ? { action: 'Add your first property', detail: 'Takes about 2 minutes' }
-    : { action: 'Submit move-in proof', detail: '12 geotagged photos · ~4 minutes' }
-  const laterStep = isLandlord
-    ? 'Invite your first tenant'
-    : 'Set up UPI auto-pay'
-  const dest = next && next.startsWith('/') ? next : '/dashboard'
-
-  return (
-    <div className="m-screen">
-      <div className="a2-sealed">
-        <div className="hat">
-          <div>
-            <LogoLockup size={22} fontSize={17} gap={9} />
-          </div>
-          <button className="skip" type="button" onClick={() => window.location.replace(dest)}>
-            Skip →
-          </button>
-        </div>
-
-        <div className="core">
-          <WaxSeal size={96} />
-          <div className="stamp">SEALED · {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase()}</div>
-          <h1>Welcome,<br /><em>{firstName || 'there'}.</em></h1>
-          <p className="lead">
-            Your ledger is live. {isLandlord
-              ? 'Add your first property to get started.'
-              : 'Join your landlord\'s ledger to get started.'}
-          </p>
-        </div>
-
-        <div className="a2-bond">
-          <div className="who">
-            <div className="role">{isLandlord ? 'LANDLORD' : 'TENANT'}</div>
-            <div className="nm">{firstName || 'You'}</div>
-          </div>
-          <div className="link">
-            <span>YOUR</span>
-            <span className="line" />
-            <span>LEDGER</span>
-          </div>
-          <div className="who right">
-            <div className="role">{isLandlord ? 'TENANT' : 'LANDLORD'}</div>
-            <div className="nm">Pending</div>
-          </div>
-        </div>
-
-        <div className="a2-steps">
-          <div className="step-row done">
-            <div className="n">✓</div>
-            <div className="tx">
-              <div className="t">Account created</div>
-              <div className="s">Verified via Google</div>
-            </div>
-            <div className="meta">DONE</div>
-          </div>
-          <div className="step-row next">
-            <div className="n">02</div>
-            <div className="tx">
-              <div className="t">{nextStep.action}</div>
-              <div className="s">{nextStep.detail}</div>
-            </div>
-            <div className="meta">NEXT</div>
-          </div>
-          <div className="step-row">
-            <div className="n">03</div>
-            <div className="tx">
-              <div className="t">{laterStep}</div>
-              <div className="s">From your dashboard</div>
-            </div>
-            <div className="meta">LATER</div>
-          </div>
-        </div>
-
-        <div className="a2-foot">
-          <button
-            className="a2-cta ochre"
-            type="button"
-            onClick={() => window.location.replace(dest)}
-          >
-            {next ? (isLandlord ? 'Continue setup' : 'Join my rental') : (isLandlord ? 'Add my property' : 'Go to my dashboard')} <span className="arr">→</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── main component ───────────────────────────────────────────
 // ─── Region seeding ───────────────────────────────────────────────────────────
 // profiles.country_code defaults to 'IN' at the database level (003), and
@@ -479,121 +188,114 @@ function detectedRegionFields() {
   }
 }
 
-// ─── Welcome email ────────────────────────────────────────────────────────────
-// Fired once, by whichever signup path actually completes the account. It used to
-// be called only from the mobile step-through, so desktop-web and native Android
-// signups received no welcome mail at all — 6 of the first 7 real signups heard
-// nothing after signing up.
-//
-// `keepalive` matters: the desktop and native paths call this immediately before
-// window.location.replace(), and without it the browser cancels the in-flight
-// request on navigation. Fire-and-forget is deliberate — a failed welcome email
-// must never block or fail a signup (the route itself also swallows its errors).
-//
-// The recipient is derived server-side from the session; only name and role are
-// sent from the client, and the bearer token is required by the native app, whose
-// session lives in Capacitor Preferences rather than cookies.
-function sendWelcomeEmail(accessToken: string, name: string, role: string) {
-  if (!name) return
-  fetch('/api/email/welcome', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify({ name, role }),
-    keepalive: true,
-  }).catch(() => {})
+
+// ─── Finishing sign-up ────────────────────────────────────────────────────────
+// There is no role screen any more. The mobile flow used to be Google, then
+// "landlord or tenant?", then "about you", then a welcome card, then an empty
+// dashboard -- and 6 of 26 accounts stopped at the role question. Now:
+//   - desktop asks before Google (the role cards), and that choice is saved here
+//   - an invite link means tenant; the join page sets it when they join
+//   - anyone else lands on the dashboard's start screen, where the choice is the
+//     first action itself ("I collect rent" opens the setup form)
+// The name comes from Google and can be changed on the profile screen.
+
+function destination(): string {
+  const next = new URLSearchParams(window.location.search).get('next')
+  if (next && next.startsWith('/')) return next
+  try {
+    const tok = sessionStorage.getItem('rb-invite-token')
+    if (tok) return `/join/${tok}`
+  } catch {}
+  return '/dashboard'
 }
 
-// The route rejects a blank name, and Google always supplies one, but the profile
-// row may not have been populated yet on a first sign-in — so fall back to the
-// OAuth metadata.
-function welcomeName(profileName: string | null | undefined, session: { user: { user_metadata?: Record<string, unknown> } }): string {
-  const meta = session.user.user_metadata || {}
-  return (profileName || (meta.full_name as string) || (meta.name as string) || '').trim()
+async function finishSignup(sb: ReturnType<typeof createClient>, session: Session, path: string) {
+  const { data: profile } = await sb.from('profiles').select('role, full_name').eq('id', session.user.id).maybeSingle()
+  const dest = destination()
+  if (profile?.role) { window.location.replace(dest); return }
+
+  // 'pg' is offered on the cards but is a landlord in the database. Writing it
+  // raw failed silently and left the account with no role at all.
+  let chosen: ViewRole | null = null
+  try {
+    chosen = normalizeRole(sessionStorage.getItem('rb-signup-role'))
+    sessionStorage.removeItem('rb-signup-role')
+  } catch {}
+  // An invite decides: they are joining as the tenant, whatever card was selected.
+  if (dest.startsWith('/join/')) chosen = null
+
+  const region = detectedRegionFields()
+  const { error } = await sb.from('profiles').update(chosen ? { role: chosen, ...region } : region).eq('id', session.user.id)
+  if (error) {
+    // Never strand someone here over a save: the dashboard works out the role
+    // from their data, or asks.
+    console.error('[signup] profile update failed:', error.message)
+  } else if (chosen) {
+    track('signup_completed', { role: chosen, path })
+    sendWelcomeEmail(session.access_token, welcomeName(profile?.full_name, session), chosen)
+  }
+  window.location.replace(dest)
 }
 
-type MobileStep = 'splash' | 'role' | 'about' | 'sealed'
+type MobileStep = 'splash' | 'finishing'
 
 export default function SignUpPage() {
   const [role, setRole] = useState('landlord')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [mobileStep, setMobileStep] = useState<MobileStep>('splash')
-  const [saving, setSaving] = useState(false)
-  const [googleEmail, setGoogleEmail] = useState('')
-  const [displayName, setDisplayName] = useState('')
-  // true when the user is authenticated but hasn't chosen a role yet (desktop path)
-  const [hasSessionNoRole, setHasSessionNoRole] = useState(false)
-  // fallback next-destination recovered from sessionStorage invite token
-  const [pendingInviteNext, setPendingInviteNext] = useState('')
+  // Signed in already (back from Google): finishing sign-up, not choosing.
+  const [finishing, setFinishing] = useState(false)
   const sb = createClient()
 
   const selectedRole = ROLES.find(r => r.id === role) || ROLES[0]
 
   useEffect(() => {
-    sb.auth.getSession().then(async ({ data: { session } }) => {
+    sb.auth.getSession().then(({ data: { session } }) => {
       if (!session) return
-
-      const { data: profile } = await sb.from('profiles').select('role, full_name').eq('id', session.user.id).single()
-
-      if (profile?.role) {
-        // Returning user — honour next param or go to dashboard
-        const nextParam = new URLSearchParams(window.location.search).get('next')
-        const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard'
-        window.location.replace(dest)
-        return
-      }
-
-      // New user: no role yet.
-      // Desktop flow stores role in sessionStorage before triggering OAuth; read it back now.
-      const storedRole = sessionStorage.getItem('rb-signup-role')
-      if (storedRole && ['landlord', 'tenant', 'pg'].includes(storedRole)) {
-        await sb.from('profiles').update({ role: storedRole, ...detectedRegionFields() }).eq('id', session.user.id)
-        sessionStorage.removeItem('rb-signup-role')
-        track('signup_completed', { role: storedRole, path: 'desktop_oauth' })
-        sendWelcomeEmail(session.access_token, welcomeName(profile?.full_name, session), storedRole)
-        const nextParam = new URLSearchParams(window.location.search).get('next')
-        const dest = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard'
-        window.location.replace(dest)
-        return
-      }
-
-      // Has session, no role, no pre-stored role.
-      // Show role picker on both mobile (step-through) and desktop (inline confirm).
-      setGoogleEmail(session.user.email || '')
-      setDisplayName(profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '')
-      // Recover invite token from sessionStorage as fallback if ?next was dropped by OAuth
-      const tok = sessionStorage.getItem('rb-invite-token')
-      if (tok) setPendingInviteNext(`/join/${tok}`)
-      setMobileStep('role')
-      setHasSessionNoRole(true)
+      setFinishing(true)
+      setMobileStep('finishing')
+      finishSignup(sb, session, 'oauth').catch(() => window.location.replace('/dashboard'))
     })
-
   }, [])
 
-  // Desktop-only: user is already signed in, just save the chosen role directly.
-  const handleDesktopRoleConfirm = useCallback(async () => {
-    setSaving(true)
-    try {
+  // Native Android: Google's account picker inside the app, then finish here.
+  // On the web the callback brings them back to this page, and the effect above
+  // finishes instead.
+  const signInWithGoogle = useCallback(async (path: string) => {
+    if (isNativeApp()) {
+      const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+      await GoogleAuth.initialize({
+        clientId: '721315070243-hhqp60g6cvcis1kr1cg5j5n285n8karb.apps.googleusercontent.com',
+        scopes: ['profile', 'email'],
+        grantOfflineAccess: false,
+      })
+      const googleUser = await GoogleAuth.signIn()
+      const { error: idTokenError } = await sb.auth.signInWithIdToken({
+        provider: 'google',
+        token: googleUser.authentication.idToken,
+      })
+      if (idTokenError) throw idTokenError
       const { data: { session } } = await sb.auth.getSession()
-      if (!session) return
-      await sb.from('profiles').update({ role }).eq('id', session.user.id)
-      const urlNext = new URLSearchParams(window.location.search).get('next')
-      const tok = sessionStorage.getItem('rb-invite-token')
-      const dest = (urlNext && urlNext.startsWith('/'))
-        ? urlNext
-        : tok
-          ? `/join/${tok}`
-          : '/dashboard'
-      if (dest.startsWith('/join/')) {
-        try { sessionStorage.removeItem('rb-invite-token') } catch {}
+      if (session) {
+        setFinishing(true)
+        setMobileStep('finishing')
+        await finishSignup(sb, session, path)
       }
-      window.location.replace(dest)
-    } finally {
-      setSaving(false)
+      return
     }
-  }, [role, sb])
+    const nextParam = new URLSearchParams(window.location.search).get('next')
+    const callbackUrl = nextParam
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`
+      : `${window.location.origin}/auth/callback`
+    const { error: oauthError } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: callbackUrl },
+    })
+    if (oauthError) throw oauthError
+  }, [sb])
 
-  // Desktop Google button: pre-save role so the callback can skip the picker on return.
+  // Desktop: the selected card is remembered across the Google round trip.
   const handleGoogle = useCallback(async () => {
     if (loading) return
     setLoading(true)
@@ -601,134 +303,26 @@ export default function SignUpPage() {
     try {
       track('signup_started', { role })
       sessionStorage.setItem('rb-signup-role', role)
-      if (isNativeApp()) {
-        // Native Android: show Google account picker inside the app.
-        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
-        await GoogleAuth.initialize({
-          clientId: '721315070243-hhqp60g6cvcis1kr1cg5j5n285n8karb.apps.googleusercontent.com',
-          scopes: ['profile', 'email'],
-          grantOfflineAccess: false,
-        })
-        const googleUser = await GoogleAuth.signIn()
-        const idToken = googleUser.authentication.idToken
-        const { error: idTokenError } = await sb.auth.signInWithIdToken({
-          provider: 'google',
-          token: idToken,
-        })
-        if (idTokenError) throw idTokenError
-        const { data: { session } } = await sb.auth.getSession()
-        if (session) {
-          const storedRole = sessionStorage.getItem('rb-signup-role')
-          if (storedRole) {
-            await sb.from('profiles').update({ role: storedRole, ...detectedRegionFields() }).eq('id', session.user.id)
-            sessionStorage.removeItem('rb-signup-role')
-            track('signup_completed', { role: storedRole, path: 'native' })
-            sendWelcomeEmail(session.access_token, welcomeName(null, session), storedRole)
-          }
-          const nextParam = new URLSearchParams(window.location.search).get('next')
-          window.location.replace(nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard')
-        }
-      } else {
-        const nextParam = new URLSearchParams(window.location.search).get('next')
-        const callbackUrl = nextParam
-          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`
-          : `${window.location.origin}/auth/callback`
-        const { error: oauthError } = await sb.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: callbackUrl },
-        })
-        if (oauthError) throw oauthError
-      }
+      await signInWithGoogle('desktop')
     } catch {
       setLoading(false)
       setError('Could not connect to Google. Check your connection and try again.')
     }
-  }, [role, loading, sb.auth])
+  }, [role, loading, signInWithGoogle])
 
-  // Mobile splash Google button: do NOT pre-save role — role picker runs after auth.
+  // Mobile: no role up front. The dashboard asks, as the first action.
   const handleMobileSplashGoogle = useCallback(async () => {
     if (loading) return
     setLoading(true)
     setError('')
     try {
       sessionStorage.removeItem('rb-signup-role')
-      if (isNativeApp()) {
-        // Native Android: show Google account picker, then continue to role picker.
-        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
-        await GoogleAuth.initialize({
-          clientId: '721315070243-hhqp60g6cvcis1kr1cg5j5n285n8karb.apps.googleusercontent.com',
-          scopes: ['profile', 'email'],
-          grantOfflineAccess: false,
-        })
-        const googleUser = await GoogleAuth.signIn()
-        const idToken = googleUser.authentication.idToken
-        const { error: idTokenError } = await sb.auth.signInWithIdToken({
-          provider: 'google',
-          token: idToken,
-        })
-        if (idTokenError) throw idTokenError
-        const { data: { session } } = await sb.auth.getSession()
-        if (session) {
-          const { data: profile } = await sb.from('profiles').select('role, full_name').eq('id', session.user.id).single()
-          if (profile?.role) {
-            window.location.replace('/dashboard')
-          } else {
-            setGoogleEmail(session.user.email || '')
-            setDisplayName(profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '')
-            setMobileStep('role')
-            setHasSessionNoRole(true)
-            setLoading(false)
-          }
-        }
-      } else {
-        const nextParam = new URLSearchParams(window.location.search).get('next')
-        const callbackUrl = nextParam
-          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`
-          : `${window.location.origin}/auth/callback`
-        const { error: oauthError } = await sb.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: callbackUrl },
-        })
-        if (oauthError) throw oauthError
-      }
+      await signInWithGoogle('mobile')
     } catch {
       setLoading(false)
       setError('Could not connect to Google. Check your connection and try again.')
     }
-  }, [loading, sb.auth])
-
-  const handleRoleConfirm = useCallback(async () => {
-    setSaving(true)
-    try {
-      const { data: { session } } = await sb.auth.getSession()
-      if (!session) { setMobileStep('splash'); return }
-      await sb.from('profiles').update({ role }).eq('id', session.user.id)
-      setMobileStep('about')
-    } finally {
-      setSaving(false)
-    }
-  }, [role, sb])
-
-  const handleAboutSubmit = useCallback(async () => {
-    if (displayName.trim().length < 2) return
-    setSaving(true)
-    try {
-      const { data: { session } } = await sb.auth.getSession()
-      if (!session) { setMobileStep('splash'); return }
-      await sb.from('profiles').update({ full_name: displayName.trim(), ...detectedRegionFields() }).eq('id', session.user.id)
-      track('signup_completed', { role, path: 'mobile_stepthrough' })
-      sendWelcomeEmail(session.access_token, displayName.trim(), role)
-      setMobileStep('sealed')
-    } finally {
-      setSaving(false)
-    }
-  }, [displayName, role, sb])
-
-  const nextParam = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search).get('next') || pendingInviteNext
-    : pendingInviteNext
-
-  const firstName = displayName.split(' ')[0] || ''
+  }, [loading, signInWithGoogle])
 
   return (
     <>
@@ -737,25 +331,13 @@ export default function SignUpPage() {
         {mobileStep === 'splash' && (
           <MA2Splash onGoogle={handleMobileSplashGoogle} loading={loading} error={error} />
         )}
-        {mobileStep === 'role' && (
-          <MA2Role
-            selectedRole={role}
-            onSelect={setRole}
-            onContinue={handleRoleConfirm}
-            saving={saving}
-          />
-        )}
-        {mobileStep === 'about' && (
-          <MA2About
-            googleEmail={googleEmail}
-            displayName={displayName}
-            onNameChange={setDisplayName}
-            onSubmit={handleAboutSubmit}
-            saving={saving}
-          />
-        )}
-        {mobileStep === 'sealed' && (
-          <MA2Sealed firstName={firstName} role={role} next={nextParam} />
+        {mobileStep === 'finishing' && (
+          <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}>
+            <div>
+              <span className="spinner" style={{ display: 'inline-block', width: 28, height: 28, borderColor: 'rgba(15,76,92,.15)', borderTopColor: 'var(--rb-action)' }} />
+              <p style={{ marginTop: 16, fontSize: 14, color: 'var(--rb-ink-2)' }}>Setting up your account…</p>
+            </div>
+          </div>
         )}
       </div>
 
@@ -808,10 +390,10 @@ export default function SignUpPage() {
           {/* Progress */}
           <div style={{ marginBottom: 48 }}>
             <div className="progress-track">
-              <div className="progress-fill" style={{ width: (loading || saving) ? '80%' : '33%' }} />
+              <div className="progress-fill" style={{ width: (loading || finishing) ? '80%' : '33%' }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 12, color: 'var(--rb-ink-3)', fontFamily: 'var(--rb-font-mono)', letterSpacing: '.04em' }}>
-              <span>{loading ? 'Connecting to Google…' : saving ? 'Saving your role…' : 'Step 1 · Choose your role'}</span>
+              <span>{finishing ? 'Setting up your account…' : loading ? 'Connecting to Google…' : 'How will you use RentyBase?'}</span>
               <a href="/signin" style={{ color: 'var(--rb-ink-3)' }}>
                 Already a member? <strong style={{ color: 'var(--rb-accent)', fontWeight: 700 }}>Sign in</strong>
               </a>
@@ -821,9 +403,9 @@ export default function SignUpPage() {
           <div style={{ flex: 1, maxWidth: 520, width: '100%', margin: '0 auto' }}>
             <div className="fade-up">
               <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--rb-accent)', marginBottom: 14 }}>Create account</p>
-              <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 'clamp(32px,3vw,44px)', fontWeight: 400, lineHeight: 1.05, letterSpacing: '-.025em', color: 'var(--rb-ink)' }}>Choose your role.</h2>
+              <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 'clamp(32px,3vw,44px)', fontWeight: 400, lineHeight: 1.05, letterSpacing: '-.025em', color: 'var(--rb-ink)' }}>What brings you here?</h2>
               <p style={{ color: 'var(--rb-ink-2)', fontSize: 15, lineHeight: 1.55, marginTop: 14, maxWidth: 420 }}>
-                Tell us how you&apos;ll use RentyBase. Your role shapes your entire dashboard experience.
+                Pick what you&apos;ll do first. The same account can own and rent, so you can add the other side any time.
               </p>
 
               {/* Role cards */}
@@ -846,36 +428,21 @@ export default function SignUpPage() {
                 ))}
               </div>
 
-              {hasSessionNoRole ? (
-                // Already authenticated — save role directly, no second OAuth round-trip
-                <button
-                  className="google-btn"
-                  style={{ marginTop: 28 }}
-                  onClick={handleDesktopRoleConfirm}
-                  disabled={saving}
-                  type="button"
-                >
-                  {saving
-                    ? <><span className="spinner" style={{ borderColor: 'rgba(14,20,19,.2)', borderTopColor: 'var(--rb-ink)' }} />Saving…</>
-                    : <>Continue as {selectedRole.label} <span style={{ marginLeft: 4 }}>→</span></>
-                  }
-                </button>
-              ) : (
-                // Not yet authenticated — trigger Google OAuth
-                <button
-                  className="google-btn"
-                  style={{ marginTop: 28 }}
-                  onClick={handleGoogle}
-                  disabled={loading}
-                  type="button"
-                >
-                  {loading ? (
-                    <><span className="spinner" style={{ borderColor: 'rgba(14,20,19,.2)', borderTopColor: 'var(--rb-ink)' }} />Connecting to Google…</>
-                  ) : (
-                    <><GoogleIcon />Continue with Google</>
-                  )}
-                </button>
-              )}
+              <button
+                className="google-btn"
+                style={{ marginTop: 28 }}
+                onClick={handleGoogle}
+                disabled={loading || finishing}
+                type="button"
+              >
+                {finishing ? (
+                  <><span className="spinner" style={{ borderColor: 'rgba(14,20,19,.2)', borderTopColor: 'var(--rb-ink)' }} />Setting up your account…</>
+                ) : loading ? (
+                  <><span className="spinner" style={{ borderColor: 'rgba(14,20,19,.2)', borderTopColor: 'var(--rb-ink)' }} />Connecting to Google…</>
+                ) : (
+                  <><GoogleIcon />Continue with Google</>
+                )}
+              </button>
 
               {error && (
                 <div className="error-banner" style={{ marginTop: 16 }}>
@@ -886,7 +453,7 @@ export default function SignUpPage() {
                 </div>
               )}
 
-              {!hasSessionNoRole && (
+              {!finishing && (
                 <>
                   <div style={{ margin: '24px 0 16px', textAlign: 'center', position: 'relative', color: 'var(--rb-ink-3)', fontSize: 12 }}>
                     <span style={{ background: 'var(--rb-canvas)', padding: '0 14px', position: 'relative', zIndex: 1 }}>or continue with</span>

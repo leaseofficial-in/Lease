@@ -19,6 +19,8 @@ import { localMonth } from '@/lib/date/calendar'
 import { relativeDateTime } from '@/lib/date/relative'
 import { monthLabel as monthLabelIntl, formatMonthYear } from '@/lib/date/month-label'
 import { leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge, renterScore } from '@/lib/rentals/terms'
+import { isDualRole, resolveRole, type ViewRole } from '@/lib/rentals/role'
+import { sendWelcomeEmail, welcomeName } from '@/lib/welcome'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 
@@ -353,6 +355,14 @@ export default function DashboardPage() {
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null)
   const [selectedDepositTx, setSelectedDepositTx] = useState<DepositTx | null>(null)
   const [messagingRental, setMessagingRental] = useState<Rental | null>(null)
+  // True when this account both owns something and rents somewhere (055), so the
+  // Owner | Tenant switch has something on each side.
+  const [dualRole, setDualRole] = useState(false)
+  // The "you're set up, send the first reminder" step after adding a rental.
+  // Held here, not in the modal: modals are components declared inside this
+  // function, so any parent re-render (a toast, a refresh) remounts them and
+  // would throw away state kept inside.
+  const [setupDone, setSetupDone] = useState<{ propertyName: string; tenantName: string; tenantPhone: string | null; row: RentPayment | null } | null>(null)
   const [notifications, setNotifications] = useState<any[]>([])
   const [showMoreMenu, setShowMoreMenu] = useState(false)
 
@@ -457,16 +467,31 @@ export default function DashboardPage() {
         const u = session.user
         setUser(u)
 
-        const { data: prof } = await sb.from('profiles').select('*').eq('id', u.id).maybeSingle()
-        setProfile(prof)
-        const role = prof?.role
+        // What this account actually is comes from its rows, not from `role`,
+        // which is only the view it was last in (055).
+        const [{ data: prof }, ownedProps, ownedRentals, tenancies] = await Promise.all([
+          sb.from('profiles').select('*').eq('id', u.id).maybeSingle(),
+          sb.from('properties').select('id', { count: 'exact', head: true }).eq('landlord_id', u.id),
+          sb.from('rentals').select('id', { count: 'exact', head: true }).eq('landlord_id', u.id),
+          sb.from('rentals').select('id', { count: 'exact', head: true }).eq('tenant_id', u.id).neq('status', 'ended'),
+        ])
+        const facts = { stored: prof?.role, owns: (ownedProps.count || 0) + (ownedRentals.count || 0), rents: tenancies.count || 0 }
+        setDualRole(isDualRole(facts))
+        const role = resolveRole(facts)
+        if (prof && role && prof.role !== role) {
+          // An account with no role but real data (a tenant who joined, or a
+          // 'pg' sign-up that never saved): give it the view its data implies.
+          await sb.from('profiles').update({ role }).eq('id', u.id)
+        }
+        setProfile(prof ? { ...prof, role: role ?? undefined } : prof)
 
-        // No role: check if there's a pending invite to redirect the user back to
+        // No role and nothing yet: a pending invite takes them to it; otherwise
+        // the start screen asks what they want to do.
         if (!role) {
           try {
             const tok = sessionStorage.getItem('rb-invite-token')
             if (tok) {
-              window.location.replace(`/signup?next=${encodeURIComponent(`/join/${tok}`)}`)
+              window.location.replace(`/join/${tok}`)
               return
             }
           } catch {}
@@ -567,6 +592,34 @@ export default function DashboardPage() {
   // into 5%.
 
   const handleSignOut = async () => { await sb.auth.signOut(); window.location.href = '/signin' }
+
+  // A brand-new account picks what it came to do. Picking "collect rent" goes
+  // straight to the setup form once the owner view has loaded.
+  const openSetupAfterLoad = useRef(false)
+  const startAs = async (r: ViewRole) => {
+    const { error } = await sb.from('profiles').update({ role: r }).eq('id', user.id)
+    if (error) { toast('Could not save that. Please try again.', 'error'); return }
+    const { data: { session } } = await sb.auth.getSession()
+    if (session) sendWelcomeEmail(session.access_token, welcomeName(profile?.full_name, session), r)
+    track('signup_completed', { role: r, path: 'dashboard_start' })
+    if (r === 'landlord') openSetupAfterLoad.current = true
+    setViewStack(['home'])
+    refreshData()
+  }
+  // Owner and tenant are views of one account (055), not separate identities.
+  const switchRole = async (r: ViewRole) => {
+    const { error } = await sb.from('profiles').update({ role: r }).eq('id', user.id)
+    if (error) { toast('Could not switch. Please try again.', 'error'); return }
+    setModal(null)
+    setViewStack(['home'])
+    refreshData()
+  }
+  useEffect(() => {
+    if (openSetupAfterLoad.current && landlordData && (landlordData.rentals?.length ?? 0) === 0) {
+      openSetupAfterLoad.current = false
+      setModal('add-standalone')
+    }
+  }, [landlordData])
 
   if (loading) return (
     <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
@@ -2289,8 +2342,15 @@ export default function DashboardPage() {
             </div>
 
             {/* Actions */}
-            <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid var(--rb-border-soft)', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid var(--rb-border-soft)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               <Button variant="primary" onClick={() => setModal('edit-profile')}>Edit profile</Button>
+              {/* One account can own and rent (055). The header switch appears once
+                  both sides have something in them; this is the way in before that. */}
+              {!dualRole && (role === 'landlord' || role === 'tenant') && (
+                <button onClick={() => switchRole(role === 'tenant' ? 'landlord' : 'tenant')} style={{ padding: '7px 14px', borderRadius: 999, border: '1.5px solid var(--rb-border-strong)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--rb-ink-2)', fontFamily: 'inherit', fontWeight: 600 }}>
+                  {role === 'tenant' ? 'I also rent out a place' : 'I also rent a home'}
+                </button>
+              )}
               <button onClick={handleSignOut} style={{ padding: '7px 14px', borderRadius: 999, border: '1.5px solid var(--rb-danger)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--rb-danger)', fontFamily: 'inherit', fontWeight: 600 }}>Sign out</button>
             </div>
           </section>
@@ -2471,7 +2531,7 @@ export default function DashboardPage() {
         }).select().single()
         if (propErr) throw propErr
         if (!prop) throw new Error('Property insert returned no data')
-        const { error: rentalErr } = await sb.from('rentals').insert({
+        const { data: newRental, error: rentalErr } = await sb.from('rentals').insert({
           property_id: prop.id, landlord_id: user.id, status: tenantName ? 'active' : 'pending_tenant',
           tenant_name: tenantName || null, tenant_phone: tenantName ? tenantPhone : null,
           start_date: new Date().toISOString().slice(0, 10),
@@ -2485,14 +2545,25 @@ export default function DashboardPage() {
           lock_in_period_months: Number(form.lock_in_period_months || 11),
           late_fee_percent: Number(form.late_fee_percent || 5),
           rent_increment_percent: Number(form.rent_increment_percent || 5),
-        })
+        }).select('id').single()
         if (rentalErr) throw rentalErr
         track('property_created', { flow: 'standalone' })
         track('rental_created', { flow: 'standalone' })
-        if (tenantName) track('tenant_tracked', { with_phone: !!tenantPhone, from: 'add_property' })
-        toast(tenantName
-          ? `Property added. Open it to mark ${tenantName.split(' ')[0]}’s rent received or send a reminder.`
-          : 'Property added! Share the invite link with your tenant.', 'success')
+        if (tenantName) {
+          track('tenant_tracked', { with_phone: !!tenantPhone, from: 'add_property' })
+          // seed_managed_rent (052) has already created this month's row, with
+          // the share link the reminder points at. End setup on sending it: the
+          // first useful thing a landlord does, rather than a toast telling them
+          // where to find it.
+          const { data: row } = newRental
+            ? await sb.from('rent_payments').select('*').eq('rental_id', newRental.id).eq('month', currentMonthDate).maybeSingle()
+            : { data: null }
+          setSetupDone({ propertyName: form.name, tenantName, tenantPhone, row: row ?? null })
+          setModal('setup-done')
+          refreshData()
+          return
+        }
+        toast('Property added. Add your tenant’s name to start tracking rent, or share the invite link.', 'success')
         setModal(null); refreshData()
       } catch (e: any) { console.error('[AddProperty]', e); toast(e?.message || 'Failed to add property', 'error'); setSaving(false) }
     }
@@ -2632,7 +2703,7 @@ export default function DashboardPage() {
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
           <Button variant="cancel" onClick={() => setModal(null)}>Cancel</Button>
-          <Button variant="submit" onClick={handleSubmit} busy={saving}>{'Add property'}</Button>
+          <Button variant="submit" onClick={handleSubmit} busy={saving}>{form.tenant_name.trim() ? 'Start tracking rent' : 'Add property'}</Button>
         </div>
       </Modal>
     )
@@ -3750,6 +3821,47 @@ export default function DashboardPage() {
   }
 
   // ── Add building modal ───────────────────────────────────────────────────
+  // The end of owner setup: the rental exists, this month's rent row exists, and
+  // the one thing left is telling the tenant. Reads everything from parent state
+  // (see setupDone), so a toast from the share buttons cannot reset it.
+  function SetupDoneModal() {
+    const s = setupDone
+    if (!s) return null
+    const first = s.tenantName.split(' ')[0]
+    const close = () => { setModal(null); setSetupDone(null) }
+    return (
+      <Modal title="You’re set up" onClose={close}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: 16, borderRadius: 12, background: 'var(--rb-success-soft)', marginBottom: 18 }}>
+          <span style={{ color: 'var(--rb-success)', flexShrink: 0, marginTop: 1 }}><Icon k="check" size={20} stroke={2.2} /></span>
+          <div style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--rb-ink)' }}>
+            <strong>{s.propertyName}</strong> is tracking rent for <strong>{s.tenantName}</strong>.
+            {s.row && <> This month: <strong>{inr(Number(s.row.amount))}</strong>.</>}
+          </div>
+        </div>
+        {s.row?.share_token ? (
+          <>
+            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, lineHeight: 1.2 }}>Send {first} this month&rsquo;s reminder</div>
+            <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', lineHeight: 1.55, margin: '6px 0 14px' }}>
+              {first} gets a link showing what&rsquo;s due and where to pay. No app or sign-up needed. When they pay, mark it received and send the receipt the same way.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <RentShareButtons row={{ ...s.row, share_token: s.row.share_token, late_fee: s.row.late_fee ?? null }} tenantName={s.tenantName}
+                waPhone={phoneForWhatsApp(s.tenantPhone, region.phoneDialCode, region.phoneLocalLength)}
+                propertyName={s.propertyName} money={inr} monthLabel={monthLabel} toast={toast} />
+            </div>
+          </>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--rb-ink-3)', lineHeight: 1.55 }}>
+            Open the property from your overview to mark rent received or send {first} a reminder.
+          </p>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 22, paddingTop: 16, borderTop: '1px solid var(--rb-border)' }}>
+          <Button variant="submit" onClick={close}>Done</Button>
+        </div>
+      </Modal>
+    )
+  }
+
   function AddBuildingModal() {
     const [form, setForm] = useState({
       name: '', property_type: 'apartment', total_units: '',
@@ -5009,19 +5121,65 @@ export default function DashboardPage() {
         default: return <TenantHome />
       }
     }
-    // No role — prompt user to finish setup
+    // A brand-new account with nothing yet. This used to be a "choose your role"
+    // card linking back to sign-up, and 6 of 26 accounts stopped there. Each
+    // answer here is the first action itself, and either can be added later:
+    // one account can own and rent (055).
+    return <StartChooser />
+  }
+
+  function StartChooser() {
+    const [busy, setBusy] = useState<ViewRole | null>(null)
+    const choose = (r: ViewRole) => { if (!busy) { setBusy(r); startAs(r).finally(() => setBusy(null)) } }
+    const card = (primary: boolean): React.CSSProperties => ({
+      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, textAlign: 'left', width: '100%',
+      padding: '22px 22px 20px', borderRadius: 16, cursor: 'pointer', fontFamily: 'inherit',
+      border: primary ? 0 : '1.5px solid var(--rb-border)',
+      background: primary ? 'linear-gradient(135deg,var(--rb-action),var(--rb-action-hover))' : 'var(--rb-surface)',
+      color: primary ? '#F6F4EE' : 'var(--rb-ink)',
+    })
     return (
-      <div>
-        <div style={topStyle}><div><div style={eyebrowStyle}>Welcome</div><h1 style={h1Style}>Hi, {firstName}.</h1></div></div>
-        <div style={{ background: 'var(--rb-action)', borderRadius: 16, padding: '28px 32px', color: '#F6F4EE' }}>
-          <h2 style={{ fontFamily: 'var(--rb-font-display)', fontSize: 28 }}>One more step.</h2>
-          <p style={{ fontSize: 14, marginTop: 8, lineHeight: 1.55, color: 'rgba(246,244,238,.8)', marginBottom: 20 }}>
-            Tell us which side of the lease you&apos;re on to set up your dashboard.
-          </p>
-          <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, background: '#fff', color: 'var(--rb-action)', fontFamily: 'inherit', fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>
-            Choose your role →
-          </a>
+      <div style={{ maxWidth: 640 }}>
+        <div style={topStyle}><div><div style={eyebrowStyle}>Welcome</div><h1 style={h1Style}>Hi {firstName}, what brings you here?</h1>
+          <p style={subStyle}>Pick one to start. You can do both from the same account later.</p></div></div>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <button type="button" style={card(true)} onClick={() => choose('landlord')} disabled={!!busy}>
+            <Icon k="home" size={26} stroke={1.6} />
+            <span style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24, lineHeight: 1.15, marginTop: 6 }}>I collect rent</span>
+            <span style={{ fontSize: 14, lineHeight: 1.5, color: 'rgba(246,244,238,.8)' }}>
+              Add a property and your tenant, then send this month&rsquo;s reminder on WhatsApp. About a minute. Your tenant doesn&rsquo;t need the app.
+            </span>
+            <span style={{ marginTop: 10, fontSize: 14, fontWeight: 600 }}>{busy === 'landlord' ? 'Setting up…' : 'Start →'}</span>
+          </button>
+          <button type="button" style={card(false)} onClick={() => choose('tenant')} disabled={!!busy}>
+            <Icon k="key" size={24} stroke={1.6} color="var(--rb-action)" />
+            <span style={{ fontFamily: 'var(--rb-font-display)', fontSize: 22, lineHeight: 1.15, marginTop: 6 }}>I pay rent</span>
+            <span style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--rb-ink-3)' }}>
+              Join your rental with the link or code from your landlord, and keep every receipt in one place.
+            </span>
+            <span style={{ marginTop: 10, fontSize: 14, fontWeight: 600, color: 'var(--rb-action)' }}>{busy === 'tenant' ? 'Setting up…' : 'Continue →'}</span>
+          </button>
         </div>
+      </div>
+    )
+  }
+
+  // Owner | Tenant, shown only when both sides have something in them.
+  function RoleSwitch({ compact = false }: { compact?: boolean }) {
+    if (!dualRole || !role) return null
+    const opt = (r: ViewRole, label: string) => {
+      const on = role === r
+      return (
+        <button key={r} type="button" aria-pressed={on} onClick={() => { if (!on) switchRole(r) }}
+          style={{ flex: 1, padding: compact ? '5px 10px' : '7px 12px', borderRadius: 999, border: 0, cursor: on ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+            background: on ? 'var(--rb-ink)' : 'transparent', color: on ? '#fff' : 'var(--rb-ink-2)' }}>
+          {label}
+        </button>
+      )
+    }
+    return (
+      <div role="group" aria-label="Switch view" style={{ display: 'flex', gap: 2, padding: 3, borderRadius: 999, background: 'var(--rb-fill)', border: '1px solid var(--rb-border)' }}>
+        {opt('landlord', 'Owner')}{opt('tenant', 'Tenant')}
       </div>
     )
   }
@@ -5153,8 +5311,9 @@ export default function DashboardPage() {
                 <LogoLockup size={26} fontSize={18} gap={9} />
               </Link>
             )}
-            {/* Right: bell + avatar */}
+            {/* Right: view switch (dual-role only) + bell + avatar */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {!canGoBack && <RoleSwitch compact />}
               <button onClick={() => navigate(activeView === 'inbox' ? 'home' : 'inbox')} style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', background: activeView === 'inbox' ? 'var(--rb-ink)' : 'var(--rb-surface)', border: '1px solid var(--rb-border)', cursor: 'pointer', display: 'grid', placeItems: 'center', color: activeView === 'inbox' ? '#fff' : 'var(--rb-ink-2)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
                 {notifications.length > 0 && <span style={{ position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 3px', border: '1.5px solid var(--rb-canvas)' }}>{notifications.length > 9 ? '9+' : notifications.length}</span>}
@@ -5192,8 +5351,9 @@ export default function DashboardPage() {
               <div style={{ width: 34, height: 34, borderRadius: '50%', background: avatarBg, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 16, fontFamily: 'var(--rb-font-display)', fontWeight: 700, overflow: 'hidden', flexShrink: 0 }}>
                 {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : firstName.charAt(0).toUpperCase()}
               </div>
-              <div><div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{name}</div><div style={{ fontSize: 11, color: 'var(--rb-ink-3)', textTransform: 'capitalize' }}>{role}</div></div>
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{name}</div><div style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>{role === 'tenant' ? 'Tenant' : role === 'landlord' ? 'Owner' : ''}</div></div>
             </div>
+            <div style={{ padding: '0 6px 10px' }}><RoleSwitch /></div>
             <button onClick={handleSignOut} style={{ display: 'block', padding: '8px 12px', fontSize: 12, color: 'var(--rb-ink-3)', borderRadius: 8, border: 0, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', width: '100%' }}>Sign out</button>
           </div>
         </aside>
@@ -5257,6 +5417,7 @@ export default function DashboardPage() {
       {modal === 'edit-profile' && <EditProfileModal />}
       {modal === 'add-property' && <AddPropertyModal />}
       {modal === 'add-standalone' && <AddPropertyModal initialMode="standalone" />}
+      {modal === 'setup-done' && <SetupDoneModal />}
       {modal === 'add-building' && <AddBuildingModal />}
       {modal === 'add-unit' && <AddUnitModal />}
       {modal === 'building-detail' && <BuildingDetailModal />}
