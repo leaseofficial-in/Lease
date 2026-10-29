@@ -56,7 +56,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     { key: 'provider', header: 'Sign-in', cell: (u) => <span className="text-xs text-[var(--rb-ink-3)]">{u.provider}</span>, desktopOnly: true },
   ]
 
-  const select = 'h-9 rounded-full border border-[var(--rb-border-strong)] bg-[var(--rb-surface)] px-3 text-sm'
+  const select = 'h-9 flex-1 basis-32 sm:flex-none rounded-full border border-[var(--rb-border-strong)] bg-[var(--rb-surface)] px-3 text-sm'
 
   return (
     <>

@@ -52,7 +52,7 @@ export default async function AdminOverviewPage() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
         <Card title="Rent this month">
           {o.rent_this_month.length === 0 ? <Empty>No rent rows for this month yet.</Empty> : (
             <ul className="divide-y divide-[var(--rb-border-soft)]">

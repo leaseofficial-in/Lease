@@ -41,7 +41,14 @@
 }
 
 /* ── Base ─────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* In @layer base, not unlayered: unlayered rules beat every Tailwind utility in
+   v4, so an unlayered `padding: 0` silently zeroed every p-*, m-* and space-*
+   class (the admin pages were the first Tailwind-spaced UI to notice). Everything
+   else in the app uses inline styles or unlayered classes, which still win over
+   this exactly as before. */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+}
 
 html { height: 100%; }
 
@@ -55,7 +62,10 @@ body {
   touch-action: pan-y;
 }
 
-a { color: inherit; text-decoration: none; }
+/* Same reason as the reset above: unlayered, this beat every text-* colour on a link. */
+@layer base {
+  a { color: inherit; text-decoration: none; }
+}
 
 /* ── Auth split-screen shared styles ─────────────────────── */
 .sb-shell { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }

@@ -42,6 +42,6 @@ export function money(amount: number | null | undefined, countryCode: string | n
 
 export function countryLabel(code: string | null | undefined): string {
   if (!code) return '—'
-  const r = getRegion(code)
-  return `${r.flag} ${r.countryCode}`
+  // No flag emoji: Windows renders them as two letters ("IN IN").
+  return getRegion(code).name
 }

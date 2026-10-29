@@ -48,7 +48,7 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
         </span>
       ),
     },
-    { key: 'start', header: 'Start', cell: (r) => fmtDate(r.start_date), desktopOnly: true },
+    { key: 'start', header: 'Start', cell: (r) => <span className="whitespace-nowrap">{fmtDate(r.start_date)}</span>, desktopOnly: true },
   ]
 
   const paymentCols: Column<AdminUserDetail['payments'][number]>[] = [
@@ -57,7 +57,7 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
     { key: 'amount', header: 'Amount', align: 'right', cell: (x) => money(Number(x.amount) + Number(x.late_fee || 0), x.country_code) },
     { key: 'status', header: 'Status', cell: (x) => <StatusBadge status={x.status} /> },
     { key: 'method', header: 'Method', cell: (x) => x.payment_method ?? '—', desktopOnly: true },
-    { key: 'paid', header: 'Paid on', cell: (x) => fmtDate(x.paid_at) },
+    { key: 'paid', header: 'Paid on', cell: (x) => <span className="whitespace-nowrap">{fmtDate(x.paid_at)}</span> },
   ]
 
   return (
