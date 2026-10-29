@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/dashboard', '/api/', '/auth/'],
+        disallow: ['/dashboard', '/admin', '/api/', '/auth/'],
       },
     ],
     sitemap: 'https://rentybase.com/sitemap.xml',

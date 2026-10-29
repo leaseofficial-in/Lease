@@ -20,7 +20,9 @@ export async function proxy(request: NextRequest) {
 
   // Auth check only for pages that need it
   const isAuthPage = path === '/signin' || path === '/signup'
-  const isDashboard = path.startsWith('/dashboard')
+  // /admin is gated again in its layout and in every admin_* SQL function; this
+  // only sends a signed-out visitor to sign in instead of a 404.
+  const isDashboard = path.startsWith('/dashboard') || path === '/admin' || path.startsWith('/admin/')
   const needsAuth = isAuthPage || isDashboard
 
   if (!needsAuth) {
