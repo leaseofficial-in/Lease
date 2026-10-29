@@ -91,6 +91,18 @@ const nextConfig: NextConfig = {
 
   poweredByHeader: false,
 
+  // PostHog through our own domain: tracker blockers leave first-party requests
+  // alone, and the CSP's connect-src 'self' already allows them. PostHog's API
+  // paths end in a slash, so Next's trailing-slash redirect must not touch them.
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      { source: "/ingest/static/:path*", destination: "https://us-assets.i.posthog.com/static/:path*" },
+      { source: "/ingest/array/:path*", destination: "https://us-assets.i.posthog.com/array/:path*" },
+      { source: "/ingest/:path*", destination: "https://us.i.posthog.com/:path*" },
+    ];
+  },
+
   /**
    * URLs from the original static landing site that Google still has indexed. They
    * 404'd after the move into Next.js. Each target already covers the same intent, so

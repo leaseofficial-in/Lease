@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { sendEmail, welcomeEmail } from '@/lib/resend'
 import { getAuthedUser } from '@/lib/auth/authed-user'
 import { rateLimit, clientIp, tooManyRequests } from '@/lib/rate-limit'
+import { captureServer } from '@/lib/analytics/posthog-server'
 
 /**
  * Sends the post-signup welcome email.
@@ -45,6 +46,9 @@ export async function POST(req: Request) {
     const country = /(?:^|;\s*)rb_country=([A-Z]{2})/.exec(req.headers.get('cookie') || '')?.[1] ?? null
     const { subject, html } = welcomeEmail({ name, role, email: user.email, country })
     await sendEmail({ to: user.email, subject, html })
+    // Server-confirmed end of sign-up: the browser's signup_completed can be lost
+    // to a navigation, this cannot.
+    await captureServer([{ distinctId: user.id, event: 'welcome_email_sent', properties: { role, country } }])
 
     return NextResponse.json({ ok: true })
   } catch (err) {

@@ -112,6 +112,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon|api|.*\\.(?:svg|png|jpg|jpeg|webp|ico|woff2?|ttf)).*)',
+    '/((?!_next/static|_next/image|favicon|api|ingest|.*\\.(?:svg|png|jpg|jpeg|webp|ico|woff2?|ttf)).*)',
   ],
 }

@@ -22,6 +22,7 @@ import { leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge, renterScore 
 import { isDualRole, resolveRole, type ViewRole } from '@/lib/rentals/role'
 import { sendWelcomeEmail, welcomeName } from '@/lib/welcome'
 import { thisMonth } from '@/lib/rent/this-month'
+import { identifyUser, resetUser } from '@/lib/analytics/posthog'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 
@@ -485,6 +486,12 @@ export default function DashboardPage() {
           await sb.from('profiles').update({ role }).eq('id', u.id)
         }
         setProfile(prof ? { ...prof, role: role ?? undefined } : prof)
+        // Not awaited: analytics must never hold up the dashboard.
+        sb.rpc('is_platform_admin').then(({ data: isAdmin }) => identifyUser(u.id, {
+          role: role ?? null,
+          country_code: prof?.country_code ?? null,
+          owns_and_rents: isDualRole(facts),
+        }, isAdmin === true))
 
         // No role and nothing yet: a pending invite takes them to it; otherwise
         // the start screen asks what they want to do.
@@ -592,7 +599,7 @@ export default function DashboardPage() {
   // calculation in TypeScript, where `late_fee_percent || 5` turned a waived 0
   // into 5%.
 
-  const handleSignOut = async () => { await sb.auth.signOut(); window.location.href = '/signin' }
+  const handleSignOut = async () => { resetUser(); await sb.auth.signOut(); window.location.href = '/signin' }
 
   // A brand-new account picks what it came to do. Picking "collect rent" goes
   // straight to the setup form once the owner view has loaded.

@@ -89,4 +89,17 @@ export function track(event: ProductEvent, props: Props = {}): void {
       // client_errors table exists for things that genuinely need attention.
     }
   })()
+
+  // The same named event in PostHog, where it can sit in funnels next to
+  // pageviews and replays. product_events stays the durable record: it is the
+  // one the admin Insights tab and the CHECK-constrained allow-list rely on.
+  void (async () => {
+    try {
+      const { getPosthog } = await import('./posthog')
+      ;(await getPosthog())?.capture(event, props)
+    } catch {
+      // Intentionally silent. Analytics is never worth a visible failure, and the
+      // client_errors table exists for things that genuinely need attention.
+    }
+  })()
 }

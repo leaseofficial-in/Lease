@@ -5,6 +5,7 @@ import { rentDueSoonEmail, rentOverdueEmail } from '@/lib/resend-rent'
 import { getRegion } from '@/lib/i18n/regions'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { planReminders, type OutstandingPayment } from '@/lib/rent/reminders'
+import { captureServer, type ServerEvent } from '@/lib/analytics/posthog-server'
 
 /**
  * Daily rent reminders.
@@ -78,6 +79,8 @@ export async function GET(req: Request) {
   // response so a run that would resend next time is visible now, not after.
   const unlogged: string[] = []
   const preview: { to: string; kind: string; month: string; others: number }[] = []
+  // One per email that actually went out, on the tenant who received it.
+  const analytics: ServerEvent[] = []
 
   for (const p of planned) {
     if (sent >= MAX_SENDS_PER_RUN) { skip('run_cap_reached'); continue }
@@ -125,6 +128,7 @@ export async function GET(req: Request) {
         console.error('[cron/rent-reminders] SENT BUT NOT LOGGED', p.dedupKey, logErr.message)
         unlogged.push(p.dedupKey)
       }
+      analytics.push({ distinctId: p.tenantId, event: 'rent_reminder_emailed', properties: { kind: p.kind, outstanding_months: p.outstandingMonths, country_code: p.countryCode ?? null } })
       sent++
     } catch (err) {
       // One bad address must not stop the run for everyone else.
@@ -137,6 +141,8 @@ export async function GET(req: Request) {
       skip('send_failed')
     }
   }
+
+  await captureServer(analytics)
 
   return NextResponse.json({
     ok: true,

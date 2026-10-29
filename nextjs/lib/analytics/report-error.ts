@@ -70,6 +70,17 @@ export function reportError(error: unknown, context?: string): void {
       // Reporting a failure must never itself fail loudly.
     }
   })()
+
+  // PostHog error tracking groups these and links them to the session replay.
+  // client_errors stays: it is what the admin Health tab reads.
+  void (async () => {
+    try {
+      const { getPosthog } = await import('./posthog')
+      ;(await getPosthog())?.captureException(error instanceof Error ? error : new Error(message), { context: where })
+    } catch {
+      // As above.
+    }
+  })()
 }
 
 /**
