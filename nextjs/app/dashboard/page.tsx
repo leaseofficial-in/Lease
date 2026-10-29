@@ -21,6 +21,7 @@ import { monthLabel as monthLabelIntl, formatMonthYear } from '@/lib/date/month-
 import { leaseExpiryDays, escalationDueDays, scoreBand, scoreNudge, renterScore } from '@/lib/rentals/terms'
 import { isDualRole, resolveRole, type ViewRole } from '@/lib/rentals/role'
 import { sendWelcomeEmail, welcomeName } from '@/lib/welcome'
+import { thisMonth } from '@/lib/rent/this-month'
 import { formatCurrencyLocale } from '@/lib/i18n/formatters'
 import { PAYMENT_METHOD_DISPLAY } from '@/lib/i18n/payments'
 
@@ -645,35 +646,37 @@ export default function DashboardPage() {
   const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url
   const avatarBg = role === 'tenant' ? 'linear-gradient(135deg,#c9b388,#7a6042)' : 'linear-gradient(135deg,#0F4C5C,#163A47)'
 
+  // Four main sections per side, everything else under "More". The sidebar used
+  // to list all 9 (owner) and 11 (tenant) with equal weight, so the monthly job
+  // (who has paid, pay my rent) sat among Agreements, Score and Activity. The
+  // notification bell in the header already covers Activity.
   const lNavItems = [
-    { k: 'home', label: 'Overview', short: 'Home' },
-    { k: 'inbox', label: 'Activity', short: 'Activity' },
-    { k: 'props', label: 'Properties', short: 'Props' },
-    { k: 'led', label: 'Ledger', short: 'Ledger' },
-    { k: 'rep', label: 'Repairs', short: 'Repairs' },
-    { k: 'msg', label: 'Messages', short: 'Msgs' },
-    { k: 'agree', label: 'Agreements', short: 'Agree' },
-    { k: 'hra', label: 'Receipts', short: isIndia ? 'HRA' : 'Receipts' },
-    { k: 'profile', label: 'Profile', short: 'Profile' },
+    { k: 'home', label: 'This month', short: 'Home', main: true },
+    { k: 'props', label: 'Properties', short: 'Props', main: true },
+    { k: 'led', label: 'Money', short: 'Money', main: true },
+    { k: 'rep', label: 'Repairs', short: 'Repairs', main: true },
+    { k: 'msg', label: 'Messages', short: 'Msgs', main: false },
+    { k: 'agree', label: 'Agreements', short: 'Agree', main: false },
+    { k: 'hra', label: 'Receipts', short: isIndia ? 'HRA' : 'Receipts', main: false },
+    { k: 'inbox', label: 'Activity', short: 'Activity', main: false },
+    { k: 'profile', label: 'Profile', short: 'Profile', main: false },
   ]
   const tNavItems = [
-    { k: 'home', label: 'My place', short: 'Home' },
-    { k: 'inbox', label: 'Activity', short: 'Activity' },
-    { k: 'pay', label: 'Pay rent', short: 'Pay' },
-    { k: 'rep', label: 'Repairs', short: 'Repairs' },
-    { k: 'msg', label: 'Messages', short: 'Msgs' },
-    { k: 'proof', label: 'Move-in proof', short: 'Proof' },
-    { k: 'hra', label: isIndia ? 'HRA receipts' : 'Rent receipts', short: isIndia ? 'HRA' : 'Receipts' },
-    { k: 'profile', label: 'Profile', short: 'Profile' },
-    { k: 'agree', label: 'Agreement', short: 'Agree' },
-    { k: 'dep', label: 'Deposit', short: 'Deposit' },
-    { k: 'score', label: 'Renter score', short: 'Score' },
+    { k: 'home', label: 'My place', short: 'Home', main: true },
+    { k: 'pay', label: 'Pay rent', short: 'Pay', main: true },
+    { k: 'hra', label: isIndia ? 'HRA receipts' : 'Rent receipts', short: 'Receipts', main: true },
+    { k: 'rep', label: 'Repairs', short: 'Repairs', main: true },
+    { k: 'msg', label: 'Messages', short: 'Msgs', main: false },
+    { k: 'agree', label: 'Agreement', short: 'Agree', main: false },
+    { k: 'dep', label: 'Deposit', short: 'Deposit', main: false },
+    { k: 'proof', label: 'Move-in proof', short: 'Proof', main: false },
+    { k: 'score', label: 'Renter score', short: 'Score', main: false },
+    { k: 'inbox', label: 'Activity', short: 'Activity', main: false },
+    { k: 'profile', label: 'Profile', short: 'Profile', main: false },
   ]
   const navItems = role === 'landlord' ? lNavItems : tNavItems
-  // Mobile: 4 primary tabs visible + "More" for the rest
-  const mobilePrimaryCount = 4
-  const mobileTabItems = navItems.slice(0, mobilePrimaryCount)
-  const mobileMoreItems = navItems.slice(mobilePrimaryCount)
+  const mobileTabItems = navItems.filter(it => it.main)
+  const mobileMoreItems = navItems.filter(it => !it.main)
 
   // ── Shared sub-components ────────────────────────────────────────────────
 
@@ -952,8 +955,7 @@ export default function DashboardPage() {
     const [confirmEscalationId, setConfirmEscalationId] = useState<string | null>(null)
     const d = landlordData
     if (!d || (d.rentals?.length === 0 && d.buildings?.length === 0)) return <LandlordEmpty />
-    const { rentals, buildings, currentPayments, ytdTotal, totalMonthlyRent, paidThisMonth, dueThisMonth, onTimeCount, activeRentals, collectionRate, score, recentRepairs } = d
-    const band = scoreBand(score)
+    const { rentals, currentPayments, totalMonthlyRent, paidThisMonth, recentRepairs } = d
     const pct = totalMonthlyRent > 0 ? Math.min(100, Math.round(paidThisMonth / totalMonthlyRent * 100)) : 0
     const openRepairs = recentRepairs.filter((r: RepairRequest) => r.status === 'open' || r.status === 'in_progress')
     // Invites that lapsed before anyone joined. Nothing has ever told a landlord
@@ -964,30 +966,33 @@ export default function DashboardPage() {
     // it the largest single drop in the product.
     const expiredInvites = rentals.filter((r: Rental) =>
       !hasTenant(r) && r.status !== 'ended' && r.invite_expires_at && new Date(r.invite_expires_at) < new Date())
-
-    // Group rentals by building
-    const buildingRentalsMap = new Map<string, Rental[]>()
-    const standaloneRentals: Rental[] = []
-    for (const r of rentals) {
-      const bid = r.property?.building_id
-      if (bid) {
-        if (!buildingRentalsMap.has(bid)) buildingRentalsMap.set(bid, [])
-        buildingRentalsMap.get(bid)!.push(r)
-      } else {
-        standaloneRentals.push(r)
-      }
-    }
-    // Include buildings that have no rentals yet
-    const allBuildings = buildings.filter((b: Building) => !buildingRentalsMap.has(b.id) ? true : true)
+    // The home screen is this month: every tenant, what they owe, one action
+    // each. It used to lead with a collection-total hero, a landlord score and a
+    // second copy of the Properties list, with only unpaid rent as a list.
+    const month = thisMonth(rentals as Rental[], currentPayments as RentPayment[])
+    const hour = new Date().getHours()
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+    const dueOn = (r: Rental) => new Date(Number(currentMonth.slice(0, 4)), Number(currentMonth.slice(5, 7)) - 1, r.rent_due_day || 1)
+      .toLocaleDateString(region.locale, { day: 'numeric', month: 'short' })
 
     return (
       <>
         <div style={topStyle}>
-          <div>
-            <div style={eyebrowStyle}>Landlord · Overview</div>
-            <h1 style={h1Style}>Good morning, {firstName}.</h1>
-            <p style={subStyle}>You have <strong>{activeRentals.length} active unit{activeRentals.length === 1 ? '' : 's'}</strong>{dueThisMonth > 0 ? <>: <strong>{inr(dueThisMonth)} pending</strong> this month</> : ', all collections up to date'}. Score <strong>{score}/900</strong>.</p>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={eyebrowStyle}>This month · {monthLabel(currentMonth)}</div>
+            <h1 style={h1Style}>{greeting}, {firstName}.</h1>
+            <p style={subStyle}>
+              {totalMonthlyRent > 0
+                ? <><strong>{inr(paidThisMonth)}</strong> of {inr(totalMonthlyRent)} collected{month.toCollect > 0 ? <> · <strong>{month.toCollect} still to collect</strong></> : ' · everyone has paid'}</>
+                : 'Add a tenant to start tracking rent.'}
+            </p>
+            {totalMonthlyRent > 0 && (
+              <div style={{ height: 6, maxWidth: 420, background: 'var(--rb-fill-2)', borderRadius: 999, marginTop: 12, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: 'var(--rb-success)', borderRadius: 999 }} />
+              </div>
+            )}
           </div>
+          <button onClick={() => { track('property_create_started', { from: 'home_header' }); setModal('add-property') }} style={actBtnPrimary}>+ Add property</button>
         </div>
         {expiredInvites.length > 0 && (
           <section style={{ ...cardStyle, marginBottom: 16, background: 'var(--rb-action-soft)', border: '1px solid var(--rb-border-soft)' }}>
@@ -1022,158 +1027,152 @@ export default function DashboardPage() {
             </div>
           </section>
         )}
-        {/* Rent still to collect this month, each with a one-tap WhatsApp
-            reminder. The landlord's monthly job, put on the first screen. */}
-        {(() => {
-          const outstanding = currentPayments
-            .filter((p: RentPayment) => p.status === 'pending' || p.status === 'overdue' || p.status === 'partial')
-            .map((p: RentPayment) => ({ p, r: rentals.find((x: Rental) => x.id === p.rental_id) }))
-            .filter((x: { r?: Rental }) => !!x.r) as { p: RentPayment; r: Rental }[]
-          if (outstanding.length === 0) return null
-          return (
-            <section style={{ ...cardStyle, marginBottom: 16 }}>
-              <h3 style={{ ...cardH3Style, fontSize: 18, marginBottom: 6 }}>Rent to collect · {monthLabel(currentMonth)}</h3>
-              {outstanding.map(({ p, r }) => (
-                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '12px 0', borderTop: '1px solid var(--rb-border-soft)' }}>
-                  <button onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ background: 'none', border: 0, padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
+        {month.rows.length > 0 && (
+          <section style={{ ...cardStyle, marginBottom: 16 }}>
+            <h3 style={{ ...cardH3Style, fontSize: 18, marginBottom: 6 }}>Rent this month</h3>
+            {month.rows.map(({ rental: r, payment: p, status }) => {
+              const open = () => { setSelectedRental(r); setModal('property-detail') }
+              const owed = status === 'overdue' || status === 'partial' || status === 'pending'
+              const pill = {
+                overdue: { t: 'Overdue', bg: 'var(--rb-danger-soft)', c: 'var(--rb-danger)' },
+                partial: { t: 'Part paid', bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' },
+                pending: { t: `Due ${dueOn(r)}`, bg: 'var(--rb-warning-soft)', c: 'var(--rb-warning)' },
+                no_row: { t: 'Not started', bg: 'var(--rb-fill)', c: 'var(--rb-ink-3)' },
+                pending_verification: { t: 'Check payment', bg: 'var(--rb-accent-soft)', c: 'var(--rb-accent-hover)' },
+                paid: { t: 'Paid', bg: 'var(--rb-success-soft)', c: 'var(--rb-success)' },
+              }[status]
+              return (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '12px 0', borderTop: '1px solid var(--rb-border-soft)' }}>
+                  <button onClick={open} style={{ background: 'none', border: 0, padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', minWidth: 0, flex: '1 1 200px' }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--rb-ink)' }}>{tenantNameOf(r) || 'Tenant'} <span style={{ fontWeight: 400, color: 'var(--rb-ink-3)' }}>· {r.property?.name || 'Unit'}</span></div>
-                    <div style={{ fontSize: 12, marginTop: 2, color: p.status === 'overdue' ? 'var(--rb-danger)' : 'var(--rb-ink-3)' }}>
-                      {inr(Number(p.amount) + Number(p.late_fee || 0))} · {p.status === 'overdue' ? 'Overdue' : `Due ${new Date(Number(currentMonth.slice(0, 4)), Number(currentMonth.slice(5, 7)) - 1, r.rent_due_day || 1).toLocaleDateString(region.locale, { day: 'numeric', month: 'short' })}`}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                      <span style={{ fontSize: 13, color: 'var(--rb-ink-2)' }}>{inr(Number(p?.amount ?? r.monthly_rent) + Number(p?.late_fee || 0))}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: pill.bg, color: pill.c }}>{pill.t}</span>
                     </div>
                   </button>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {!r.tenant_id && (
-                      <button onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid var(--rb-action)', background: 'var(--rb-action)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Mark received</button>
+                    {/* A tenant without an account cannot record a payment, so the
+                        landlord does. One with an account pays in the app and the
+                        landlord reviews it. */}
+                    {owed && !r.tenant_id && (
+                      <button onClick={open} style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid var(--rb-action)', background: 'var(--rb-action)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Mark received</button>
                     )}
-                    {p.share_token && (
+                    {status === 'pending_verification' && (
+                      <button onClick={open} style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid var(--rb-action)', background: 'var(--rb-action)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Review payment</button>
+                    )}
+                    {status === 'no_row' && (
+                      <button onClick={open} style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid var(--rb-border-strong)', background: 'transparent', color: 'var(--rb-ink-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Open</button>
+                    )}
+                    {p?.share_token && (owed || status === 'paid') && (
                       <RentShareButtons row={{ ...p, share_token: p.share_token, late_fee: p.late_fee ?? null }} tenantName={tenantNameOf(r)}
                         waPhone={phoneForWhatsApp(r.tenant?.phone || r.tenant_phone, region.phoneDialCode, region.phoneLocalLength)}
                         propertyName={r.property?.name} money={inr} monthLabel={monthLabel} toast={toast} />
                     )}
                   </div>
                 </div>
-              ))}
-            </section>
-          )
-        })()}
-        <div className="d-grid-inner" style={gridStyle}>
-          <section style={{ ...cardStyle, gridColumn: 'span 2', background: 'linear-gradient(135deg,#0F4C5C,#163A47)', color: '#F6F4EE', border: 0 }}>
-            <div style={{ fontFamily: 'var(--rb-font-mono)', fontSize: 11, letterSpacing: '.14em', color: 'rgba(246,244,238,.6)' }}>COLLECTED · {monthLabel(currentMonth).toUpperCase()}</div>
-            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 56, lineHeight: 1, letterSpacing: '-.025em', marginTop: 10 }}>{inr(paidThisMonth)} <span style={{ fontSize: 24, color: 'rgba(246,244,238,.5)' }}>/ {inr(totalMonthlyRent)}</span></div>
-            <div style={{ height: 6, background: 'rgba(246,244,238,.12)', borderRadius: 999, marginTop: 18, overflow: 'hidden' }}><div style={{ height: '100%', width: `${pct}%`, background: 'var(--rb-accent)', borderRadius: 999 }} /></div>
-            <div className="d-stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginTop: 22, paddingTop: 20, borderTop: '1px solid rgba(246,244,238,.12)' }}>
-              {[{ l: 'On time', v: `${onTimeCount} / ${activeRentals.length}` }, { l: 'Pending', v: dueThisMonth > 0 ? inr(dueThisMonth) : '—', accent: true }, { l: 'YTD income', v: ytdTotal > 100000 ? (ytdTotal/100000).toFixed(1)+'L' : inr(ytdTotal) }, { l: 'Score', v: `${score}`, of: '/900' }].map(s => (
-                <div key={s.l}><div style={{ fontSize: 11, color: 'rgba(246,244,238,.55)', letterSpacing: '.08em', textTransform: 'uppercase' as const }}>{s.l}</div><div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 24, marginTop: 4, color: s.accent ? 'var(--rb-accent)' : undefined }}>{s.v}{s.of && <span style={{ fontSize: 14, color: 'rgba(246,244,238,.5)' }}>{s.of}</span>}</div></div>
-              ))}
-            </div>
+              )
+            })}
           </section>
+        )}
 
-          <section style={cardStyle}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)' }}>Landlord score</div>
-            <div style={{ fontFamily: 'var(--rb-font-display)', fontSize: 64, lineHeight: 1, marginTop: 10, letterSpacing: '-.03em', color: 'var(--rb-accent)' }}>{score}</div>
-            <span style={{ display: 'inline-block', marginTop: 8, padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: '.12em', background: 'var(--rb-accent-soft)', color: 'var(--rb-accent)' }}>{band.label}</span>
-            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[{ l: `Collection rate · ${collectionRate}%`, w: collectionRate }, { l: `${rentals.length} unit${rentals.length===1?'':'s'} · ${buildings.length} building${buildings.length===1?'':'s'}`, w: Math.min(100, rentals.length * 20) }, { l: openRepairs.length === 0 ? 'No open repairs' : `${openRepairs.length} open repair${openRepairs.length>1?'s':''}`, w: openRepairs.length === 0 ? 100 : Math.max(10, 100 - openRepairs.length * 20) }].map(b => (
-                <div key={b.l}><span style={{ fontSize: 12, color: 'var(--rb-ink-2)' }}>{b.l}</span><div style={{ height: 4, background: 'var(--rb-fill-2)', borderRadius: 4, marginTop: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: `${b.w}%`, background: 'var(--rb-accent)', borderRadius: 4 }} /></div></div>
-              ))}
-            </div>
-          </section>
-
-          <section style={{ ...cardStyle, gridColumn: 'span 2' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
-              <div><h3 style={cardH3Style}>Portfolio</h3><span style={{ fontSize: 12, color: 'var(--rb-ink-3)', display: 'block', marginTop: 4 }}>{buildings.length} building{buildings.length!==1?'s':''} · {standaloneRentals.length} standalone · {activeRentals.length} active</span></div>
-              <button onClick={() => { track('property_create_started', { from: 'properties_header' }); setModal('add-property') }} style={actBtnPrimary}>+ Add</button>
-            </div>
-            {allBuildings.map((b: Building) => (
-              <BuildingCard key={b.id} building={b} rentals={buildingRentalsMap.get(b.id) || []} currentPayments={currentPayments} />
-            ))}
-            {standaloneRentals.length > 0 && (
-              <>
-                {allBuildings.length > 0 && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: 'var(--rb-ink-3)', margin: '20px 0 12px' }}>Standalone properties</div>}
-                <StandaloneList rentals={standaloneRentals} currentPayments={currentPayments} />
-              </>
-            )}
-            {allBuildings.length === 0 && standaloneRentals.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--rb-ink-3)', fontSize: 14 }}>No properties yet.</div>
-            )}
-          </section>
-
-          {(() => {
-            const escalating = activeRentals.filter((r: Rental) => escalationDueDays(r) !== null)
-            if (escalating.length === 0) return null
-            return (
-              <section style={{ ...cardStyle, gridColumn: 'span 2', padding: '16px 20px' }}>
-                <h3 style={{ ...cardH3Style, marginBottom: 14, fontSize: 18 }}>Rent revisions due</h3>
-                {escalating.map((r: Rental) => {
-                  const days = escalationDueDays(r)!
-                  const newRent = Math.round(Number(r.monthly_rent) * (1 + Number(r.rent_increment_percent || 5) / 100))
-                  return (
-                    <div key={r.id} style={{ borderBottom: '1px solid var(--rb-border-soft)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', flexShrink: 0, color: 'var(--rb-action)' }}><Icon k="trending" size={17} stroke={2} /></div>
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: 13 }}>{r.property?.name || '—'}</div>
-                            <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{tenantNameOf(r) || '—'} · {inr(r.monthly_rent)} → {inr(newRent)} · in {days} day{days !== 1 ? 's' : ''}</div>
-                          </div>
-                        </div>
-                        <button onClick={() => setConfirmEscalationId(r.id)} style={{ padding: '8px 16px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>Apply now</button>
-                      </div>
-                      {confirmEscalationId === r.id && (
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--rb-border-soft)' }}>
-                          <span style={{ fontSize: 12, color: 'var(--rb-ink-2)', flex: 1 }}>Apply rent change? This cannot be undone.</span>
-                          <button onClick={() => { setSelectedRental(r); setModal('apply-escalation'); setConfirmEscalationId(null) }} style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--rb-action)', border: 0, borderRadius: 999, padding: '5px 14px', cursor: 'pointer', fontFamily: 'inherit' }}>Confirm</button>
-                          <button onClick={() => setConfirmEscalationId(null)} style={{ fontSize: 12, color: 'var(--rb-ink-3)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </section>
-            )
-          })()}
-
-          {/* Activity snapshot */}
-          {notifications.length > 0 && (
-            <section style={{ ...cardStyle, gridColumn: 'span 2', padding: 0, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--rb-border-soft)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <h3 style={{ ...cardH3Style, margin: 0 }}>Activity</h3>
-                  <span style={{ minWidth: 18, height: 18, borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 4px' }}>{notifications.length}</span>
+        {month.vacant.length > 0 && (
+          <section style={{ ...cardStyle, marginBottom: 16 }}>
+            <h3 style={{ ...cardH3Style, fontSize: 18, marginBottom: 2 }}>No tenant yet</h3>
+            <p style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginBottom: 6 }}>Add their name to start tracking rent. They don&rsquo;t need to sign up.</p>
+            {month.vacant.slice(0, 6).map((r: Rental) => (
+              <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: '1px solid var(--rb-border-soft)' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--rb-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.property?.name || 'Unit'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{inr(r.monthly_rent)}/month</div>
                 </div>
-                <button onClick={() => navigate('inbox')} style={{ fontSize: 12, color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>View all →</button>
+                <button onClick={() => { setSelectedRental(r); setModal('property-detail') }} style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid var(--rb-action)', background: 'transparent', color: 'var(--rb-action)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>+ Add tenant</button>
               </div>
-              {notifications.slice(0, 3).map(n => {
-                const d = n.data || {}
-                const iconK = (n.type === 'payment_received' || n.type === 'pending_verification') ? 'led' : d.type === 'move_in_proof' ? 'proof' : (d.urgency !== undefined || d.category !== undefined) ? 'rep' : 'inbox'
-                const iconBg = (n.type === 'payment_received' || n.type === 'pending_verification') ? 'var(--rb-action-soft)' : d.type === 'move_in_proof' ? 'var(--rb-success-soft, #e6faf5)' : (d.urgency === 'emergency') ? 'var(--rb-danger-soft, #fef2f2)' : 'var(--rb-fill-2)'
-                const iconC = (n.type === 'payment_received' || n.type === 'pending_verification') ? 'var(--rb-action)' : d.type === 'move_in_proof' ? 'var(--rb-success)' : (d.urgency === 'emergency') ? 'var(--rb-danger)' : 'var(--rb-ink-3)'
+            ))}
+            {month.vacant.length > 6 && (
+              <button onClick={() => navigate('props')} style={{ marginTop: 8, fontSize: 12, color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                {month.vacant.length - 6} more in Properties →
+              </button>
+            )}
+          </section>
+        )}
+
+        {/* Only what needs attention. Nothing here means nothing to do. */}
+        {openRepairs.length > 0 && (
+          <button onClick={() => navigate('rep')} style={{ ...cardStyle, marginBottom: 16, width: '100%', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <span style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--rb-warning-soft)', color: 'var(--rb-warning)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon k="wrench" size={17} stroke={1.8} /></span>
+            <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--rb-ink)' }}>{openRepairs.length} open repair{openRepairs.length === 1 ? '' : 's'}</span>
+            <span style={{ fontSize: 12, color: 'var(--rb-action)', fontWeight: 600 }}>Review →</span>
+          </button>
+        )}
+
+        {(() => {
+          const escalating = rentals.filter((r: Rental) => r.status === 'active' && escalationDueDays(r) !== null)
+          if (escalating.length === 0) return null
+          return (
+            <section style={{ ...cardStyle, marginBottom: 16, padding: '16px 20px' }}>
+              <h3 style={{ ...cardH3Style, marginBottom: 14, fontSize: 18 }}>Rent revisions due</h3>
+              {escalating.map((r: Rental) => {
+                const days = escalationDueDays(r)!
+                const newRent = Math.round(Number(r.monthly_rent) * (1 + Number(r.rent_increment_percent || 5) / 100))
                 return (
-                  <div key={n.id} onClick={() => handleNotifTap(n)} style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 12, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid var(--rb-border-soft)', cursor: 'pointer' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: iconBg, display: 'grid', placeItems: 'center', color: iconC }}>
-                      <Icon k={iconK} size={16} stroke={1.8} />
+                  <div key={r.id} style={{ borderBottom: '1px solid var(--rb-border-soft)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--rb-action-soft)', display: 'grid', placeItems: 'center', flexShrink: 0, color: 'var(--rb-action)' }}><Icon k="trending" size={17} stroke={2} /></div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{r.property?.name || '—'}</div>
+                          <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2 }}>{tenantNameOf(r) || '—'} · {inr(r.monthly_rent)} → {inr(newRent)} · in {days} day{days !== 1 ? 's' : ''}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => setConfirmEscalationId(r.id)} style={{ padding: '8px 16px', borderRadius: 999, background: 'var(--rb-action)', color: '#fff', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>Apply now</button>
                     </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{n.title}</div>
-                      <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.body}</div>
-                    </div>
-                    <span style={{ fontSize: 11, color: 'var(--rb-ink-3)', flexShrink: 0 }}>{relDateFmt(n.created_at)}</span>
+                    {confirmEscalationId === r.id && (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--rb-border-soft)' }}>
+                        <span style={{ fontSize: 12, color: 'var(--rb-ink-2)', flex: 1 }}>Apply rent change? This cannot be undone.</span>
+                        <button onClick={() => { setSelectedRental(r); setModal('apply-escalation'); setConfirmEscalationId(null) }} style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--rb-action)', border: 0, borderRadius: 999, padding: '5px 14px', cursor: 'pointer', fontFamily: 'inherit' }}>Confirm</button>
+                        <button onClick={() => setConfirmEscalationId(null)} style={{ fontSize: 12, color: 'var(--rb-ink-3)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </section>
-          )}
+          )
+        })()}
 
-          <section style={cardStyle}>
-            <h3 style={cardH3Style}>Quick actions</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14 }}>
-              {[{ icon: 'building', label: 'Add building', sub: 'Multi-unit complex', fn: () => setModal('add-building') }, { icon: 'home', label: 'Standalone unit', sub: 'Single property', fn: () => setModal('add-property') }, { icon: 'wrench', label: 'Repairs', sub: 'Review open requests', fn: () => navigate('rep') }, { icon: 'list', label: 'Full ledger', sub: 'All transactions', fn: () => navigate('led') }].map(a => (
-                <button key={a.label} onClick={a.fn} style={{ padding: 14, background: 'var(--rb-surface)', border: '1px solid var(--rb-border-soft)', borderRadius: 10, textAlign: 'left', cursor: 'pointer', transition: 'all .2s', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ color: 'var(--rb-action)' }}><Icon k={a.icon} size={20} stroke={1.8} /></span><strong style={{ fontSize: 13, color: 'var(--rb-ink)' }}>{a.label}</strong><span style={{ fontSize: 11, color: 'var(--rb-ink-3)' }}>{a.sub}</span>
-                </button>
-              ))}
+        {notifications.length > 0 && (
+          <section style={{ ...cardStyle, marginBottom: 16, padding: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--rb-border-soft)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h3 style={{ ...cardH3Style, margin: 0 }}>New activity</h3>
+                <span style={{ minWidth: 18, height: 18, borderRadius: 999, background: 'var(--rb-danger)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 4px' }}>{notifications.length}</span>
+              </div>
+              <button onClick={() => navigate('inbox')} style={{ fontSize: 12, color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>View all →</button>
             </div>
+            {notifications.slice(0, 3).map(n => {
+              const d = n.data || {}
+              const iconK = (n.type === 'payment_received' || n.type === 'pending_verification') ? 'led' : d.type === 'move_in_proof' ? 'proof' : (d.urgency !== undefined || d.category !== undefined) ? 'rep' : 'inbox'
+              const iconBg = (n.type === 'payment_received' || n.type === 'pending_verification') ? 'var(--rb-action-soft)' : d.type === 'move_in_proof' ? 'var(--rb-success-soft, #e6faf5)' : (d.urgency === 'emergency') ? 'var(--rb-danger-soft, #fef2f2)' : 'var(--rb-fill-2)'
+              const iconC = (n.type === 'payment_received' || n.type === 'pending_verification') ? 'var(--rb-action)' : d.type === 'move_in_proof' ? 'var(--rb-success)' : (d.urgency === 'emergency') ? 'var(--rb-danger)' : 'var(--rb-ink-3)'
+              return (
+                <div key={n.id} onClick={() => handleNotifTap(n)} style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 12, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid var(--rb-border-soft)', cursor: 'pointer' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: iconBg, display: 'grid', placeItems: 'center', color: iconC }}>
+                    <Icon k={iconK} size={16} stroke={1.8} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rb-ink)' }}>{n.title}</div>
+                    <div style={{ fontSize: 12, color: 'var(--rb-ink-3)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.body}</div>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--rb-ink-3)', flexShrink: 0 }}>{relDateFmt(n.created_at)}</span>
+                </div>
+              )
+            })}
           </section>
+        )}
+
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', padding: '4px 2px' }}>
+          <button onClick={() => navigate('props')} style={{ fontSize: 13, color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, padding: 0 }}>All properties →</button>
+          <button onClick={() => navigate('led')} style={{ fontSize: 13, color: 'var(--rb-action)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, padding: 0 }}>Money &amp; ledger →</button>
         </div>
       </>
     )
@@ -5335,15 +5334,22 @@ export default function DashboardPage() {
           </Link>
 
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-            {navItems.map(it => (
-              <button key={it.k} onClick={() => navigate(it.k)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, background: activeView === it.k ? 'var(--rb-ink)' : 'transparent', color: activeView === it.k ? 'var(--rb-canvas)' : 'var(--rb-ink-2)', border: 0, fontFamily: 'inherit', fontSize: 14, cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all .2s' }}>
-                <span style={{ width: 22, display: 'grid', placeItems: 'center' }}><NavIcon k={it.k} size={18} active={activeView === it.k} /></span>
-                <span style={{ flex: 1 }}>{it.label}</span>
-                {it.k === 'inbox' && notifications.length > 0 && (
-                  <span style={{ minWidth: 18, height: 18, borderRadius: 999, background: activeView === 'inbox' ? 'rgba(255,255,255,.3)' : 'var(--rb-danger)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 4px' }}>{notifications.length > 9 ? '9+' : notifications.length}</span>
-                )}
-              </button>
-            ))}
+            {navItems.map((it, i) => {
+              const active = activeView === it.k
+              const firstMore = !it.main && (i === 0 || navItems[i - 1].main)
+              return (
+                <div key={it.k}>
+                  {firstMore && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--rb-ink-3)', padding: '18px 12px 6px' }}>More</div>}
+                  <button onClick={() => navigate(it.k)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: it.main ? '10px 12px' : '7px 12px', borderRadius: 10, background: active ? 'var(--rb-ink)' : 'transparent', color: active ? 'var(--rb-canvas)' : it.main ? 'var(--rb-ink)' : 'var(--rb-ink-3)', border: 0, fontFamily: 'inherit', fontSize: it.main ? 14 : 13, fontWeight: it.main ? 600 : 400, cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all .2s' }}>
+                    <span style={{ width: 22, display: 'grid', placeItems: 'center' }}><NavIcon k={it.k} size={it.main ? 18 : 16} active={active} /></span>
+                    <span style={{ flex: 1 }}>{it.label}</span>
+                    {it.k === 'inbox' && notifications.length > 0 && (
+                      <span style={{ minWidth: 18, height: 18, borderRadius: 999, background: active ? 'rgba(255,255,255,.3)' : 'var(--rb-danger)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 4px' }}>{notifications.length > 9 ? '9+' : notifications.length}</span>
+                    )}
+                  </button>
+                </div>
+              )
+            })}
           </nav>
 
           <div style={{ paddingTop: 18, borderTop: '1px solid var(--rb-border)' }}>
